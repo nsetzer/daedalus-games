@@ -2803,14 +2803,22 @@ scenes=(function(engine){
         this.width=width;
         this.height=height;
         this.ready=false;
-        this.max_iter_steps=1000;
+        this.timer=0;
+        this.delay=0.05;
+        this.max_iter_steps=10;
         this.current_step=0;
         this.C=[];
         this.steps=[this.do_step_init.bind(this),this.do_step_carve_init.bind(this),
                   this.do_step_carve.bind(this),this.do_step_uncarve_init.bind(this),this.do_step_uncarve.bind(
-                      this),this.do_transition.bind(this)];
+                      this),this.do_transition_init.bind(this),this.do_transition.bind(this)];
+        
       }
       update(dt){
+        this.timer+=dt;
+        if(this.timer<this.delay){
+          return;
+        }
+        this.timer-=this.delay;
         if(this.current_step<this.steps.length){
           let step=this.steps[this.current_step];
           if(step()){
@@ -2949,6 +2957,11 @@ scenes=(function(engine){
           }
         }
         return this.uy>=this.height-1;
+      }
+      do_transition_init(){
+        this.timer=0;
+        this.delay=2.0;
+        return true;
       }
       do_transition(){
         let data={walls:[],breakable_walls:[],start:{x:1,y:1},width:this.width,height:this.height};
