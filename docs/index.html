@@ -1520,12 +1520,32 @@ engine=(function(daedalus){
     const HeaderElement=daedalus.HeaderElement;
     const ButtonElement=daedalus.ButtonElement;
     const LinkElement=daedalus.LinkElement;
+    function randomNumber(min,max){
+      return Math.round(Math.random()*(max-min)+min);
+    }
+    function randomRange(min,max){
+      return randomNumber(min,max-1);
+    }
+    function shuffle(array){
+      let currentIndex=array.length,randomIndex;
+      while(currentIndex!=0){
+        randomIndex=Math.floor(Math.random()*currentIndex);
+        currentIndex--;
+        [array[currentIndex],array[randomIndex]]=[array[randomIndex],array[currentIndex]];
+        
+      }
+      return array;
+    }
     const Direction={NONE:0,LEFT:1,RIGHT:2,UP:4,DOWN:8,UPLEFT:5,UPRIGHT:6,DOWNLEFT:9,
-          DOWNRIGHT:10};
+          DOWNRIGHT:10,UPDOWN:12,LEFTRIGHT:3,ALL:15};
     Direction.name=Object.fromEntries(Object.entries(Direction).map(([key,value])=>[
                   value,key]));
     Direction.order=[Direction.RIGHT,Direction.UPRIGHT,Direction.UP,Direction.UPLEFT,
           Direction.LEFT,Direction.DOWNLEFT,Direction.DOWN,Direction.DOWNRIGHT];
+    Direction.flip={[Direction.UP]:Direction.DOWN,[Direction.UPRIGHT]:Direction.DOWNLEFT,
+          [Direction.RIGHT]:Direction.LEFT,[Direction.DOWNRIGHT]:Direction.UPLEFT,[Direction.DOWN]:Direction.UP,
+          [Direction.DOWNLEFT]:Direction.UPRIGHT,[Direction.LEFT]:Direction.RIGHT,[Direction.UPLEFT]:Direction.DOWNRIGHT};
+    
     Direction.fromVector=function(x,y){
       const theta=Math.atan2(y,-x)*180/Math.PI;
       let index=4+Math.round(theta/45);
@@ -1579,10 +1599,10 @@ engine=(function(daedalus){
     class SpriteSheetBuilder{
       constructor(){
         this._path="";
-        this._tw=0;
-        this._th=0;
-        this._rows=0;
-        this._cols=0;
+        this._tw=32;
+        this._th=32;
+        this._rows=1;
+        this._cols=1;
         this._xspacing=0;
         this._yspacing=0;
         this._xoffset=0;
@@ -1613,7 +1633,6 @@ engine=(function(daedalus){
         return this;
       }
       build(){
-        console.log([this._path,this._tw,this._th,this._rows,this._cols]);
         let ss=new SpriteSheet(this._path);
         ss.tw=this._tw;
         ss.th=this._th;
@@ -1674,6 +1693,18 @@ engine=(function(daedalus){
       cy(){
         return Math.floor(this.y+this.h/2);
       }
+      top(){
+        return this.y;
+      }
+      right(){
+        return this.x+this.w;
+      }
+      bottom(){
+        return this.y+this.h;
+      }
+      left(){
+        return this.x;
+      }
       intersect(other){
         let l1=this.x;
         let l2=other.x;
@@ -1722,6 +1753,9 @@ engine=(function(daedalus){
         this.group=null;
         this.map_width=640;
         this.map_height=320;
+        this.xcollide=false;
+        this.ycollide=false;
+        this.collide=false;
       }
       collidePoint(x,y){
         for(let i=0;i<this.group.length;i++)
@@ -1737,6 +1771,9 @@ engine=(function(daedalus){
         this.yimpulse=dy;
       }
       update(dt){
+        this.xcollide=false;
+        this.ycollide=false;
+        this.collide=false;
         let rect,solid;
         let dx,dy;
         if(this.ximpulse!=0||this.yimpulse!=0){
@@ -1766,6 +1803,8 @@ engine=(function(daedalus){
         }
         if(!solid){
           this.target.rect=rect;
+        }else{
+          this.xcollide=true;
         }
         rect=new Rect(this.target.rect.x,this.target.rect.y+dy,this.target.rect.w,
                   this.target.rect.h);
@@ -1779,7 +1818,10 @@ engine=(function(daedalus){
         }
         if(!solid){
           this.target.rect=rect;
+        }else{
+          this.ycollide=true;
         }
+        this.collide=this.xcollide||this.ycollide;
       }
     }
     class Animation{
@@ -1882,6 +1924,7 @@ engine=(function(daedalus){
     }
     class Entity{
       constructor(){
+        this.active=true;
         this.sprite=null;
         this.rect=new Rect(0,0,0,0);
         this.physics=new Physics2d(this);
@@ -1911,7 +1954,7 @@ engine=(function(daedalus){
           if(!this.keysDown.includes(kc)){
             this.keysDown.push(kc);
           }
-          this.target.setInputDirection(this.getDirection(this.keysDown));
+          this.target.setInputDirection(0,this.getDirection(this.keysDown));
         }else{
           let match=0;
           for(let i=0;i<this.buttons.length;i++)
@@ -1928,11 +1971,11 @@ engine=(function(daedalus){
       }
       handleRelease(kc){
         if(kc>=37&&kc<=40){
-          var index=this.keysDown.indexOf(kc);
+          let index=this.keysDown.indexOf(kc);
           if(index!==-1){
             this.keysDown.splice(index,1);
           }
-          this.target.setInputDirection(this.getDirection(this.keysDown));
+          this.target.setInputDirection(0,this.getDirection(this.keysDown));
         }else{
           let match=0;
           for(let i=0;i<this.buttons.length;i++)
@@ -1976,20 +2019,20 @@ engine=(function(daedalus){
         this.touch_move=null;
         this.resize();
       }
-      handleMove(tx,ty){
+      handleMove(whlid,tx,ty){
         if(this.target===null){
           return;
         }
-        const cx=this.wheels[0].cx;
-        const cy=this.wheels[0].cy;
+        const cx=this.wheels[whlid].cx;
+        const cy=this.wheels[whlid].cy;
         const d=Direction.fromVector(tx-cx,ty-cy);
-        this.target.setInputDirection(d);
+        this.target.setInputDirection(whlid,d);
       }
-      handleMoveCancel(){
+      handleMoveCancel(whlid){
         if(this.target===null){
           return;
         }
-        this.target.setInputDirection(0);
+        this.target.setInputDirection(whlid,0);
       }
       handleButtonPress(btnid){
         if(this.target===null){
@@ -2029,25 +2072,32 @@ engine=(function(daedalus){
             this.handleButtonRelease(j);
           }
         }
+        let wheel_events={};
         let touch_move=null;
-        for(let i=0;i<touches.length;i++)
+        for(let j=0;j<this.wheels.length;j++)
         {
-          let touch=touches[i];
-          if(touch.x<320){
-            touch_move=touch;
-            break;
+          let wheel=this.wheels[j];
+          let touched=false;
+          for(let i=touches.length-1;i>=0;i--)
+          {
+            let touch=touches[i];
+            const dx=wheel.cx-touch.x;
+            const dy=wheel.cy-touch.y;
+            const dr=wheel.radius*2;
+            if((dx*dx+dy*dy)<dr*dr){
+              touched=true;
+              this.handleMove(j,touch.x,touch.y);
+              touches.splice(i,1);
+              break;
+            }
           }
-        }
-        if(touch_move===null&&this.touch_move!==null){
-          this.touch_move=null;
-          this.handleMoveCancel();
-        }else if(touch_move){
-          this.touch_move=touch_move;
-          this.handleMove(touch_move.x,touch_move.y);
+          if(!touched){
+            this.handleMoveCancel(j);
+          }
         }
       }
       resize(){
-        let radius=96;
+        let radius=(gEngine.view.height*.2);
         this.wheels=[{cx:radius,cy:gEngine.view.height-radius,radius:radius}];
         radius=32;
         this.buttons=[{cx:gEngine.view.width-radius,cy:gEngine.view.height-3*radius,
@@ -2057,14 +2107,13 @@ engine=(function(daedalus){
       paint(ctx){
         ctx.lineWidth=2;
         ctx.strokeStyle='red';
-        ctx.beginPath();
         for(let w=0;w<this.wheels.length;w++)
         {
           const e2=Math.floor(this.wheels[w].radius);
           const e3=Math.floor(this.wheels[w].radius*.7071);
           const cx=Math.floor(this.wheels[w].cx);
           const cy=Math.floor(this.wheels[w].cy);
-          ctx.moveTo(0,0);
+          ctx.beginPath();
           ctx.moveTo(cx-e3,cy-e3);
           ctx.lineTo(cx+e3,cy+e3);
           ctx.moveTo(cx+e3,cy-e3);
@@ -2079,8 +2128,8 @@ engine=(function(daedalus){
         }
         for(let i=0;i<this.buttons.length;i++)
         {
-          ctx.beginPath();
           let btn=this.buttons[i];
+          ctx.beginPath();
           ctx.arc(btn.cx,btn.cy,btn.radius,0,2*Math.PI);
           ctx.stroke();
         }
@@ -2092,6 +2141,9 @@ engine=(function(daedalus){
       }
     }
     class GameScene{
+      pause(paused){
+
+      }
       update(dt){
 
       }
@@ -2099,6 +2151,15 @@ engine=(function(daedalus){
 
       }
       resize(){
+
+      }
+      handleTouches(touches){
+
+      }
+      handleKeyPress(keyCode){
+
+      }
+      handleKeyRelease(keyCode){
 
       }
     }
@@ -2112,14 +2173,16 @@ engine=(function(daedalus){
         this.delta_accum=0;
         this.view={x:0,y:0,width:640,height:320,rotate:0,scale:1,availWidth:0,availHeight:0};
         
+        this.touch_event=null;
+        this.paused=false;
       }
       elementMounted(){
         this.ctx=this.getDomNode().getContext("2d");
-        console.log(`set context ${this.ctx}`);
+        console.log(`2d context created}`);
         this.handleResize(this.props.width,this.props.height);
         window.requestAnimationFrame(this.render.bind(this));
       }
-      _getMouseToches(event){
+      _getMouseTouches(event){
         event.preventDefault();
         const rect=this.getDomNode().getBoundingClientRect();
         const x=(event.clientX-rect.left)/this.view.scale-this.view.x;
@@ -2128,30 +2191,30 @@ engine=(function(daedalus){
       }
       onMouseDown(event){
         if(event.buttons&1){
-          const touches=this._getMouseToches(event);
-          this.scene.touch.handleTouches(touches);
+          const touches=this._getMouseTouches(event);
+          if(!this.paused){
+            this.scene.handleTouches(touches);
+          }
         }
       }
       onMouseMove(event){
-        event.preventDefault();
         if(event.buttons&1){
-          const touches=this._getMouseToches(event);
-          this.scene.touch.handleTouches(touches);
+          const touches=this._getMouseTouches(event);
+          if(!this.paused){
+            this.scene.handleTouches(touches);
+          }
         }
       }
       onMouseUp(event){
-        event.preventDefault();
-        this.scene.touch.handleTouches([]);
+        if(!this.paused){
+          this.scene.handleTouches([]);
+        }
       }
       _getTouches(event){
         event.preventDefault();
         const rect=this.getDomNode().getBoundingClientRect();
         return Array.from(event.targetTouches).map(touch=>{
             if(this.view.rotate){
-              console.log("on touch",this.view.x,this.view.y);
-              console.log("on touch client",touch.clientX,touch.clientY);
-              console.log("on touch rect",rect.left,rect.top);
-              console.log(touch.clientX,rect.left,this.view.x);
               return{"x":(touch.clientY-rect.top-this.view.x),"y":this.view.height-(
                                   touch.clientX-rect.left-this.view.y)};
             }else{
@@ -2162,15 +2225,24 @@ engine=(function(daedalus){
       }
       onTouchStart(event){
         const touches=this._getTouches(event);
-        this.scene.touch.handleTouches(touches);
+        console.log("start",touches.length,[...touches]);
+        if(!this.paused){
+          this.scene.handleTouches(touches);
+        }
       }
       onTouchMove(event){
         const touches=this._getTouches(event);
-        this.scene.touch.handleTouches(touches);
+        console.log("move",touches.length,[...touches]);
+        if(!this.paused){
+          this.scene.handleTouches(touches);
+        }
       }
       onTouchEnd(event){
         const touches=this._getTouches(event);
-        this.scene.touch.handleTouches(touches);
+        console.log("end",touches.length,[...touches]);
+        if(!this.paused){
+          this.scene.handleTouches(touches);
+        }
       }
       handleResize(width,height){
         this.view.x=32;
@@ -2202,27 +2274,38 @@ engine=(function(daedalus){
         if(!daedalus.platform.isMobile&&!this.view.rotate){
           this.view.x=Math.floor((width-(this.view.width*this.view.scale))/(2*this.view.scale));
           
-        }
-        if(daedalus.platform.isMobile&&this.view.rotate){
+          this.view.y=Math.min(32,Math.floor((height-(this.view.height*this.view.scale))/(
+                              2*this.view.scale)));
+        }else if(daedalus.platform.isMobile&&this.view.rotate){
           this.view.x=Math.floor((height-(this.view.width*this.view.scale))/(2*this.view.scale));
           
           this.view.y=Math.floor((width-(this.view.height*this.view.scale))/(2*this.view.scale));
           
+        }else{
+          this.view.x=0;
+          this.view.y=0;
         }
         this.scene.resize();
       }
       handleKeyPress(event){
         const kc=event.keyCode;
         if(kc<112){
-          this.scene.keyboard.handlePress(kc);
-          event.preventDefault();
+          if(kc==19){
+            this.paused=!this.paused;
+            this.scene.pause(this.paused);
+          }else if(!this.paused){
+            this.scene.handleKeyPress(kc);
+            event.preventDefault();
+          }
         }
       }
       handleKeyRelease(event){
         const kc=event.keyCode;
-        if(kc<112){
-          this.scene.keyboard.handleRelease(kc);
-          event.preventDefault();
+        if(kc<112&&kc!=19){
+          if(!this.paused){
+            this.scene.handleKeyRelease(kc);
+            event.preventDefault();
+          }
         }
       }
       renderFrame(){
@@ -2245,18 +2328,20 @@ engine=(function(daedalus){
         this.scene.paint(ctx);
       }
       render(){
-        var now=performance.now();
+        let now=performance.now();
+        let dt=0.016666666666666666;
         if(this.lastTime!=null){
-          this.delta_accum+=(now-this.lastTime)/1000.0;
-          let dt=0.016666666666666666;
-          let n=0;
-          while(this.delta_accum>dt){
-            this.delta_accum-=dt;
-            this.scene.update(dt);
-            n+=1;
-          }
-          if(n>0){
-            this.renderFrame();
+          if(!this.paused){
+            this.delta_accum+=(now-this.lastTime)/1000.0;
+            let n=0;
+            while(this.delta_accum>dt){
+              this.delta_accum-=dt;
+              this.scene.update(dt);
+              n+=1;
+            }
+            if(n>0){
+              this.renderFrame();
+            }
           }
           this.fps=Math.floor(1.0/dt);
         }
@@ -2265,11 +2350,14 @@ engine=(function(daedalus){
       }
     }
     return{Animation,CanvasEngine,CharacterComponent,Direction,Entity,GameScene,KeyboardInput,
-          Physics2d,Rect,Sound,Sprite,SpriteSheet,SpriteSheetBuilder,Tile,TouchInput};
-    
+          Physics2d,Rect,Sound,Sprite,SpriteSheet,SpriteSheetBuilder,Tile,TouchInput,
+          randomNumber,randomRange,shuffle};
   })(daedalus);
 scenes=(function(engine){
     "use strict";
+    const randomRange=engine.randomRange;
+    const randomNumber=engine.randomNumber;
+    const shuffle=engine.shuffle;
     const Sound=engine.Sound;
     const Sprite=engine.Sprite;
     const SpriteSheetBuilder=engine.SpriteSheetBuilder;
@@ -2281,19 +2369,6 @@ scenes=(function(engine){
     const Entity=engine.Entity;
     const CharacterComponent=engine.CharacterComponent;
     const GameScene=engine.GameScene;
-    function randomNumber(min,max){
-      return Math.round(Math.random()*(max-min)+min);
-    }
-    function shuffle(array){
-      let currentIndex=array.length,randomIndex;
-      while(currentIndex!=0){
-        randomIndex=Math.floor(Math.random()*currentIndex);
-        currentIndex--;
-        [array[currentIndex],array[randomIndex]]=[array[randomIndex],array[currentIndex]];
-        
-      }
-      return array;
-    }
     const RES_ROOT="static";
     class Camera{
       constructor(map,target){
@@ -2301,6 +2376,15 @@ scenes=(function(engine){
         this.target=target;
         this.x=0;
         this.y=0;
+        this.width=gEngine.view.width;
+        this.height=gEngine.view.width;
+        this.active_region=new Rect(0,0,0,0);
+        this.tile_position={x:-1024,y:-1024};
+        this.dirty=true;
+      }
+      resize(){
+        this.width=gEngine.view.width;
+        this.height=gEngine.view.width;
       }
       update(dt){
         let x=Math.floor(this.target.rect.cx()-gEngine.view.width/2);
@@ -2321,6 +2405,12 @@ scenes=(function(engine){
         }
         this.x=x;
         this.y=y;
+        let tx=Math.floor((this.x-32)/32);
+        let ty=Math.floor((this.y-32)/32);
+        this.active_region=new Rect(tx*32,ty*32,this.width+64,this.height+64);
+        this.dirty=this.dirty||(this.tile_position.x!=tx||this.tile_position.y!=ty);
+        
+        this.tile_position={x:tx,y:ty};
       }
     }
     class Controller{
@@ -2329,18 +2419,17 @@ scenes=(function(engine){
         this.target=target;
         this.direction=0;
       }
-      setInputDirection(d){
+      setInputDirection(whlid,d){
         this.direction=d;
         this.target.setDirection(this.direction);
       }
       handleButtonPress(btnid){
-        console.log("press",btnid);
         if(btnid===0){
           let bomb=new Bomb(this.scene.tiles_bomb);
           bomb.sound_bomb_bang=this.scene.sound_bomb_bang;
           bomb.physics.group=this.scene.walls;
-          bomb.rect.x=this.scene.ent_hero.rect.x;
-          bomb.rect.y=this.scene.ent_hero.rect.y;
+          bomb.rect.x=Math.floor(this.scene.ent_hero.rect.x/32)*32+8;
+          bomb.rect.y=Math.floor(this.scene.ent_hero.rect.y/32)*32+8;
           bomb.rect.w=16;
           bomb.rect.h=16;
           bomb.targets=[this.scene.ent_hero,...this.scene.npcs];
@@ -2351,7 +2440,7 @@ scenes=(function(engine){
         }
       }
       handleButtonRelease(btnid){
-        console.log("release",btnid);
+
       }
       update(dt){
         let speed=128;
@@ -2381,10 +2470,46 @@ scenes=(function(engine){
         }
       }
     }
+    function setCharacterSpriteSheet(target,sheet,hero){
+      target.sheet=sheet;
+      let aidd=target.animation.register(sheet,[0,1],.15,{xoffset:-8,yoffset:-16});
+      
+      let aidu=target.animation.register(sheet,[4,5],.15,{xoffset:-8,yoffset:-16});
+      
+      let aidl=target.animation.register(sheet,[8,9],.15,{xoffset:-8,yoffset:-16});
+      
+      let aidr=target.animation.register(sheet,[12,13],.15,{xoffset:-8,yoffset:-16});
+      
+      target.d2a={[Direction.UP]:aidu,[Direction.RIGHT]:aidr,[Direction.DOWN]:aidd,
+              [Direction.LEFT]:aidl};
+      if(hero){
+        let aidd_atk=target.animation.register(sheet,[2],.4,{xoffset:-8,yoffset:-16,
+                      loop:false,onend:target.handleAttackEnd.bind(target)});
+        let aidu_atk=target.animation.register(sheet,[6],.4,{xoffset:-8,yoffset:-16,
+                      loop:false,onend:target.handleAttackEnd.bind(target)});
+        let aidl_atk=target.animation.register(sheet,[10],.4,{xoffset:-8,yoffset:-16,
+                      loop:false,onend:target.handleAttackEnd.bind(target)});
+        let aidr_atk=target.animation.register(sheet,[14],.4,{xoffset:-8,yoffset:-16,
+                      loop:false,onend:target.handleAttackEnd.bind(target)});
+        target.d2a_atk={[Direction.UP]:aidu_atk,[Direction.RIGHT]:aidr_atk,[Direction.DOWN]:aidd_atk,
+                  [Direction.LEFT]:aidl_atk};
+        let sw=20;
+        let sh=24;
+        let so=(32-sh)/2;
+        target.d2a_atk_tid={[Direction.UP]:{tid:7,x:-8+0,y:-16+-32+1,rx:-8+so,ry:-16+-sw,
+                      w:sh,h:sw},[Direction.RIGHT]:{tid:15,x:-8+32+1,y:-16+0,rx:-8+32,ry:-16+so,
+                      w:sw,h:sh},[Direction.DOWN]:{tid:3,x:-8+0,y:-16+32,rx:-8+so,ry:-16+32,
+                      w:sh,h:sw},[Direction.LEFT]:{tid:11,x:-8+-32,y:-16+0,rx:-8+-sw,ry:-16+so,
+                      w:sw,h:sh}};
+      }
+      target.animation.setAnimationById(aidd);
+      target.animation.pause();
+      target.current_aid=aidd;
+    }
     class Hero extends Entity {
       constructor(){
         super();
-        this.direction=Direction.DOWN;
+        this.facing=Direction.DOWN;
         this.attacking=0;
         this.attacking_tid=0;
         this.attacking_info=null;
@@ -2394,27 +2519,31 @@ scenes=(function(engine){
       setDirection(d){
         if(!this.attacking){
           if(d>0){
-            this.animation.setAnimationById(this.d2a[d]);
+            if((this.facing&d)==0){
+              if(d&Direction.UPDOWN){
+                this.facing=d&Direction.UPDOWN;
+              }else{
+                this.facing=d&Direction.LEFTRIGHT;
+              }
+            }
+            this.animation.setAnimationById(this.d2a[this.facing]);
           }else{
             this.animation.pause();
           }
-        }
-        if(d>0){
-          this.direction=d;
         }
       }
       attack(){
         if(this.attacking==0){
           this.attacking=1;
-          this.attacking_info=this.d2a_atk_tid[this.direction];
-          this.animation.setAnimationById(this.d2a_atk[this.direction]);
+          this.attacking_info=this.d2a_atk_tid[this.facing];
+          this.animation.setAnimationById(this.d2a_atk[this.facing]);
           let rect=new Rect(this.rect.x+this.attacking_info.rx,this.rect.y+this.attacking_info.ry,
                       this.attacking_info.w,this.attacking_info.h);
           this.attacking_info.rect=rect;
           for(let i=0;i<this.mobs.length;i++)
           {
             if(rect.collideRect(this.mobs[i].rect)){
-              this.mobs[i].character.hit(1,this.direction);
+              this.mobs[i].character.hit(1,this.facing);
             }
           }
           this.sound_sword.play();
@@ -2422,51 +2551,11 @@ scenes=(function(engine){
       }
       handleAttackEnd(){
         this.attacking=0;
-        this.animation.setAnimationById(this.d2a[this.direction]);
+        this.animation.setAnimationById(this.d2a[this.facing]);
         this.attacking_info=null;
         if(this.physics.xspeed===0&&this.physics.yspeed===0){
           this.animation.pause();
         }
-      }
-      setSpriteSheet(sheet){
-        this.sheet=sheet;
-        let aidd=this.animation.register(sheet,[0,1],.15,{xoffset:-8,yoffset:-16});
-        
-        let aidu=this.animation.register(sheet,[4,5],.15,{xoffset:-8,yoffset:-16});
-        
-        let aidl=this.animation.register(sheet,[8,9],.15,{xoffset:-8,yoffset:-16});
-        
-        let aidr=this.animation.register(sheet,[12,13],.15,{xoffset:-8,yoffset:-16});
-        
-        let aidd_atk=this.animation.register(sheet,[2],.4,{xoffset:-8,yoffset:-16,
-                      loop:false,onend:this.handleAttackEnd.bind(this)});
-        let aidu_atk=this.animation.register(sheet,[6],.4,{xoffset:-8,yoffset:-16,
-                      loop:false,onend:this.handleAttackEnd.bind(this)});
-        let aidl_atk=this.animation.register(sheet,[10],.4,{xoffset:-8,yoffset:-16,
-                      loop:false,onend:this.handleAttackEnd.bind(this)});
-        let aidr_atk=this.animation.register(sheet,[14],.4,{xoffset:-8,yoffset:-16,
-                      loop:false,onend:this.handleAttackEnd.bind(this)});
-        this.d2a={[Direction.UP]:aidu,[Direction.UPRIGHT]:aidu,[Direction.RIGHT]:aidr,
-                  [Direction.DOWNRIGHT]:aidd,[Direction.DOWN]:aidd,[Direction.DOWNLEFT]:aidd,
-                  [Direction.LEFT]:aidl,[Direction.UPLEFT]:aidu};
-        this.d2a_atk={[Direction.UP]:aidu_atk,[Direction.UPRIGHT]:aidu_atk,[Direction.RIGHT]:aidr_atk,
-                  [Direction.DOWNRIGHT]:aidd_atk,[Direction.DOWN]:aidd_atk,[Direction.DOWNLEFT]:aidd_atk,
-                  [Direction.LEFT]:aidl_atk,[Direction.UPLEFT]:aidu_atk};
-        let sw=20;
-        let sh=16;
-        let so=(32-sh)/2;
-        this.d2a_atk_tid={[Direction.UP]:{tid:7,x:-8+0,y:-16+-32,rx:-8+so,ry:-16+-sw,
-                      w:sh,h:sw},[Direction.UPRIGHT]:{tid:7,x:-8+0,y:-16+-32,rx:-8+so,ry:-16+-sw,
-                      w:sh,h:sw},[Direction.RIGHT]:{tid:15,x:-8+32,y:-16+0,rx:-8+32,ry:-16+so,
-                      w:sw,h:sh},[Direction.DOWNRIGHT]:{tid:3,x:-8+0,y:-16+32,rx:-8+so,ry:-16+32,
-                      w:sh,h:sw},[Direction.DOWN]:{tid:3,x:-8+0,y:-16+32,rx:-8+so,ry:-16+32,
-                      w:sh,h:sw},[Direction.DOWNLEFT]:{tid:3,x:-8+0,y:-16+32,rx:-8+so,ry:-16+32,
-                      w:sh,h:sw},[Direction.LEFT]:{tid:11,x:-8+-32,y:-16+0,rx:-8+-sw,ry:-16+so,
-                      w:sw,h:sh},[Direction.UPLEFT]:{tid:7,x:-8+0,y:-16+-32,rx:-8+so,ry:-16+-sw,
-                      w:sh,h:sw}};
-        this.animation.setAnimationById(aidd);
-        this.animation.pause();
-        this.current_aid=aidd;
       }
       update(dt){
         if(!this.attacking){
@@ -2483,18 +2572,66 @@ scenes=(function(engine){
         }
       }
     }
+    const NPC_DIRECTIONS=[Direction.UP,Direction.RIGHT,Direction.DOWN,Direction.LEFT];
+    
+    class MonsterController{
+      constructor(target){
+        this.target=target;
+        this.timeout=1.0;
+        this.timer=this.timeout-0.5;
+        this.direction=0;
+      }
+      update(dt){
+        this.timer+=dt;
+        if(this.timer>this.timeout){
+          this.timer-=this.timeout;
+          if(this.target.physics.xspeed!=0&&this.target.physics.yspeed!=0){
+            if(Math.random()<0.5){
+              return;
+            }
+          }
+          let options=[];
+          for(let i=0;i<NPC_DIRECTIONS.length;i++)
+          {
+            let v=Direction.vector(NPC_DIRECTIONS[i]);
+            if(!this.target.physics.collidePoint(this.target.rect.x+v.x*24,this.target.rect.y+v.y*24)){
+            
+              options.push(NPC_DIRECTIONS[i]);
+            }
+          }
+          if(options.length>1){
+            var index=options.indexOf(Direction.flip[this.direction]);
+            if(index>=0){
+              options.splice(index,1);
+            }
+          }
+          let i=randomRange(0,options.length);
+          let d=options[i];
+          let v=Direction.vector(options[i]);
+          this.direction=d;
+          this.target.physics.xspeed=70*v.x;
+          this.target.physics.yspeed=70*v.y;
+          this.target.animation.setAnimationById(this.target.d2a[d]);
+        }
+      }
+    }
     class Monster extends Entity {
-      constructor(sheet){
+      constructor(){
         super();
-        let aidd=this.animation.register(sheet,[0],.15,{xoffset:-8,yoffset:-16});
-        
-        this.animation.setAnimationById(aidd);
         this.character=new CharacterComponent(this);
+        this.controller=new MonsterController(this);
         this.rect.w=16;
         this.rect.h=16;
       }
       update(dt){
+        this.controller.update(dt);
         this.physics.update(dt);
+        if(this.physics.collide){
+          this.physics.xspeed=0;
+          this.physics.yspeed=0;
+          this.controller.timer=this.controller.timeout+1;
+          this.animation.pause();
+        }
         this.character.update(dt);
         this.animation.update(dt);
       }
@@ -2677,53 +2814,83 @@ scenes=(function(engine){
                   32,32).layout(4,4).offset(1,1).spacing(1,1).build();
         this.tiles_monster=new SpriteSheetBuilder().path(RES_ROOT+"/monster32.png").dimensions(
                   32,32).layout(4,4).offset(1,1).spacing(1,1).build();
-        this.ent_hero=new Hero();
-        this.ent_hero.setSpriteSheet(this.tiles_hero);
-        this.ent_hero.sound_sword=this.sound_sword;
-        this.ent_hero.sound_hit=this.sound_hit;
         this.bombs=[];
         this.map={width:mapdata.width*32,height:mapdata.height*32};
         this.walls=[];
-        let wall;
         mapdata.walls.forEach(item=>{
-            wall=new Wall(this.tiles_bg);
+            let wall=new Wall(this.tiles_bg);
             wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
             this.walls.push(wall);
           });
         mapdata.breakable_walls.forEach(item=>{
-            wall=new Wall(this.tiles_bg);
+            let wall=new Wall(this.tiles_bg);
             wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
             wall.breakable=1;
             this.walls.push(wall);
           });
-        this.ent_hero.physics.group=this.walls;
         this.npcs=[];
-        this.ent_hero.mobs=this.npcs;
+        mapdata.npcs.forEach(item=>{
+            let ent=new Monster();
+            setCharacterSpriteSheet(ent,this.tiles_monster,false);
+            ent.sound_hit=this.sound_hit;
+            ent.rect.x=item.x*32+8;
+            ent.rect.y=item.y*32+16;
+            ent.physics.group=this.walls;
+            this.npcs.push(ent);
+          });
+        this.ent_hero=new Hero();
+        setCharacterSpriteSheet(this.ent_hero,this.tiles_hero,true);
+        this.ent_hero.sound_sword=this.sound_sword;
+        this.ent_hero.sound_hit=this.sound_hit;
         this.controller=new Controller(this,this.ent_hero);
+        this.touch=new TouchInput(this.controller);
+        this.keyboard=new KeyboardInput(this.controller);
         this.camera=new Camera(this.map,this.ent_hero);
+        this.ent_hero.physics.group=this.walls;
+        this.ent_hero.mobs=this.npcs;
         this.ent_hero.rect.x=mapdata.start.x*32+8;
         this.ent_hero.rect.y=mapdata.start.y*32+16;
         this.ent_hero.rect.w=16;
         this.ent_hero.rect.h=16;
-        this.touch=new TouchInput(this.controller);
-        this.keyboard=new KeyboardInput(this.controller);
       }
       moveMonster(npc){
-        let x=Math.floor(randomNumber(1,18)*32);
-        let y=Math.floor(randomNumber(1,8)*32);
+        let mx=Math.floor(this.map.width/32)-1;
+        let my=Math.floor(this.map.width/32)-1;
+        let x=Math.floor(randomNumber(1,mx)*32);
+        let y=Math.floor(randomNumber(1,my)*32);
         while(npc.physics.collidePoint(x+16,y+16)){
-          x=Math.floor(randomNumber(1,18)*32);
-          y=Math.floor(randomNumber(1,8)*32);
+          x=Math.floor(randomNumber(1,mx)*32);
+          y=Math.floor(randomNumber(1,my)*32);
         }
         npc.rect.x=x+8;
         npc.rect.y=y+16;
       }
-      update(dt){
-        this.controller.update(dt);
-        this.ent_hero.update(dt);
+      update_active(dt){
+        if(this.camera.dirty){
+          let region=this.camera.active_region;
+          for(let i=this.npcs.length-1;i>=0;i--)
+          {
+            let ent=this.npcs[i];
+            ent.active=region.collideRect(ent.rect);
+          }
+          for(let i=this.walls.length-1;i>=0;i--)
+          {
+            let ent=this.walls[i];
+            ent.active=region.collideRect(ent.rect);
+          }
+          console.log("active updated",performance.now());
+          this.camera.dirty=false;
+        }
+      }
+      update_map(dt){
+        let skipped=0;
         for(let i=this.npcs.length-1;i>=0;i--)
         {
           let npc=this.npcs[i];
+          if(!npc.active){
+            skipped+=1;
+            continue;
+          }
           npc.update(dt);
           if(!npc.character.alive){
             npc.character.health=3;
@@ -2733,6 +2900,11 @@ scenes=(function(engine){
         }
         for(let i=this.walls.length-1;i>=0;i--)
         {
+          let ent=this.walls[i];
+          if(!ent.active){
+            skipped+=1;
+            continue;
+          }
           if(!this.walls[i].alive){
             this.walls.splice(i,1);
           }
@@ -2744,31 +2916,60 @@ scenes=(function(engine){
             this.bombs.splice(i,1);
           }
         }
+        let n=this.npcs.length+this.walls.length;
+      }
+      update(dt){
+        this.controller.update(dt);
+        this.ent_hero.update(dt);
+        this.update_active(dt);
+        this.update_map(dt);
         this.camera.update(dt);
       }
       paint_map(ctx){
-        if(this.tiles_bg.ready){
-          for(let x=0;x<this.map.width;x+=32)
+        let skipped=0;
+        let ar=this.camera.active_region;
+        for(let x=ar.left();x<ar.right();x+=32)
+        {
+          for(let y=ar.top();y<ar.bottom();y+=32)
           {
-            for(let y=0;y<this.map.height;y+=32)
-            {
-              this.tiles_bg.drawTile(ctx,0,x,y);
-            }
+            this.tiles_bg.drawTile(ctx,0,x,y);
           }
         }
         for(let i=0;i<this.walls.length;i++)
         {
-          this.walls[i].paint(ctx);
+          let ent=this.walls[i];
+          if(!ent.active){
+            skipped+=1;
+            continue;
+          }
+          if(ent.active){
+            ent.paint(ctx);
+          }
         }
         for(let i=0;i<this.bombs.length;i++)
         {
-          this.bombs[i].paint(ctx);
+          let ent=this.bombs[i];
+          if(ent.active){
+            ent.paint(ctx);
+          }
         }
         for(let i=0;i<this.npcs.length;i++)
         {
-          this.npcs[i].paint(ctx);
+          let ent=this.npcs[i];
+          if(!ent.active){
+            skipped+=1;
+            continue;
+          }
+          if(ent.active){
+            ent.paint(ctx);
+          }
         }
         this.ent_hero.paint(ctx);
+        let n=this.npcs.length+this.walls.length;
+        ctx.fillStyle="yellow";
+        ctx.font="bold 12pt Courier";
+        ctx.fillText(`${(skipped/n).toFixed(2)} ... ${n-skipped}`,this.camera.x+16,
+                  this.camera.y+16);
       }
       paint(ctx){
         ctx.fillStyle="yellow";
@@ -2793,20 +2994,34 @@ scenes=(function(engine){
       }
       resize(){
         this.touch.resize();
+        this.camera.resize();
+      }
+      handleTouches(touches){
+        this.touch.handleTouches(touches);
+      }
+      handleKeyPress(keyCode){
+        this.keyboard.handlePress(keyCode);
+      }
+      handleKeyRelease(keyCode){
+        this.keyboard.handleRelease(keyCode);
       }
     }
     const CELL_WALL=0;
     const CELL_FLOOR=1;
     const CELL_BREAKABLE=2;
+    const CELL_MONSTER=3;
     class MazeGenerator{
       constructor(width,height){
         this.width=width;
         this.height=height;
         this.ready=false;
+        this.show=true;
         this.timer=0;
         this.delay=0.05;
-        this.max_iter_steps=10;
+        this.max_iter_steps=this.show?Math.floor(this.width*this.height/50):1000;
+        
         this.current_step=0;
+        this._step_counter=0;
         this.C=[];
         this.steps=[this.do_step_init.bind(this),this.do_step_carve_init.bind(this),
                   this.do_step_carve.bind(this),this.do_step_uncarve_init.bind(this),this.do_step_uncarve.bind(
@@ -2814,14 +3029,18 @@ scenes=(function(engine){
         
       }
       update(dt){
-        this.timer+=dt;
-        if(this.timer<this.delay){
-          return;
+        if(this.show){
+          this.timer+=dt;
+          if(this.timer<this.delay){
+            return;
+          }
+          this.timer-=this.delay;
         }
-        this.timer-=this.delay;
         if(this.current_step<this.steps.length){
           let step=this.steps[this.current_step];
+          this._step_counter+=1;
           if(step()){
+            console.log("executed",this.current_step,this._step_counter);
             this.current_step+=1;
           }
         }
@@ -2854,6 +3073,12 @@ scenes=(function(engine){
             if(this.cells[j][i]==CELL_BREAKABLE){
               ctx.beginPath();
               ctx.fillStyle='#666666';
+              ctx.rect(mx+cw*i,my+ch*j,cw,ch);
+              ctx.fill();
+            }
+            if(this.cells[j][i]==CELL_MONSTER){
+              ctx.beginPath();
+              ctx.fillStyle='#DD4400';
               ctx.rect(mx+cw*i,my+ch*j,cw,ch);
               ctx.fill();
             }
@@ -2921,17 +3146,19 @@ scenes=(function(engine){
       do_step_uncarve_init(){
         this.ux=1;
         this.uy=1;
+        this.max_iter_steps=this.show?(this.width):(this.width*this.height);
+        console.log("max steps now",this.max_iter_steps);
         return true;
       }
       do_step_uncarve(){
         let z=0;
         for(;z<this.max_iter_steps&&this.uy<this.height-1;z++)
         {
-          let n=this.neighbors2({x:this.ux,y:this.uy});
+          let n=this.neighbors1({x:this.ux,y:this.uy});
           let total=0;
           for(let i=0;i<n.length;i++)
           {
-            let p=n[i][1];
+            let p=n[i];
             if(this.cells[p.y][p.x]==CELL_WALL){
               total+=1;
             }
@@ -2942,12 +3169,19 @@ scenes=(function(engine){
               shuffle(n);
               for(let i=0;i<n.length;i++)
               {
-                let p=n[i][1];
-                if(this.cells[p.y][p.x]==CELL_WALL){
+                let p=n[i];
+                if(p.x>1&&p.y>1&&p.x<this.width-1&&p.y<this.height-1&&this.cells[
+                                    p.y][p.x]==CELL_WALL){
                   this.cells[p.y][p.x]=CELL_BREAKABLE;
                   break;
                 }
               }
+            }
+          }
+          let prob2=0.75;
+          if(total==0){
+            if(Math.random()<prob2){
+              this.cells[this.uy][this.ux]=CELL_MONSTER;
             }
           }
           this.ux+=1;
@@ -2964,8 +3198,8 @@ scenes=(function(engine){
         return true;
       }
       do_transition(){
-        let data={walls:[],breakable_walls:[],start:{x:1,y:1},width:this.width,height:this.height};
-        
+        let data={walls:[],breakable_walls:[],npcs:[],start:{x:1,y:1},width:this.width,
+                  height:this.height};
         for(let j=0;j<this.height;j++)
         {
           for(let i=0;i<this.width;i++)
@@ -2976,9 +3210,28 @@ scenes=(function(engine){
             if(this.cells[j][i]==CELL_BREAKABLE){
               data.breakable_walls.push({x:i,y:j,w:1,h:1});
             }
+            if(this.cells[j][i]==CELL_MONSTER){
+              data.npcs.push({x:i,y:j});
+            }
           }
         }
         gEngine.scene=new MainScene(data);
+      }
+      neighbors1(c){
+        let n=[];
+        if(c.x-1>=0){
+          n.push({x:c.x-1,y:c.y});
+        }
+        if(c.x+1<this.width){
+          n.push({x:c.x+1,y:c.y});
+        }
+        if(c.y-1>=0){
+          n.push({x:c.x,y:c.y-1});
+        }
+        if(c.y+1<this.height){
+          n.push({x:c.x,y:c.y+1});
+        }
+        return n;
       }
       neighbors2(c){
         let n=[];
@@ -3000,7 +3253,7 @@ scenes=(function(engine){
     class MazeScene extends GameScene {
       constructor(){
         super();
-        this.gen=new MazeGenerator(31,31);
+        this.gen=new MazeGenerator(71,41);
         this.touch=new TouchInput(null);
       }
       update(dt){
