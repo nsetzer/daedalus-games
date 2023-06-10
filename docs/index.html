@@ -11,13 +11,13 @@
 <style type="text/css">
 .dcs-16e24fb6-0 {cursor:pointer;color:blue}
 .dcs-16e24fb6-1 {background-color:#edf2f7;border:2px dashed #cbd5e0;width:100%;height:100%}
-.dcs-7566c05b-0 {border:0px;margin:0;padding:0;cursor:pointer}
-.dcs-2fe07cda-0 {background:#333333;overflow:scroll;margin:0;padding:0}
-.dcs-2fe07cda-1 {background:#333333;overflow:scroll;margin:0;padding:0;transform-origin:top left;transform:translate(100vw, 30vh) rotate(90deg);}
-.dcs-2fe07cda-2 {display:flex;flex-direction:row;justify-content:center}
-.dcs-2fe07cda-3 {background:#0000CC22}
-.dcs-2fe07cda-4 {}
-.dcs-2fe07cda-5 {color:blue;cursor:pointer}
+.dcs-d9d48ff9-0 {border:0px;margin:0;padding:0;cursor:pointer}
+.dcs-3d1e4840-0 {background:#333333;overflow:scroll;margin:0;padding:0}
+.dcs-3d1e4840-1 {background:#333333;overflow:scroll;margin:0;padding:0;transform-origin:top left;transform:translate(100vw, 30vh) rotate(90deg);}
+.dcs-3d1e4840-2 {display:flex;flex-direction:row;justify-content:center}
+.dcs-3d1e4840-3 {background:#0000CC22}
+.dcs-3d1e4840-4 {}
+.dcs-3d1e4840-5 {color:blue;cursor:pointer}
 </style>
 
 <script type="text/javascript">
@@ -1972,33 +1972,41 @@ engine=(function(daedalus){
     class TouchInput{
       constructor(target){
         this.target=target;
-        this.ce=160;
-        this.cx=64;
-        this.cy=256;
-        this.touch_at=[0,0];
+        this.touches=[];
         this.touch_move=null;
-        this.buttons=[{cx:576,cy:224,radius:32,pressed:0},{cx:512,cy:288,radius:32,
-                      pressed:0}];
-        console.log(this.buttons);
+        this.resize();
       }
       handleMove(tx,ty){
-        const e=this.ce;
-        const cx=this.cx;
-        const cy=this.cy;
+        if(this.target===null){
+          return;
+        }
+        const cx=this.wheels[0].cx;
+        const cy=this.wheels[0].cy;
         const d=Direction.fromVector(tx-cx,ty-cy);
         this.target.setInputDirection(d);
-        this.touch_at=[tx,ty];
       }
       handleMoveCancel(){
+        if(this.target===null){
+          return;
+        }
         this.target.setInputDirection(0);
       }
       handleButtonPress(btnid){
+        if(this.target===null){
+          return;
+        }
         this.target.handleButtonPress(btnid);
       }
       handleButtonRelease(btnid){
+        if(this.target===null){
+          return;
+        }
         this.target.handleButtonRelease(btnid);
       }
       handleTouches(touches){
+        if(touches.length){
+          this.touches=[...touches];
+        }
         for(let j=0;j<this.buttons.length;j++)
         {
           let btn=this.buttons[j];
@@ -2038,27 +2046,37 @@ engine=(function(daedalus){
           this.handleMove(touch_move.x,touch_move.y);
         }
       }
+      resize(){
+        let radius=96;
+        this.wheels=[{cx:radius,cy:gEngine.view.height-radius,radius:radius}];
+        radius=32;
+        this.buttons=[{cx:gEngine.view.width-radius,cy:gEngine.view.height-3*radius,
+                      radius:radius,pressed:0},{cx:gEngine.view.width-3*radius,cy:gEngine.view.height-radius,
+                      radius:radius,pressed:0}];
+      }
       paint(ctx){
         ctx.lineWidth=2;
         ctx.strokeStyle='red';
         ctx.beginPath();
-        const e=this.ce;
-        const e2=Math.floor(this.ce/2);
-        const e3=Math.floor(this.ce/2*.7071);
-        const cx=Math.floor(this.cx);
-        const cy=Math.floor(this.cy);
-        ctx.moveTo(0,0);
-        ctx.moveTo(cx-e3,cy-e3);
-        ctx.lineTo(cx+e3,cy+e3);
-        ctx.moveTo(cx+e3,cy-e3);
-        ctx.lineTo(cx-e3,cy+e3);
-        ctx.moveTo(cx-e2,cy);
-        ctx.lineTo(cx+e2,cy);
-        ctx.moveTo(cx,cy-e2);
-        ctx.lineTo(cx,cy+e2);
-        ctx.moveTo(cx,cy);
-        ctx.arc(cx,cy,e2,0,2*Math.PI);
-        ctx.stroke();
+        for(let w=0;w<this.wheels.length;w++)
+        {
+          const e2=Math.floor(this.wheels[w].radius);
+          const e3=Math.floor(this.wheels[w].radius*.7071);
+          const cx=Math.floor(this.wheels[w].cx);
+          const cy=Math.floor(this.wheels[w].cy);
+          ctx.moveTo(0,0);
+          ctx.moveTo(cx-e3,cy-e3);
+          ctx.lineTo(cx+e3,cy+e3);
+          ctx.moveTo(cx+e3,cy-e3);
+          ctx.lineTo(cx-e3,cy+e3);
+          ctx.moveTo(cx-e2,cy);
+          ctx.lineTo(cx+e2,cy);
+          ctx.moveTo(cx,cy-e2);
+          ctx.lineTo(cx,cy+e2);
+          ctx.moveTo(cx,cy);
+          ctx.arc(cx,cy,e2,0,2*Math.PI);
+          ctx.stroke();
+        }
         for(let i=0;i<this.buttons.length;i++)
         {
           ctx.beginPath();
@@ -2066,10 +2084,11 @@ engine=(function(daedalus){
           ctx.arc(btn.cx,btn.cy,btn.radius,0,2*Math.PI);
           ctx.stroke();
         }
-        let tx=this.touch_at[0],ty=this.touch_at[1];
-        ctx.beginPath();
-        ctx.arc(tx,ty,5,0,2*Math.PI);
-        ctx.stroke();
+        this.touches.forEach(t=>{
+            ctx.beginPath();
+            ctx.arc(t.x,t.y,5,0,2*Math.PI);
+            ctx.stroke();
+          });
       }
     }
     class GameScene{
@@ -2083,7 +2102,7 @@ engine=(function(daedalus){
 
       }
     }
-    const style={"canvas":'dcs-7566c05b-0'};
+    const style={"canvas":'dcs-d9d48ff9-0'};
     class CanvasEngine extends DomElement {
       constructor(width,height){
         super("canvas",{"width":width,"height":height,className:style.canvas});
@@ -2091,7 +2110,8 @@ engine=(function(daedalus){
         this.ctx=null;
         this.lastTime=null;
         this.delta_accum=0;
-        this.view={x:0,y:0,width:640,height:320,rotate:0,scale:1};
+        this.view={x:0,y:0,width:640,height:320,rotate:0,scale:1,availWidth:0,availHeight:0};
+        
       }
       elementMounted(){
         this.ctx=this.getDomNode().getContext("2d");
@@ -2128,8 +2148,12 @@ engine=(function(daedalus){
         const rect=this.getDomNode().getBoundingClientRect();
         return Array.from(event.targetTouches).map(touch=>{
             if(this.view.rotate){
-              return{"x":(touch.clientY-rect.top-this.view.y),"y":this.view.height-(
-                                  touch.clientX-rect.left-this.view.x)};
+              console.log("on touch",this.view.x,this.view.y);
+              console.log("on touch client",touch.clientX,touch.clientY);
+              console.log("on touch rect",rect.left,rect.top);
+              console.log(touch.clientX,rect.left,this.view.x);
+              return{"x":(touch.clientY-rect.top-this.view.x),"y":this.view.height-(
+                                  touch.clientX-rect.left-this.view.y)};
             }else{
               return{"x":(touch.clientX-rect.left-this.view.x),"y":(touch.clientY-rect.top-this.view.y)};
               
@@ -2150,7 +2174,16 @@ engine=(function(daedalus){
       }
       handleResize(width,height){
         this.view.x=32;
-        this.view.y=32;
+        this.view.y=8;
+        if(daedalus.platform.isMobile){
+          this.view.width=Math.floor((height-32)/32)*32;
+          this.view.height=Math.floor((width)/32)*32;
+        }else{
+          this.view.width=Math.floor(640.0);
+          this.view.height=Math.floor(360.0);
+        }
+        this.view.availWidth=width;
+        this.view.availHeight=height;
         if(width/height<0.75){
           this.view.rotate=1;
         }else{
@@ -2170,7 +2203,13 @@ engine=(function(daedalus){
           this.view.x=Math.floor((width-(this.view.width*this.view.scale))/(2*this.view.scale));
           
         }
-        console.log('view',width/height,width,height,this.view);
+        if(daedalus.platform.isMobile&&this.view.rotate){
+          this.view.x=Math.floor((height-(this.view.width*this.view.scale))/(2*this.view.scale));
+          
+          this.view.y=Math.floor((width-(this.view.height*this.view.scale))/(2*this.view.scale));
+          
+        }
+        this.scene.resize();
       }
       handleKeyPress(event){
         const kc=event.keyCode;
@@ -2245,16 +2284,43 @@ scenes=(function(engine){
     function randomNumber(min,max){
       return Math.round(Math.random()*(max-min)+min);
     }
+    function shuffle(array){
+      let currentIndex=array.length,randomIndex;
+      while(currentIndex!=0){
+        randomIndex=Math.floor(Math.random()*currentIndex);
+        currentIndex--;
+        [array[currentIndex],array[randomIndex]]=[array[randomIndex],array[currentIndex]];
+        
+      }
+      return array;
+    }
     const RES_ROOT="static";
     class Camera{
-      constructor(target){
+      constructor(map,target){
+        this.map=map;
         this.target=target;
         this.x=0;
         this.y=0;
       }
       update(dt){
-        this.x=Math.floor(this.target.rect.cx()-gEngine.view.width/2);
-        this.y=Math.floor(this.target.rect.cy()-gEngine.view.height/2);
+        let x=Math.floor(this.target.rect.cx()-gEngine.view.width/2);
+        let y=Math.floor(this.target.rect.cy()-gEngine.view.height/2);
+        if(x<0){
+          x=0;
+        }
+        if(y<0){
+          y=0;
+        }
+        let mx=this.map.width-gEngine.view.width;
+        let my=this.map.height-gEngine.view.height;
+        if(x>mx){
+          x=mx;
+        }
+        if(y>my){
+          y=my;
+        }
+        this.x=x;
+        this.y=y;
       }
     }
     class Controller{
@@ -2597,7 +2663,7 @@ scenes=(function(engine){
       }
     }
     class MainScene extends GameScene {
-      constructor(){
+      constructor(mapdata){
         super();
         this.sound_hit=new Sound(RES_ROOT+"/sound/LOZ_Enemy_Hit.wav");
         this.sound_sword=new Sound(RES_ROOT+"/sound/LOZ_Sword_Slash.wav");
@@ -2615,76 +2681,30 @@ scenes=(function(engine){
         this.ent_hero.setSpriteSheet(this.tiles_hero);
         this.ent_hero.sound_sword=this.sound_sword;
         this.ent_hero.sound_hit=this.sound_hit;
-        this.ent_monster=new Monster(this.tiles_monster);
-        this.ent_monster.sound_hit=this.sound_hit;
         this.bombs=[];
-        this.map={width:960,height:960};
+        this.map={width:mapdata.width*32,height:mapdata.height*32};
         this.walls=[];
         let wall;
-        wall=new Wall(this.tiles_bg);
-        wall.rect=new Rect(0,0,this.map.width,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.rect=new Rect(0,32,32,this.map.height-64);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.rect=new Rect(this.map.width-32,32,32,this.map.height-64);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.rect=new Rect(0,this.map.height-32,this.map.width,32);
-        this.walls.push(wall);
-        for(let i=128;i<this.map.height-32;i+=128)
-        {
-          wall=new Wall(this.tiles_bg);
-          wall.rect=new Rect(32,i,64,32);
-          this.walls.push(wall);
-        }
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(192,96,96,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(192,192,96,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(352,96,96,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(352,192,96,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(128,64,64,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(128,224,64,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(448,64,64,32);
-        this.walls.push(wall);
-        wall=new Wall(this.tiles_bg);
-        wall.breakable=1;
-        wall.rect=new Rect(448,224,64,32);
-        this.walls.push(wall);
+        mapdata.walls.forEach(item=>{
+            wall=new Wall(this.tiles_bg);
+            wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
+            this.walls.push(wall);
+          });
+        mapdata.breakable_walls.forEach(item=>{
+            wall=new Wall(this.tiles_bg);
+            wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
+            wall.breakable=1;
+            this.walls.push(wall);
+          });
         this.ent_hero.physics.group=this.walls;
-        this.ent_monster.physics.group=this.walls;
-        this.npcs=[this.ent_monster];
+        this.npcs=[];
         this.ent_hero.mobs=this.npcs;
         this.controller=new Controller(this,this.ent_hero);
-        this.camera=new Camera(this.ent_hero);
-        gEngine.view.width=320;
-        gEngine.view.height=320;
-        this.ent_hero.rect.x=64;
-        this.ent_hero.rect.y=64;
+        this.camera=new Camera(this.map,this.ent_hero);
+        this.ent_hero.rect.x=mapdata.start.x*32+8;
+        this.ent_hero.rect.y=mapdata.start.y*32+16;
         this.ent_hero.rect.w=16;
         this.ent_hero.rect.h=16;
-        this.ent_monster.rect.x=72;
-        this.ent_monster.rect.y=144;
         this.touch=new TouchInput(this.controller);
         this.keyboard=new KeyboardInput(this.controller);
       }
@@ -2752,8 +2772,8 @@ scenes=(function(engine){
       }
       paint(ctx){
         ctx.fillStyle="yellow";
-        ctx.fillText(`fps = ${this.fps} direction = ${Direction.name[this.controller.direction]}`,
-                  0,-8);
+        ctx.fillText(`${gEngine.view.availHeight}x ${gEngine.view.availWidth} direction = ${Direction.name[
+                    this.controller.direction]}`,0,-8);
         ctx.save();
         ctx.beginPath();
         ctx.strokeStyle='red';
@@ -2772,11 +2792,222 @@ scenes=(function(engine){
         this.touch.paint(ctx);
       }
       resize(){
+        this.touch.resize();
+      }
+    }
+    const CELL_WALL=0;
+    const CELL_FLOOR=1;
+    const CELL_BREAKABLE=2;
+    class MazeGenerator{
+      constructor(width,height){
+        this.width=width;
+        this.height=height;
+        this.ready=false;
+        this.max_iter_steps=1000;
+        this.current_step=0;
+        this.C=[];
+        this.steps=[this.do_step_init.bind(this),this.do_step_carve_init.bind(this),
+                  this.do_step_carve.bind(this),this.do_step_uncarve_init.bind(this),this.do_step_uncarve.bind(
+                      this),this.do_transition.bind(this)];
+      }
+      update(dt){
+        if(this.current_step<this.steps.length){
+          let step=this.steps[this.current_step];
+          if(step()){
+            this.current_step+=1;
+          }
+        }
+      }
+      paint(ctx){
+        let cw=8;
+        let ch=8;
+        let mw=this.width*cw;
+        let mh=this.height*ch;
+        let mx=Math.floor(gEngine.view.width/2-mw/2);
+        let my=Math.floor(gEngine.view.height/2-mh/2);
+        ctx.beginPath();
+        ctx.lineWidth=2;
+        ctx.strokeStyle='red';
+        ctx.rect(mx-2,my-2,mw+4,mh+4);
+        ctx.stroke();
+        if(this.current_step==0){
+          return;
+        }
+        for(let j=0;j<this.height;j++)
+        {
+          for(let i=0;i<this.width;i++)
+          {
+            if(this.cells[j][i]==CELL_WALL){
+              ctx.beginPath();
+              ctx.fillStyle='#338822';
+              ctx.rect(mx+cw*i,my+ch*j,cw,ch);
+              ctx.fill();
+            }
+            if(this.cells[j][i]==CELL_BREAKABLE){
+              ctx.beginPath();
+              ctx.fillStyle='#666666';
+              ctx.rect(mx+cw*i,my+ch*j,cw,ch);
+              ctx.fill();
+            }
+          }
+        }
+      }
+      do_step_init(){
+        this.cells=[];
+        for(let j=0;j<this.height;j++)
+        {
+          this.cells.push(new Array(this.width).fill(CELL_WALL));
+        }
+        this.visited=[];
+        for(let j=0;j<this.height;j++)
+        {
+          this.visited.push(new Array(this.width).fill(0));
+        }
+        for(let j=0;j<this.height;j++)
+        {
+          for(let i=0;i<this.width;i++)
+          {
+            if(i%2==1&&j%2==1){
+              this.cells[j][i]=CELL_FLOOR;
+            }
+          }
+        }
+        return true;
+      }
+      do_step_carve_init(){
+        let x=randomNumber(1,this.width-2)|1;
+        let y=randomNumber(1,this.height-2)|1;
+        this.visited[y][x]=1;
+        this.C=[{x,y}];
+        return true;
+      }
+      do_step_carve(){
+        var t0=performance.now();
+        let z=0;
+        for(;z<this.max_iter_steps&&this.C.length>0;z++)
+        {
+          let i=randomNumber(0,this.C.length-1);
+          let c=this.C[i];
+          let n=this.neighbors2(c);
+          shuffle(n);
+          let carved=false;
+          for(let k=0;k<n.length;k++)
+          {
+            let a=n[k][0];
+            let b=n[k][1];
+            if(this.visited[a.y][a.x]===0){
+              this.cells[b.y][b.x]=CELL_FLOOR;
+              this.visited[a.y][a.x]=1;
+              this.C.push(a);
+              carved=true;
+              break;
+            }
+          }
+          if(carved===false){
+            this.C.splice(i,1);
+          }
+        }
+        var t1=performance.now();
+        return this.C.length==0;
+      }
+      do_step_uncarve_init(){
+        this.ux=1;
+        this.uy=1;
+        return true;
+      }
+      do_step_uncarve(){
+        let z=0;
+        for(;z<this.max_iter_steps&&this.uy<this.height-1;z++)
+        {
+          let n=this.neighbors2({x:this.ux,y:this.uy});
+          let total=0;
+          for(let i=0;i<n.length;i++)
+          {
+            let p=n[i][1];
+            if(this.cells[p.y][p.x]==CELL_WALL){
+              total+=1;
+            }
+          }
+          let prob=0.5;
+          if(total==3){
+            if(Math.random()<prob){
+              shuffle(n);
+              for(let i=0;i<n.length;i++)
+              {
+                let p=n[i][1];
+                if(this.cells[p.y][p.x]==CELL_WALL){
+                  this.cells[p.y][p.x]=CELL_BREAKABLE;
+                  break;
+                }
+              }
+            }
+          }
+          this.ux+=1;
+          if(this.ux>=this.width-1){
+            this.ux=1;
+            this.uy+=1;
+          }
+        }
+        return this.uy>=this.height-1;
+      }
+      do_transition(){
+        let data={walls:[],breakable_walls:[],start:{x:1,y:1},width:this.width,height:this.height};
+        
+        for(let j=0;j<this.height;j++)
+        {
+          for(let i=0;i<this.width;i++)
+          {
+            if(this.cells[j][i]==CELL_WALL){
+              data.walls.push({x:i,y:j,w:1,h:1});
+            }
+            if(this.cells[j][i]==CELL_BREAKABLE){
+              data.breakable_walls.push({x:i,y:j,w:1,h:1});
+            }
+          }
+        }
+        gEngine.scene=new MainScene(data);
+      }
+      neighbors2(c){
+        let n=[];
+        if(c.x-2>=0){
+          n.push([{x:c.x-2,y:c.y},{x:c.x-1,y:c.y}]);
+        }
+        if(c.x+2<this.width){
+          n.push([{x:c.x+2,y:c.y},{x:c.x+1,y:c.y}]);
+        }
+        if(c.y-2>=0){
+          n.push([{x:c.x,y:c.y-2},{x:c.x,y:c.y-1}]);
+        }
+        if(c.y+2<this.height){
+          n.push([{x:c.x,y:c.y+2},{x:c.x,y:c.y+1}]);
+        }
+        return n;
+      }
+    }
+    class MazeScene extends GameScene {
+      constructor(){
+        super();
+        this.gen=new MazeGenerator(31,31);
+        this.touch=new TouchInput(null);
+      }
+      update(dt){
+        this.gen.update(dt);
+      }
+      paint(ctx){
+        ctx.fillStyle="yellow";
+        ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`,
+                  0,-8);
+        ctx.beginPath();
+        ctx.strokeStyle='red';
+        ctx.rect(-1,-1,gEngine.view.width+2,gEngine.view.height+2);
+        ctx.stroke();
+        this.gen.paint(ctx);
+      }
+      resize(){
 
       }
-      o
     }
-    return{MainScene};
+    return{MainScene,MazeScene};
   })(engine);
 app=(function(daedalus,engine,scenes){
     "use strict";
@@ -2790,8 +3021,9 @@ app=(function(daedalus,engine,scenes){
     const LinkElement=daedalus.LinkElement;
     const CanvasEngine=engine.CanvasEngine;
     const MainScene=scenes.MainScene;
-    const style={"body":'dcs-2fe07cda-0',"bodyRotate":'dcs-2fe07cda-1',"main":'dcs-2fe07cda-2',
-          "item_hover":'dcs-2fe07cda-3',"item":'dcs-2fe07cda-4',"item_file":'dcs-2fe07cda-5'};
+    const MazeScene=scenes.MazeScene;
+    const style={"body":'dcs-3d1e4840-0',"bodyRotate":'dcs-3d1e4840-1',"main":'dcs-3d1e4840-2',
+          "item_hover":'dcs-3d1e4840-3',"item":'dcs-3d1e4840-4',"item_file":'dcs-3d1e4840-5'};
     
     class Application extends DomElement {
       constructor(){
@@ -2804,7 +3036,7 @@ app=(function(daedalus,engine,scenes){
         this.canvas=this.appendChild(new CanvasEngine(window.innerWidth,window.innerHeight));
         
         window.gEngine=this.canvas;
-        this.canvas.scene=new MainScene();
+        this.canvas.scene=new MazeScene();
         console.log("scene created");
         window.addEventListener("keydown",this.canvas.handleKeyPress.bind(this.canvas));
         
