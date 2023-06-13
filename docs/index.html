@@ -3409,17 +3409,25 @@ scenes=(function(engine){
         }
       }
       resize(){
-        this.touch.resize();
-        this.camera.resize();
+        if(this.map.ready){
+          this.touch.resize();
+          this.camera.resize();
+        }
       }
       handleTouches(touches){
-        this.touch.handleTouches(touches);
+        if(this.map.ready){
+          this.touch.handleTouches(touches);
+        }
       }
       handleKeyPress(keyCode){
-        this.keyboard.handlePress(keyCode);
+        if(this.map.ready){
+          this.keyboard.handlePress(keyCode);
+        }
       }
       handleKeyRelease(keyCode){
-        this.keyboard.handleRelease(keyCode);
+        if(this.map.ready){
+          this.keyboard.handleRelease(keyCode);
+        }
       }
     }
     const CELL_WALL=0x10;
