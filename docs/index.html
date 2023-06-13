@@ -11,7 +11,7 @@
 <style type="text/css">
 .dcs-16e24fb6-0 {cursor:pointer;color:blue}
 .dcs-16e24fb6-1 {background-color:#edf2f7;border:2px dashed #cbd5e0;width:100%;height:100%}
-.dcs-d9d48ff9-0 {border:0px;margin:0;padding:0;cursor:pointer}
+.dcs-3c12219a-0 {border:0px;margin:0;padding:0;cursor:pointer}
 .dcs-3d1e4840-0 {background:#333333;overflow:scroll;margin:0;padding:0}
 .dcs-3d1e4840-1 {background:#333333;overflow:scroll;margin:0;padding:0;transform-origin:top left;transform:translate(100vw, 30vh) rotate(90deg);}
 .dcs-3d1e4840-2 {display:flex;flex-direction:row;justify-content:center}
@@ -1520,848 +1520,1083 @@ engine=(function(daedalus){
     const HeaderElement=daedalus.HeaderElement;
     const ButtonElement=daedalus.ButtonElement;
     const LinkElement=daedalus.LinkElement;
-    function randomNumber(min,max){
-      return Math.round(Math.random()*(max-min)+min);
-    }
-    function randomRange(min,max){
-      return randomNumber(min,max-1);
-    }
-    function shuffle(array){
-      let currentIndex=array.length,randomIndex;
-      while(currentIndex!=0){
-        randomIndex=Math.floor(Math.random()*currentIndex);
-        currentIndex--;
-        [array[currentIndex],array[randomIndex]]=[array[randomIndex],array[currentIndex]];
-        
-      }
-      return array;
-    }
-    const Direction={NONE:0,LEFT:1,RIGHT:2,UP:4,DOWN:8,UPLEFT:5,UPRIGHT:6,DOWNLEFT:9,
-          DOWNRIGHT:10,UPDOWN:12,LEFTRIGHT:3,ALL:15};
-    Direction.name=Object.fromEntries(Object.entries(Direction).map(([key,value])=>[
-                  value,key]));
-    Direction.order=[Direction.RIGHT,Direction.UPRIGHT,Direction.UP,Direction.UPLEFT,
-          Direction.LEFT,Direction.DOWNLEFT,Direction.DOWN,Direction.DOWNRIGHT];
-    Direction.flip={[Direction.UP]:Direction.DOWN,[Direction.UPRIGHT]:Direction.DOWNLEFT,
-          [Direction.RIGHT]:Direction.LEFT,[Direction.DOWNRIGHT]:Direction.UPLEFT,[Direction.DOWN]:Direction.UP,
-          [Direction.DOWNLEFT]:Direction.UPRIGHT,[Direction.LEFT]:Direction.RIGHT,[Direction.UPLEFT]:Direction.DOWNRIGHT};
-    
-    Direction.fromVector=function(x,y){
-      const theta=Math.atan2(y,-x)*180/Math.PI;
-      let index=4+Math.round(theta/45);
-      if(index==8){
-        index=0;
-      }
-      return Direction.order[index];
-    };
-    Direction.vector=function(d){
-      let xspeed=0;
-      let yspeed=0;
-      if(d&Direction.LEFT){
-        xspeed=-1;
-      }
-      if(d&Direction.RIGHT){
-        xspeed=1;
-      }
-      if(d&Direction.UP){
-        yspeed=-1;
-      }
-      if(d&Direction.DOWN){
-        yspeed=1;
-      }
-      return{x:xspeed,y:yspeed};
-    };
-    class Sound{
-      constructor(path){
-        let sound=new Audio();
-        sound.src=path;
-        this.ready=true;
-        this.sounds=[sound,sound.cloneNode(),sound.cloneNode()];
-        this.index=0;
-      }
-      play(){
-        this.sounds[this.index].play().catch(error=>{
-            console.log(error);
-          });
-        this.index=(this.index+1)%this.sounds.length;
-      }
-    }
-    class Sprite{
-      constructor(path){
-        this.image=new Image();
-        this.ready=false;
-        this.image.onload=()=>{
-          this.ready=true;
-        };
-        this.image.src=path;
-      }
-    }
-    class SpriteSheetBuilder{
-      constructor(){
-        this._path="";
-        this._tw=32;
-        this._th=32;
-        this._rows=1;
-        this._cols=1;
-        this._xspacing=0;
-        this._yspacing=0;
-        this._xoffset=0;
-        this._yoffset=0;
-      }
-      path(path){
-        this._path=path;
-        return this;
-      }
-      dimensions(tw,th){
-        this._tw=tw;
-        this._th=th;
-        return this;
-      }
-      layout(rows,cols){
-        this._rows=rows;
-        this._cols=cols;
-        return this;
-      }
-      offset(x,y){
-        this._xoffset=x;
-        this._yoffset=y;
-        return this;
-      }
-      spacing(x,y){
-        this._xspacing=x;
-        this._yspacing=y;
-        return this;
-      }
-      build(){
-        let ss=new SpriteSheet(this._path);
-        ss.tw=this._tw;
-        ss.th=this._th;
-        ss.rows=this._rows;
-        ss.cols=this._cols;
-        ss.xspacing=this._xspacing;
-        ss.yspacing=this._yspacing;
-        ss.xoffset=this._xoffset;
-        ss.yoffset=this._yoffset;
-        return ss;
-      }
-    }
-    class SpriteSheet{
-      constructor(path){
-        this.image=new Image();
-        this.ready=false;
-        this.image.onload=()=>{
-          this.ready=true;
-        };
-        this.image.src=path;
-        this.tw=0;
-        this.th=0;
-        this.rows=0;
-        this.cols=0;
-        this.xspacing=0;
-        this.yspacing=0;
-        this.xoffset=0;
-        this.yoffset=0;
-      }
-      drawTile(ctx,tid,dx,dy){
-        dx=Math.floor(dx);
-        dy=Math.floor(dy);
-        let sx=Math.floor((tid%this.cols)*(this.tw+this.xspacing)+this.xoffset);
-        let sy=Math.floor(Math.floor(tid/this.cols)*(this.th+this.yspacing)+this.yoffset);
-        
-        ctx.drawImage(this.image,sx,sy,this.tw,this.th,dx,dy,this.tw,this.th);
-      }
-    }
-    class Tile{
-      constructor(sheet,tid){
-        this.sheet=sheet;
-        this.tid=tid;
-      }
-      draw(ctx,dx,dy){
-        this.sheet.drawTile(ctx,this.tid,dx,dy);
-      }
-    }
-    class Rect{
-      constructor(x,y,w,h){
-        this.x=x;
-        this.y=y;
-        this.w=w;
-        this.h=h;
-      }
-      cx(){
-        return Math.floor(this.x+this.w/2);
-      }
-      cy(){
-        return Math.floor(this.y+this.h/2);
-      }
-      top(){
-        return this.y;
-      }
-      right(){
-        return this.x+this.w;
-      }
-      bottom(){
-        return this.y+this.h;
-      }
-      left(){
-        return this.x;
-      }
-      intersect(other){
-        let l1=this.x;
-        let l2=other.x;
-        let r1=this.x+this.w;
-        let r2=other.x+other.w;
-        let t1=this.y;
-        let t2=other.y;
-        let b1=this.y+this.h;
-        let b2=other.y+other.h;
-        let l3=Math.max(l1,l2);
-        let r3=Math.min(r1,r2);
-        let t3=Math.max(t1,t2);
-        let b3=Math.min(b1,b2);
-        if(r3>l3&&b3>t3){
-          return new Rect(l3,t3,r3-l3,b3-t3);
-        }else{
-          return new Rect(0,0,0,0);
+    const[Direction,Rect,randomChoice,randomNumber,randomRange,shuffle]=(function(
+            ){
+        function randomNumber(min,max){
+          return Math.round(Math.random()*(max-min)+min);
         }
-      }
-      collideRect(other){
-        let l1=this.x;
-        let l2=other.x;
-        let r1=this.x+this.w;
-        let r2=other.x+other.w;
-        let t1=this.y;
-        let t2=other.y;
-        let b1=this.y+this.h;
-        let b2=other.y+other.h;
-        return Math.max(l1,l2)<Math.min(r1,r2)&&Math.max(t1,t2)<Math.min(b1,b2);
-      }
-      collidePoint(x,y){
-        let l1=this.x;
-        let r1=this.x+this.w;
-        let t1=this.y;
-        let b1=this.y+this.h;
-        return l1<x&&x<r1&&t1<y&&y<b1;
-      }
-    }
-    class Physics2d{
-      constructor(target){
-        this.target=target;
-        this.xspeed=0;
-        this.yspeed=0;
-        this.ximpulse=0;
-        this.yimpulse=0;
-        this.group=null;
-        this.map_width=640;
-        this.map_height=320;
-        this.xcollide=false;
-        this.ycollide=false;
-        this.collide=false;
-      }
-      collidePoint(x,y){
-        for(let i=0;i<this.group.length;i++)
-        {
-          if(this.group[i].rect.collidePoint(x,y)){
-            return this.group[i];
+        function randomRange(min,max){
+          return randomNumber(min,max-1);
+        }
+        function randomChoice(lst){
+          if(lst.length==0){
+            return null;
+          }
+          let i=randomRange(0,lst.length);
+          return lst[i];
+        }
+        function shuffle(array){
+          let currentIndex=array.length,randomIndex;
+          while(currentIndex!=0){
+            randomIndex=Math.floor(Math.random()*currentIndex);
+            currentIndex--;
+            [array[currentIndex],array[randomIndex]]=[array[randomIndex],array[currentIndex]];
+            
+          }
+          return array;
+        }
+        const Direction={NONE:0,LEFT:1,RIGHT:2,UP:4,DOWN:8,UPLEFT:5,UPRIGHT:6,DOWNLEFT:9,
+                  DOWNRIGHT:10,UPDOWN:12,LEFTRIGHT:3,ALL:15};
+        Direction.name=Object.fromEntries(Object.entries(Direction).map(([key,value])=>[
+                          value,key]));
+        Direction.order=[Direction.RIGHT,Direction.UPRIGHT,Direction.UP,Direction.UPLEFT,
+                  Direction.LEFT,Direction.DOWNLEFT,Direction.DOWN,Direction.DOWNRIGHT];
+        Direction.flip={[Direction.UP]:Direction.DOWN,[Direction.UPRIGHT]:Direction.DOWNLEFT,
+                  [Direction.RIGHT]:Direction.LEFT,[Direction.DOWNRIGHT]:Direction.UPLEFT,
+                  [Direction.DOWN]:Direction.UP,[Direction.DOWNLEFT]:Direction.UPRIGHT,[Direction.LEFT]:Direction.RIGHT,
+                  [Direction.UPLEFT]:Direction.DOWNRIGHT};
+        Direction.fromVector=function(x,y){
+          if(x==0&&y==0){
+            return 0;
+          }
+          const theta=Math.atan2(y,-x)*180/Math.PI;
+          let index=4+Math.round(theta/45);
+          if(index==8){
+            index=0;
+          }
+          return Direction.order[index];
+        };
+        Direction.vector=function(d){
+          let xspeed=0;
+          let yspeed=0;
+          if(d&Direction.LEFT){
+            xspeed=-1;
+          }
+          if(d&Direction.RIGHT){
+            xspeed=1;
+          }
+          if(d&Direction.UP){
+            yspeed=-1;
+          }
+          if(d&Direction.DOWN){
+            yspeed=1;
+          }
+          return{x:xspeed,y:yspeed};
+        };
+        class Rect{
+          constructor(x,y,w,h){
+            this.x=x;
+            this.y=y;
+            this.w=w;
+            this.h=h;
+          }
+          cx(){
+            return Math.floor(this.x+this.w/2);
+          }
+          cy(){
+            return Math.floor(this.y+this.h/2);
+          }
+          top(){
+            return this.y;
+          }
+          right(){
+            return this.x+this.w;
+          }
+          bottom(){
+            return this.y+this.h;
+          }
+          left(){
+            return this.x;
+          }
+          intersect(other){
+            let l1=this.x;
+            let l2=other.x;
+            let r1=this.x+this.w;
+            let r2=other.x+other.w;
+            let t1=this.y;
+            let t2=other.y;
+            let b1=this.y+this.h;
+            let b2=other.y+other.h;
+            let l3=Math.max(l1,l2);
+            let r3=Math.min(r1,r2);
+            let t3=Math.max(t1,t2);
+            let b3=Math.min(b1,b2);
+            if(r3>l3&&b3>t3){
+              return new Rect(l3,t3,r3-l3,b3-t3);
+            }else{
+              return new Rect(0,0,0,0);
+            }
+          }
+          collideRect(other){
+            let l1=this.x;
+            let l2=other.x;
+            let r1=this.x+this.w;
+            let r2=other.x+other.w;
+            let t1=this.y;
+            let t2=other.y;
+            let b1=this.y+this.h;
+            let b2=other.y+other.h;
+            return Math.max(l1,l2)<Math.min(r1,r2)&&Math.max(t1,t2)<Math.min(b1,b2);
+            
+          }
+          collidePoint(x,y){
+            let l1=this.x;
+            let r1=this.x+this.w;
+            let t1=this.y;
+            let b1=this.y+this.h;
+            return l1<=x&&x<r1&&t1<=y&&y<b1;
           }
         }
-        return null;
-      }
-      impulse(dx,dy){
-        this.ximpulse=dx;
-        this.yimpulse=dy;
-      }
-      update(dt){
-        this.xcollide=false;
-        this.ycollide=false;
-        this.collide=false;
-        let rect,solid;
-        let dx,dy;
-        if(this.ximpulse!=0||this.yimpulse!=0){
-          dx=dt*this.ximpulse;
-          dy=dt*this.yimpulse;
-          this.ximpulse*=.95;
-          this.yimpulse*=.95;
-          if(Math.abs(this.ximpulse)<30){
+        return[Direction,Rect,randomChoice,randomNumber,randomRange,shuffle];
+      })();
+    const[ResourceLoader,SoundEffect,SoundEffectBuilder,SpriteSheet,SpriteSheetBuilder,
+          SpriteTile]=(function(){
+        class SoundEffect{
+          constructor(path){
+            let sound=new Audio();
+            sound.src=path;
+            this.ready=true;
+            this.sounds=[sound,sound.cloneNode(),sound.cloneNode()];
+            this.index=0;
+          }
+          play(){
+            this.sounds[this.index].play().catch(error=>{
+                console.log(error);
+              });
+            this.index=(this.index+1)%this.sounds.length;
+          }
+        }
+        class SoundEffectBuilder{
+          constructor(){
+            this._path="";
+          }
+          path(path){
+            this._path=path;
+            return this;
+          }
+          build(){
+            let se=new SoundEffect(this._path);
+            return se;
+          }
+        }
+        class SpriteSheetBuilder{
+          constructor(){
+            this._path="";
+            this._tw=32;
+            this._th=32;
+            this._rows=1;
+            this._cols=1;
+            this._xspacing=0;
+            this._yspacing=0;
+            this._xoffset=0;
+            this._yoffset=0;
+          }
+          path(path){
+            this._path=path;
+            return this;
+          }
+          dimensions(tw,th){
+            this._tw=tw;
+            this._th=th;
+            return this;
+          }
+          layout(rows,cols){
+            this._rows=rows;
+            this._cols=cols;
+            return this;
+          }
+          offset(x,y){
+            this._xoffset=x;
+            this._yoffset=y;
+            return this;
+          }
+          spacing(x,y){
+            this._xspacing=x;
+            this._yspacing=y;
+            return this;
+          }
+          build(){
+            let ss=new SpriteSheet(this._path);
+            ss.tw=this._tw;
+            ss.th=this._th;
+            ss.rows=this._rows;
+            ss.cols=this._cols;
+            ss.xspacing=this._xspacing;
+            ss.yspacing=this._yspacing;
+            ss.xoffset=this._xoffset;
+            ss.yoffset=this._yoffset;
+            return ss;
+          }
+        }
+        class SpriteSheet{
+          constructor(path){
+            this.image=new Image();
+            this.ready=false;
+            this.image.onload=()=>{
+              this.ready=true;
+            };
+            this.image.src=path;
+            this.tw=0;
+            this.th=0;
+            this.rows=0;
+            this.cols=0;
+            this.xspacing=0;
+            this.yspacing=0;
+            this.xoffset=0;
+            this.yoffset=0;
+          }
+          drawTile(ctx,tid,dx,dy){
+            dx=Math.floor(dx);
+            dy=Math.floor(dy);
+            let sx=Math.floor((tid%this.cols)*(this.tw+this.xspacing)+this.xoffset);
+            
+            let sy=Math.floor(Math.floor(tid/this.cols)*(this.th+this.yspacing)+this.yoffset);
+            
+            ctx.drawImage(this.image,sx,sy,this.tw,this.th,dx,dy,this.tw,this.th);
+            
+          }
+          drawTileScaled(ctx,tid,dx,dy,dw,dh){
+            dx=Math.floor(dx);
+            dy=Math.floor(dy);
+            dw=Math.floor(dw);
+            dh=Math.floor(dh);
+            let sx=Math.floor((tid%this.cols)*(this.tw+this.xspacing)+this.xoffset);
+            
+            let sy=Math.floor(Math.floor(tid/this.cols)*(this.th+this.yspacing)+this.yoffset);
+            
+            ctx.drawImage(this.image,sx,sy,this.tw,this.th,dx,dy,dw,dh);
+          }
+          tile(tid){
+            return new SpriteTile(this,tid);
+          }
+        }
+        class SpriteTile{
+          constructor(sheet,tid){
+            this.sheet=sheet;
+            this.tid=tid;
+          }
+          draw(ctx,dx,dy){
+            this.sheet.drawTile(ctx,this.tid,dx,dy);
+          }
+        }
+        class ResourceLoader{
+          constructor(){
+            this.resources=[];
+            this.resource_count=0;
+            this.ready=false;
+            this.music={};
+            this.sounds={};
+            this.sheets={};
+          }
+          addSoundEffect(resid){
+            let builder=new SoundEffectBuilder();
+            this.resources.push({resid,builder,instance:null,kind:"sounds"});
+            this.resource_count+=1;
+            return builder;
+          }
+          addMusic(resid){
+            return null;
+          }
+          addSpriteSheet(resid){
+            let builder=new SpriteSheetBuilder();
+            this.resources.push({resid,builder,instance:null,kind:"sheets"});
+            this.resource_count+=1;
+            return builder;
+          }
+          update(dt){
+            if(this.ready){
+              return;
+            }
+            for(let i=this.resources.length-1;i>=0;i--)
+            {
+              let res=this.resources[i];
+              if(res.instance===null){
+                res.instance=res.builder.build();
+              }else if(res.instance.ready){
+                if(res.kind=="sheets"){
+                  this.sheets[res.resid]=res.instance;
+                }
+                if(res.kind=="sounds"){
+                  this.sounds[res.resid]=res.instance;
+                }
+                if(res.kind=="music"){
+                  this.music[res.resid]=res.instance;
+                }
+                this.resources.splice(i,1);
+              }
+            }
+            this.ready=this.resources.length==0;
+          }
+        }
+        return[ResourceLoader,SoundEffect,SoundEffectBuilder,SpriteSheet,SpriteSheetBuilder,
+                  SpriteTile];
+      })();
+    const[Animation,CameraBase,CharacterComponent,Entity,EntityComponentSystem,Physics2d]=(
+          function(){
+        class Physics2d{
+          constructor(target){
+            this.target=target;
+            this.xspeed=0;
+            this.yspeed=0;
             this.ximpulse=0;
-          }
-          if(Math.abs(this.yimpulse)<30){
             this.yimpulse=0;
+            this.group=null;
+            this.map_width=640;
+            this.map_height=320;
+            this.xcollide=false;
+            this.ycollide=false;
+            this.collide=false;
           }
-        }else{
-          dx=dt*this.xspeed;
-          dy=dt*this.yspeed;
-        }
-        rect=new Rect(this.target.rect.x+dx,this.target.rect.y,this.target.rect.w,
-                  this.target.rect.h);
-        solid=false;
-        for(let i=0;i<this.group.length;i++)
-        {
-          if(rect.collideRect(this.group[i].rect)){
-            solid=true;
-            break;
+          collidePoint(x,y){
+            for(let i=0;i<this.group.length;i++)
+            {
+              if(this.group[i].rect.collidePoint(x,y)){
+                return this.group[i];
+              }
+            }
+            return null;
+          }
+          impulse(dx,dy){
+            this.ximpulse=dx;
+            this.yimpulse=dy;
+          }
+          update(dt){
+            this.xcollide=false;
+            this.ycollide=false;
+            this.collide=false;
+            let rect,solid;
+            let dx,dy;
+            if(this.ximpulse!=0||this.yimpulse!=0){
+              dx=dt*this.ximpulse;
+              dy=dt*this.yimpulse;
+              this.ximpulse*=.95;
+              this.yimpulse*=.95;
+              if(Math.abs(this.ximpulse)<30){
+                this.ximpulse=0;
+              }
+              if(Math.abs(this.yimpulse)<30){
+                this.yimpulse=0;
+              }
+            }else{
+              dx=dt*this.xspeed;
+              dy=dt*this.yspeed;
+            }
+            rect=new Rect(this.target.rect.x+dx,this.target.rect.y,this.target.rect.w,
+                          this.target.rect.h);
+            solid=false;
+            for(let i=0;i<this.group.length;i++)
+            {
+              if(rect.collideRect(this.group[i].rect)){
+                solid=true;
+                break;
+              }
+            }
+            if(!solid){
+              this.target.rect=rect;
+            }else{
+              this.xcollide=true;
+            }
+            rect=new Rect(this.target.rect.x,this.target.rect.y+dy,this.target.rect.w,
+                          this.target.rect.h);
+            solid=false;
+            for(let i=0;i<this.group.length;i++)
+            {
+              if(rect.collideRect(this.group[i].rect)){
+                solid=true;
+                break;
+              }
+            }
+            if(!solid){
+              this.target.rect=rect;
+            }else{
+              this.ycollide=true;
+            }
+            this.collide=this.xcollide||this.ycollide;
           }
         }
-        if(!solid){
-          this.target.rect=rect;
-        }else{
-          this.xcollide=true;
-        }
-        rect=new Rect(this.target.rect.x,this.target.rect.y+dy,this.target.rect.w,
-                  this.target.rect.h);
-        solid=false;
-        for(let i=0;i<this.group.length;i++)
-        {
-          if(rect.collideRect(this.group[i].rect)){
-            solid=true;
-            break;
+        class Animation{
+          constructor(target){
+            this.target=target;
+            this.next_id=0;
+            this.animations={};
+            this.animation=null;
+            this.timer=0;
+            this.frame_index=0;
+            this.aid=-1;
+            this.paused=0;
+            this.effect=null;
           }
-        }
-        if(!solid){
-          this.target.rect=rect;
-        }else{
-          this.ycollide=true;
-        }
-        this.collide=this.xcollide||this.ycollide;
-      }
-    }
-    class Animation{
-      constructor(target){
-        this.target=target;
-        this.next_id=0;
-        this.animations={};
-        this.animation=null;
-        this.timer=0;
-        this.frame_index=0;
-        this.aid=-1;
-        this.paused=0;
-        this.effect=null;
-      }
-      register(sheet,tids,frame_duration,params){
-        let aid=this.next_id;
-        let obj={sheet,tids,frame_duration,xoffset:params.xoffset??0,yoffset:params.yoffset??0,
-                  loop:params.loop??true,onend:params.onend??null};
-        this.animations[aid]=obj;
-        this.next_id+=1;
-        return aid;
-      }
-      setAnimationById(aid){
-        if(aid!=this.aid){
-          this.timer=0;
-          this.frame_index=0;
-          this.animation=this.animations[aid];
-          this.aid=aid;
-        }
-        this.paused=0;
-      }
-      pause(){
-        this.paused=1;
-        this.frame_index=0;
-      }
-      update(dt){
-        if(this.animation&&this.paused===0){
-          this.timer+=dt;
-          if(this.timer>this.animation.frame_duration){
-            this.timer-=this.animation.frame_duration;
-            this.frame_index+=1;
-            if(this.frame_index>=this.animation.tids.length){
-              ((this.animation.onend)||(()=>null))();
-              if(this.animation.loop){
-                this.frame_index=0;
-              }else{
-                this.paused=1;
+          register(sheet,tids,frame_duration,params){
+            let aid=this.next_id;
+            let obj={sheet,tids,frame_duration,xoffset:params.xoffset??0,yoffset:params.yoffset??0,
+                          loop:params.loop??true,onend:params.onend??null};
+            this.animations[aid]=obj;
+            this.next_id+=1;
+            return aid;
+          }
+          setAnimationById(aid){
+            if(aid!=this.aid){
+              this.timer=0;
+              this.frame_index=0;
+              this.animation=this.animations[aid];
+              this.aid=aid;
+            }
+            this.paused=0;
+          }
+          pause(){
+            this.paused=1;
+            this.frame_index=0;
+          }
+          update(dt){
+            if(this.animation&&this.paused===0){
+              this.timer+=dt;
+              if(this.timer>this.animation.frame_duration){
+                this.timer-=this.animation.frame_duration;
+                this.frame_index+=1;
+                if(this.frame_index>=this.animation.tids.length){
+                  ((this.animation.onend)||(()=>null))();
+                  if(this.animation.loop){
+                    this.frame_index=0;
+                  }else{
+                    this.paused=1;
+                  }
+                }
               }
             }
           }
-        }
-      }
-      paint(ctx){
-        if(this.animation){
-          let tid=this.animation.tids[this.frame_index];
-          let x=this.target.rect.x+this.animation.xoffset;
-          let y=this.target.rect.y+this.animation.yoffset;
-          ctx.save();
-          ((this.effect)||(()=>null))(ctx);
-          this.animation.sheet.drawTile(ctx,tid,x,y);
-          ctx.restore();
-        }
-      }
-    }
-    class CharacterComponent{
-      constructor(target){
-        this.target=target;
-        this.alive=true;
-        this.health=3;
-        this.hurt_timer=0;
-        this.hurt_period=.5;
-      }
-      update(dt){
-        if(this.hurt_timer>0){
-          this.hurt_timer-=dt;
-          if(this.hurt_timer<0&&this.health<=0){
-            this.alive=false;
-          }
-        }
-      }
-      hit(power,direction){
-        this.hurt_timer=this.hurt_period;
-        this.health-=power;
-        if(direction>0){
-          let vector=Direction.vector(direction);
-          this.target.physics.impulse(vector.x*100,vector.y*100);
-        }
-        this.target.animation.effect=(ctx)=>{
-          if(this.hurt_timer<=0){
-            this.target.animation.effect=null;
-          }
-          let x;
-          x=(this.hurt_timer>this.hurt_period/2)?this.hurt_period-this.hurt_timer:this.hurt_timer;
-          
-          x=Math.floor(100+200*x);
-          ctx.filter=`brightness(${x}%) hue-rotate(-90deg)`;
-        };
-        this.target.sound_hit.play();
-      }
-    }
-    class Entity{
-      constructor(){
-        this.active=true;
-        this.sprite=null;
-        this.rect=new Rect(0,0,0,0);
-        this.physics=new Physics2d(this);
-        this.animation=new Animation(this);
-      }
-      update(dt){
-        this.physics.update(dt);
-        this.animation.update(dt);
-      }
-      paint(ctx){
-        if(this.sprite&&this.sprite.ready){
-          ctx.drawImage(this.sprite.image,this.rect.x,this.rect.y);
-        }
-        this.animation.paint(ctx);
-      }
-    }
-    const Keys={LEFT:37,UP:38,RIGHT:39,DOWN:40,SPACE:32,SHIFT:16,CTRL:17,ALT:18};
-    
-    class KeyboardInput{
-      constructor(target){
-        this.target=target;
-        this.keysDown=[];
-        this.buttons=[Keys.CTRL,Keys.SPACE];
-      }
-      handlePress(kc){
-        if(kc>=37&&kc<=40){
-          if(!this.keysDown.includes(kc)){
-            this.keysDown.push(kc);
-          }
-          this.target.setInputDirection(0,this.getDirection(this.keysDown));
-        }else{
-          let match=0;
-          for(let i=0;i<this.buttons.length;i++)
-          {
-            if(this.buttons[i]==kc){
-              this.target.handleButtonPress(i);
-              match=1;
+          paint(ctx){
+            if(this.animation){
+              let tid=this.animation.tids[this.frame_index];
+              let x=this.target.rect.x+this.animation.xoffset;
+              let y=this.target.rect.y+this.animation.yoffset;
+              ctx.save();
+              ((this.effect)||(()=>null))(ctx);
+              this.animation.sheet.drawTile(ctx,tid,x,y);
+              ctx.restore();
             }
           }
-          if(match===0){
-            console.log(`unexpected keycode ${event.keyCode}`);
-          }
         }
-      }
-      handleRelease(kc){
-        if(kc>=37&&kc<=40){
-          let index=this.keysDown.indexOf(kc);
-          if(index!==-1){
-            this.keysDown.splice(index,1);
+        class CharacterComponent{
+          constructor(target){
+            this.target=target;
+            this.alive=true;
+            this.health=3;
+            this.hurt_timer=0;
+            this.hurt_period=.5;
+            this.hurt_cooldown=0;
           }
-          this.target.setInputDirection(0,this.getDirection(this.keysDown));
-        }else{
-          let match=0;
-          for(let i=0;i<this.buttons.length;i++)
-          {
-            if(this.buttons[i]==kc){
-              this.target.handleButtonRelease(i);
-              match=1;
+          update(dt){
+            if(this.hurt_timer>0){
+              this.hurt_timer-=dt;
+              if(this.hurt_timer<0&&this.health<=0){
+                this.alive=false;
+              }
+            }
+            if(this.hurt_cooldown>0){
+              this.hurt_cooldown-=dt;
             }
           }
-          if(match===0){
-            console.log(`unexpected keycode ${event.keyCode}`);
-          }
-        }
-      }
-      getDirection(keysDown){
-        let h=0;
-        let v=0;
-        for(let i=0;i<keysDown.length;i++)
-        {
-          const kc=keysDown[i];
-          if(h==0&&kc==Keys.LEFT){
-            h=Direction.LEFT;
-          }
-          if(h==0&&kc==Keys.RIGHT){
-            h=Direction.RIGHT;
-          }
-          if(v==0&&kc==Keys.UP){
-            v=Direction.UP;
-          }
-          if(v==0&&kc==Keys.DOWN){
-            v=Direction.DOWN;
-          }
-        }
-        return h|v;
-      }
-    }
-    class TouchInput{
-      constructor(target){
-        this.target=target;
-        this.touches=[];
-        this.touch_move=null;
-        this.resize();
-      }
-      handleMove(whlid,tx,ty){
-        if(this.target===null){
-          return;
-        }
-        const cx=this.wheels[whlid].cx;
-        const cy=this.wheels[whlid].cy;
-        const d=Direction.fromVector(tx-cx,ty-cy);
-        this.target.setInputDirection(whlid,d);
-      }
-      handleMoveCancel(whlid){
-        if(this.target===null){
-          return;
-        }
-        this.target.setInputDirection(whlid,0);
-      }
-      handleButtonPress(btnid){
-        if(this.target===null){
-          return;
-        }
-        this.target.handleButtonPress(btnid);
-      }
-      handleButtonRelease(btnid){
-        if(this.target===null){
-          return;
-        }
-        this.target.handleButtonRelease(btnid);
-      }
-      handleTouches(touches){
-        if(touches.length){
-          this.touches=[...touches];
-        }
-        for(let j=0;j<this.buttons.length;j++)
-        {
-          let btn=this.buttons[j];
-          let pressed=0;
-          for(let i=touches.length-1;i>=0;i--)
-          {
-            let touch=touches[i];
-            const dx=btn.cx-touch.x;
-            const dy=btn.cy-touch.y;
-            if((dx*dx+dy*dy)<btn.radius*btn.radius){
-              pressed=1;
-              touches.splice(i,1);
+          hit(power,direction){
+            if(this.hurt_cooldown>0){
+              return;
             }
-          }
-          if(pressed&&!btn.pressed){
-            btn.pressed=1;
-            this.handleButtonPress(j);
-          }else if(!pressed&&btn.pressed){
-            btn.pressed=0;
-            this.handleButtonRelease(j);
-          }
-        }
-        let wheel_events={};
-        let touch_move=null;
-        for(let j=0;j<this.wheels.length;j++)
-        {
-          let wheel=this.wheels[j];
-          let touched=false;
-          for(let i=touches.length-1;i>=0;i--)
-          {
-            let touch=touches[i];
-            const dx=wheel.cx-touch.x;
-            const dy=wheel.cy-touch.y;
-            const dr=wheel.radius*2;
-            if((dx*dx+dy*dy)<dr*dr){
-              touched=true;
-              this.handleMove(j,touch.x,touch.y);
-              touches.splice(i,1);
-              break;
+            this.hurt_cooldown=this.hurt_period+.25;
+            this.hurt_timer=this.hurt_period;
+            this.health-=power;
+            if(direction>0){
+              let vector=Direction.vector(direction);
+              this.target.physics.impulse(vector.x*100,vector.y*100);
             }
-          }
-          if(!touched){
-            this.handleMoveCancel(j);
-          }
-        }
-      }
-      resize(){
-        let radius=(gEngine.view.height*.2);
-        this.wheels=[{cx:radius,cy:gEngine.view.height-radius,radius:radius}];
-        radius=32;
-        this.buttons=[{cx:gEngine.view.width-radius,cy:gEngine.view.height-3*radius,
-                      radius:radius,pressed:0},{cx:gEngine.view.width-3*radius,cy:gEngine.view.height-radius,
-                      radius:radius,pressed:0}];
-      }
-      paint(ctx){
-        ctx.lineWidth=2;
-        ctx.strokeStyle='red';
-        for(let w=0;w<this.wheels.length;w++)
-        {
-          const e2=Math.floor(this.wheels[w].radius);
-          const e3=Math.floor(this.wheels[w].radius*.7071);
-          const cx=Math.floor(this.wheels[w].cx);
-          const cy=Math.floor(this.wheels[w].cy);
-          ctx.beginPath();
-          ctx.moveTo(cx-e3,cy-e3);
-          ctx.lineTo(cx+e3,cy+e3);
-          ctx.moveTo(cx+e3,cy-e3);
-          ctx.lineTo(cx-e3,cy+e3);
-          ctx.moveTo(cx-e2,cy);
-          ctx.lineTo(cx+e2,cy);
-          ctx.moveTo(cx,cy-e2);
-          ctx.lineTo(cx,cy+e2);
-          ctx.moveTo(cx,cy);
-          ctx.arc(cx,cy,e2,0,2*Math.PI);
-          ctx.stroke();
-        }
-        for(let i=0;i<this.buttons.length;i++)
-        {
-          let btn=this.buttons[i];
-          ctx.beginPath();
-          ctx.arc(btn.cx,btn.cy,btn.radius,0,2*Math.PI);
-          ctx.stroke();
-        }
-        this.touches.forEach(t=>{
-            ctx.beginPath();
-            ctx.arc(t.x,t.y,5,0,2*Math.PI);
-            ctx.stroke();
-          });
-      }
-    }
-    class GameScene{
-      pause(paused){
-
-      }
-      update(dt){
-
-      }
-      paint(ctx){
-
-      }
-      resize(){
-
-      }
-      handleTouches(touches){
-
-      }
-      handleKeyPress(keyCode){
-
-      }
-      handleKeyRelease(keyCode){
-
-      }
-    }
-    const style={"canvas":'dcs-d9d48ff9-0'};
-    class CanvasEngine extends DomElement {
-      constructor(width,height){
-        super("canvas",{"width":width,"height":height,className:style.canvas});
-        this.scene=null;
-        this.ctx=null;
-        this.lastTime=null;
-        this.delta_accum=0;
-        this.view={x:0,y:0,width:640,height:320,rotate:0,scale:1,availWidth:0,availHeight:0};
-        
-        this.touch_event=null;
-        this.paused=false;
-      }
-      elementMounted(){
-        this.ctx=this.getDomNode().getContext("2d");
-        console.log(`2d context created}`);
-        this.handleResize(this.props.width,this.props.height);
-        window.requestAnimationFrame(this.render.bind(this));
-      }
-      _getMouseTouches(event){
-        event.preventDefault();
-        const rect=this.getDomNode().getBoundingClientRect();
-        const x=(event.clientX-rect.left)/this.view.scale-this.view.x;
-        const y=(event.clientY-rect.top)/this.view.scale-this.view.y;
-        return[{x,y}];
-      }
-      onMouseDown(event){
-        if(event.buttons&1){
-          const touches=this._getMouseTouches(event);
-          if(!this.paused){
-            this.scene.handleTouches(touches);
-          }
-        }
-      }
-      onMouseMove(event){
-        if(event.buttons&1){
-          const touches=this._getMouseTouches(event);
-          if(!this.paused){
-            this.scene.handleTouches(touches);
-          }
-        }
-      }
-      onMouseUp(event){
-        if(!this.paused){
-          this.scene.handleTouches([]);
-        }
-      }
-      _getTouches(event){
-        event.preventDefault();
-        const rect=this.getDomNode().getBoundingClientRect();
-        return Array.from(event.targetTouches).map(touch=>{
-            if(this.view.rotate){
-              return{"x":(touch.clientY-rect.top-this.view.x),"y":this.view.height-(
-                                  touch.clientX-rect.left-this.view.y)};
-            }else{
-              return{"x":(touch.clientX-rect.left-this.view.x),"y":(touch.clientY-rect.top-this.view.y)};
+            this.target.animation.effect=(ctx)=>{
+              if(this.hurt_timer<=0){
+                this.target.animation.effect=null;
+              }
+              let x;
+              x=(this.hurt_timer>this.hurt_period/2)?this.hurt_period-this.hurt_timer:this.hurt_timer;
               
+              x=Math.floor(100+200*x);
+              ctx.filter=`brightness(${x}%) hue-rotate(-90deg)`;
+            };
+            this.target.sound_hit.play();
+          }
+        }
+        class Entity{
+          constructor(){
+            this.entid=-1;
+            this.active=true;
+            this.solid=true;
+            this.visible=true;
+            this.layer=0;
+            this.rect=new Rect(0,0,0,0);
+            this.physics=new Physics2d(this);
+            this.animation=new Animation(this);
+          }
+          update(dt){
+            this.physics.update(dt);
+            this.animation.update(dt);
+          }
+          paint(ctx){
+            this.animation.paint(ctx);
+          }
+        }
+        class CameraBase{
+          constructor(){
+            this.dirty=true;
+          }
+          resize(){
+
+          }
+          update(dt){
+
+          }
+          activeRegion(){
+            return new Rect(0,0,0,0);
+          }
+        }
+        class EntityComponentSystem{
+          constructor(camera){
+            this.next_entid=1;
+            this.camera=camera;
+            this.entities=[];
+            this.active=[];
+            this.cache={};
+          }
+          update(dt){
+            this.cache.visible=undefined;
+            this.cache.solid=undefined;
+            if(this.camera.dirty){
+              this.active=[];
+              let region=this.camera.activeRegion();
+              for(let i=0;i<this.entities.length;i++)
+              {
+                let ent=this.entities[i];
+                ent.active=region.collideRect(ent.rect);
+                if(ent.active){
+                  this.active.push(ent);
+                }
+              }
+              this.camera.dirty=false;
             }
-          });
-      }
-      onTouchStart(event){
-        const touches=this._getTouches(event);
-        console.log("start",touches.length,[...touches]);
-        if(!this.paused){
-          this.scene.handleTouches(touches);
-        }
-      }
-      onTouchMove(event){
-        const touches=this._getTouches(event);
-        console.log("move",touches.length,[...touches]);
-        if(!this.paused){
-          this.scene.handleTouches(touches);
-        }
-      }
-      onTouchEnd(event){
-        const touches=this._getTouches(event);
-        console.log("end",touches.length,[...touches]);
-        if(!this.paused){
-          this.scene.handleTouches(touches);
-        }
-      }
-      handleResize(width,height){
-        this.view.x=32;
-        this.view.y=8;
-        if(daedalus.platform.isMobile){
-          this.view.width=Math.floor((height-32)/32)*32;
-          this.view.height=Math.floor((width)/32)*32;
-        }else{
-          this.view.width=Math.floor(640.0);
-          this.view.height=Math.floor(360.0);
-        }
-        this.view.availWidth=width;
-        this.view.availHeight=height;
-        if(width/height<0.75){
-          this.view.rotate=1;
-        }else{
-          this.view.rotate=0;
-        }
-        this.view.scale=1;
-        if(this.view.rotate){
-          if(height>2*this.view.width&&width>2*this.view.height){
-            this.view.scale=2;
           }
-        }else{
-          if(width>2*this.view.width&&height>2*this.view.height){
-            this.view.scale=2;
+          addEntity(ent){
+            ent.entid=this.next_entid;
+            this.next_entid+=1;
+            this.entities.push(ent);
+          }
+          visible(){
+            if(this.cache.visible===undefined){
+              this.cache.visible=[];
+              for(let i=0;i<this.cache.active;i++)
+              {
+                if(this.cache.active[i].visible){
+                  this.cache.visible.push(this.cache.active[i]);
+                }
+              }
+            }
+            return this.cache.visible;
+          }
+          solid(){
+            if(this.cache.solid===undefined){
+              this.cache.solid=[];
+              for(let i=0;i<this.cache.active;i++)
+              {
+                if(this.cache.active[i].solid){
+                  this.cache.solid.push(this.cache.active[i]);
+                }
+              }
+            }
+            return this.cache.solid;
           }
         }
-        if(!daedalus.platform.isMobile&&!this.view.rotate){
-          this.view.x=Math.floor((width-(this.view.width*this.view.scale))/(2*this.view.scale));
-          
-          this.view.y=Math.min(32,Math.floor((height-(this.view.height*this.view.scale))/(
-                              2*this.view.scale)));
-        }else if(daedalus.platform.isMobile&&this.view.rotate){
-          this.view.x=Math.floor((height-(this.view.width*this.view.scale))/(2*this.view.scale));
-          
-          this.view.y=Math.floor((width-(this.view.height*this.view.scale))/(2*this.view.scale));
-          
-        }else{
-          this.view.x=0;
-          this.view.y=0;
+        return[Animation,CameraBase,CharacterComponent,Entity,EntityComponentSystem,
+                  Physics2d];
+      })();
+    const[KeyboardInput,TouchInput]=(function(){
+        const Keys={LEFT:37,UP:38,RIGHT:39,DOWN:40,SPACE:32,SHIFT:16,CTRL:17,ALT:18};
+        
+        class KeyboardInput{
+          constructor(target){
+            this.target=target;
+            this.keysDown=[];
+            this.buttons=[Keys.CTRL,Keys.SPACE];
+          }
+          handlePress(kc){
+            if(kc>=37&&kc<=40){
+              if(!this.keysDown.includes(kc)){
+                this.keysDown.push(kc);
+              }
+              let v=this.getDirectionVector(this.keysDown);
+              this.target.setInputDirection(0,v);
+            }else{
+              let match=0;
+              for(let i=0;i<this.buttons.length;i++)
+              {
+                if(this.buttons[i]==kc){
+                  this.target.handleButtonPress(i);
+                  match=1;
+                }
+              }
+              if(match===0){
+                console.log(`unexpected keycode ${event.keyCode}`);
+              }
+            }
+          }
+          handleRelease(kc){
+            if(kc>=37&&kc<=40){
+              let index=this.keysDown.indexOf(kc);
+              if(index!==-1){
+                this.keysDown.splice(index,1);
+              }
+              let v=this.getDirectionVector(this.keysDown);
+              this.target.setInputDirection(0,v);
+            }else{
+              let match=0;
+              for(let i=0;i<this.buttons.length;i++)
+              {
+                if(this.buttons[i]==kc){
+                  this.target.handleButtonRelease(i);
+                  match=1;
+                }
+              }
+              if(match===0){
+                console.log(`unexpected keycode ${event.keyCode}`);
+              }
+            }
+          }
+          getDirectionVector(keysDown){
+            let x=0;
+            let y=0;
+            for(let i=0;i<keysDown.length;i++)
+            {
+              const kc=keysDown[i];
+              if(x==0&&kc==Keys.LEFT){
+                x=-1;
+              }
+              if(x==0&&kc==Keys.RIGHT){
+                x=1;
+              }
+              if(y==0&&kc==Keys.UP){
+                y=-1;
+              }
+              if(y==0&&kc==Keys.DOWN){
+                y=1;
+              }
+            }
+            return{x,y};
+          }
         }
-        this.scene.resize();
-      }
-      handleKeyPress(event){
-        const kc=event.keyCode;
-        if(kc<112){
-          if(kc==19){
-            this.paused=!this.paused;
-            this.scene.pause(this.paused);
-          }else if(!this.paused){
-            this.scene.handleKeyPress(kc);
+        class TouchInput{
+          constructor(target){
+            this.target=target;
+            this.touches=[];
+            this.touch_move=null;
+            this.wheels=[];
+            this.buttons=[];
+            this.button_icons=[];
+            this.resize();
+          }
+          handleMove(whlid,tx,ty){
+            if(this.target===null){
+              return;
+            }
+            const cx=this.wheels[whlid].cx;
+            const cy=this.wheels[whlid].cy;
+            let dx=tx-cx;
+            let dy=ty-cy;
+            let d=Math.sqrt(dx*dx+dy*dy);
+            let cv={x:dx/d,y:dy/d};
+            this.wheels[whlid].vector=cv;
+            this.target.setInputDirection(whlid,cv);
+          }
+          handleMoveCancel(whlid){
+            if(this.target===null){
+              return;
+            }
+            let cv={x:0,y:0};
+            this.wheels[whlid].vector=cv;
+            this.target.setInputDirection(whlid,cv);
+          }
+          handleButtonPress(btnid){
+            if(this.target===null){
+              return;
+            }
+            this.target.handleButtonPress(btnid);
+          }
+          handleButtonRelease(btnid){
+            if(this.target===null){
+              return;
+            }
+            this.target.handleButtonRelease(btnid);
+          }
+          handleTouches(touches){
+            if(touches.length){
+              this.touches=[...touches];
+            }
+            for(let j=0;j<this.buttons.length;j++)
+            {
+              let btn=this.buttons[j];
+              let pressed=0;
+              for(let i=touches.length-1;i>=0;i--)
+              {
+                let touch=touches[i];
+                const dx=btn.cx-touch.x;
+                const dy=btn.cy-touch.y;
+                if((dx*dx+dy*dy)<btn.radius*btn.radius){
+                  pressed=1;
+                  touches.splice(i,1);
+                }
+              }
+              if(pressed&&!btn.pressed){
+                btn.pressed=1;
+                this.handleButtonPress(j);
+              }else if(!pressed&&btn.pressed){
+                btn.pressed=0;
+                this.handleButtonRelease(j);
+              }
+            }
+            let wheel_events={};
+            let touch_move=null;
+            for(let j=0;j<this.wheels.length;j++)
+            {
+              let wheel=this.wheels[j];
+              let touched=false;
+              for(let i=touches.length-1;i>=0;i--)
+              {
+                let touch=touches[i];
+                const dx=wheel.cx-touch.x;
+                const dy=wheel.cy-touch.y;
+                const dr=wheel.radius*2;
+                if((dx*dx+dy*dy)<dr*dr){
+                  touched=true;
+                  this.handleMove(j,touch.x,touch.y);
+                  touches.splice(i,1);
+                  break;
+                }
+              }
+              if(!touched){
+                this.handleMoveCancel(j);
+              }
+            }
+          }
+          resize(){
+            let radius=(gEngine.view.height*.2);
+            this.wheels=[{cx:radius,cy:gEngine.view.height-radius,radius:radius,vector:{
+                                  x:0,y:0}}];
+            radius=32;
+            this.buttons=[{cx:gEngine.view.width-radius,cy:gEngine.view.height-3*radius,
+                              radius:radius,pressed:0},{cx:gEngine.view.width-3*radius,cy:gEngine.view.height-radius,
+                              radius:radius,pressed:0}];
+          }
+          paint(ctx){
+            ctx.lineWidth=2;
+            ctx.strokeStyle='red';
+            for(let w=0;w<this.wheels.length;w++)
+            {
+              let whl=this.wheels[w];
+              const e2=Math.floor(whl.radius);
+              const e3=Math.floor(whl.radius*.7071);
+              const cx=Math.floor(whl.cx);
+              const cy=Math.floor(whl.cy);
+              const cr=Math.floor(whl.radius);
+              const dw=16;
+              const dr=48;
+              ctx.strokeStyle='#00000055';
+              ctx.fillStyle='#888888aa';
+              ctx.beginPath();
+              ctx.roundRect(cx-dr,cy-dw,dr*2,2*dw,8);
+              ctx.roundRect(cx-dw,cy-dr,dw*2,2*dr,8);
+              ctx.fill();
+              ctx.save();
+              ctx.beginPath();
+              let region=new Path2D();
+              region.rect(cx-dr-2,cy-dw-2,dr*2+3,2*dw+3);
+              region.rect(cx-dw-2,cy-dr-2,dw*2+3,2*dr+3);
+              ctx.clip(region,"evenodd");
+              ctx.beginPath();
+              ctx.roundRect(cx-dr,cy-dw,dr*2,2*dw,8);
+              ctx.roundRect(cx-dw,cy-dr,dw*2,2*dr,8);
+              ctx.stroke();
+              ctx.restore();
+              ctx.strokeStyle='#00000055';
+              ctx.fillStyle=(whl.vector.x<-.5)?'#FF770055':'#00000055';
+              ctx.beginPath();
+              ctx.arc(cx-dr+16,cy,8,0,2*Math.PI);
+              ctx.fill();
+              ctx.fillStyle=(whl.vector.x>.5)?'#FF770055':'#00000055';
+              ctx.beginPath();
+              ctx.arc(cx+dr-16,cy,8,0,2*Math.PI);
+              ctx.fill();
+              ctx.fillStyle=(whl.vector.y<-.5)?'#FF770055':'#00000055';
+              ctx.beginPath();
+              ctx.arc(cx,cy-dr+16,8,0,2*Math.PI);
+              ctx.fill();
+              ctx.fillStyle=(whl.vector.y>.5)?'#FF770055':'#00000055';
+              ctx.beginPath();
+              ctx.arc(cx,cy+dr-16,8,0,2*Math.PI);
+              ctx.fill();
+            }
+            for(let i=0;i<this.buttons.length;i++)
+            {
+              const dw=16;
+              let btn=this.buttons[i];
+              ctx.strokeStyle='#00000055';
+              ctx.fillStyle='#888888aa';
+              ctx.beginPath();
+              ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
+              ctx.fill();
+              ctx.beginPath();
+              ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
+              ctx.stroke();
+              ctx.save();
+              ctx.globalAlpha=.5;
+              if(this.button_icons[i]){
+                this.button_icons[i].sheet.drawTileScaled(ctx,this.button_icons[i].tid,
+                                  btn.cx-16,btn.cy-16,32,32);
+              }
+              ctx.restore();
+            }
+            this.touches.forEach(t=>{
+                ctx.fillStyle='#888888aa';
+                ctx.beginPath();
+                ctx.arc(t.x,t.y,5,0,2*Math.PI);
+                ctx.fill();
+              });
+          }
+        }
+        return[KeyboardInput,TouchInput];
+      })();
+    const[CanvasEngine,GameScene]=(function(){
+        class GameScene{
+          pause(paused){
+
+          }
+          update(dt){
+
+          }
+          paint(ctx){
+
+          }
+          resize(){
+
+          }
+          handleTouches(touches){
+
+          }
+          handleKeyPress(keyCode){
+
+          }
+          handleKeyRelease(keyCode){
+
+          }
+        }
+        const style={"canvas":'dcs-3c12219a-0'};
+        class CanvasEngine extends DomElement {
+          constructor(width,height){
+            super("canvas",{"width":width,"height":height,className:style.canvas});
+            
+            this.scene=null;
+            this.ctx=null;
+            this.lastTime=null;
+            this.delta_accum=0;
+            this.view={x:0,y:0,width:640,height:320,rotate:0,scale:1,availWidth:0,
+                          availHeight:0};
+            this.touch_event=null;
+            this.paused=false;
+          }
+          elementMounted(){
+            this.ctx=this.getDomNode().getContext("2d");
+            console.log(`2d context created}`);
+            this.handleResize(this.props.width,this.props.height);
+            window.requestAnimationFrame(this.render.bind(this));
+          }
+          _getMouseTouches(event){
             event.preventDefault();
+            const rect=this.getDomNode().getBoundingClientRect();
+            const x=(event.clientX-rect.left)/this.view.scale-this.view.x;
+            const y=(event.clientY-rect.top)/this.view.scale-this.view.y;
+            return[{x,y}];
           }
-        }
-      }
-      handleKeyRelease(event){
-        const kc=event.keyCode;
-        if(kc<112&&kc!=19){
-          if(!this.paused){
-            this.scene.handleKeyRelease(kc);
+          onMouseDown(event){
+            if(event.buttons&1){
+              const touches=this._getMouseTouches(event);
+              if(!this.paused){
+                this.scene.handleTouches(touches);
+              }
+            }
+          }
+          onMouseMove(event){
+            if(event.buttons&1){
+              const touches=this._getMouseTouches(event);
+              if(!this.paused){
+                this.scene.handleTouches(touches);
+              }
+            }
+          }
+          onMouseUp(event){
+            if(!this.paused){
+              this.scene.handleTouches([]);
+            }
+          }
+          _getTouches(event){
             event.preventDefault();
+            const rect=this.getDomNode().getBoundingClientRect();
+            return Array.from(event.targetTouches).map(touch=>{
+                if(this.view.rotate){
+                  return{"x":(touch.clientY-rect.top-this.view.x),"y":this.view.height-(
+                                          touch.clientX-rect.left-this.view.y)};
+                }else{
+                  return{"x":(touch.clientX-rect.left-this.view.x),"y":(touch.clientY-rect.top-this.view.y)};
+                  
+                }
+              });
           }
-        }
-      }
-      renderFrame(){
-        const ctx=this.ctx;
-        if(ctx===null){
-          console.log(ctx);
-          return;
-        }
-        ctx.resetTransform();
-        ctx.clearRect(0,0,this.props.width,this.props.height);
-        ctx.scale(this.view.scale,this.view.scale);
-        if(this.view.rotate){
-          ctx.rotate((90*Math.PI)/180);
-          ctx.translate(0,-this.props.width/this.view.scale);
-        }
-        ctx.translate(this.view.x,this.view.y);
-        ctx.webkitImageSmoothingEnabled=false;
-        ctx.mozImageSmoothingEnabled=false;
-        ctx.imageSmoothingEnabled=false;
-        this.scene.paint(ctx);
-      }
-      render(){
-        let now=performance.now();
-        let dt=0.016666666666666666;
-        if(this.lastTime!=null){
-          if(!this.paused){
-            this.delta_accum+=(now-this.lastTime)/1000.0;
-            let n=0;
-            while(this.delta_accum>dt){
-              this.delta_accum-=dt;
-              this.scene.update(dt);
-              n+=1;
-            }
-            if(n>0){
-              this.renderFrame();
+          onTouchStart(event){
+            const touches=this._getTouches(event);
+            console.log("start",touches.length,[...touches]);
+            if(!this.paused){
+              this.scene.handleTouches(touches);
             }
           }
-          this.fps=Math.floor(1.0/dt);
+          onTouchMove(event){
+            const touches=this._getTouches(event);
+            console.log("move",touches.length,[...touches]);
+            if(!this.paused){
+              this.scene.handleTouches(touches);
+            }
+          }
+          onTouchEnd(event){
+            const touches=this._getTouches(event);
+            console.log("end",touches.length,[...touches]);
+            if(!this.paused){
+              this.scene.handleTouches(touches);
+            }
+          }
+          handleResize(width,height){
+            this.view.x=32;
+            this.view.y=8;
+            if(daedalus.platform.isMobile){
+              this.view.width=Math.floor((height-32)/32)*32;
+              this.view.height=Math.floor((width)/32)*32;
+            }else{
+              this.view.width=Math.floor(640.0);
+              this.view.height=Math.floor(360.0);
+            }
+            this.view.availWidth=width;
+            this.view.availHeight=height;
+            if(width/height<0.75){
+              this.view.rotate=1;
+            }else{
+              this.view.rotate=0;
+            }
+            this.view.scale=1;
+            if(this.view.rotate){
+              if(height>2*this.view.width&&width>2*this.view.height){
+                this.view.scale=2;
+              }
+            }else{
+              if(width>2*this.view.width&&height>2*this.view.height){
+                this.view.scale=2;
+              }
+            }
+            if(!daedalus.platform.isMobile&&!this.view.rotate){
+              this.view.x=Math.floor((width-(this.view.width*this.view.scale))/(2*this.view.scale));
+              
+              this.view.y=Math.min(32,Math.floor((height-(this.view.height*this.view.scale))/(
+                                      2*this.view.scale)));
+            }else if(daedalus.platform.isMobile&&this.view.rotate){
+              this.view.x=Math.floor((height-(this.view.width*this.view.scale))/(
+                                  2*this.view.scale));
+              this.view.y=Math.floor((width-(this.view.height*this.view.scale))/(
+                                  2*this.view.scale));
+            }else{
+              this.view.x=0;
+              this.view.y=0;
+            }
+            this.scene.resize();
+          }
+          handleKeyPress(event){
+            const kc=event.keyCode;
+            if(kc<112){
+              if(kc==19){
+                this.paused=!this.paused;
+                this.scene.pause(this.paused);
+              }else if(!this.paused){
+                this.scene.handleKeyPress(kc);
+                event.preventDefault();
+              }
+            }
+          }
+          handleKeyRelease(event){
+            const kc=event.keyCode;
+            if(kc<112&&kc!=19){
+              if(!this.paused){
+                this.scene.handleKeyRelease(kc);
+                event.preventDefault();
+              }
+            }
+          }
+          renderFrame(){
+            const ctx=this.ctx;
+            if(ctx===null){
+              console.log(ctx);
+              return;
+            }
+            ctx.resetTransform();
+            ctx.clearRect(0,0,this.props.width,this.props.height);
+            ctx.scale(this.view.scale,this.view.scale);
+            if(this.view.rotate){
+              ctx.rotate((90*Math.PI)/180);
+              ctx.translate(0,-this.props.width/this.view.scale);
+            }
+            ctx.translate(this.view.x,this.view.y);
+            ctx.webkitImageSmoothingEnabled=false;
+            ctx.mozImageSmoothingEnabled=false;
+            ctx.imageSmoothingEnabled=false;
+            this.scene.paint(ctx);
+          }
+          render(){
+            let now=performance.now();
+            let dt=0.016666666666666666;
+            if(this.lastTime!=null){
+              if(!this.paused){
+                this.delta_accum+=(now-this.lastTime)/1000.0;
+                let n=0;
+                while(this.delta_accum>dt){
+                  this.delta_accum-=dt;
+                  this.scene.update(dt);
+                  n+=1;
+                }
+                if(n>0){
+                  this.renderFrame();
+                }
+              }
+              this.fps=Math.floor(1.0/dt);
+            }
+            this.lastTime=now;
+            window.requestAnimationFrame(this.render.bind(this));
+          }
         }
-        this.lastTime=now;
-        window.requestAnimationFrame(this.render.bind(this));
-      }
-    }
-    return{Animation,CanvasEngine,CharacterComponent,Direction,Entity,GameScene,KeyboardInput,
-          Physics2d,Rect,Sound,Sprite,SpriteSheet,SpriteSheetBuilder,Tile,TouchInput,
-          randomNumber,randomRange,shuffle};
+        return[CanvasEngine,GameScene];
+      })();
+    const[]=(function(){
+        return[];
+      })();
+    return{Animation,CameraBase,CanvasEngine,CharacterComponent,Direction,Entity,
+          EntityComponentSystem,GameScene,KeyboardInput,Physics2d,Rect,ResourceLoader,
+          SoundEffect,SoundEffectBuilder,SpriteSheet,SpriteSheetBuilder,SpriteTile,TouchInput,
+          randomChoice,randomNumber,randomRange,shuffle};
   })(daedalus);
 scenes=(function(engine){
     "use strict";
     const randomRange=engine.randomRange;
     const randomNumber=engine.randomNumber;
+    const randomChoice=engine.randomChoice;
     const shuffle=engine.shuffle;
-    const Sound=engine.Sound;
-    const Sprite=engine.Sprite;
+    const SoundEffect=engine.SoundEffect;
     const SpriteSheetBuilder=engine.SpriteSheetBuilder;
     const SpriteSheet=engine.SpriteSheet;
+    const ResourceLoader=engine.ResourceLoader;
+    const CameraBase=engine.CameraBase;
     const Direction=engine.Direction;
     const TouchInput=engine.TouchInput;
     const KeyboardInput=engine.KeyboardInput;
@@ -2370,14 +2605,16 @@ scenes=(function(engine){
     const CharacterComponent=engine.CharacterComponent;
     const GameScene=engine.GameScene;
     const RES_ROOT="static";
-    class Camera{
+    class Camera extends CameraBase {
       constructor(map,target){
+        super();
         this.map=map;
         this.target=target;
         this.x=0;
         this.y=0;
         this.width=gEngine.view.width;
         this.height=gEngine.view.width;
+        this.active_border=new Rect(0,0,0,0);
         this.active_region=new Rect(0,0,0,0);
         this.tile_position={x:-1024,y:-1024};
         this.dirty=true;
@@ -2387,6 +2624,24 @@ scenes=(function(engine){
         this.height=gEngine.view.width;
       }
       update(dt){
+        let wnd=new Rect(Math.floor(this.target.rect.x-32-8),Math.floor(this.target.rect.y-32-16),
+                  96,96);
+        let v=Direction.vector(this.target.facing);
+        this.active_border=wnd;
+        if(v.x<0){
+          wnd.x-=32;
+          wnd.w+=32;
+        }
+        if(v.x>0){
+          wnd.w+=32;
+        }
+        if(v.y<0){
+          wnd.y-=32;
+          wnd.h+=32;
+        }
+        if(v.y>0){
+          wnd.h+=32;
+        }
         let x=Math.floor(this.target.rect.cx()-gEngine.view.width/2);
         let y=Math.floor(this.target.rect.cy()-gEngine.view.height/2);
         if(x<0){
@@ -2396,21 +2651,24 @@ scenes=(function(engine){
           y=0;
         }
         let mx=this.map.width-gEngine.view.width;
-        let my=this.map.height-gEngine.view.height;
+        let my=this.map.height-gEngine.view.height/2;
         if(x>mx){
           x=mx;
         }
         if(y>my){
           y=my;
         }
-        this.x=x;
-        this.y=y;
+        this.x=Math.floor(x);
+        this.y=Math.floor(y);
         let tx=Math.floor((this.x-32)/32);
         let ty=Math.floor((this.y-32)/32);
         this.active_region=new Rect(tx*32,ty*32,this.width+64,this.height+64);
         this.dirty=this.dirty||(this.tile_position.x!=tx||this.tile_position.y!=ty);
         
         this.tile_position={x:tx,y:ty};
+      }
+      activeRegion(){
+        return this.active_region;
       }
     }
     class Controller{
@@ -2419,22 +2677,24 @@ scenes=(function(engine){
         this.target=target;
         this.direction=0;
       }
-      setInputDirection(whlid,d){
-        this.direction=d;
+      setInputDirection(whlid,v){
+        this.direction=Direction.fromVector(v.x,v.y);
         this.target.setDirection(this.direction);
       }
       handleButtonPress(btnid){
         if(btnid===0){
-          let bomb=new Bomb(this.scene.tiles_bomb);
-          bomb.sound_bomb_bang=this.scene.sound_bomb_bang;
-          bomb.physics.group=this.scene.walls;
-          bomb.rect.x=Math.floor(this.scene.ent_hero.rect.x/32)*32+8;
-          bomb.rect.y=Math.floor(this.scene.ent_hero.rect.y/32)*32+8;
-          bomb.rect.w=16;
-          bomb.rect.h=16;
-          bomb.targets=[this.scene.ent_hero,...this.scene.npcs];
-          this.scene.bombs.push(bomb);
-          this.scene.sound_bomb_drop.play();
+          if(this.scene.bombs.length<3){
+            let bomb=new Bomb(this.scene.loader.sheets.bomb);
+            bomb.sound_bomb_bang=this.scene.loader.sounds.explode;
+            bomb.physics.group=this.scene.walls;
+            bomb.rect.x=Math.floor(this.scene.ent_hero.rect.x/32)*32+8;
+            bomb.rect.y=Math.floor(this.scene.ent_hero.rect.y/32)*32+8;
+            bomb.rect.w=16;
+            bomb.rect.h=16;
+            bomb.targets=[this.scene.ent_hero,...this.scene.npcs];
+            this.scene.bombs.push(bomb);
+            this.scene.loader.sounds.drop.play();
+          }
         }else if(btnid===1){
           this.target.attack();
         }
@@ -2639,12 +2899,107 @@ scenes=(function(engine){
         this.animation.paint(ctx);
       }
     }
+    class Fireball extends Entity {
+      constructor(sheet,ydelta){
+        super();
+        this.alive=1;
+        this.ydelta=ydelta;
+        let aid=this.animation.register(sheet,[0],0,{});
+        this.animation.setAnimationById(aid);
+        this.physics.xspeed=-96;
+        this.physics.group=[];
+      }
+      update(dt){
+        this.physics.update(dt);
+        if(this.physics.collide){
+          this.alive=0;
+        }
+        if(this.ydelta<0){
+          let d=dt*96;
+          this.rect.y-=d;
+          this.ydelta+=d;
+          if(this.ydelta>=0){
+            this.ydelta=0;
+          }
+        }
+        if(this.ydelta>0){
+          let d=dt*96;
+          this.rect.y+=d;
+          this.ydelta-=d;
+          if(this.ydelta<=0){
+            this.ydelta=0;
+          }
+        }
+        for(const ent of this.targets){
+          if(ent.active&&ent.rect.collideRect(this.rect)){
+            ent.character.hit(1,Direction.NONE);
+          }
+        }
+        this.animation.update(dt);
+      }
+      paint(ctx){
+        this.animation.paint(ctx);
+        ctx.fillStyle="#000000";
+        ctx.beginPath();
+        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h);
+        ctx.fill;
+      }
+    }
+    class BossController{
+      constructor(target){
+        this.target=target;
+        this.timer=3;
+      }
+      update(dt){
+        this.timer+=dt;
+        if(this.timer>4){
+          this.timer=0;
+          this.create_fireball();
+        }
+      }
+      create_fireball(){
+        let scene=gEngine.scene;
+        for(const ydelta of[-48,0,48]){
+          let bomb=new Fireball(scene.loader.sheets.fireball,ydelta);
+          bomb.sound_bomb_bang=scene.loader.sounds.explode;
+          bomb.physics.group=scene.walls;
+          bomb.rect.x=Math.floor(this.target.rect.x);
+          bomb.rect.y=Math.floor(this.target.rect.y);
+          bomb.rect.w=16;
+          bomb.rect.h=16;
+          bomb.targets=[scene.ent_hero];
+          scene.bombs.push(bomb);
+        }
+      }
+    }
+    class Boss extends Entity {
+      constructor(){
+        super();
+        this.character=new CharacterComponent(this);
+        this.controller=new BossController(this);
+        this.tile_fireball=null;
+        this.rect.w=64;
+        this.rect.h=64;
+      }
+      setSpriteSheet(sheet){
+        let aidd=this.animation.register(sheet,[0,1],.25,{xoffset:0,yoffset:0});
+        this.animation.setAnimationById(aidd);
+      }
+      update(dt){
+        this.controller.update(dt);
+        this.character.update(dt);
+        this.animation.update(dt);
+      }
+      paint(ctx){
+        this.animation.paint(ctx);
+      }
+    }
     class Bomb extends Entity {
       constructor(sheet){
         super(null);
         this.sheet=sheet;
         this.alive=1;
-        this.timer_max=1.5;
+        this.timer_max=4.0;
         this.timer=this.timer_max;
         this.bounds_check=true;
         this.bounds={l:0,r:0,t:0,b:0};
@@ -2722,7 +3077,6 @@ scenes=(function(engine){
               chara.character.hit(3,Direction.NONE);
             }
           }
-          console.log(this.targets);
           this.mob_checked=true;
         }
         if(this.target_blocks&&this.timer<.6){
@@ -2741,7 +3095,7 @@ scenes=(function(engine){
           let m=1.0+.4*Math.sin(2*Math.PI*x*n/p);
           ctx.save();
           ctx.filter=`brightness(${Math.floor(m*100)}%)`;
-          this.sheet.drawTile(ctx,1,this.rect.x,this.rect.y);
+          this.sheet.drawTile(ctx,0,this.rect.x,this.rect.y);
           ctx.restore();
         }else if(this.timer>0){
           let x;
@@ -2802,54 +3156,84 @@ scenes=(function(engine){
     class MainScene extends GameScene {
       constructor(mapdata){
         super();
-        this.sound_hit=new Sound(RES_ROOT+"/sound/LOZ_Enemy_Hit.wav");
-        this.sound_sword=new Sound(RES_ROOT+"/sound/LOZ_Sword_Slash.wav");
-        this.sound_bomb_drop=new Sound(RES_ROOT+"/sound/LOZ_Bomb_Drop.wav");
-        this.sound_bomb_bang=new Sound(RES_ROOT+"/sound/LOZ_Bomb_Blow.wav");
-        this.tiles_bg=new SpriteSheetBuilder().path(RES_ROOT+"/tile2.png").dimensions(
-                  32,32).layout(1,4).build();
-        this.tiles_bomb=new SpriteSheetBuilder().path(RES_ROOT+"/bomb.png").dimensions(
-                  16,16).layout(1,2).build();
-        this.tiles_hero=new SpriteSheetBuilder().path(RES_ROOT+"/char32.png").dimensions(
+        this.mapdata=mapdata;
+        this.map={ready:false};
+        this.build_loader();
+      }
+      build_loader(){
+        this.loader=new ResourceLoader();
+        this.loader.addSoundEffect("hit").path(RES_ROOT+"/sound/LOZ_Enemy_Hit.wav");
+        
+        this.loader.addSoundEffect("slash").path(RES_ROOT+"/sound/LOZ_Sword_Slash.wav");
+        
+        this.loader.addSoundEffect("drop").path(RES_ROOT+"/sound/LOZ_Bomb_Drop.wav");
+        
+        this.loader.addSoundEffect("explode").path(RES_ROOT+"/sound/LOZ_Bomb_Blow.wav");
+        
+        this.loader.addSpriteSheet("bg").path(RES_ROOT+"/tile2.png").dimensions(32,
+                  32).layout(1,4).build();
+        this.loader.addSpriteSheet("bomb").path(RES_ROOT+"/bomb.png").dimensions(
+                  16,16).layout(3,1).build();
+        this.loader.addSpriteSheet("fireball").path(RES_ROOT+"/fireball.png").dimensions(
+                  32,32).layout(1,1).build();
+        this.loader.addSpriteSheet("hero").path(RES_ROOT+"/char32.png").dimensions(
                   32,32).layout(4,4).offset(1,1).spacing(1,1).build();
-        this.tiles_monster=new SpriteSheetBuilder().path(RES_ROOT+"/monster32.png").dimensions(
+        this.loader.addSpriteSheet("boss").path(RES_ROOT+"/boss.png").dimensions(
+                  64,64).layout(1,2).offset(2,2).spacing(2,2).build();
+        this.loader.addSpriteSheet("monster").path(RES_ROOT+"/monster32.png").dimensions(
                   32,32).layout(4,4).offset(1,1).spacing(1,1).build();
+      }
+      build_map(){
         this.bombs=[];
-        this.map={width:mapdata.width*32,height:mapdata.height*32};
+        this.map={width:this.mapdata.width*32,height:this.mapdata.height*32,ready:true};
+        
         this.walls=[];
-        mapdata.walls.forEach(item=>{
-            let wall=new Wall(this.tiles_bg);
+        this.mapdata.walls.forEach(item=>{
+            let wall=new Wall(this.loader.sheets.bg);
             wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
             this.walls.push(wall);
           });
-        mapdata.breakable_walls.forEach(item=>{
-            let wall=new Wall(this.tiles_bg);
+        this.mapdata.breakable_walls.forEach(item=>{
+            let wall=new Wall(this.loader.sheets.bg);
             wall.rect=new Rect(item.x*32,item.y*32,item.w*32,item.h*32);
             wall.breakable=1;
             this.walls.push(wall);
           });
         this.npcs=[];
-        mapdata.npcs.forEach(item=>{
-            let ent=new Monster();
-            setCharacterSpriteSheet(ent,this.tiles_monster,false);
-            ent.sound_hit=this.sound_hit;
-            ent.rect.x=item.x*32+8;
-            ent.rect.y=item.y*32+16;
-            ent.physics.group=this.walls;
-            this.npcs.push(ent);
+        this.mapdata.npcs.forEach(item=>{
+            if(item.type==0){
+              let ent=new Monster();
+              setCharacterSpriteSheet(ent,this.loader.sheets.monster,false);
+              ent.sound_hit=this.loader.sounds.hit;
+              ent.rect.x=item.x*32+8;
+              ent.rect.y=item.y*32+16;
+              ent.physics.group=this.walls;
+              this.npcs.push(ent);
+            }
+            if(item.type==1){
+              let ent=new Boss();
+              ent.setSpriteSheet(this.loader.sheets.boss);
+              ent.sound_hit=this.loader.sounds.hit;
+              ent.rect.x=item.x*32-16;
+              ent.rect.y=item.y*32-16;
+              ent.physics.group=this.walls;
+              this.npcs.push(ent);
+            }
           });
         this.ent_hero=new Hero();
-        setCharacterSpriteSheet(this.ent_hero,this.tiles_hero,true);
-        this.ent_hero.sound_sword=this.sound_sword;
-        this.ent_hero.sound_hit=this.sound_hit;
+        setCharacterSpriteSheet(this.ent_hero,this.loader.sheets.hero,true);
+        this.ent_hero.sound_sword=this.loader.sounds.slash;
+        this.ent_hero.sound_hit=this.loader.sounds.hit;
         this.controller=new Controller(this,this.ent_hero);
         this.touch=new TouchInput(this.controller);
+        this.touch.button_icons=[this.loader.sheets.bomb.tile(0),this.loader.sheets.bomb.tile(
+                      1)];
         this.keyboard=new KeyboardInput(this.controller);
         this.camera=new Camera(this.map,this.ent_hero);
         this.ent_hero.physics.group=this.walls;
         this.ent_hero.mobs=this.npcs;
-        this.ent_hero.rect.x=mapdata.start.x*32+8;
-        this.ent_hero.rect.y=mapdata.start.y*32+16;
+        this.ent_hero.rect.x=this.mapdata.start.x*32+8;
+        this.ent_hero.rect.y=this.mapdata.start.y*32+16;
         this.ent_hero.rect.w=16;
         this.ent_hero.rect.h=16;
       }
@@ -2878,7 +3262,6 @@ scenes=(function(engine){
             let ent=this.walls[i];
             ent.active=region.collideRect(ent.rect);
           }
-          console.log("active updated",performance.now());
           this.camera.dirty=false;
         }
       }
@@ -2919,20 +3302,26 @@ scenes=(function(engine){
         let n=this.npcs.length+this.walls.length;
       }
       update(dt){
-        this.controller.update(dt);
-        this.ent_hero.update(dt);
-        this.update_active(dt);
-        this.update_map(dt);
-        this.camera.update(dt);
+        if(!this.loader.ready){
+          this.loader.update();
+        }else if(this.loader.ready&&!this.map.ready){
+          this.build_map();
+        }else if(this.map.ready){
+          this.controller.update(dt);
+          this.ent_hero.update(dt);
+          this.update_active(dt);
+          this.update_map(dt);
+          this.camera.update(dt);
+        }
       }
       paint_map(ctx){
         let skipped=0;
         let ar=this.camera.active_region;
         for(let x=ar.left();x<ar.right();x+=32)
         {
-          for(let y=ar.top();y<ar.bottom();y+=32)
+          for(let y=ar.top();y<Math.min(ar.bottom(),this.map.height);y+=32)
           {
-            this.tiles_bg.drawTile(ctx,0,x,y);
+            this.loader.sheets.bg.drawTile(ctx,0,x,y);
           }
         }
         for(let i=0;i<this.walls.length;i++)
@@ -2966,31 +3355,58 @@ scenes=(function(engine){
         }
         this.ent_hero.paint(ctx);
         let n=this.npcs.length+this.walls.length;
-        ctx.fillStyle="yellow";
-        ctx.font="bold 12pt Courier";
-        ctx.fillText(`${(skipped/n).toFixed(2)} ... ${n-skipped}`,this.camera.x+16,
-                  this.camera.y+16);
+      }
+      paint_status(ctx){
+        let x=this.camera.x;
+        let y=this.camera.y;
+        ctx.beginPath();
+        ctx.fillStyle="#262626ee";
+        ctx.rect(x,y,this.camera.width,32);
+        ctx.fill();
+        let h=this.ent_hero.character.health;
+        ctx.fillStyle="#dd0000";
+        ctx.strokeStyle="#000000";
+        for(let i=0;i<h;i++)
+        {
+          ctx.beginPath();
+          ctx.arc(Math.floor(x+(i)*32+16),Math.floor(y+16),8,0,2*Math.PI);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(Math.floor(x+(i)*32+16),Math.floor(y+16),8,0,2*Math.PI);
+          ctx.stroke();
+        }
+        let b=3-this.bombs.length;
+        let off=this.camera.width-96;
+        ctx.fillStyle="#0000aa";
+        ctx.strokeStyle="#000000";
+        for(let i=0;i<b;i++)
+        {
+          ctx.beginPath();
+          ctx.arc(Math.floor(this.camera.x+off+i*32+16),Math.floor(y+16),8,0,2*Math.PI);
+          
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(Math.floor(this.camera.x+off+i*32+16),Math.floor(y+16),8,0,2*Math.PI);
+          
+          ctx.stroke();
+        }
       }
       paint(ctx){
-        ctx.fillStyle="yellow";
-        ctx.fillText(`${gEngine.view.availHeight}x ${gEngine.view.availWidth} direction = ${Direction.name[
-                    this.controller.direction]}`,0,-8);
-        ctx.save();
-        ctx.beginPath();
-        ctx.strokeStyle='red';
-        ctx.rect(-1,-1,gEngine.view.width+2,gEngine.view.height+2);
-        ctx.moveTo(0,0);
-        ctx.lineTo(gEngine.view.width,gEngine.view.height);
-        ctx.moveTo(gEngine.view.width,0);
-        ctx.lineTo(0,gEngine.view.height);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.rect(0,0,gEngine.view.width,gEngine.view.height);
-        ctx.clip();
-        ctx.translate(-this.camera.x,-this.camera.y);
-        this.paint_map(ctx);
-        ctx.restore();
-        this.touch.paint(ctx);
+        if(this.map.ready){
+          ctx.save();
+          ctx.beginPath();
+          ctx.strokeStyle='black';
+          ctx.rect(-1,-1,gEngine.view.width+2,gEngine.view.height+2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.rect(0,0,gEngine.view.width,gEngine.view.height);
+          ctx.clip();
+          ctx.translate(-this.camera.x,-this.camera.y);
+          this.paint_map(ctx);
+          this.paint_status(ctx);
+          ctx.restore();
+          this.touch.paint(ctx);
+        }
       }
       resize(){
         this.touch.resize();
@@ -3006,10 +3422,12 @@ scenes=(function(engine){
         this.keyboard.handleRelease(keyCode);
       }
     }
-    const CELL_WALL=0;
-    const CELL_FLOOR=1;
-    const CELL_BREAKABLE=2;
-    const CELL_MONSTER=3;
+    const CELL_WALL=0x10;
+    const CELL_BREAKABLE=0x11;
+    const CELL_FLOOR=0x00;
+    const CELL_START=0x20;
+    const CELL_MONSTER=0x21;
+    const CELL_BOSS=0x22;
     class MazeGenerator{
       constructor(width,height){
         this.width=width;
@@ -3022,9 +3440,13 @@ scenes=(function(engine){
         
         this.current_step=0;
         this._step_counter=0;
-        this.C=[];
-        this.steps=[this.do_step_init.bind(this),this.do_step_carve_init.bind(this),
-                  this.do_step_carve.bind(this),this.do_step_uncarve_init.bind(this),this.do_step_uncarve.bind(
+        this.prob_breakable=0.5;
+        this.rooms=[];
+        this.steps=[this.do_step_init.bind(this),this.do_step_add_room_init.bind(
+                      this),this.do_step_add_room.bind(this),this.do_step_carve_init.bind(this),
+                  this.do_step_carve.bind(this),this.do_step_uncarve0_init.bind(this),this.do_step_uncarve0.bind(
+                      this),this.do_step_uncarve_init.bind(this),this.do_step_uncarve.bind(
+                      this),this.do_step_addnpcs_init.bind(this),this.do_step_addnpcs.bind(
                       this),this.do_transition_init.bind(this),this.do_transition.bind(this)];
         
       }
@@ -3040,7 +3462,6 @@ scenes=(function(engine){
           let step=this.steps[this.current_step];
           this._step_counter+=1;
           if(step()){
-            console.log("executed",this.current_step,this._step_counter);
             this.current_step+=1;
           }
         }
@@ -3082,10 +3503,23 @@ scenes=(function(engine){
               ctx.rect(mx+cw*i,my+ch*j,cw,ch);
               ctx.fill();
             }
+            if(this.cells[j][i]==CELL_START){
+              ctx.beginPath();
+              ctx.fillStyle='#FFD700';
+              ctx.rect(mx+cw*i,my+ch*j,cw,ch);
+              ctx.fill();
+            }
+            if(this.cells[j][i]==CELL_BOSS){
+              ctx.beginPath();
+              ctx.fillStyle='#FF00FF';
+              ctx.rect(mx+cw*i,my+ch*j,cw,ch);
+              ctx.fill();
+            }
           }
         }
       }
       do_step_init(){
+        this._step_counter=0;
         this.cells=[];
         for(let j=0;j<this.height;j++)
         {
@@ -3107,9 +3541,158 @@ scenes=(function(engine){
         }
         return true;
       }
+      do_step_add_room_init(){
+        this.rooms=[];
+        this.room_fails=0;
+        this.max_room_fails=12;
+        return true;
+      }
+      do_step_add_room(){
+        let rw=randomRange(5,11)|1;
+        let rh=randomRange(5,11)|1;
+        if(this.rooms.length==0){
+          rw=7;
+          rh=7;
+        }
+        if(this.rooms.length==1){
+          rw=15;
+          rh=9;
+        }
+        let rt=randomRange(0,(this.height-rh)&(~1))&(~1);
+        let rl=randomRange(0,(this.width-rw)&(~1))&(~1);
+        let rr=rl+rw;
+        let rb=rt+rh;
+        let room=new Rect(rl,rt,rw,rh);
+        for(let i=0;i<this.rooms.length;i++)
+        {
+          if(this.rooms[i].collideRect(room)){
+            console.log(this.room_fails,"failed to add room (overlap)");
+            this.room_fails+=1;
+            return this.room_fails>this.max_room_fails;
+          }
+        }
+        let candidates={t:[],r:[],b:[],l:[]};
+        for(let j=rt;j<rb;j++)
+        {
+          if(rl-1>0,this.cells[j][rl-1]==CELL_FLOOR){
+            candidates.l.push({x:rl,y:j});
+          }
+          if(rr<this.width&&this.cells[j][rr]==CELL_FLOOR){
+            candidates.r.push({x:rr-1,y:j});
+          }
+        }
+        for(let i=rl;i<rr;i++)
+        {
+          if(rt-1>0&&this.cells[rt-1][i]==CELL_FLOOR){
+            candidates.t.push({x:i,y:rt});
+          }
+          if(rb<this.height&&this.cells[rb][i]==CELL_FLOOR){
+            candidates.b.push({x:i,y:rb-1});
+          }
+        }
+        if(this.rooms.length==1){
+          candidates.t=[];
+          candidates.b=[];
+          candidates.r=[];
+        }
+        let ndoors=0;
+        ndoors+=candidates.t.length;
+        ndoors+=candidates.r.length;
+        ndoors+=candidates.b.length;
+        ndoors+=candidates.l.length;
+        console.log("num doors",this.rooms.length,ndoors);
+        if(ndoors==0){
+          console.log(this.room_fails,"failed to add room (no door)");
+          this.room_fails+=1;
+          return this.room_fails>this.max_room_fails;
+        }
+        for(let j=rt;j<rb;j++)
+        {
+          for(let i=rl;i<rr;i++)
+          {
+            this.cells[j][i]=CELL_FLOOR;
+          }
+        }
+        for(let j=rt;j<rb;j++)
+        {
+          for(let i=rl;i<rr;i++)
+          {
+            this.visited[j][i]=1;
+          }
+        }
+        for(let j=rt;j<rb;j++)
+        {
+          this.cells[j][rl]=CELL_WALL;
+          this.cells[j][rr-1]=CELL_WALL;
+        }
+        for(let i=rl;i<rr;i++)
+        {
+          this.cells[rt][i]=CELL_WALL;
+          this.cells[rb-1][i]=CELL_WALL;
+        }
+        let choices=[];
+        if(candidates.t.length>0){
+          choices.push(randomChoice(candidates.t));
+        }
+        if(candidates.r.length>0){
+          choices.push(randomChoice(candidates.r));
+        }
+        if(candidates.b.length>0){
+          choices.push(randomChoice(candidates.b));
+        }
+        if(candidates.l.length>0){
+          choices.push(randomChoice(candidates.l));
+        }
+        shuffle(choices);
+        let numdoors=randomRange(1,choices.length);
+        console.log("place",numdoors);
+        if(numdoors<1){
+          console.error("random error");
+          numdoors=1;
+        }
+        for(let i=0;i<numdoors;i++)
+        {
+          let p=choices[i];
+          this.cells[p.y][p.x]=CELL_FLOOR;
+        }
+        if(this.rooms.length==0){
+          this.cells[rt+3][rl+3]=CELL_START;
+        }
+        if(this.rooms.length==1){
+          this.cells[rt+1][rr-2]=CELL_WALL;
+          this.cells[rt+2][rr-2]=CELL_WALL;
+          this.cells[rt+3][rr-2]=CELL_WALL;
+          this.cells[rt+1][rr-3]=CELL_WALL;
+          this.cells[rt+2][rr-3]=CELL_WALL;
+          this.cells[rt+3][rr-3]=CELL_WALL;
+          this.cells[rt+1][rr-4]=CELL_WALL;
+          this.cells[rt+2][rr-4]=CELL_WALL;
+          this.cells[rt+1][rr-5]=CELL_WALL;
+          this.cells[rb-2][rr-2]=CELL_WALL;
+          this.cells[rb-3][rr-2]=CELL_WALL;
+          this.cells[rb-4][rr-2]=CELL_WALL;
+          this.cells[rb-2][rr-3]=CELL_WALL;
+          this.cells[rb-3][rr-3]=CELL_WALL;
+          this.cells[rb-4][rr-3]=CELL_WALL;
+          this.cells[rb-3][rr-4]=CELL_WALL;
+          this.cells[rb-2][rr-4]=CELL_WALL;
+          this.cells[rb-2][rr-5]=CELL_WALL;
+          this.cells[rb-5][rr-6]=CELL_BOSS;
+        }
+        this.rooms.push(room);
+        this.room_fails=0;
+        console.log(this.room_fails,"added room");
+        return this.rooms.length>=20;
+      }
       do_step_carve_init(){
         let x=randomNumber(1,this.width-2)|1;
         let y=randomNumber(1,this.height-2)|1;
+        for(let i=0;i<this.rooms.length;i++)
+        {
+          if(this.rooms[i].collidePoint(x,y)){
+            return false;
+          }
+        }
         this.visited[y][x]=1;
         this.C=[{x,y}];
         return true;
@@ -3143,6 +3726,75 @@ scenes=(function(engine){
         var t1=performance.now();
         return this.C.length==0;
       }
+      _uncarve_count(p){
+        let n=this.neighbors1(p);
+        let q=null;
+        let total=0;
+        for(let i=0;i<n.length;i++)
+        {
+          let p=n[i];
+          if(this.cells[p.y][p.x]==CELL_WALL){
+            total+=1;
+          }else if(this.cells[p.y][p.x]==CELL_FLOOR){
+            q=p;
+          }
+        }
+        if(total==3){
+          return q;
+        }
+        return null;
+      }
+      do_step_uncarve0_init(){
+        this.ux=1;
+        this.uy=1;
+        this.max_iter_steps=this.show?(this.width):(this.width*this.height);
+        console.log("max steps now",this.max_iter_steps);
+        return true;
+      }
+      do_step_uncarve0(){
+        let z=0;
+        for(;z<this.max_iter_steps&&this.uy<this.height-1;z++)
+        {
+          let n=this.neighbors1({x:this.ux,y:this.uy});
+          let skip=this.cells[this.uy][this.ux]!=CELL_FLOOR;
+          for(let i=0;!skip&&i<this.rooms.length;i++)
+          {
+            if(this.rooms[i].collidePoint(this.ux,this.uy)){
+              skip=1;
+            }
+          }
+          if(skip==0){
+            let total=0;
+            for(let i=0;i<n.length;i++)
+            {
+              let p=n[i];
+              if(this.cells[p.y][p.x]==CELL_WALL){
+                total+=1;
+              }
+            }
+            if(total==3){
+              if(Math.random()<this.prob_breakable){
+                shuffle(n);
+                for(let i=0;i<n.length;i++)
+                {
+                  let p=n[i];
+                  if(p.x>1&&p.y>1&&p.x<this.width-1&&p.y<this.height-1&&this.cells[
+                                        p.y][p.x]==CELL_WALL){
+                    this.cells[p.y][p.x]=CELL_BREAKABLE;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          this.ux+=1;
+          if(this.ux>=this.width-1){
+            this.ux=1;
+            this.uy+=1;
+          }
+        }
+        return this.uy>=this.height-1;
+      }
       do_step_uncarve_init(){
         this.ux=1;
         this.uy=1;
@@ -3155,33 +3807,21 @@ scenes=(function(engine){
         for(;z<this.max_iter_steps&&this.uy<this.height-1;z++)
         {
           let n=this.neighbors1({x:this.ux,y:this.uy});
-          let total=0;
-          for(let i=0;i<n.length;i++)
+          let skip=this.cells[this.uy][this.ux]!=CELL_FLOOR;
+          for(let i=0;!skip&&i<this.rooms.length;i++)
           {
-            let p=n[i];
-            if(this.cells[p.y][p.x]==CELL_WALL){
-              total+=1;
+            if(this.rooms[i].collidePoint(this.ux,this.uy)){
+              skip=1;
             }
           }
-          let prob=0.5;
-          if(total==3){
-            if(Math.random()<prob){
-              shuffle(n);
-              for(let i=0;i<n.length;i++)
-              {
-                let p=n[i];
-                if(p.x>1&&p.y>1&&p.x<this.width-1&&p.y<this.height-1&&this.cells[
-                                    p.y][p.x]==CELL_WALL){
-                  this.cells[p.y][p.x]=CELL_BREAKABLE;
-                  break;
-                }
+          if(skip==0){
+            let p={x:this.ux,y:this.uy};
+            while(p!==null){
+              let q=this._uncarve_count(p);
+              if(q!==null){
+                this.cells[p.y][p.x]=CELL_WALL;
               }
-            }
-          }
-          let prob2=0.75;
-          if(total==0){
-            if(Math.random()<prob2){
-              this.cells[this.uy][this.ux]=CELL_MONSTER;
+              p=q;
             }
           }
           this.ux+=1;
@@ -3189,6 +3829,54 @@ scenes=(function(engine){
             this.ux=1;
             this.uy+=1;
           }
+        }
+        return this.uy>=this.height-1;
+      }
+      do_step_addnpcs_init(){
+        this.ux=1;
+        this.uy=1;
+        this.max_iter_steps=this.show?(this.width):(this.width*this.height);
+        console.log("max steps now",this.max_iter_steps);
+        this.histogram=[0,0,0,0,0];
+        return true;
+      }
+      do_step_addnpcs(){
+        let z=0;
+        for(;z<this.max_iter_steps&&this.uy<this.height-1;z++)
+        {
+          let skip=this.cells[this.uy][this.ux]!=CELL_FLOOR;
+          for(let i=0;!skip&&i<this.rooms.length;i++)
+          {
+            if(this.rooms[i].collidePoint(this.ux,this.uy)){
+              skip=1;
+            }
+          }
+          if(!skip){
+            let n=this.neighbors1({x:this.ux,y:this.uy});
+            let total=0;
+            for(let i=0;i<n.length;i++)
+            {
+              let p=n[i];
+              if(this.cells[p.y][p.x]!=CELL_WALL){
+                total+=1;
+              }
+            }
+            this.histogram[total]+=1;
+            if(total==3){
+              let prob2=0.25;
+              if(Math.random()<prob2){
+                this.cells[this.uy][this.ux]=CELL_MONSTER;
+              }
+            }
+          }
+          this.ux+=1;
+          if(this.ux>=this.width-1){
+            this.ux=1;
+            this.uy+=1;
+          }
+        }
+        if(this.uy>=this.height-1){
+          console.log("hist",this.histogram);
         }
         return this.uy>=this.height-1;
       }
@@ -3211,7 +3899,13 @@ scenes=(function(engine){
               data.breakable_walls.push({x:i,y:j,w:1,h:1});
             }
             if(this.cells[j][i]==CELL_MONSTER){
-              data.npcs.push({x:i,y:j});
+              data.npcs.push({x:i,y:j,type:0});
+            }
+            if(this.cells[j][i]==CELL_START){
+              data.start={x:i,y:j};
+            }
+            if(this.cells[j][i]==CELL_BOSS){
+              data.npcs.push({x:i,y:j,type:1});
             }
           }
         }
@@ -3249,6 +3943,9 @@ scenes=(function(engine){
         }
         return n;
       }
+      reset(){
+        this.current_step=0;
+      }
     }
     class MazeScene extends GameScene {
       constructor(){
@@ -3260,14 +3957,17 @@ scenes=(function(engine){
         this.gen.update(dt);
       }
       paint(ctx){
-        ctx.fillStyle="yellow";
-        ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`,
-                  0,-8);
         ctx.beginPath();
         ctx.strokeStyle='red';
         ctx.rect(-1,-1,gEngine.view.width+2,gEngine.view.height+2);
         ctx.stroke();
         this.gen.paint(ctx);
+      }
+      handleTouches(touches){
+        console.log("!",touches);
+        if(touches.length==0){
+          this.gen.reset();
+        }
       }
       resize(){
 
