@@ -12,7 +12,7 @@ export class Physics2d {
         this.ximpulse = 0
         this.yimpulse = 0
 
-        this.group = null
+        this.group = []
 
         this.map_width = 20*32
         this.map_height = 10*32
@@ -21,11 +21,12 @@ export class Physics2d {
         this.xcollide = false
         this.ycollide = false
         this.collide = false
+        this.collisions = new Set()
     }
 
     collidePoint(x, y) {
         for (let i=0; i < this.group.length; i++) {
-            if (this.group[i].rect.collidePoint(x, y)) {
+            if ((!!this.group[i].solid) && this.group[i].rect.collidePoint(x, y)) {
                 return this.group[i]
             }
         }
@@ -42,6 +43,7 @@ export class Physics2d {
         this.xcollide = false
         this.ycollide = false
         this.collide = false
+        this.collisions = new Set()
 
         let rect, solid;
         let dx, dy
@@ -80,7 +82,8 @@ export class Physics2d {
 
         solid = false;
         for (let i=0; i < this.group.length; i++) {
-            if (rect.collideRect(this.group[i].rect)) {
+            if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
+                this.collisions.add(this.group[i])
                 solid = true
                 break;
             }
@@ -102,7 +105,8 @@ export class Physics2d {
 
         solid = false;
         for (let i=0; i < this.group.length; i++) {
-            if (rect.collideRect(this.group[i].rect)) {
+            if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
+                this.collisions.add(this.group[i])
                 solid = true
                 break;
             }

@@ -75,7 +75,8 @@ export default class Application extends DomElement {
 
     elementMounted() {
 
-        this.canvas = this.appendChild(new CanvasEngine(window.innerWidth, window.innerHeight))
+        this.canvas = this.appendChild(new CanvasEngine(
+            window.innerWidth, window.innerHeight, {portrait: 0}))
 
         window.gEngine = this.canvas
 

@@ -324,7 +324,7 @@ export function intercept_shape(p1, p2, shape) {
 
     const cmp = (a, b) => distance(p1, a.point) - distance(p1, b.point)
     const result = collisions.sort(cmp)[0]
-    console.log("final", result)
+    //console.log("final", result)
     return result
 
 }

@@ -46,7 +46,7 @@ const style = {
 }
 
 export class CanvasEngine extends DomElement {
-    constructor(width, height) {
+    constructor(width, height, settings=null) {
         super("canvas", {
                 "width": width,
                 "height": height,
@@ -57,8 +57,13 @@ export class CanvasEngine extends DomElement {
 
         this.ctx = null
         this.lastTime = null
+        this.settings = settings??{}
+
+        this.settings.portrait = this.settings.portrait??1
 
         this.delta_accum = 0
+
+        this.onReady = null
 
         // x,y: top left coordinate for the game
         // width, height: size of the viewport
@@ -89,6 +94,9 @@ export class CanvasEngine extends DomElement {
 
         this.handleResize(this.props.width, this.props.height)
 
+        if (this.onReady) {
+            this.onReady()
+        }
         window.requestAnimationFrame(this.render.bind(this));
     }
 
@@ -191,6 +199,7 @@ export class CanvasEngine extends DomElement {
         this.view.x = 32
         this.view.y = 8
 
+
         // TODO: try to fit 640x360 in the available space
         //       then try to fit something smaller down to a minimum size
         //       then try to scale up
@@ -203,10 +212,16 @@ export class CanvasEngine extends DomElement {
             this.view.height = Math.floor(1080/3)
         }
 
+        if (!!this.settings.portrait) {
+            let t = this.view.width
+            this.view.width = this.view.height
+            this.view.height = t
+        }
+
         this.view.availWidth = width
         this.view.availHeight = height
 
-        if (width/height < 0.75) {
+        if (width/height < 0.75 && !this.settings.portrait) {
             this.view.rotate = 1
         } else {
             this.view.rotate = 0
@@ -227,9 +242,14 @@ export class CanvasEngine extends DomElement {
             // center x
             this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.min(32, Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale)))
-        } else if (daedalus.platform.isMobile && this.view.rotate) {
-            this.view.x = Math.floor((height - (this.view.width*this.view.scale))/(2*this.view.scale))
-            this.view.y = Math.floor((width - (this.view.height*this.view.scale))/(2*this.view.scale))
+        } else if (daedalus.platform.isMobile) {
+            if (this.view.rotate) {
+                this.view.x = Math.floor((height - (this.view.width*this.view.scale))/(2*this.view.scale))
+                this.view.y = Math.floor((width - (this.view.height*this.view.scale))/(2*this.view.scale))
+            } else {
+                this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
+                this.view.y = Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale))
+            }
         } else {
             this.view.x = 0
             this.view.y = 0
@@ -237,7 +257,9 @@ export class CanvasEngine extends DomElement {
 
         // console.log('view', width / height, width, height, this.view)
 
-        this.scene.resize()
+        if (this.scene) {
+            this.scene.resize()
+        }
     }
 
     handleKeyPress(event) {

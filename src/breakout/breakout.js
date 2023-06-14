@@ -701,28 +701,36 @@ class BrickShape extends Agent {
 
         const rect = this.collisionRect()
         view.ctx.fillStyle = 'red'
-        view.ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+        //view.ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
 
-        view.ctx.beginPath()
+
+        view.ctx.strokeStyle = '#000033'
+        view.ctx.fillStyle = '#0000AA'
 
         this.shape.forEach(segment => {
             switch (segment.type) {
                 case 'line':
+                    view.ctx.beginPath()
                     view.ctx.moveTo(this.x + segment.p1.x, this.y + segment.p1.y)
                     view.ctx.lineTo(this.x + segment.p2.x, this.y + segment.p2.y)
+                    view.ctx.stroke();
                     break;
                 case 'curve':
                     break;
                 case 'circle':
+                    view.ctx.beginPath()
                     view.ctx.arc(this.x + segment.center.x,
                                  this.y + segment.center.y,
                                  segment.radius, 0, 2 * Math.PI);
+                    view.ctx.stroke();
+                    view.ctx.beginPath()
+                    view.ctx.arc(this.x + segment.center.x,
+                                 this.y + segment.center.y,
+                                 segment.radius, 0, 2 * Math.PI);
+                    view.ctx.fill();
                     break;
             }
         })
-        view.ctx.closePath()
-        view.ctx.strokeStyle = 'blue'
-        view.ctx.stroke();
 
 
     }
@@ -819,6 +827,10 @@ class Canvas extends DomElement {
             className: style.canvas,
             tabIndex: 1  // enable keyboard focus
         }, [])
+
+        this.lastTime = null
+        this.paused = false
+        this.delta_accum = 0
 
         this.attrs = {
             dom: null,
@@ -925,8 +937,8 @@ class Canvas extends DomElement {
         const wbase = Math.floor(9 *(this.props.height / 16));
 
         const nbricks = 15
-        const brwidth = Math.floor(wbase / nbricks);
-        const brheight = Math.floor(brwidth / 2)
+        let brwidth = Math.floor(wbase / nbricks);
+        let brheight = Math.floor(brwidth / 2)
 
         const view_width = brwidth * nbricks - (nbricks)
 
@@ -950,16 +962,108 @@ class Canvas extends DomElement {
             paddle: new Paddle(),
         }
 
-        const offset = Math.floor( 5 * brwidth + brwidth / 2)
-        for (let j=0; j < 30; j++) {
+        if (0) {
+            const offset = Math.floor( 5 * brwidth + brwidth / 2)
+            for (let j=0; j < 30; j++) {
 
-            for (let i=0; i < 5; i++) {
-                // overlap each brick by one pixel to prevent teleporting balls
-                const brick = new Brick(offset + i * brwidth - i, 100 + brheight*j - j, brwidth, brheight)
-                brick.health = 1 + ((j * 15) + i) % 10
+                for (let i=0; i < 5; i++) {
+                    // overlap each brick by one pixel to prevent teleporting balls
+                    const brick = new Brick(offset + i * brwidth - i, 100 + brheight*j - j, brwidth, brheight)
+                    brick.health = 1 + ((j * 15) + i) % 10
+                    this.attrs.view.agents.push(brick);
+                }
+            }
+
+            //const diamond = new BrickShape(this.attrs.view.paddle.x, this.attrs.view.paddle.y - 50)
+            //this.attrs.view.agents.push(diamond)
+
+            for (let i=0; i < 15; i ++) {
+                let xs = this.attrs.view.width/2 + (.5 - Math.random()) * this.attrs.view.width
+                let ys = this.attrs.view.paddle.y + Math.random() * 200
+                let b = new BrickShape(xs, ys, 10 + 10 * Math.random())
+                this.attrs.view.agents.push(b)
+            }
+        } else {
+            // draw a frog
+
+            let template = [
+                "     ###       ###      ",
+                "    #...#     #...#     ",
+                "   #..#..#ggg#..#..#    ",
+                "  gg#...#ggggg#...#gg   ",
+                " gggg###ggggggg###gggg  ",
+                "ggggggggggggggggggggggg ",
+                "ggggggggggggggggggggggg ",
+                "gggggggg##ggg##gggggggg ",
+                "gggggggg##ggg##gggggggg ",
+                "ggggggggggggggggggggggg ",
+                "ggg##ggggggggggggg##ggg ",
+                "ggggg#############ggggg ",
+                "  ggggggggggggggggggg   ",
+                "  ggggggggggggggggggg   ",
+                "     ggggggggggggg      ",
+                "     ggggggggggggg      ",
+            ]
+
+            brwidth = Math.floor((this.attrs.view.width - 16) / template[0].length)
+
+            for (let j=0; j < template.length; j++) {
+
+                let row = template[j]
+                let x1 = Math.floor(this.attrs.view.width/2 - (row.length*brwidth)/2)
+                let y1 = Math.floor(this.attrs.view.height/4 + j*brheight)
+                for (let i = 0; i < row.length; i++) {
+                    if (row[i] === " ") {
+                        continue
+                    }
+
+                    const brick = new Brick(x1 + i*brwidth, y1, brwidth, brheight)
+
+                    if (row[i] == "#") {
+                        brick.health = 1
+                    }
+
+                    if (row[i] == ".") {
+                        brick.health = 2
+                    }
+
+                    if (row[i] == "g") {
+                        brick.health = 3
+                    }
+
+                    this.attrs.view.agents.push(brick);
+                }
+
+            }
+
+            /*
+            let cx1 = 1*this.attrs.view.width/3
+            let cy1 = this.attrs.view.height/4
+            let cx2 = 2*this.attrs.view.width/3
+            let cy2 = this.attrs.view.height/4
+
+            for (let i=0; i < 3; i++) {
+                let a = new BrickShape(cx1, cy1, 10 * (3 - i))
+                this.attrs.view.agents.push(a)
+                let b = new BrickShape(cx2, cy2, 10 * (3 - i))
+                this.attrs.view.agents.push(b)
+            }
+
+            let sx1 = cx1 + 30
+            let sx2 = cx2 - 30
+            let sw = cx2 - cx1
+
+            for (let i=0; i < 3; i++) {
+                const brick = new Brick(sx1+brwidth*i, cy1, brwidth, brheight)
+                brick.health = 2
                 this.attrs.view.agents.push(brick);
             }
+            */
+
+
+
         }
+
 
        //this.attrs.view.ball.x = 100
        //this.attrs.view.ball.y = this.attrs.view.height / 4
@@ -986,15 +1090,7 @@ class Canvas extends DomElement {
         //ball2.x = 0
         //ball2.y = this.attrs.view.paddle.y
 
-        const diamond = new BrickShape(this.attrs.view.paddle.x, this.attrs.view.paddle.y - 50)
-        //this.attrs.view.agents.push(diamond)
 
-        for (let i=0; i < 15; i ++) {
-            let xs = this.attrs.view.width/2 + (.5 - Math.random()) * this.attrs.view.width
-            let ys = this.attrs.view.paddle.y + Math.random() * 200
-            let b = new BrickShape(xs, ys, 10 + 10 * Math.random())
-            this.attrs.view.agents.push(b)
-        }
 
         // top left
         //this.attrs.view.ball.x = diamond.x - 30
@@ -1027,12 +1123,30 @@ class Canvas extends DomElement {
 
 
     render() {
+        let now = performance.now()
 
-        if (!this.attrs.ctx || this.attrs.pause) {
-            return;
+        let dt = 1/60;
+
+        if (this.lastTime != null) {
+
+            if (!this.paused) {
+                this.delta_accum += (now - this.lastTime) / 1000.0;
+
+                let n = 0;
+
+                while (this.delta_accum > dt) {
+                    this.delta_accum -= dt
+                    n += 1;
+                }
+                if (n > 0) {
+                    this.renderFrame();
+                }
+            }
+
+
+            this.fps = Math.floor(1.0/dt)
         }
-
-        this.renderFrame()
+        this.lastTime = now;
 
         window.requestAnimationFrame(this.render.bind(this));
     }

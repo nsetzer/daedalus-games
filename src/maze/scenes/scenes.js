@@ -1,5 +1,7 @@
-
-
+// TODO: center camera on hero at start
+// TODO: boss door lock should also create a camera lock
+//       lock keeps the camera centered on the arena
+//       defeating the boss disables the lock
 from module engine import {
     randomRange, randomNumber, randomChoice, shuffle,
     SoundEffect, SpriteSheetBuilder, SpriteSheet,
@@ -19,7 +21,7 @@ class Camera extends CameraBase {
         this.x = 0;
         this.y = 0;
         this.width = gEngine.view.width
-        this.height = gEngine.view.width
+        this.height = gEngine.view.height
 
         this.active_border = new Rect(0,0,0,0)
         this.active_region = new Rect(0,0,0,0)
@@ -33,31 +35,57 @@ class Camera extends CameraBase {
 
     resize() {
         this.width = gEngine.view.width
-        this.height = gEngine.view.width
+        this.height = gEngine.view.height
     }
 
     update(dt) {
 
+        //let wnd = new Rect(
+        //    Math.floor(this.target.rect.x-32-8),
+        //    Math.floor(this.target.rect.y-32-16),
+        //    3*32,
+        //    3*32)
+        //let v = Direction.vector(this.target.facing)
+        //if (v.x < 0) { wnd.x -= 32; wnd.w += 32 }
+        //if (v.x > 0) { wnd.w += 32 }
+        //if (v.y < 0) { wnd.y -= 32; wnd.h += 32 }
+        //if (v.y > 0) { wnd.h += 32 }
+        let xborder1 = 160
+        let xborder2 = 128
+        let yborder1 = 96
+        let yborder2 = 64
         let wnd = new Rect(
-            Math.floor(this.target.rect.x-32-8),
-            Math.floor(this.target.rect.y-32-16),
-            3*32,
-            3*32)
-
-        let v = Direction.vector(this.target.facing)
-
+            this.x + xborder1,
+            this.y + yborder1,
+            this.width - xborder1 - xborder2,
+            this.height - yborder1 - yborder2)
+        //console.log(wnd, this.width, this.height)
         this.active_border = wnd
-        //console.log(wnd)
 
-        if (v.x < 0) { wnd.x -= 32; wnd.w += 32 }
-        if (v.x > 0) { wnd.w += 32 }
-        if (v.y < 0) { wnd.y -= 32; wnd.h += 32 }
-        if (v.y > 0) { wnd.h += 32 }
+        let x,y;
 
-        let x = Math.floor(this.target.rect.cx() - gEngine.view.width/2)
-        let y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
+        if (this.target.rect.cx() < wnd.left()) {
+            x = this.target.rect.cx() - xborder1
+        }
+        else if (this.target.rect.cx() > wnd.right()) {
+            x = this.target.rect.cx() + xborder2 - this.width
+        } else {
+            x = this.x
+        }
+
+        if (this.target.rect.cy() < wnd.top()) {
+            y = this.target.rect.cy() - yborder1
+        }
+        else if (this.target.rect.cy() > wnd.bottom()) {
+            y = this.target.rect.cy() + yborder2 - this.height
+        } else {
+            y = this.y
+        }
+        // force camera to center hero
+        //x = Math.floor(this.target.rect.cx() - gEngine.view.width/2)
+        //y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
         if (x < 0) { x = 0 }
-        if (y < 0) { y = 0 }
+        if (y < -32) { y = -32 }
 
         let mx = this.map.width - gEngine.view.width
         let my = this.map.height - gEngine.view.height/2
@@ -147,6 +175,7 @@ class Wall extends Entity {
         this.sheet = sheet
         this.breakable = 0
         this.alive = 1
+        this.solid = 1
     }
 
     paint(ctx) {
@@ -286,12 +315,20 @@ class Hero extends Entity {
         }
     }
 
-
-
     update(dt) {
 
         if (!this.attacking) {
             this.physics.update(dt)
+
+            if (gEngine.scene.inventory.boss_key > 0) {
+                if (this.physics.collisions.size==1) {
+                    let ent = this.physics.collisions.values().next().value
+                    if (ent instanceof BossDoor) {
+                        ent.solid = 0
+                        gEngine.scene.inventory.boss_key = 0
+                    }
+                }
+            }
         }
         this.animation.update(dt)
         this.character.update(dt)
@@ -503,15 +540,15 @@ class BossController {
     create_fireball() {
         let scene = gEngine.scene
         for (const ydelta of [-48, 0, 48]) {
-            let bomb = new Fireball(scene.loader.sheets.fireball, ydelta)
-            bomb.sound_bomb_bang = scene.loader.sounds.explode
-            bomb.physics.group = scene.walls
-            bomb.rect.x = Math.floor(this.target.rect.x)
-            bomb.rect.y = Math.floor(this.target.rect.y)
-            bomb.rect.w = 16
-            bomb.rect.h = 16
-            bomb.targets = [scene.ent_hero]
-            scene.bombs.push(bomb)
+            let ball = new Fireball(scene.loader.sheets.fireball, ydelta)
+            ball.sound_bomb_bang = scene.loader.sounds.explode
+            ball.physics.group = scene.walls
+            ball.rect.x = Math.floor(this.target.rect.x)
+            ball.rect.y = Math.floor(this.target.rect.y)
+            ball.rect.w = 16
+            ball.rect.h = 16
+            ball.targets = [scene.ent_hero]
+            scene.fireballs.push(ball)
         }
 
     }
@@ -580,7 +617,9 @@ class Bomb extends Entity {
 
             let blocks = new Set()
 
-            for (let i=1; i<4; i++) {
+            let rng = 6
+
+            for (let i=1; i<rng; i++) {
                 let obj = this.physics.collidePoint(cx-i*16,cy)
                 if (obj && obj.breakable) {
                     blocks.add(obj)
@@ -590,7 +629,7 @@ class Bomb extends Entity {
                 this.bounds.l = i
             }
 
-            for (let i=1; i<4; i++) {
+            for (let i=1; i<rng; i++) {
                 let obj = this.physics.collidePoint(cx,cy-i*16)
                 if (obj && obj.breakable) {
                     blocks.add(obj)
@@ -600,7 +639,7 @@ class Bomb extends Entity {
                 this.bounds.t = i
             }
 
-            for (let i=1; i<4; i++) {
+            for (let i=1; i<rng; i++) {
                 let obj = this.physics.collidePoint(cx+i*16,cy)
                 if (obj && obj.breakable) {
                     blocks.add(obj)
@@ -610,7 +649,7 @@ class Bomb extends Entity {
                 this.bounds.r = i
             }
 
-            for (let i=1; i<4; i++) {
+            for (let i=1; i<rng; i++) {
                 let obj = this.physics.collidePoint(cx,cy+i*16)
                 if (obj && obj.breakable) {
                     blocks.add(obj)
@@ -769,6 +808,72 @@ class Bomb extends Entity {
     }
 }
 
+// doors toggle the solid property to control locked/unlocked
+// unlocked doors are not painted
+// doors can be killed, and removed from the map
+// or remain alive and not solid to be locked again later
+class BossDoor extends Entity {
+
+    constructor(tile) {
+        super()
+        this.tile = tile
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+    }
+
+    update(dt) {
+
+    }
+
+    paint(ctx) {
+
+        if (this.solid) {
+            this.tile.draw(ctx, this.rect.x, this.rect.y)
+        }
+    }
+}
+
+class BossDoorLock extends Entity {
+
+    constructor(targetcbk) {
+        super()
+        this.breakable = 0
+        this.solid = 0
+        this.alive = 1
+        this.targetcbk = targetcbk
+    }
+
+    update(dt) {
+
+        let tgt = this.targetcbk()
+        if (!!tgt) {
+            let cx = tgt.rect.cx()
+            let cy = tgt.rect.cy()
+            // this lock only works if the hero is walking right
+            if (tgt.rect.x > this.rect.x && !!this.rect.collidePoint(cx, cy)) {
+                this.alive = 0
+                for (let i=0; i < this.physics.group.length; i++) {
+                    let ent = this.physics.group[i]
+                    if (ent instanceof BossDoor) {
+                        ent.solid = 1;
+                        break
+                    }
+                }
+
+            }
+        }
+    }
+
+    paint(ctx) {
+        ctx.fillStyle = "#dd00dd44"
+        ctx.beginPath()
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+    }
+}
+
+
 export class MainScene extends GameScene {
 
     constructor(mapdata) {
@@ -793,7 +898,7 @@ export class MainScene extends GameScene {
         this.loader.addSpriteSheet("bg")
             .path(RES_ROOT + "/tile2.png")
             .dimensions(32, 32)
-            .layout(1, 4)
+            .layout(2, 6)
             .build()
 
         this.loader.addSpriteSheet("bomb")
@@ -837,6 +942,7 @@ export class MainScene extends GameScene {
     build_map() {
 
         this.bombs = []
+        this.fireballs = []
 
         this.map = {width: this.mapdata.width*32, height: this.mapdata.height*32, ready:true}
 
@@ -876,6 +982,25 @@ export class MainScene extends GameScene {
             }
         })
 
+        this.mapdata.doors.forEach(item => {
+
+            if (item.type == 2) {
+                let wall = new BossDoor(this.loader.sheets.bg.tile(11))
+                wall.rect = new Rect(item.x*32, item.y*32, 32, 32)
+                wall.solid = 1
+                wall.physics.group = this.walls
+                this.walls.push(wall)
+            }
+
+            if (item.type == 3) {
+                let wall = new BossDoorLock(()=>{return this.ent_hero})
+                wall.rect = new Rect(item.x*32, item.y*32, 32, 32)
+                wall.physics.group = this.walls
+                this.walls.push(wall)
+            }
+
+        })
+
         this.ent_hero = new Hero()
         setCharacterSpriteSheet(this.ent_hero, this.loader.sheets.hero, true)
         this.ent_hero.sound_sword = this.loader.sounds.slash
@@ -898,6 +1023,10 @@ export class MainScene extends GameScene {
         this.ent_hero.rect.y = this.mapdata.start.y*32 + 16
         this.ent_hero.rect.w = 16
         this.ent_hero.rect.h = 16
+
+        this.inventory = {
+            boss_key: 1,
+        }
     }
 
     moveMonster(npc) {
@@ -959,6 +1088,8 @@ export class MainScene extends GameScene {
             let ent = this.walls[i]
             if (!ent.active) {skipped+=1; continue}
 
+            ent.update(dt)
+
             if (!this.walls[i].alive) {
                 this.walls.splice(i, 1);
             }
@@ -970,6 +1101,14 @@ export class MainScene extends GameScene {
                 this.bombs.splice(i, 1);
             }
         }
+
+        for (let i=this.fireballs.length - 1; i >= 0; i--) {
+            this.fireballs[i].update(dt)
+            if (!this.fireballs[i].alive) {
+                this.fireballs.splice(i, 1);
+            }
+        }
+
         let n = this.npcs.length + this.walls.length
         //console.log(`update skipped ${skipped} / ${n} = ${skipped/n}`)
 
@@ -1003,7 +1142,7 @@ export class MainScene extends GameScene {
         // draw the map
         let ar = this.camera.active_region
         for (let x=ar.left(); x<ar.right(); x+=32) {
-            for (let y=ar.top(); y<Math.min(ar.bottom(),this.map.height); y+=32) {
+            for (let y=Math.max(0, ar.top()); y<Math.min(ar.bottom(),this.map.height); y+=32) {
                 this.loader.sheets.bg.drawTile(ctx, 0, x, y)
             }
         }
@@ -1020,6 +1159,13 @@ export class MainScene extends GameScene {
 
         for (let i=0; i < this.bombs.length; i++) {
             let ent = this.bombs[i]
+            if (ent.active) {
+                ent.paint(ctx)
+            }
+        }
+
+        for (let i=0; i < this.fireballs.length; i++) {
+            let ent = this.fireballs[i]
             if (ent.active) {
                 ent.paint(ctx)
             }
@@ -1059,16 +1205,16 @@ export class MainScene extends GameScene {
         ctx.strokeStyle = "#000000"
         for(let i=0; i < h; i++) {
             ctx.beginPath()
-            ctx.arc(Math.floor(x + (i)*32 + 16),Math.floor(y+16), 8, 0, 2*Math.PI)
+            ctx.arc(Math.floor(x + 64 + (i)*32 + 16),Math.floor(y+16), 8, 0, 2*Math.PI)
             ctx.fill()
 
             ctx.beginPath()
-            ctx.arc(Math.floor(x + (i)*32 + 16),Math.floor(y+16), 8, 0, 2*Math.PI)
+            ctx.arc(Math.floor(x + 64 + (i)*32 + 16),Math.floor(y+16), 8, 0, 2*Math.PI)
             ctx.stroke()
         }
 
         let b = 3 - this.bombs.length
-        let off = this.camera.width - 96
+        let off = this.camera.width - 96 - 64
         ctx.fillStyle = "#0000aa"
         ctx.strokeStyle = "#000000"
         for(let i=0; i < b; i++) {
@@ -1079,6 +1225,10 @@ export class MainScene extends GameScene {
             ctx.beginPath()
             ctx.arc(Math.floor(this.camera.x + off + i*32 + 16),Math.floor(y+16), 8, 0, 2*Math.PI)
             ctx.stroke()
+        }
+
+        if (this.inventory.boss_key > 0) {
+            this.loader.sheets.bg.drawTile(ctx, 9,x + 64 + 7*32 + 16,  Math.floor(y))
         }
 
     }
@@ -1113,10 +1263,11 @@ export class MainScene extends GameScene {
             this.paint_map(ctx)
             this.paint_status(ctx)
 
-            //ctx.beginPath();
-            //let r = this.camera.active_border
-            //ctx.rect(r.x, r.y, r.w, r.h);
-            //ctx.stroke();
+            ctx.strokeStyle = "#FF0000"
+            ctx.beginPath();
+            let r = this.camera.active_border
+            ctx.rect(r.x, r.y, r.w, r.h);
+            ctx.stroke();
 
             ctx.restore()
             this.touch.paint(ctx)
@@ -1149,15 +1300,20 @@ export class MainScene extends GameScene {
             this.keyboard.handleRelease(keyCode);
         }
     }
-
 }
 
-const CELL_WALL      = 0x10
-const CELL_BREAKABLE = 0x11
-const CELL_FLOOR     = 0x00
-const CELL_START     = 0x20
-const CELL_MONSTER   = 0x21
-const CELL_BOSS      = 0x22
+const CELL_WALL       = 0x10
+const CELL_BREAKABLE  = 0x11
+const CELL_FLOOR      = 0x00
+const CELL_START      = 0x20
+const CELL_MONSTER    = 0x21
+const CELL_BOSS       = 0x22
+const CELL_BOSS_DOOR  = 0x50
+const CELL_BOSS_LOCK  = 0x51
+const CELL_BOSS_CHEST = 0x52
+const CELL_DOOR       = 0x53
+const CELL_LOCK       = 0x54
+const CELL_CHEST      = 0x54
 
 class MazeGenerator {
 
@@ -1167,11 +1323,8 @@ class MazeGenerator {
         this.height = height
         this.ready = false
 
-        this.show = true
-
-        this.timer = 0
-        this.delay = 0.05
-        this.max_iter_steps = this.show?Math.floor(this.width*this.height / 50):1000 // maximum steps per iteration
+        this.show = false
+        this.start_room = 2
 
         this.current_step = 0
 
@@ -1187,23 +1340,23 @@ class MazeGenerator {
         this.steps = [
             this.do_step_init.bind(this),
 
-            // place start room
-            // place boss room
-            // place rooms
+            // randomly place rooms into the maze
             this.do_step_add_room_init.bind(this),
             this.do_step_add_room.bind(this),
 
+            // carve a perfect maze connecting all of the rooms
             this.do_step_carve_init.bind(this),
             this.do_step_carve.bind(this),
 
-            // uncarve x% with bombable walls
-            this.do_step_uncarve0_init.bind(this),
-            this.do_step_uncarve0.bind(this),
+            // randomly replace dead ends with breakable walls
+            this.do_step_uncarve_breakable_init.bind(this),
+            this.do_step_uncarve_breakable.bind(this),
 
-            // uncarve remainder 100%
+            // fill in all remaining dead ends
             this.do_step_uncarve_init.bind(this),
             this.do_step_uncarve.bind(this),
 
+            // add monsters
             this.do_step_addnpcs_init.bind(this),
             this.do_step_addnpcs.bind(this),
 
@@ -1226,7 +1379,7 @@ class MazeGenerator {
             let step = this.steps[this.current_step]
             this._step_counter += 1
             if (step()) {
-                 // console.log("executed", this.current_step, this._step_counter)
+                console.log("step", this.current_step, this._step_counter)
                 this.current_step += 1
             }
         }
@@ -1292,6 +1445,17 @@ class MazeGenerator {
                     ctx.fill()
                 }
 
+                if (this.cells[j][i]==CELL_BOSS_DOOR ||
+                    this.cells[j][i]==CELL_DOOR ||
+                    this.cells[j][i]==CELL_BOSS_CHEST ||
+                    this.cells[j][i]==CELL_CHEST
+                   ) {
+                    ctx.beginPath();
+                    ctx.fillStyle = '#964B00';
+                    ctx.rect(mx+cw*i, my+ch*j, cw, ch);
+                    ctx.fill()
+                }
+
 
             }
         }
@@ -1308,6 +1472,7 @@ class MazeGenerator {
             this.cells.push(new Array(this.width).fill(CELL_WALL))
         }
 
+        // visited: 0: unvisited, 1: visited, 2: a room cell
         this.visited = []
         for (let j=0;j<this.height;j++) {
             this.visited.push(new Array(this.width).fill(0))
@@ -1321,6 +1486,9 @@ class MazeGenerator {
             }
         }
 
+        this.max_iter_steps = this.show?Math.floor(this.width*this.height / 50):1000 // maximum steps per iteration
+        this.timer = 0
+        this.delay = 0.05
 
         return true;
     }
@@ -1335,8 +1503,11 @@ class MazeGenerator {
 
     do_step_add_room() {
 
-        let rw = randomRange(5, 11)|1 // Math.floor(this.width/4)
-        let rh = randomRange(5, 11)|1 // Math.floor(this.width/4)
+        // width of 11 is about the biggest that fits in the
+        // allowed camera region
+        // rooms must have odd length to fit on the grid
+        let rw = randomRange(5, 12)|1 // Math.floor(this.width/4)
+        let rh = randomRange(5, 12)|1 // Math.floor(this.width/4)
 
         if (this.rooms.length==0) {
             rw = 7
@@ -1346,6 +1517,11 @@ class MazeGenerator {
         if (this.rooms.length==1) {
             rw = 15
             rh = 9
+        }
+
+        if (this.rooms.length==2) {
+            rw = 7
+            rh = 7
         }
 
         let rt = randomRange(0, (this.height - rh) & (~1)) & (~1)
@@ -1372,7 +1548,7 @@ class MazeGenerator {
             if (this.rooms[i].collideRect(room)) {
                 console.log(this.room_fails, "failed to add room (overlap)")
                 this.room_fails += 1
-                return this.room_fails > this.max_room_fails
+                return this.rooms.length > 3 && this.room_fails > this.max_room_fails
             }
         }
 
@@ -1411,14 +1587,11 @@ class MazeGenerator {
         ndoors += candidates.b.length;
         ndoors += candidates.l.length;
 
-        console.log("num doors", this.rooms.length, ndoors)
-
-
         // room cannot be placed. there are no doors possible
         if (ndoors == 0) {
             console.log(this.room_fails, "failed to add room (no door)")
             this.room_fails += 1
-            return this.room_fails > this.max_room_fails
+            return this.rooms.length > 3 && this.room_fails > this.max_room_fails
         }
 
         for (let j=rt; j < rb; j++) {
@@ -1429,7 +1602,7 @@ class MazeGenerator {
 
         for (let j=rt; j < rb; j++) {
             for (let i=rl; i < rr; i++) {
-                this.visited[j][i] = 1
+                this.visited[j][i] = 2
             }
         }
 
@@ -1452,21 +1625,40 @@ class MazeGenerator {
         shuffle(choices)
 
         let numdoors = randomRange(1, choices.length)
-        console.log("place", numdoors)
         if (numdoors < 1) {
-            console.error("random error")
+            console.error("random door error")
             numdoors = 1
         }
+
         for (let i=0; i < numdoors; i++) {
             let p = choices[i]
             this.cells[p.y][p.x] = CELL_FLOOR
         }
 
-        if (this.rooms.length==0) {
-            this.cells[rt + 3][rl + 3] = CELL_START
+
+        if (this.rooms.length==this.start_room) {
+
+            if (this.start_room == 0) {
+                this.cells[rt + 3][rl + 3] = CELL_START
+            }
+            else if (this.start_room == 1) {
+                let p = choices[0]
+                this.cells[p.y][p.x-1] = CELL_START
+            } else {
+                this.cells[rt + 1][rl + 1] = CELL_START
+            }
+        }
+
+        if (this.rooms.length==2) {
+            this.cells[rt + 3][rl + 3] = CELL_BOSS_CHEST
         }
 
         if (this.rooms.length==1) {
+
+            let p = choices[0]
+            this.cells[p.y][p.x] = CELL_BOSS_DOOR
+            this.cells[p.y][p.x+1] = CELL_BOSS_LOCK
+
             // build the boss chamber
             this.cells[rt+1][rr-2] = CELL_WALL
             this.cells[rt+2][rr-2] = CELL_WALL
@@ -1489,9 +1681,6 @@ class MazeGenerator {
             this.cells[rb - 2][rr-5] = CELL_WALL
 
             this.cells[rb - 5][rr-6] = CELL_BOSS
-
-            //this.cells[rt + 2][rl + 2] = CELL_START
-
         }
 
 
@@ -1577,7 +1766,7 @@ class MazeGenerator {
         return null
     }
 
-    do_step_uncarve0_init() {
+    do_step_uncarve_breakable_init() {
         this.ux=1
         this.uy=1
 
@@ -1587,20 +1776,19 @@ class MazeGenerator {
         return true
     }
 
-    do_step_uncarve0() {
+    do_step_uncarve_breakable() {
 
         let z=0
         for (; z < this.max_iter_steps && this.uy < this.height - 1; z++) {
 
             let n = this.neighbors1({x:this.ux, y:this.uy})
 
-            // todo: skip non-floors
-            let skip = this.cells[this.uy][this.ux] != CELL_FLOOR
-            for (let i=0; !skip && i < this.rooms.length; i++) {
-                if (this.rooms[i].collidePoint(this.ux, this.uy)) {
-                    skip = 1
-                }
-            }
+            let skip = (this.cells[this.uy][this.ux] != CELL_FLOOR) || (this.visited[this.uy][this.ux]===2)
+            //for (let i=0; !skip && i < this.rooms.length; i++) {
+            //    if (this.rooms[i].collidePoint(this.ux, this.uy)) {
+            //        skip = 1
+            //    }
+            //}
 
             if (skip == 0) {
 
@@ -1617,12 +1805,14 @@ class MazeGenerator {
 
                     if (Math.random() < this.prob_breakable) {
                         shuffle(n);
+                        // find first non-edge, non-room wall
                         for (let i=0; i<n.length; i++) {
                             let p = n[i]
                             if (p.x > 1 &&
                                 p.y > 1 &&
                                 p.x < this.width - 1 &&
                                 p.y < this.height - 1 &&
+                                this.visited[p.y][p.y]===2 &&
                                 this.cells[p.y][p.x]==CELL_WALL) {
                                 this.cells[p.y][p.x] = CELL_BREAKABLE
                                 break;
@@ -1631,14 +1821,6 @@ class MazeGenerator {
                     }
                 }
 
-                /*
-                let prob2 = 0.75
-                if (total == 0) {
-                    if (Math.random() < prob2) {
-                        this.cells[this.uy][this.ux] = CELL_MONSTER
-                    }
-                }
-                */
             }
 
             // unwrapped double for-loop
@@ -1672,12 +1854,12 @@ class MazeGenerator {
             let n = this.neighbors1({x:this.ux, y:this.uy})
 
             // todo: skip non-floors
-            let skip = this.cells[this.uy][this.ux] != CELL_FLOOR
-            for (let i=0; !skip && i < this.rooms.length; i++) {
-                if (this.rooms[i].collidePoint(this.ux, this.uy)) {
-                    skip = 1
-                }
-            }
+            let skip = (this.cells[this.uy][this.ux] != CELL_FLOOR) || (this.visited[this.uy][this.ux]===2)
+            //for (let i=0; !skip && i < this.rooms.length; i++) {
+            //    if (this.rooms[i].collidePoint(this.ux, this.uy)) {
+            //        skip = 1
+            //    }
+            //}
 
             if (skip == 0) {
                 let p = {x:this.ux, y:this.uy}
@@ -1721,12 +1903,12 @@ class MazeGenerator {
 
 
             // todo: skip non-floors
-            let skip = this.cells[this.uy][this.ux] != CELL_FLOOR
-            for (let i=0; !skip && i < this.rooms.length; i++) {
-                if (this.rooms[i].collidePoint(this.ux, this.uy)) {
-                    skip = 1
-                }
-            }
+            let skip = (this.cells[this.uy][this.ux] != CELL_FLOOR) || (this.visited[this.uy][this.ux]===2)
+            //for (let i=0; !skip && i < this.rooms.length; i++) {
+            //    if (this.rooms[i].collidePoint(this.ux, this.uy)) {
+            //        skip = 1
+            //    }
+            //}
 
             if (!skip) {
 
@@ -1767,7 +1949,6 @@ class MazeGenerator {
         return this.uy >= this.height - 1
     }
 
-
     do_transition_init() {
         this.timer = 0
         this.delay = 2.0
@@ -1780,13 +1961,17 @@ class MazeGenerator {
             walls: [],
             breakable_walls: [],
             npcs: [],
+            chests: [],
+            doors: [],
             start: {x:1, y:1},
             width: this.width,
             height: this.height
+
         }
 
         for (let j=0;j<this.height;j++) {
             for (let i=0;i<this.width;i++) {
+
                 if (this.cells[j][i] == CELL_WALL) {
                     data.walls.push({x:i,y:j,w:1,h:1});
                 }
@@ -1805,6 +1990,26 @@ class MazeGenerator {
 
                 if (this.cells[j][i] == CELL_BOSS) {
                     data.npcs.push({x:i,y:j, type:1});
+                }
+
+                if (this.cells[j][i] == CELL_CHEST) {
+                    data.chests.push({x:i, y:j, type:1});
+                }
+
+                if (this.cells[j][i] == CELL_BOSS_CHEST) {
+                    data.chests.push({x:i, y:j, type:2});
+                }
+
+                if (this.cells[j][i] == CELL_DOOR) {
+                    data.doors.push({x:i, y:j, type:1});
+                }
+
+                if (this.cells[j][i] == CELL_BOSS_DOOR) {
+                    data.doors.push({x:i, y:j, type:2});
+                }
+
+                if (this.cells[j][i] == CELL_BOSS_LOCK) {
+                    data.doors.push({x:i, y:j, type:3});
                 }
 
 
