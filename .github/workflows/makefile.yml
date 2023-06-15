@@ -16,8 +16,8 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Checkout submodules
-      run: git submodule update --init --recursive
+    - name: clone
+      run: git clone "https://github.com/nsetzer/daedalus.git" daedalus
 
     - name: configure
       run: ./configure
