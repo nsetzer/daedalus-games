@@ -24,6 +24,6 @@ jobs:
 
     - name: run the site build
       run: |
-        source env/bin/activate
+        source venv/bin/activate
         echo "VIRTUAL ENV:" $VIRTUAL_ENV
         make build
