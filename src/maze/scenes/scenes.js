@@ -1395,7 +1395,7 @@ class MazeGenerator {
         this.height = height
         this.ready = false
 
-        this.show = false
+        this.show = true
         this.start_room = 0
 
         this.current_step = 0
