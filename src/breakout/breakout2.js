@@ -148,6 +148,8 @@ class Ball extends Agent {
         this.trail_timer = 0
         this.trail_timeout = 1/this.trail_size
         this.trail = []
+
+        this.bounces = 0
         this.particles = []
 
         this.health = 1
@@ -270,6 +272,7 @@ class Ball extends Agent {
                         }
                     }
         */
+        let bounced = false
 
         if (hits.length > 0) {
             // dont yet know what to do
@@ -287,39 +290,57 @@ class Ball extends Agent {
                 pr = Math.max(0.0, Math.min(1.0, pr))
 
 
+                let angle = 90
                 if (pr < 0.3) {
                     pr = 1.0 - (pr / 0.3)
-                    let angle = 90 + 90*pr
-                    let vec = physics.vec2component(-angle, 1)
-
-                    this.hit.normal = [vec.x, vec.y]
-                    this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
-                    if (this.hit.new_direction[1] > 0) {
-                        this.hit.new_direction[1] *= -1
-                    }
+                    angle = 90 + 90*pr
+                    //let vec = physics.vec2component(-angle, 1)
+                    //this.hit.normal = [vec.x, vec.y]
+                    //this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
+                    //if (this.hit.new_direction[1] > 0) {
+                    //    this.hit.new_direction[1] *= -1
+                    //}
                 } else if (pr > 0.7) {
                     pr = (pr - 0.7) / 0.3
-                    let angle = 90 - 90*pr
-                    let vec = physics.vec2component(-angle, 1)
-                    this.hit.normal = [vec.x, vec.y]
-                    this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
-                    if (this.hit.new_direction[1] > 0) {
-                        this.hit.new_direction[1] *= -1
-                    }
+                    angle = 90 - 90*pr
+                    //let vec = physics.vec2component(-angle, 1)
+                    //this.hit.normal = [vec.x, vec.y]
+                    //this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
+                    //if (this.hit.new_direction[1] > 0) {
+                    //    this.hit.new_direction[1] *= -1
+                    //}
                 }
-                console.log(pr, this.hit)
+
+                // if the ball would be reflected up
+                // blend the angle based on where it hit the paddle
+                if (this.hit.new_direction[1] < 0) {
+
+                    let new_vec = physics.component2vec(this.hit.new_direction[0], this.hit.new_direction[1])
+                    angle = (angle + new_vec.degrees) / 2
+                    let vec = physics.vec2component(angle, 1)
+                    this.hit.new_direction = [vec.x, vec.y]
+                    //console.log(angle, new_vec.degrees, this.hit)
+                } else {
+
+                    //console.log(pr, angle, physics.vec2component(angle, 1), this.hit)
+                }
 
                 stepx = this.hit.point[0]
                 stepy = this.hit.point[1]
                 this.dx = this.hit.new_direction[0] * this.basespeed
                 this.dy = this.hit.new_direction[1] * this.basespeed
 
+
+                this.bounces = 0
+
             } else {
-                console.log(this.hit)
+                //console.log(this.hit)
                 stepx = this.hit.point.x
                 stepy = this.hit.point.y
                 this.dx = this.hit.new_direction[0] * this.basespeed
                 this.dy = this.hit.new_direction[1] * this.basespeed
+                this.bounces += 1
+                bounced = true
             }
 
             this.last_hit_object = this.hit.agent
@@ -336,24 +357,43 @@ class Ball extends Agent {
         if (stepx > view.width) {
             this.currx = view.width
             this.dx = -Math.abs(this.dx)
+            this.bounces += 1
+            bounced = true
 
         } else if (stepx < 0) {
             this.x = 0
             this.dx = Math.abs(this.dx)
+            this.bounces += 1
+            bounced = true
 
         }
 
         if (stepy > view.height) {
             this.y = view.height
             this.dy = -Math.abs(this.dy)
+            this.bounces += 1
+            bounced = true
 
         } else if (stepy < 0) {
             this.y = 0
             this.dy = Math.abs(this.dy)
+            this.bounces += 1
+            bounced = true
         }
 
         this.x = this.x + this.dx * dt
         this.y = this.y + this.dy * dt
+
+        // if it bounced nudge the ball back to a 45 degree angle
+        if(bounced) {
+            let vec1 = physics.component2vec(Math.sign(this.dx), Math.sign(this.dy))
+            let vec2 = physics.component2vec(this.dx, this.dy)
+            let degrees = vec1.degrees*0.02 + vec2.degrees*.98
+            let d = physics.vec2component(degrees, this.basespeed)
+            //console.log(vec2.degrees, vec1.degrees, degrees)
+            this.dx = d.x
+            this.dy = d.y
+        }
 
     }
 
@@ -525,6 +565,18 @@ class Paddle extends Agent {
         ctx.fill();
         ctx.fillRect(this.x - this.width / 2, this.y - this.radius,
                           this.width, 2 * this.radius)
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#000000"
+        ctx.moveTo(this.x - this.width*.2, this.y - this.radius)
+        ctx.lineTo(this.x - this.width*.2, this.y + this.radius)
+        ctx.stroke()
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#000000"
+        ctx.moveTo(this.x + this.width*.2, this.y - this.radius)
+        ctx.lineTo(this.x + this.width*.2, this.y + this.radius)
+        ctx.stroke()
 
         //const rect = this.collisionRect()
         //ctx.fillStyle = 'rgba(255, 0, 0, .5)'
@@ -836,7 +888,7 @@ class BreakoutScene extends GameScene {
         ctx.font = '24px sans-serif';
         let vec = physics.component2vec(ball.dx, ball.dy)
         //ctx.fillText(`ball (${ball.dx.toFixed(1)},${ball.dy.toFixed(1)}) `, 0, 36)
-        ctx.fillText(`ball (${vec.degrees.toFixed(1)},${vec.magnitude.toFixed(1)}) `, 36, 36)
+        ctx.fillText(`ball (${vec.degrees.toFixed(1)},${vec.magnitude.toFixed(1)}) ${ball.bounces}`, 36, 36)
 
 
         ctx.strokeStyle="#FF0000"
@@ -885,7 +937,7 @@ class BreakoutScene extends GameScene {
             "     ggggggggggggg     ",
         ]
 
-        let brwidth = Math.floor((width - 16) / template[0].length)
+        let brwidth = Math.floor((width - 48) / template[0].length)
         let brheight = brwidth
 
         for (let j=0; j < template.length; j++) {
@@ -928,6 +980,8 @@ class BreakoutScene extends GameScene {
         this.ball.x = this.paddle.x + this.paddle.width/2
         this.ball.y = this.paddle.y - 32
         //this.ball.health = 0
+        //this.ball.dx = 120
+        //this.ball.dy = 0
         this.ball.dx = this.ball.basespeed * .7071
         this.ball.dy = -this.ball.basespeed * .7071
         this.agents.push(this.ball)

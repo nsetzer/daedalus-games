@@ -8,7 +8,7 @@
 
 export function vec2component(degrees, magnitude){
     let x = magnitude * Math.cos(degrees/180*Math.PI)
-    let y = magnitude * Math.sin(degrees/180*Math.PI)
+    let y = - magnitude * Math.sin(degrees/180*Math.PI)
     return {x, y}
 }
 
