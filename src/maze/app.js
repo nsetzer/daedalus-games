@@ -80,8 +80,12 @@ export default class Application extends DomElement {
 
         window.gEngine = this.canvas
 
-        this.canvas.scene = new MazeScene()
-        console.log("scene created")
+        this.canvas.onReady = () => {
+            this.canvas.scene = new MazeScene()
+            console.log("scene created")
+        }
+
+
 
         window.addEventListener("keydown", this.canvas.handleKeyPress.bind(this.canvas))
         window.addEventListener("keyup", this.canvas.handleKeyRelease.bind(this.canvas))

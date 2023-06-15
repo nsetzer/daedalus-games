@@ -258,7 +258,7 @@ export class CharacterComponent {
     }
 
     hit(power, direction) {
-        if (this.hurt_cooldown > 0) {
+        if (this.hurt_cooldown > 0 || this.health <= 0) {
             return
         }
 
@@ -284,7 +284,11 @@ export class CharacterComponent {
 
         }
 
-        this.target.sound_hit.play()
+        if (this.health <= 0 && !!this.target.sound_death) {
+            this.target.sound_death.play()
+        } else {
+            this.target.sound_hit.play()
+        }
     }
 }
 

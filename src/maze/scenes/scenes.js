@@ -320,13 +320,10 @@ class Hero extends Entity {
         if (!this.attacking) {
             this.physics.update(dt)
 
-            if (gEngine.scene.inventory.boss_key > 0) {
-                if (this.physics.collisions.size==1) {
-                    let ent = this.physics.collisions.values().next().value
-                    if (ent instanceof BossDoor) {
-                        ent.solid = 0
-                        gEngine.scene.inventory.boss_key = 0
-                    }
+            if (this.physics.collisions.size==1) {
+                let ent = this.physics.collisions.values().next().value
+                if (!!ent.pressable) {
+                    ent.handlePress()
                 }
             }
         }
@@ -448,6 +445,10 @@ class Monster extends Entity {
             this.physics.yspeed = 0
             this.controller.timer = this.controller.timeout + 1
             this.animation.pause()
+        }
+
+        if (gEngine.scene.ent_hero.rect.collideRect(this.rect)) {
+            gEngine.scene.ent_hero.character.hit(1, Direction.NONE)
         }
 
         this.character.update(dt)
@@ -820,6 +821,17 @@ class BossDoor extends Entity {
         this.breakable = 0
         this.alive = 1
         this.solid = 1
+        this.pressable = 1
+    }
+
+    handlePress() {
+
+        if (this.solid && gEngine.scene.inventory.boss_key>0) {
+            this.solid = 0
+            gEngine.scene.inventory.boss_key = 0
+            gEngine.scene.loader.sounds.door.play()
+        }
+
     }
 
     update(dt) {
@@ -830,6 +842,41 @@ class BossDoor extends Entity {
 
         if (this.solid) {
             this.tile.draw(ctx, this.rect.x, this.rect.y)
+        }
+    }
+}
+
+class BossChest extends Entity {
+
+    constructor(tile_open, tile_closed) {
+        super()
+        this.tile_open = tile_open
+        this.tile_closed = tile_closed
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+        this.pressable = 1
+        this.open = 0
+    }
+
+    handlePress() {
+        if (!this.open) {
+            this.open = 1
+            gEngine.scene.inventory.boss_key = 1
+            gEngine.scene.loader.sounds.item.play()
+        }
+    }
+
+    update(dt) {
+
+    }
+
+    paint(ctx) {
+
+        if (this.open) {
+            this.tile_open.draw(ctx, this.rect.x, this.rect.y)
+        } else {
+            this.tile_closed.draw(ctx, this.rect.x, this.rect.y)
         }
     }
 }
@@ -856,6 +903,7 @@ class BossDoorLock extends Entity {
                 for (let i=0; i < this.physics.group.length; i++) {
                     let ent = this.physics.group[i]
                     if (ent instanceof BossDoor) {
+                        gEngine.scene.loader.sounds.door.play()
                         ent.solid = 1;
                         break
                     }
@@ -866,10 +914,10 @@ class BossDoorLock extends Entity {
     }
 
     paint(ctx) {
-        ctx.fillStyle = "#dd00dd44"
-        ctx.beginPath()
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.fill()
+        //ctx.fillStyle = "#dd00dd44"
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.fill()
     }
 }
 
@@ -891,9 +939,13 @@ export class MainScene extends GameScene {
         this.loader = new ResourceLoader()
 
         this.loader.addSoundEffect("hit").path(RES_ROOT + "/sound/LOZ_Enemy_Hit.wav")
+        this.loader.addSoundEffect("death").path(RES_ROOT + "/sound/LOZ_Link_Die.wav")
+        this.loader.addSoundEffect("hurt").path(RES_ROOT + "/sound/LOZ_Link_Hurt.wav")
         this.loader.addSoundEffect("slash").path(RES_ROOT + "/sound/LOZ_Sword_Slash.wav");
         this.loader.addSoundEffect("drop").path(RES_ROOT + "/sound/LOZ_Bomb_Drop.wav");
         this.loader.addSoundEffect("explode").path(RES_ROOT + "/sound/LOZ_Bomb_Blow.wav");
+        this.loader.addSoundEffect("item").path(RES_ROOT + "/sound/LOZ_Get_Item.wav");
+        this.loader.addSoundEffect("door").path(RES_ROOT + "/sound/LOZ_Door_Unlock.wav");
 
         this.loader.addSpriteSheet("bg")
             .path(RES_ROOT + "/tile2.png")
@@ -977,11 +1029,22 @@ export class MainScene extends GameScene {
                 ent.sound_hit = this.loader.sounds.hit
                 ent.rect.x = item.x*32 - 16
                 ent.rect.y = item.y*32 - 16
+                ent.character.health = 9
                 ent.physics.group = this.walls
                 this.npcs.push(ent)
             }
         })
 
+        this.mapdata.chests.forEach(item => {
+            if (item.type == 2) {
+                let wall = new BossChest(
+                    this.loader.sheets.bg.tile(7),
+                    this.loader.sheets.bg.tile(6))
+                wall.rect = new Rect(item.x*32, item.y*32, 32, 32)
+                wall.solid = 1
+                this.walls.push(wall)
+            }
+        })
         this.mapdata.doors.forEach(item => {
 
             if (item.type == 2) {
@@ -1004,7 +1067,8 @@ export class MainScene extends GameScene {
         this.ent_hero = new Hero()
         setCharacterSpriteSheet(this.ent_hero, this.loader.sheets.hero, true)
         this.ent_hero.sound_sword = this.loader.sounds.slash
-        this.ent_hero.sound_hit = this.loader.sounds.hit
+        this.ent_hero.sound_death = this.loader.sounds.death
+        this.ent_hero.sound_hit = this.loader.sounds.hurt
 
         this.controller = new Controller(this, this.ent_hero)
         this.touch = new TouchInput(this.controller)
@@ -1023,9 +1087,13 @@ export class MainScene extends GameScene {
         this.ent_hero.rect.y = this.mapdata.start.y*32 + 16
         this.ent_hero.rect.w = 16
         this.ent_hero.rect.h = 16
+        this.ent_hero.character.health = 5
+
+        this.camera.x = this.ent_hero.rect.x - gEngine.view.width/2
+        this.camera.y = this.ent_hero.rect.y - gEngine.view.height/2
 
         this.inventory = {
-            boss_key: 1,
+            boss_key: 0,
         }
     }
 
@@ -1123,7 +1191,9 @@ export class MainScene extends GameScene {
         } else if (this.map.ready) {
             this.controller.update(dt)
 
-            this.ent_hero.update(dt)
+            if (this.ent_hero.character.health > 0) {
+                this.ent_hero.update(dt)
+            }
 
             this.update_active(dt);
 
@@ -1179,7 +1249,9 @@ export class MainScene extends GameScene {
             }
         }
 
-        this.ent_hero.paint(ctx)
+        if (this.ent_hero.character.health > 0) {
+            this.ent_hero.paint(ctx)
+        }
 
         let n = this.npcs.length + this.walls.length
 
@@ -1263,11 +1335,11 @@ export class MainScene extends GameScene {
             this.paint_map(ctx)
             this.paint_status(ctx)
 
-            ctx.strokeStyle = "#FF0000"
-            ctx.beginPath();
-            let r = this.camera.active_border
-            ctx.rect(r.x, r.y, r.w, r.h);
-            ctx.stroke();
+            //ctx.strokeStyle = "#FF0000"
+            //ctx.beginPath();
+            //let r = this.camera.active_border
+            //ctx.rect(r.x, r.y, r.w, r.h);
+            //ctx.stroke();
 
             ctx.restore()
             this.touch.paint(ctx)
@@ -1284,19 +1356,19 @@ export class MainScene extends GameScene {
     }
 
     handleTouches(touches) {
-        if (this.map.ready) {
+        if (this.map.ready && this.ent_hero.character.health > 0) {
             this.touch.handleTouches(touches)
         }
     }
 
     handleKeyPress(keyCode) {
-        if (this.map.ready) {
+        if (this.map.ready && this.ent_hero.character.health > 0) {
             this.keyboard.handlePress(keyCode);
         }
     }
 
     handleKeyRelease(keyCode) {
-        if (this.map.ready) {
+        if (this.map.ready && this.ent_hero.character.health > 0) {
             this.keyboard.handleRelease(keyCode);
         }
     }
@@ -1324,7 +1396,7 @@ class MazeGenerator {
         this.ready = false
 
         this.show = false
-        this.start_room = 2
+        this.start_room = 0
 
         this.current_step = 0
 
