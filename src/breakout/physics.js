@@ -6,6 +6,63 @@
 //     y = axx + bx + c   || [a, b, c] || a curve
 //     yy = sqrt(rr - xx) || c, r      || a circle
 
+export function vec2component(degrees, magnitude){
+    let x = magnitude * Math.cos(degrees/180*Math.PI)
+    let y = magnitude * Math.sin(degrees/180*Math.PI)
+    return {x, y}
+}
+
+export function component2vec(dx, dy) {
+    let degrees = Math.atan2(-dy, dx) * 180/Math.PI
+    if (degrees < 0) {
+        degrees += 360
+    }
+    let magnitude = Math.sqrt(dx*dx + dy*dy)
+    return {degrees, magnitude}
+}
+
+/*
+def lerp_wrap(a, b, p, size):
+    """ linearly interpolate between two value a and b given percent p
+    wrap arround back to 0 if the resulting value is greater than size/2
+    and wrap around back to m if the resulting value is less than size/2
+
+    """
+    if p > 1.0:
+        return b
+    if p < 0.0:
+        return a
+
+    c = b - a
+    if c < -size/2:
+        c += size
+    elif c > size/2:
+        c -= size
+
+    c = a + p * c
+
+    if c > size:
+        c -= size
+    if c < 0:
+        c += size
+
+    return c
+
+*/
+// blend two vector components proportionally
+// p==0: return (dx1, dy1)
+// p==1: return (dx2, dy2)
+// p==0.5 averages the vectors
+function component_blend(dx1, dy1, dx2, dy2, p) {
+
+}
+
+//const y = Math.sqrt(2)/2
+//const x = Math.sqrt(2)/2
+//let r1 = component2vec(x, y)
+//let r2 = vec2component(r1.degrees, r1.magnitude)
+//console.log("result", r1, r2)
+
 export function distance(p1, p2) {
     const dx = p2.x - p1.x
     const dy = p2.y - p1.y
@@ -329,18 +386,23 @@ export function intercept_shape(p1, p2, shape) {
 
 }
 
-function dot2(v1, v2) {
+export function dot2(v1, v2) {
     return v1[0] * v2[0] + v1[1] * v2[1]
 }
 
-// v: a vector
-// n: a normal vector (perpendicular to an intercept)
-// v' = 2(v*n)n - v
-export function reflect(v, n) {
-    const scale = 2 * dot2(v, n)
-    return [v[0] - scale * n[0], v[1] - scale * n[1]]
-}
+export function reflect2(normal, direction) {
+    // reflection is d - 2(dot(d, n))*n
+    // d is the direction vector
+    // n is the normal vector
 
+    // v1 and v2 must be normalized vectors
+    // compute the reflection of a vector v2 after hitting
+    // a tangent wall and computing the normal, v1
+    let dot = physics.dot2(normal, direction)
+    let nx = direction[0] - 2 * dot * normal[0]
+    let ny = direction[1] - 2 * dot * normal[1]
+    return [nx, ny]
+}
 
 export function compute_normal(p, x1, y1, tanget_eq) {
     // find a perpendicular line to the tangent

@@ -272,7 +272,7 @@ export class CanvasEngine extends DomElement {
             } else if (!this.paused) {
 
                 this.scene.handleKeyPress(kc);
-                event.preventDefault();
+                //event.preventDefault();
             }
         }
     }
@@ -284,7 +284,7 @@ export class CanvasEngine extends DomElement {
             if (!this.paused) {
 
                 this.scene.handleKeyRelease(kc);
-                event.preventDefault();
+                //event.preventDefault();
 
             }
 

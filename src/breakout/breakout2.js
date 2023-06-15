@@ -57,7 +57,6 @@ const style = {
     "item_file": StyleSheet({"color": "blue", "cursor": "pointer"}),
 };
 
-
 class Agent {
     constructor() {
         this.x = 0;
@@ -110,11 +109,12 @@ class Agent {
 }
 
 const collision = {
+    // test a point is in a rec
     point2rect: function(px, py, tx, ty, tw, th) {
-        return px < tx + tw &&
-               px > tx &&
-               py < ty + th &&
-               py > ty;
+        return px < tx + tw && // right
+               px > tx &&      // left
+               py < ty + th && // bottom
+               py > ty;        // top
     },
     point2rectTB: function(px, py, tx, ty, tw, th) {
         return py < ty + th &&
@@ -144,73 +144,63 @@ class Ball extends Agent {
 
         this.x = 100
         this.y = 400
+        this.trail_size = 20
+        this.trail_timer = 0
+        this.trail_timeout = 1/this.trail_size
         this.trail = []
         this.particles = []
+
+        this.health = 1
+        this.destroy = 0
+
+        this.last_hit_object = null
 
         this.hit = null
     }
 
-
-    doCollide(rect) {
-
-        if (this.y < rect.y || this.y > rect.y + rect.height) {
-            this.dy = - this.dy
-        } else if (this.x > rect.x && this.x < rect.x + rect.width) {
-            if (this.y < rect.y + rect.height/2) {
-                this.y = rect.y - this.radius
-                this.dy = -Math.abs(this.dy)
-            } else if (this.y > rect.y + rect.height/2) {
-                this.y = rect.y + rect.height + this.radius
-                this.dy = Math.abs(this.dy)
-            }
-        }
-
-        if (this.x < rect.x || this.x > rect.x + rect.width) {
-            this.dx = - this.dx
-        } else if (this.y > rect.y && this.y < rect.y + rect.height) {
-            if (this.x < rect.x + rect.width/2) {
-                this.x = rect.x - this.radius
-                this.dx = -Math.abs(this.dx)
-            } else if (this.x > rect.x + rect.width/2) {
-                this.x = rect.x + rect.width + this.radius
-                this.dx = Math.abs(this.dx)
-            }
-        }
-        this.collide = true
-    }
-
     update(dt) {
 
-        this.move_x(dt)
-        this.move_y(dt)
+        this.move_xy(dt)
 
-        this.trail.push({x:this.x, y:this.y})
-        if (this.trail.length > 5) {
-            this.trail.shift()
+        this.trail_timer += dt
+        if (this.trail_timer > this.trail_timeout) {
+            this.trail_timer -= this.trail_timeout
+            this.trail.push({x:this.x, y:this.y})
+            if (this.trail.length > this.trail_size) {
+                this.trail.shift()
+            }
         }
+
 
     }
 
-    move_x(dt) {
+    move_xy(dt) {
 
-        let x = this.x;
-        let dx = this.dx*dt;
+        let currx = this.x
+        let curry = this.y
+        let stepx = this.x + this.dx * dt
+        let stepy = this.y + this.dy * dt
+        // ideal previous position
+        let prevx = this.x - this.dx * dt
+        let prevy = this.y - this.dy * dt
 
         const agents = gEngine.scene.agents
         const view = gEngine.view
+
+        let hits = []
 
         for (let agent of agents) {
             if (agent.solid) {
                 const rect = agent.collisionRect();
 
                 if (collision.point2rect(
-                        x + dx, this.y,
+                        stepx, stepy,
                         rect.x, rect.y,
                         rect.width, rect.height)) {
 
-                    const p1 = {x: x, y: this.y}
-                    const p2 = {x: x + dx, y: this.y}
-                    const ps = {x: x - dx, y: this.y}
+                    const p1 = {x: currx, y: curry}
+                    const p2 = {x: stepx, y: stepy}
+                    const ps = {x: prevx, y: prevy}
 
                     const shape = agent.collisionShape()
 
@@ -219,74 +209,35 @@ class Ball extends Agent {
                         if (agent instanceof Brick) {
                             agent.decrementHealth()
                         }
-                        const n = physics.compute_normal(ps, result.point.x, result.point.y, result.tangent);
-                        this.hit = {normal: n, tangent: result.tangent, point: result.point}
+                        const normal = physics.compute_normal(ps, result.point.x, result.point.y, result.tangent);
 
+                        let m = Math.sqrt(this.dx*this.dx + this.dy*this.dy)
+                        let ov = [this.dx/m, this.dy/m]
+                        let nv = physics.reflect2(normal, ov)
+
+                        hits.push({
+                            agent: agent,
+                            normal: normal,
+                            tangent: result.tangent,
+                            original_direction: ov,
+                            new_direction: nv,
+                            point: result.point,
+                        })
+
+                    } else {
+                        continue
                     }
 
-                    if (agent instanceof Paddle) {
-                        let pr = (agent.x - this.x) / agent.width
-                        console.log("x hit paddle", pr)
-                    }
 
 
-                    dx = -dx
+                    this.dy = -this.dy
                     break
-
                 }
             }
         }
 
-        if (x + dx > view.width) {
-            this.x = view.width
-            this.dx = -Math.abs(dx/dt)
-
-        } else if (x + dx < 0) {
-            this.x = 0
-            this.dx = Math.abs(dx/dt)
-
-        } else {
-            this.x = x + dx
-            this.dx = dx/dt
-        }
-
-
-    }
-
-    move_y(dt) {
-        let y = this.y;
-        let dy = this.dy*dt;
-
-        const agents = gEngine.scene.agents
-        const view = gEngine.view
-
-        for (let agent of agents) {
-            if (agent.solid) {
-                const rect = agent.collisionRect();
-
-                if (collision.point2rect(
-                        this.x, y + dy,
-                        rect.x, rect.y,
-                        rect.width, rect.height)) {
-
-
-                    const p1 = {x: this.x, y: y}
-                    const p2 = {x: this.x, y: y + dy}
-                    const ps = {x: this.x, y: y - dy}
-
-                    const shape = agent.collisionShape()
-
-                    const result = physics.intercept_shape(p1, p2, shape)
-                    if (result !== null) {
-                        if (agent instanceof Brick) {
-                            agent.decrementHealth()
-                        }
-                        const n = physics.compute_normal(ps, result.point.x, result.point.y, result.tangent);
-                        this.hit = {normal: n, tangent: result.tangent, point: result.point}
-
-                    }
-
-                    // if a collision from the top of the paddle
+        // check hits
+        /*
                     if (agent instanceof Paddle) {
                         if (agent.y > this.y) {
                             let pr = (this.x - agent.x) / agent.width
@@ -318,24 +269,92 @@ class Ball extends Agent {
 
                         }
                     }
+        */
 
-                    dy = -dy
-                    break
-                }
+        if (hits.length > 0) {
+            // dont yet know what to do
+            if (hits.length > 1) {
+                throw hits
             }
+            this.hit = hits[0]
+            if (this.last_hit_object === this.hit.agent &&
+                this.last_hit_object === gEngine.scene.paddle) {
+                console.log("double hit")
+            } else if (this.hit.agent === gEngine.scene.paddle) {
+
+                let pr = (this.hit.point.x - this.hit.agent.x) / this.hit.agent.width
+                pr += 0.5
+                pr = Math.max(0.0, Math.min(1.0, pr))
+
+
+                if (pr < 0.3) {
+                    pr = 1.0 - (pr / 0.3)
+                    let angle = 90 + 90*pr
+                    let vec = physics.vec2component(-angle, 1)
+
+                    this.hit.normal = [vec.x, vec.y]
+                    this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
+                    if (this.hit.new_direction[1] > 0) {
+                        this.hit.new_direction[1] *= -1
+                    }
+                } else if (pr > 0.7) {
+                    pr = (pr - 0.7) / 0.3
+                    let angle = 90 - 90*pr
+                    let vec = physics.vec2component(-angle, 1)
+                    this.hit.normal = [vec.x, vec.y]
+                    this.hit.new_direction = physics.reflect2(this.hit.normal, this.hit.original_direction)
+                    if (this.hit.new_direction[1] > 0) {
+                        this.hit.new_direction[1] *= -1
+                    }
+                }
+                console.log(pr, this.hit)
+
+                stepx = this.hit.point[0]
+                stepy = this.hit.point[1]
+                this.dx = this.hit.new_direction[0] * this.basespeed
+                this.dy = this.hit.new_direction[1] * this.basespeed
+
+            } else {
+                console.log(this.hit)
+                stepx = this.hit.point.x
+                stepy = this.hit.point.y
+                this.dx = this.hit.new_direction[0] * this.basespeed
+                this.dy = this.hit.new_direction[1] * this.basespeed
+            }
+
+            this.last_hit_object = this.hit.agent
+            //this.health -= 1
+            if (this.health <= 0) {
+                gEngine.scene.resetBall()
+                return
+            }
+
         }
 
-        if (y + dy > view.height) {
+        // bounds check
+
+        if (stepx > view.width) {
+            this.currx = view.width
+            this.dx = -Math.abs(this.dx)
+
+        } else if (stepx < 0) {
+            this.x = 0
+            this.dx = Math.abs(this.dx)
+
+        }
+
+        if (stepy > view.height) {
             this.y = view.height
-            this.dy = -Math.abs(dy/dt)
+            this.dy = -Math.abs(this.dy)
 
-        } else if (y + dy < 0) {
+        } else if (stepy < 0) {
             this.y = 0
-            this.dy = Math.abs(dy/dt)
-        } else {
-            this.y = y + dy
-            this.dy = dy/dt
+            this.dy = Math.abs(this.dy)
         }
+
+        this.x = this.x + this.dx * dt
+        this.y = this.y + this.dy * dt
+
     }
 
     paint(ctx) {
@@ -400,10 +419,10 @@ class Ball extends Agent {
 
             }
 
-            const xn1 = p.x
-            const xn2 = p.x + 50 * normal[0]
-            const yn1 = p.y
-            const yn2 = p.y + 50 * normal[1]
+            let xn1 = p.x
+            let xn2 = p.x + 50 * normal[0]
+            let yn1 = p.y
+            let yn2 = p.y + 50 * normal[1]
 
             ctx.beginPath();
             ctx.moveTo(xn1, yn1);
@@ -411,6 +430,37 @@ class Ball extends Agent {
             ctx.closePath();
             ctx.lineWidth  = 2;
             ctx.strokeStyle = 'red';
+            ctx.stroke()
+
+            let ov = this.hit.original_direction
+
+            // paint the inverse original direction vector
+            xn1 = p.x
+            xn2 = p.x - 30 * ov[0]
+            yn1 = p.y
+            yn2 = p.y - 30 * ov[1]
+
+            ctx.beginPath();
+            ctx.moveTo(xn1, yn1);
+            ctx.lineTo(xn2, yn2);
+            ctx.closePath();
+            ctx.lineWidth  = 2;
+            ctx.strokeStyle = 'blue';
+            ctx.stroke()
+
+            let nv = this.hit.new_direction
+
+            xn1 = p.x
+            xn2 = p.x + 30 * nv[0]
+            yn1 = p.y
+            yn2 = p.y + 30 * nv[1]
+
+            ctx.beginPath();
+            ctx.moveTo(xn1, yn1);
+            ctx.lineTo(xn2, yn2);
+            ctx.closePath();
+            ctx.lineWidth  = 2;
+            ctx.strokeStyle = 'purple';
             ctx.stroke()
 
         }
@@ -556,7 +606,7 @@ class Brick extends Agent {
 }
 
 class BrickShape extends Agent {
-    constructor(x, y, radius) {
+    constructor(x, y) {
         super();
         this.solid = true;
         this.x = x
@@ -564,55 +614,45 @@ class BrickShape extends Agent {
         this.health = 99
         this.layer = 99
 
-        //this.shape = [
-        //    {type: "line", p1: {x: 0, y: 0}, p2: {x: 10, y: -10}}, // top left
-        //    {type: "line", p1: {x: 10, y: -10}, p2: {x: 20, y: 0}}, // top right
-        //    {type: "line", p1: {x: 20, y: 0}, p2: {x: 10, y: 10}}, // bottom right
-        //    {type: "line", p1: {x: 10, y: 10}, p2: {x: 0, y: 0}}, // bottom left
-        //]
+    }
 
-        this.shape = [
-            {type: "circle", center: {x: 0, y: 0}, radius: radius}, // top left
-        ]
-
-        this.rect = this.getCollisionRectTemplate()
-        this.width = this.rect.width
-        this.width = this.rect.height
+    update(dt) {
 
     }
 
-    draw(view) {
+    paint(ctx) {
 
 
         const rect = this.collisionRect()
-        view.ctx.fillStyle = 'red'
-        //view.ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+        ctx.fillStyle = '#FF00007F'
+
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
 
 
-        view.ctx.strokeStyle = '#000033'
-        view.ctx.fillStyle = '#0000AA'
+        ctx.strokeStyle = '#000033'
+        ctx.fillStyle = '#0000AA'
 
         this.shape.forEach(segment => {
             switch (segment.type) {
                 case 'line':
-                    view.ctx.beginPath()
-                    view.ctx.moveTo(this.x + segment.p1.x, this.y + segment.p1.y)
-                    view.ctx.lineTo(this.x + segment.p2.x, this.y + segment.p2.y)
-                    view.ctx.stroke();
+                    ctx.beginPath()
+                    ctx.moveTo(this.x + segment.p1.x, this.y + segment.p1.y)
+                    ctx.lineTo(this.x + segment.p2.x, this.y + segment.p2.y)
+                    ctx.stroke();
                     break;
                 case 'curve':
                     break;
                 case 'circle':
-                    view.ctx.beginPath()
-                    view.ctx.arc(this.x + segment.center.x,
+                    ctx.beginPath()
+                    ctx.arc(this.x + segment.center.x,
                                  this.y + segment.center.y,
                                  segment.radius, 0, 2 * Math.PI);
-                    view.ctx.stroke();
-                    view.ctx.beginPath()
-                    view.ctx.arc(this.x + segment.center.x,
+                    ctx.stroke();
+                    ctx.beginPath()
+                    ctx.arc(this.x + segment.center.x,
                                  this.y + segment.center.y,
                                  segment.radius, 0, 2 * Math.PI);
-                    view.ctx.fill();
+                    ctx.fill();
                     break;
             }
         })
@@ -695,7 +735,6 @@ class BrickShape extends Agent {
                         center: {x: this.x + segment.center.x, y: this.y + segment.center.y},
                         radius: segment.radius,
                     }
-                    break;
             }
         })
 
@@ -704,6 +743,40 @@ class BrickShape extends Agent {
     }
 }
 
+function BrickShapeDiamond(x, y) {
+
+    let brick = new BrickShape(x, y)
+    brick.shape = [
+        {type: "line", p1: {x: 0, y: 0}, p2: {x: 10, y: -10}}, // top left
+        {type: "line", p1: {x: 10, y: -10}, p2: {x: 20, y: 0}}, // top right
+        {type: "line", p1: {x: 20, y: 0}, p2: {x: 10, y: 10}}, // bottom right
+        {type: "line", p1: {x: 10, y: 10}, p2: {x: 0, y: 0}}, // bottom left
+    ]
+
+    brick.rect = brick.getCollisionRectTemplate()
+    brick.width = brick.rect.width
+    brick.width = brick.rect.height
+
+    return brick
+}
+
+function BrickShapeCircle(x, y, radius) {
+
+    let brick = new BrickShape(x, y)
+    brick.shape = [
+        {type: "circle", center: {x: 0, y: 0}, radius: radius},
+    ]
+
+    brick.rect = brick.getCollisionRectTemplate()
+    brick.width = brick.rect.width
+    brick.width = brick.rect.height
+
+    return brick
+}
+
+function BrickShapeArc(x, y, r1, r2, a1, a2, clockwise) {
+
+}
 
 class BreakoutScene extends GameScene {
 
@@ -715,9 +788,20 @@ class BreakoutScene extends GameScene {
         console.log("init scene")
         this.initGame()
     }
+
     handleTouches(touches) {
         if (!!this.paddle) {
             this.paddle.handleTouches(touches)
+        }
+    }
+
+    handleKeyRelease(kc) {
+        if (this.ball.health <= 0) {
+            this.ball.health = 2
+            this.ball.dx = 0
+            this.ball.dy = -this.ball.basespeed
+            //this.ball.dx = this.ball.basespeed * .7071
+            //this.ball.dy = -this.ball.basespeed * .7071
         }
     }
 
@@ -734,13 +818,26 @@ class BreakoutScene extends GameScene {
                 this.agents.splice(i, 1)
             }
         }
+
         this.agents.forEach(agent => {
             agent.update(dt)
         })
 
+        if (this.ball.health <= 0) {
+            this.resetBall()
+        }
+
     }
 
     paint(ctx) {
+
+        const ball = this.ball
+        ctx.fillStyle="yellow"
+        ctx.font = '24px sans-serif';
+        let vec = physics.component2vec(ball.dx, ball.dy)
+        //ctx.fillText(`ball (${ball.dx.toFixed(1)},${ball.dy.toFixed(1)}) `, 0, 36)
+        ctx.fillText(`ball (${vec.degrees.toFixed(1)},${vec.magnitude.toFixed(1)}) `, 36, 36)
+
 
         ctx.strokeStyle="#FF0000"
         ctx.beginPath()
@@ -754,6 +851,13 @@ class BreakoutScene extends GameScene {
             }
         })
 
+    }
+
+    resetBall() {
+        this.ball.x = this.paddle.x
+        this.ball.y = this.paddle.y - 32
+        this.ball.dx = 0
+        this.ball.dy = 0
     }
 
     initGame() {
@@ -784,8 +888,6 @@ class BreakoutScene extends GameScene {
         let brwidth = Math.floor((width - 16) / template[0].length)
         let brheight = brwidth
 
-        console.log("x", width, template[0].length, brwidth)
-        console.log("x", Math.floor((width - template[0].length*brwidth)/2))
         for (let j=0; j < template.length; j++) {
 
             let row = template[j]
@@ -817,8 +919,6 @@ class BreakoutScene extends GameScene {
             }
         }
 
-
-
         this.paddle = new Paddle()
         this.paddle.y = Math.floor(height*4/5)
         this.paddle.x = width/2 - this.paddle.width/2
@@ -827,7 +927,21 @@ class BreakoutScene extends GameScene {
         this.ball = new Ball()
         this.ball.x = this.paddle.x + this.paddle.width/2
         this.ball.y = this.paddle.y - 32
+        //this.ball.health = 0
+        this.ball.dx = this.ball.basespeed * .7071
+        this.ball.dy = -this.ball.basespeed * .7071
         this.agents.push(this.ball)
+
+        //this.agents.push(new BrickShapeDiamond(this.paddle.x-50, this.paddle.y - 100))
+        //this.agents.push(new BrickShapeCircle(this.paddle.x, this.paddle.y - 100, 16))
+        //for (let i=0; i < 15; i ++) {
+        //    let xs = this.attrs.view.width/2 + (.5 - Math.random()) * this.attrs.view.width
+        //    let ys = this.attrs.view.paddle.y + Math.random() * 200
+        //    let b = new BrickShape(xs, ys, 10 + 10 * Math.random())
+        //    this.attrs.view.agents.push(b)
+        //}
+
+
     }
 }
 
