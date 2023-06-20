@@ -3,10 +3,10 @@
 .PHONY: breakout maze build
 
 breakout:
-	daedalus serve --paths=./src src/breakout/breakout2.js
+	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
 
 maze:
-	daedalus serve --paths=./src --static src/maze/resource src/maze/app.js
+	daedalus serve --paths=./src --static src/maze/resource --env debug=true src/maze/app.js
 
 build:
 	mkdir -p build

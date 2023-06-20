@@ -1,5 +1,12 @@
  
 
+export const ResourceStatus = {
+    UNKNOWN: 0,
+    ERROR:   1,
+    WAITING: 2,
+    LOADING: 3,
+    READY:   4,
+}
 
 /**
  *  A Sound Effect
@@ -11,19 +18,36 @@ export class SoundEffect {
         let sound = new Audio();
         sound.src = path
 
-        this.ready = true
+        this.ready = false
+        this.status = ResourceStatus.LOADING
 
-        this.sounds = [sound, sound.cloneNode(), sound.cloneNode()]
-        this.index = 0
+        sound.onerror = () => {
+            this.status = ResourceStatus.ERROR
+        }
+
+        sound.onabort = () => {
+            this.status = ResourceStatus.ERROR
+        }
+
+        this.sounds = [sound]
+
+        sound.oncanplaythrough = () => {
+            this.status = ResourceStatus.READY
+            this.ready = true
+            this.sounds.push(this.sounds[0].cloneNode())
+            this.sounds.push(this.sounds[0].cloneNode())
+        }
+
+        this.playindex = 0
 
 
     }
 
     play() {
-        this.sounds[this.index].play().catch(error => {
+        this.sounds[this.playindex].play().catch(error => {
           console.log(error)
         })
-        this.index = (this.index+1) % this.sounds.length
+        this.playindex = (this.playindex+1) % this.sounds.length
     }
 }
 
@@ -114,8 +138,13 @@ export class SpriteSheet {
     constructor(path) {
         this.image = new Image();
         this.ready = false;
+        this.status = ResourceStatus.LOADING
         this.image.onload = () => {
             this.ready = true;
+            this.status = ResourceStatus.READY
+        }
+        this.image.onerror = () => {
+            this.status = ResourceStatus.ERROR
         }
         this.image.src = path
 
@@ -170,6 +199,67 @@ export class SpriteTile {
     }
 }
 
+export class Font {
+    constructor(family, path, weight) {
+
+        this.ready = false
+        this.status = ResourceStatus.LOADING
+
+        this.font = new FontFace("comic-mono", `url(${path})`, {
+            style: "normal",
+            weight: weight,
+            stretch: "condensed",
+        });
+
+        this.font.load().then(() => {
+            document.fonts.add(this.font);
+            this.status = ResourceStatus.READY
+            this.ready = true
+        }).catch(error => {
+            console.error(error)
+
+        })
+
+    }
+
+}
+
+export class FontBuilder {
+
+    constructor() {
+        this._path = ""
+        this._family = ""
+        this._weight = "400"
+        this._style = "normal"
+        this._stretch = "condensed"
+
+    }
+
+    family(family) {
+        this._family = family
+        return this
+    }
+
+    path(path) {
+        // resource path
+        this._path = path
+        return this
+    }
+
+    build() {
+
+        if (this._family === "") {
+            throw "font family not set"
+        }
+
+        if (this._path === "") {
+            throw "font path not set"
+        }
+
+        return new Font(this._family, this._path, this._weight)
+    }
+}
+
 export class ResourceLoader {
 
     constructor() {
@@ -177,6 +267,8 @@ export class ResourceLoader {
         this.resources = []
         this.resource_count = 0
         this.ready = false
+
+        this.status = ResourceStatus.LOADING
 
         this.music = {}
         this.sounds = {}
@@ -202,6 +294,10 @@ export class ResourceLoader {
         return builder
     }
 
+    progress() {
+        return (this.resource_count - this.resources.length)/this.resource_count
+    }
+
     update(dt) {
 
         if (this.ready) {
@@ -213,6 +309,10 @@ export class ResourceLoader {
             let res = this.resources[i]
             if (res.instance === null) {
                 res.instance = res.builder.build()
+            } else if (res.instance.status == ResourceStatus.ERROR) {
+
+                this.status = ResourceStatus.ERROR
+
             } else if (res.instance.ready) {
                 if (res.kind == "sheets") {
                     this.sheets[res.resid] = res.instance

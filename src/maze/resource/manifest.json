@@ -1,0 +1,15 @@
+ 
+{
+  "short_name": "Maze",
+  "name": "Maze Game",
+  "icons": [
+    {
+      "src": "static/icon.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "landscape"
+}

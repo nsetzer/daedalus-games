@@ -19,6 +19,7 @@ export function component2vec(dx, dy) {
     }
     let magnitude = Math.sqrt(dx*dx + dy*dy)
     return {degrees, magnitude}
+    return {degrees, magnitude}
 }
 
 /*
@@ -165,6 +166,16 @@ export function intercept_line(p1, p2, p3, p4) {
             return null
         }
 
+        // check the intercept point lies within the line
+        if (p1.x < Math.min(p3.x, p4.x)  || p1.x >Math.max(p3.x, p4.x)) {
+            return null
+        }
+
+        // check the intercept point lies within the line
+        if (y < Math.min(p3.y, p4.y)  || y >Math.max(p3.y, p4.y)) {
+            return null
+        }
+
         return {point: {x: p1.x, y}, tangent: eq2}
 
     } else if (eq2.length == 1) {
@@ -184,6 +195,11 @@ export function intercept_line(p1, p2, p3, p4) {
             return null
         }
 
+        // check the intercept point lies within the line
+        if (y < Math.min(p3.y, p4.y)  || y >Math.max(p3.y, p4.y)) {
+            return null
+        }
+
         return {point: {x: p3.x, y}, tangent: eq2}
 
     } else {
@@ -199,6 +215,14 @@ export function intercept_line(p1, p2, p3, p4) {
         const [a, b] = [p1.x, p2.x].sort((a,b)=>a-b);
 
         if (x < a || x > b) {
+            return null
+        }
+
+        if (x < Math.min(p3.x, p4.x)  || x >Math.max(p3.x, p4.x)) {
+            return null
+        }
+
+        if (y < Math.min(p3.y, p4.y)  || y >Math.max(p3.y, p4.y)) {
             return null
         }
 
@@ -269,9 +293,32 @@ export function intercept_curve(p1, p2, curve_eq, interval) {
     return {point: {x: x1, y:y1}, tangent: [mt, bt]}
 }
 
-export function intercept_circle(p1, p2, center, radius) {
+
+
+export function intercept_circle(p1, p2, center, radius, angle1=null, angle2=null) {
+
+    let filter = angle1 !== null && angle2 !== null
+
+    if (angle1 === null) {
+        angle1 = 0
+    }
+
+    if (angle2 === null) {
+        angle2 = 2*Math.PI
+    }
+
+    if (angle1 < 0 || angle2 < 0) {
+        throw "angles must be 0..2pi"
+    }
 
     let intercept_points = [];
+
+    // check that the point will travel through the outer edge
+    let d1 = distance(center, p1)
+    let d2 = distance(center, p2)
+    if (!(d1 >= radius && d2 <= radius) && !(d2 >= radius && d1 <= radius)) {
+        return null
+    }
 
     // equations beyond this point were solved assuming the center
     // of the circle is at the origin. this makes the math easier
@@ -311,6 +358,22 @@ export function intercept_circle(p1, p2, center, radius) {
         )
     }
 
+    // filter intercept points using the arc range
+    if (filter) {
+        intercept_points = intercept_points.filter(pt => {
+            let angle = Math.atan2(pt.y, pt.x)
+            if (angle < 0) {
+                angle += 2*Math.PI
+            }
+            //console.log("circle", radius,
+            //    Math.floor(angle1*180/Math.PI),
+            //    Math.floor(angle*180/Math.PI),
+            //    Math.floor(angle2*180/Math.PI),
+            //    (angle1 <= angle && angle < angle2))
+            return angle1 <= angle && angle <= angle2
+        })
+    }
+
     if (intercept_points.length == 0) {
         return null;
     }
@@ -327,7 +390,6 @@ export function intercept_circle(p1, p2, center, radius) {
 
     // translate back to the original coordinate system
     point = {x: point.x + center.x, y: point.y + center.y}
-
 
     let tangent
     if (center.y == point.y) {
@@ -346,6 +408,24 @@ export function intercept_circle(p1, p2, center, radius) {
     return {point, tangent}
 }
 
+export function intercept_arc(p1, p2, center, radius, angle1, angle2) {
+
+    if (angle1 > angle2) {
+        [angle1, angle2] = [angle2, angle1]
+    }
+
+    let result = intercept_circle(p1, p2, center, radius, angle1, angle2)
+
+    if (!!result) {
+        // for reference this is the angle that hit
+        //let angle = Math.atan2(result.point.y - center.y, result.point.x - center.x)
+
+        return result
+
+    }
+    return null
+}
+
 // a shape is a sequence of {type, ...}
 export function intercept_shape(p1, p2, shape) {
 
@@ -354,21 +434,26 @@ export function intercept_shape(p1, p2, shape) {
         switch (segment.type) {
             case "line":
                 x = intercept_line(p1, p2, segment.p1, segment.p2);
-                //console.log("shape-line", index, x)
                 break;
+
             case "curve":
                 x = intercept_curve(p1, p2, segment.curve, segment.interval);
-                //console.log("shape-curve", index, x)
                 break;
             case "circle":
                 x = intercept_circle(p1, p2, segment.center, segment.radius);
-                //console.log("shape-circle", index, x)
+                break;
+            case "arc":
+                x = intercept_arc(p1, p2, segment.center,
+                    segment.radius,
+                    segment.angle1,
+                    segment.angle2);
                 break;
             default:
                 break;
         }
 
         if (x != null) {
+            x.segment = segment
             x.type = segment.type
         }
         return x;

@@ -7,7 +7,7 @@ from module daedalus import {
 
 from module engine import {CanvasEngine}
 
-from module scenes import {MainScene, MazeScene}
+from module scenes import {MainScene, TitleScene}
 
 const style = {
     "body": StyleSheet({
@@ -81,7 +81,7 @@ export default class Application extends DomElement {
         window.gEngine = this.canvas
 
         this.canvas.onReady = () => {
-            this.canvas.scene = new MazeScene()
+            this.canvas.scene = new TitleScene()
             console.log("scene created")
         }
 

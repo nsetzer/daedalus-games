@@ -9,6 +9,7 @@ include "./primitives.js"
 include "./resource.js"
 include "./entity.js"
 include "./input.js"
+include "./widget.js"
 
 export class GameScene {
 
@@ -29,10 +30,10 @@ export class GameScene {
 
     }
 
-    handleKeyPress(keyCode) {
+    handleKeyPress(keyevent) {
     }
 
-    handleKeyRelease(keyCode) {
+    handleKeyRelease(keyevent) {
     }
 }
 
@@ -45,6 +46,57 @@ const style = {
     })
 }
 
+const Keys = {
+    PAUSE: 19,
+    SCROLL_LOCK: 145,
+}
+/*
+const ModifierKeys {
+    Alt:1,
+    AltGraph:1,
+    CapsLock:1,
+    Control:1,
+    F1:1,
+    F2:1,
+    F3:1,
+    F4:1,
+    F5:1,
+    F6:1,
+    F7:1,
+    F8:1,
+    F9:1,
+    F10:1,
+    F11:1,
+    F12:1,
+    F13:1,
+    F14:1,
+    F15:1,
+    F1Lock:1,
+    F2Lock:1,
+    F3Lock:1,
+    F4Lock:1,
+    F5Lock:1,
+    F6Lock:1,
+    F7Lock:1,
+    F8Lock:1,
+    F9Lock:1,
+    F10Lock:1,
+    F11Lock:1,
+    F12Lock:1,
+    F13Lock:1,
+    F14Lock:1,
+    F15Lock:1,
+    Hyper:1,
+    OS:1,
+    Meta:1,
+    NumLock:1,
+    ScrollLock:1,
+    Shift:1,
+    Super:1,
+    "Symbol":1,
+    SymbolLock:1,
+}
+*/
 export class CanvasEngine extends DomElement {
     constructor(width, height, settings=null) {
         super("canvas", {
@@ -92,6 +144,8 @@ export class CanvasEngine extends DomElement {
         this.ctx = this.getDomNode().getContext("2d");
         console.log(`2d context created}`)
 
+        WidgetStyle.init(this.ctx)
+
         this.handleResize(this.props.width, this.props.height)
 
         if (this.onReady) {
@@ -100,17 +154,18 @@ export class CanvasEngine extends DomElement {
         window.requestAnimationFrame(this.render.bind(this));
     }
 
-    _getMouseTouches(event) {
+    _getMouseTouches(event, pressed) {
         event.preventDefault();
         const rect = this.getDomNode().getBoundingClientRect();
         const x = (event.clientX - rect.left) / this.view.scale  - this.view.x
         const y = (event.clientY - rect.top) / this.view.scale  - this.view.y
-        return [{x, y}]
+        const id = 1
+        return [{x, y, id, pressed}]
     }
 
     onMouseDown(event) {
         if (event.buttons&1) {
-            const touches = this._getMouseTouches(event)
+            const touches = this._getMouseTouches(event, true)
             //this.touch_event = touches
             if (!this.paused) {
                 this.scene.handleTouches(touches)
@@ -121,7 +176,7 @@ export class CanvasEngine extends DomElement {
     onMouseMove(event) {
         //event.preventDefault();
         if (event.buttons&1) {
-            const touches = this._getMouseTouches(event)
+            const touches = this._getMouseTouches(event, true)
             //this.touch_event = touches
 
             if (!this.paused) {
@@ -135,7 +190,8 @@ export class CanvasEngine extends DomElement {
             //event.preventDefault();
             //this.touch_event = []
             if (!this.paused) {
-                this.scene.handleTouches([])
+                const touches = this._getMouseTouches(event, false)
+                this.scene.handleTouches(touches)
             }
         //}
 
@@ -145,22 +201,37 @@ export class CanvasEngine extends DomElement {
         event.preventDefault(); // prevent emulated mouse events
 
         const rect = this.getDomNode().getBoundingClientRect();
-        // TODO: multi touch support
-        // map all touches to new coordinates and pass to touch handler
-        // touch handler takes first one that looks like a movement input
-        // and first one that looks like a button input, etc
 
-        return Array.from(event.targetTouches).map(touch => {
+        const pressed = {}
+        let touches = []
+        for (const touch of event.targetTouches) {
+            pressed[touch.identifier] = true
+            touches.push(touch)
+        }
+        // determine touches that have been released
+        for (const touch of event.changedTouches) {
+            if (!pressed[touch.identifier]) {
+                touches.push(touch)
+                pressed[touch.identifier] = false
+            }
+        }
+
+        // map touches to the view coordinate space
+        return touches.map(touch => {
 
             if (this.view.rotate) {
                 return {
                     "x": (touch.clientY - rect.top - this.view.x),
                     "y": this.view.height - (touch.clientX - rect.left - this.view.y),
+                    "id": touch.identifier,
+                    "pressed": !!pressed[touch.identifier],
                 }
             } else {
                 return {
                     "x": (touch.clientX - rect.left - this.view.x),
                     "y": (touch.clientY - rect.top - this.view.y),
+                    "id": touch.identifier,
+                    "pressed": !!pressed[touch.identifier],
                 }
             }
         })
@@ -168,7 +239,6 @@ export class CanvasEngine extends DomElement {
 
     onTouchStart(event) {
         const touches = this._getTouches(event)
-        console.log("start", touches.length, [...touches])
         if (!this.paused) {
             this.scene.handleTouches(touches)
         }
@@ -176,7 +246,6 @@ export class CanvasEngine extends DomElement {
 
     onTouchMove(event) {
         const touches = this._getTouches(event)
-        console.log("move", touches.length, [...touches])
         if (!this.paused) {
             this.scene.handleTouches(touches)
         }
@@ -184,8 +253,8 @@ export class CanvasEngine extends DomElement {
 
     onTouchEnd(event) {
         const touches = this._getTouches(event)
-        console.log("end", touches.length, [...touches])
         if (!this.paused) {
+            console.log(touches)
             this.scene.handleTouches(touches)
         }
     }
@@ -263,27 +332,46 @@ export class CanvasEngine extends DomElement {
     }
 
     handleKeyPress(event) {
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values#modifier_keys
         const kc = event.keyCode;
-        if (kc < 112) {
 
-            if (kc == 19) {
-                this.paused = ! this.paused
-                this.scene.pause(this.paused)
-            } else if (!this.paused) {
+        if (kc == Keys.PAUSE) {
+            this.paused = ! this.paused
+            this.scene.pause(this.paused)
+            this.ctx.fillStyle="yellow"
+            this.ctx.font = '12px sans-serif';
+            this.ctx.resetTransform()
+            this.ctx.fillText("paused", 32, 32)
+            let canvas = this.getDomNode()
+            this.ctx.fillStyle = "#00000044"
+            this.ctx.fillRect(0,0, canvas.width, canvas.height)
 
-                this.scene.handleKeyPress(kc);
-                //event.preventDefault();
+            event.preventDefault();
+        } else if (kc == Keys.SCROLL_LOCK) {
+            event.preventDefault();
+        } else if (!this.paused && kc < 112) {
+
+            let keyevent = {
+                keyCode: kc,
+                text: event.key.length==1?event.key:""
             }
+            this.scene.handleKeyPress(keyevent);
+        } else {
+            console.log(kc)
         }
     }
 
     handleKeyRelease(event) {
         const kc = event.keyCode;
-        if (kc < 112 && kc != 19) {
+        if (kc < 112 && kc != Keys.PAUSE) {
 
             if (!this.paused) {
 
-                this.scene.handleKeyRelease(kc);
+                let keyevent = {
+                    keyCode: kc,
+                    text: event.key.length==1?event.key:""
+                }
+                this.scene.handleKeyRelease(keyevent);
                 //event.preventDefault();
 
             }
@@ -301,7 +389,8 @@ export class CanvasEngine extends DomElement {
         }
 
         ctx.resetTransform()
-        ctx.clearRect(0, 0, this.props.width, this.props.height)
+        let canvas = this.getDomNode()
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.scale(this.view.scale, this.view.scale);
         if (this.view.rotate) {
             ctx.rotate((90 * Math.PI) / 180)

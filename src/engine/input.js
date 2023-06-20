@@ -23,7 +23,8 @@ export class KeyboardInput {
 
     }
 
-    handlePress(kc) {
+    handleKeyPress(keyevent) {
+        let kc = keyevent.keyCode
         if (kc >= 37 && kc <= 40) {
             if (!this.keysDown.includes(kc)) {
                 this.keysDown.push(kc)
@@ -46,8 +47,8 @@ export class KeyboardInput {
         }
     }
 
-    handleRelease(kc) {
-
+    handleKeyRelease(keyevent) {
+        let kc = keyevent.keyCode
         if (kc >= 37 && kc <= 40) {
             let index = this.keysDown.indexOf(kc);
             if (index !== -1) {
@@ -201,22 +202,21 @@ export class TouchInput {
 
         for (let j=0; j<this.wheels.length;j++) {
             let wheel = this.wheels[j]
-            let touched = false
+            let touch = null
             for (let i=touches.length-1; i >= 0; i--) {
-                let touch = touches[i];
-                const dx = wheel.cx - touch.x
-                const dy = wheel.cy - touch.y
+                const dx = wheel.cx - touches[i].x
+                const dy = wheel.cy - touches[i].y
                 const dr = wheel.radius * 2
                 if ((dx*dx + dy*dy) < dr*dr) {
-                    touched = true
-                    this.handleMove(j, touch.x, touch.y)
+                    touch = touches[i]
                     touches.splice(i, 1);
                     break
                 }
             }
-            if (!touched) {
+            if (touch!==null && touch.pressed) {
+                this.handleMove(j, touch.x, touch.y)
+            } else {
                 this.handleMoveCancel(j)
-
             }
         }
 

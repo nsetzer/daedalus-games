@@ -211,6 +211,9 @@ class Ball extends Agent {
                         if (agent instanceof Brick) {
                             agent.decrementHealth()
                         }
+                        if (agent instanceof BrickShape) {
+                            agent.decrementHealth()
+                        }
                         const normal = physics.compute_normal(ps, result.point.x, result.point.y, result.tangent);
 
                         let m = Math.sqrt(this.dx*this.dx + this.dy*this.dy)
@@ -663,52 +666,76 @@ class BrickShape extends Agent {
         this.solid = true;
         this.x = x
         this.y = y
-        this.health = 99
+        this.health = 1
         this.layer = 99
 
+    }
+
+    decrementHealth() {
+        this.health -= 1;
+
+        if (this.health <= 0) {
+            this.destroy = true
+        }
+        console.log(this.health, this.destroy)
+        return this.health;
     }
 
     update(dt) {
 
     }
 
+    trace(ctx) {
+        this.shape.forEach(segment => {
+            switch (segment.type) {
+                case 'line':
+                    ctx.lineTo(this.x + segment.p2.x, this.y + segment.p2.y)
+                    break;
+                case 'arc':
+                    ctx.arc(this.x + segment.center.x,
+                            this.y + segment.center.y,
+                                 segment.radius,
+                                 segment.angle1,
+                                 segment.angle2,
+                                 segment.angle1 > segment.angle2);
+
+
+                    //ctx.lineWidth = 2
+                    //ctx.beginPath()
+                    //ctx.arc(this.x + segment.center.x,
+                    //        this.y + segment.center.y,
+                    //        segment.radius,
+                    //        0, 2 * Math.PI);
+                    //ctx.stroke();
+                    break;
+                case 'curve':
+                    break;
+                case 'circle':
+                    ctx.arc(this.x + segment.center.x,
+                                 this.y + segment.center.y,
+                                 segment.radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    break;
+            }
+        })
+    }
     paint(ctx) {
 
 
         const rect = this.collisionRect()
         ctx.fillStyle = '#FF00007F'
 
-        ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+        //ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
 
 
         ctx.strokeStyle = '#000033'
-        ctx.fillStyle = '#0000AA'
+        ctx.fillStyle = this.color ?? brick_color[this.health-1];
 
-        this.shape.forEach(segment => {
-            switch (segment.type) {
-                case 'line':
-                    ctx.beginPath()
-                    ctx.moveTo(this.x + segment.p1.x, this.y + segment.p1.y)
-                    ctx.lineTo(this.x + segment.p2.x, this.y + segment.p2.y)
-                    ctx.stroke();
-                    break;
-                case 'curve':
-                    break;
-                case 'circle':
-                    ctx.beginPath()
-                    ctx.arc(this.x + segment.center.x,
-                                 this.y + segment.center.y,
-                                 segment.radius, 0, 2 * Math.PI);
-                    ctx.stroke();
-                    ctx.beginPath()
-                    ctx.arc(this.x + segment.center.x,
-                                 this.y + segment.center.y,
-                                 segment.radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    break;
-            }
-        })
-
+        ctx.beginPath()
+        ctx.lineWidth = 3
+        this.trace(ctx)
+        ctx.stroke()
+        ctx.fill()
 
     }
 
@@ -779,6 +806,14 @@ class BrickShape extends Agent {
                         p1: {x: this.x + segment.p1.x, y: this.y + segment.p1.y},
                         p2: {x: this.x + segment.p2.x, y: this.y + segment.p2.y}
                     }
+                case 'arc':
+                    return {
+                        type: "arc",
+                        center: {x: this.x + segment.center.x, y: this.y + segment.center.y},
+                        radius: segment.radius,
+                        angle1: segment.angle1,
+                        angle2: segment.angle2,
+                    };
                 case 'curve':
                     break;
                 case 'circle':
@@ -826,7 +861,42 @@ function BrickShapeCircle(x, y, radius) {
     return brick
 }
 
-function BrickShapeArc(x, y, r1, r2, a1, a2, clockwise) {
+function BrickShapeArc(x, y, r1, r2, a1, a2) {
+
+    let brick = new BrickShape(x, y)
+
+    a1 = a1 / 180 * Math.PI
+    a2 = a2 / 180 * Math.PI
+
+    let x1 = r1 * Math.cos(a1)
+    let y1 = r1 * Math.sin(a1)
+
+    let x2 = r2 * Math.cos(a1)
+    let y2 = r2 * Math.sin(a1)
+
+    let x3 = r2 * Math.cos(a2)
+    let y3 = r2 * Math.sin(a2)
+
+    let x4 = r1 * Math.cos(a2)
+    let y4 = r1 * Math.sin(a2)
+
+    brick.shape = [
+        {type: "line", p1: {x: x1, y: y1}, p2: {x: x2, y: y2}},
+        //{type: "line", p1: {x: x2, y: y2}, p2: {x: x3, y: y3}},
+        {type: "arc", center: {x: 0, y: 0}, radius: r2, angle1:a1, angle2:a2},
+        {type: "line", p1: {x: x3, y: y3}, p2: {x: x4, y: y4}},
+        //{type: "line", p1: {x: x4, y: y4}, p2: {x: x1, y: y1}},
+        {type: "arc", center: {x: 0, y: 0}, radius: r1, angle1:a2, angle2:a1},
+        //{type: "line", p1: {x: x4, y: y4}, p2: {x: x1, y: y1}},
+    ]
+
+
+    brick.rect = brick.getCollisionRectTemplate()
+    brick.width = brick.rect.width
+    brick.width = brick.rect.height
+    brick.health = 1
+
+    return brick
 
 }
 
@@ -850,10 +920,10 @@ class BreakoutScene extends GameScene {
     handleKeyRelease(kc) {
         if (this.ball.health <= 0) {
             this.ball.health = 2
-            this.ball.dx = 0
-            this.ball.dy = -this.ball.basespeed
-            //this.ball.dx = this.ball.basespeed * .7071
-            //this.ball.dy = -this.ball.basespeed * .7071
+            //this.ball.dx = 0
+            //this.ball.dy = -this.ball.basespeed
+            this.ball.dx = this.ball.basespeed * .7071
+            this.ball.dy = -this.ball.basespeed * .7071
         }
     }
 
@@ -979,15 +1049,81 @@ class BreakoutScene extends GameScene {
         this.ball = new Ball()
         this.ball.x = this.paddle.x + this.paddle.width/2
         this.ball.y = this.paddle.y - 32
-        //this.ball.health = 0
+        this.ball.health = 0
         //this.ball.dx = 120
         //this.ball.dy = 0
         this.ball.dx = this.ball.basespeed * .7071
         this.ball.dy = -this.ball.basespeed * .7071
         this.agents.push(this.ball)
 
-        //this.agents.push(new BrickShapeDiamond(this.paddle.x-50, this.paddle.y - 100))
-        //this.agents.push(new BrickShapeCircle(this.paddle.x, this.paddle.y - 100, 16))
+        this.agents.push(new BrickShapeDiamond(this.paddle.x-50, this.paddle.y - 100))
+        this.agents.push(new BrickShapeCircle(this.paddle.x, this.paddle.y - 100, 16))
+
+        let cx = this.paddle.x + 50
+        let cy = this.paddle.y - 100
+        let r1 = 12
+        let r2 = 24
+        let r3 = 36
+
+        this.agents.push(new BrickShapeCircle(cx, cy, r1))
+        this.agents[this.agents.length-1].color = '#555555'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r1, r2,
+            1, 89,
+            ))
+        this.agents[this.agents.length-1].color = 'white'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r1, r2,
+            91, 179,
+            ))
+        this.agents[this.agents.length-1].color = 'white'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r1, r2,
+            181, 269,
+            ))
+        this.agents[this.agents.length-1].color = 'white'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r1, r2,
+            271, 359,
+            ))
+        this.agents[this.agents.length-1].color = 'white'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r2, r3,
+            46, 134,
+            ))
+        this.agents[this.agents.length-1].color = '#555555'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r2, r3,
+            136, 224,
+            ))
+        this.agents[this.agents.length-1].color = '#555555'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r2, r3,
+            226, 314,
+            ))
+        this.agents[this.agents.length-1].color = '#555555'
+
+        this.agents.push(new BrickShapeArc(
+            cx, cy
+            r2, r3,
+            316, 404,
+            ))
+        this.agents[this.agents.length-1].color = '#555555'
+
         //for (let i=0; i < 15; i ++) {
         //    let xs = this.attrs.view.width/2 + (.5 - Math.random()) * this.attrs.view.width
         //    let ys = this.attrs.view.paddle.y + Math.random() * 200
