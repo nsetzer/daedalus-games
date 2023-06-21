@@ -273,6 +273,7 @@ export class ResourceLoader {
         this.music = {}
         this.sounds = {}
         this.sheets = {}
+        this.font = {}
 
     }
 
@@ -290,6 +291,13 @@ export class ResourceLoader {
     addSpriteSheet(resid) {
         let builder = new SpriteSheetBuilder()
         this.resources.push({resid, builder, instance:null, kind: "sheets"})
+        this.resource_count += 1
+        return builder
+    }
+
+    addFont(resid) {
+        let builder = new FontBuilder()
+        this.resources.push({resid, builder, instance:null, kind: "font"})
         this.resource_count += 1
         return builder
     }
@@ -314,15 +322,7 @@ export class ResourceLoader {
                 this.status = ResourceStatus.ERROR
 
             } else if (res.instance.ready) {
-                if (res.kind == "sheets") {
-                    this.sheets[res.resid] = res.instance
-                }
-                if (res.kind == "sounds") {
-                    this.sounds[res.resid] = res.instance
-                }
-                if (res.kind == "music") {
-                    this.music[res.resid] = res.instance
-                }
+                this[res.kind][res.resid] = res.instance
                 // remove this item
                 this.resources.splice(i ,1)
             }

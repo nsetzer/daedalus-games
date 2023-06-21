@@ -1,7 +1,9 @@
  
 from module engine import {
     randomRange, randomNumber, randomChoice, shuffle,
-    SoundEffect, SpriteSheetBuilder, SpriteSheet, FontBuilder,
+    SoundEffect, SoundEffectBuilder,
+    SpriteSheetBuilder, SpriteSheet,
+    Font, FontBuilder,
     ResourceStatus, ResourceLoader, CameraBase
     Direction, TouchInput, KeyboardInput
     Rect, Entity, CharacterComponent, GameScene,
@@ -51,6 +53,10 @@ export class TitleScene extends GameScene {
             .path("/static/font/ComicMono.ttf")
             .build()
 
+        this.sound_click = new SoundEffectBuilder()
+            .path("/static/sound/clicksound1.wav")
+            .build()
+
         this.gen = new MazeGenerator(33, 33)
         this.gen.steps = [
             this.gen.do_step_init.bind(this.gen),
@@ -71,7 +77,9 @@ export class TitleScene extends GameScene {
         w.rect.h = gEngine.view.height/3
         w._text = "Maze Game"
         w._font = "200 24pt comic-mono"
+        this.title = w
 
+        // the decoy text forces user interaction to enable sound
         this.decoy_text = new TouchText()
         w = this.wgtgrp.addWidget(this.decoy_text)
         w.rect.h = gEngine.view.height
@@ -91,6 +99,8 @@ export class TitleScene extends GameScene {
         //    borderWidth:4,
         //    broderRadius: 8,
         //})
+
+        this.msg = "<>"
 
     }
 
@@ -112,7 +122,8 @@ export class TitleScene extends GameScene {
         w.rect.h = h
         w._font = "200 16pt comic-mono"
         w._text = "Start Game"
-        this.wgtgrp.setFocusWidget(w)
+        w._sound = this.sound_click
+        // this.wgtgrp.setFocusWidget(w)
 
         w.clicked = this.handleGameStart.bind(this)
         w = this.wgtgrp.addWidget(new ButtonWidget())
@@ -122,6 +133,15 @@ export class TitleScene extends GameScene {
         w.rect.h = h
         w._text = "..."
         w._font = "200 16pt comic-mono"
+        w._sound = this.sound_click
+
+        if (daedalus.platform.isMobile) {
+            const body = document.getElementsByTagName("BODY")[0];
+            body.requestFullscreen()
+            // screen lock does not work, request user to rotate phone
+            // screen.orientation.lock('landscape');
+        }
+
 
     }
 
@@ -132,6 +152,8 @@ export class TitleScene extends GameScene {
     update(dt) {
 
         this.gen.update(dt)
+
+        // this.title.setText(`${gEngine.view.rotate} ${window.orientation} ${this.msg}`)
     }
 
     paint(ctx) {
@@ -140,14 +162,13 @@ export class TitleScene extends GameScene {
 
         this.wgtgrp.paint(ctx)
 
-        ctx.resetTransform()
+        //ctx.resetTransform()
         //this.input.render()
 
     }
 
     handleTouches(touches) {
         this.wgtgrp.handleTouches(touches)
-
     }
 
     handleKeyPress(keyevent) {

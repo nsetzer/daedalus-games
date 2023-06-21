@@ -5,10 +5,6 @@ from module daedalus import {
     HeaderElement, ButtonElement, LinkElement
 }
 
-from module engine import {CanvasEngine}
-
-from module scenes import {MainScene, TitleScene}
-
 const style = {
     "body": StyleSheet({
         "background": "#333333",
@@ -21,36 +17,16 @@ const style = {
         "display": "flex",
         "flex-direction": "row",
         "justify-content": "center"
-    }),
+    })
+}
 
-    "item_hover": StyleSheet({"background": "#0000CC22"}),
-    "item": StyleSheet({}),
-    "item_file": StyleSheet({"color": "blue", "cursor": "pointer"}),
-
-};
-/*
-StyleSheet("", "@media screen and (min-width: 320)", {
-    "body": {
-        "background": "#AAAAAA",
-    },
-    `.${style.canvas}`: {
-        "border": "3px solid green",
-    },
-})
-
-StyleSheet("", "@media screen and (min-width: 720)", {
-    "body": {
-        background: "#AAAAAA",
-    },
-    `.${style.canvas}`: {
-        "border": "3px solid red",
-    },
-})
-*/
-export default class Application extends DomElement {
-    constructor() {
+export class ApplicationBase extends DomElement {
+    constructor(settings, initialScene) {
 
         super("div", {className: style.main}, [])
+
+        this.settings = settings
+        this.initialScene = initialScene
 
         const body = document.getElementsByTagName("BODY")[0];
         body.className = style.body
@@ -62,23 +38,18 @@ export default class Application extends DomElement {
     elementMounted() {
 
         this.canvas = this.appendChild(new CanvasEngine(
-            window.innerWidth, window.innerHeight, {portrait: 0}))
+            window.innerWidth, window.innerHeight, this.settings))
 
         window.gEngine = this.canvas
 
         this.canvas.onReady = () => {
-            this.canvas.scene = new TitleScene()
+            this.canvas.scene = this.initialScene();
             console.log("scene created")
         }
 
         window.addEventListener("keydown", this.canvas.handleKeyPress.bind(this.canvas))
         window.addEventListener("keyup", this.canvas.handleKeyRelease.bind(this.canvas))
         window.addEventListener("resize", this.handleResize.bind(this))
-        //canvas.width = screen.availWidth
-        //canvas.height = screen.availHeight
-
-        //canvas.width = window.innerWidth
-        //canvas.height = window.innerHeight
 
     }
 

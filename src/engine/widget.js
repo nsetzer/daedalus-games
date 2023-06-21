@@ -75,6 +75,7 @@ function _tohex(i) {
     }
     return s
 }
+
 function lighter(s) {
     let c = hex2rgb(s)
     let hsl = rgb2hsl(c.r, c.g, c.b)
@@ -176,6 +177,8 @@ focus api
             focus_next
             focus_back
         if props not set go to next focusable widget in the list
+
+        key handlers can return truthy to prevent default events
     touch
         focus on touch down
         no focus index
@@ -261,6 +264,8 @@ const Keys = {
     UP: 38,
     RIGHT: 39,
     DOWN: 40,
+    SPACE: 32,
+    ENTER: 13,
 }
 
 export class WidgetGroup {
@@ -303,19 +308,21 @@ export class WidgetGroup {
 
     paint(ctx) {
 
-        ctx.save()
-        ctx.fillColor = "red"
-        ctx.font = "400 12pt sans-serif"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-        ctx.fillText(`${this.focus_index}/${this.widgets.length}`, 0, 0)
-        ctx.restore()
+        //ctx.save()
+        //ctx.fillStyle = "red"
+        //ctx.font = "400 12pt sans-serif"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        //ctx.fillText(`${this.focus_index}/${this.widgets.length}`, 0, 0)
+        //ctx.fillRect(0,0,16,16)
+        //ctx.restore()
 
         this.widgets.forEach(w => {
             w.paint(ctx)
         })
     }
 
+    // deprecate?
     setFocusWidget(w) {
         this.focus_index = this.widgets.indexOf(w)
         for (let i=0; i < this.widgets.length; i++) {
@@ -324,6 +331,7 @@ export class WidgetGroup {
         w._keyboard_focus = true
 
     }
+
     focusWidget() {
         if (this.focus_index < 0 ||
             this.focus_index >= this.widgets.length ||
@@ -373,7 +381,9 @@ export class WidgetGroup {
 
         let target = this.focusWidget()
         if (!!target) {
-            target.handleKeyPress(keyevent)
+            if (!!target.handleKeyPress(keyevent)) {
+                return
+            }
         }
 
 
@@ -381,10 +391,11 @@ export class WidgetGroup {
     }
 
     handleKeyRelease(keyevent) {
-        console.log(keyevent, Keys.Right)
         let target = this.focusWidget()
         if (!!target) {
-            target.handleKeyRelease(keyevent)
+            if (!!target.handleKeyRelease(keyevent)) {
+                return
+            }
         }
 
         if (keyevent.keyCode == Keys.RIGHT || keyevent.keyCode == Keys.DOWN) {
@@ -448,13 +459,26 @@ export class WidgetGroup {
     }
 }
 
-let TextAlign = {
+export const Alignment = {
 
-    TOP:    1,
-    BOTTOM: 2,
-    LEFT:   4,
-    RIGHT:  8,
+    TOP:     1,
+    BOTTOM:  2,
+    VCENTER: 3,
+
+    LEFT:    4,
+    RIGHT:   8,
+    HCENTER: 12,
+
+    CENTER: 15,
+
+    XMASK: 12,
+    YMASK: 3,
+
+    XWORDS: ["", "left", "right", "center"], // textAlign
+    YWORDS: ["", "top", "bottom", "middle"], // textBaseline
+
 }
+
 
 export class TextWidget extends Widget {
 
@@ -464,8 +488,7 @@ export class TextWidget extends Widget {
         this._text = ""
         this._font = "400 16pt"
         this._style = "yellow"
-        this._halign = "center"
-        this._valign = "middle"
+        this._alignment = Alignment.CENTER
     }
 
     setText(text) {
@@ -479,21 +502,42 @@ export class TextWidget extends Widget {
 
         ctx.save()
 
-        ctx.textAlign = this._halign
-        ctx.textBaseline = this._valign
+        ctx.textAlign = Alignment.XWORDS[(this._alignment&Alignment.XMASK)>>2]
+        ctx.textBaseline = Alignment.YWORDS[(this._alignment&Alignment.YMASK)]
         ctx.fillStyle = this._style;
         ctx.font = this._font;
 
-        ctx.beginPath()
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.clip()
+        //ctx.strokeStyle = "blue"
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ////ctx.clip()
+        //ctx.stroke()
 
 
         let dx;
         let dy;
 
-        dx = this.rect.cx()
-        dy = this.rect.cy()
+
+        if ((this._alignment & Alignment.VCENTER) === Alignment.VCENTER) {
+            dy = this.rect.cy()
+        }
+        else if ((this._alignment & Alignment.TOP) === Alignment.TOP) {
+            dy = this.rect.top()
+        }
+        else if ((this._alignment & Alignment.BOTTOM) === Alignment.BOTTOM) {
+            dy = this.rect.bottom()
+        }
+
+        if ((this._alignment & Alignment.HCENTER) === Alignment.HCENTER) {
+            dx = this.rect.cx()
+        }
+        else if ((this._alignment & Alignment.LEFT) === Alignment.LEFT) {
+            dx = this.rect.left()
+        }
+        else if ((this._alignment & Alignment.RIGHT) === Alignment.RIGHT) {
+            dx = this.rect.right()
+        }
+        //ctx.fillText(ctx.textAlign + ":" + ctx.textBaseline + ":" + this._alignment, dx, dy)
         ctx.fillText(this._text, dx, dy)
 
         ctx.restore()
@@ -513,6 +557,7 @@ export class ButtonWidget extends TextWidget {
         this.radius = 8
 
         this._text = "click me"
+        this._sound = null
         this.clicked = null
 
         // this.c1 = this.style().ctx.createLinearGradient(
@@ -542,8 +587,21 @@ export class ButtonWidget extends TextWidget {
         super.paint(ctx)
     }
 
+    handleKeyRelease(keyevent) {
+
+        if (keyevent.keyCode === Keys.ENTER || keyevent.keyCode === Keys.SPACE) {
+            if (this._sound) {
+                this._sound.play()
+            }
+            this.clicked?.()
+        }
+    }
+
     handleTouchRelease() {
 
+        if (this._sound) {
+            this._sound.play()
+        }
         this.clicked?.()
     }
 

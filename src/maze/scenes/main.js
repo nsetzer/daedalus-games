@@ -7,6 +7,7 @@ from module engine import {
     Rect, Entity, CharacterComponent, GameScene
 }
 
+
 class Camera extends CameraBase {
     constructor(map, target) {
         super()
@@ -1034,6 +1035,8 @@ export class MainScene extends GameScene {
         this.inventory = {
             boss_key: 0,
         }
+
+        this.death_timer = 0
     }
 
     moveMonster(npc) {
@@ -1128,6 +1131,13 @@ export class MainScene extends GameScene {
 
             if (this.ent_hero.character.health > 0) {
                 this.ent_hero.update(dt)
+            } else {
+                console.log(this.death_timer)
+                this.death_timer += dt
+                if (this.death_timer > 4) {
+                    gEngine.scene = new TitleScene()
+                    return
+                }
             }
 
             this.update_active(dt);
@@ -1295,8 +1305,7 @@ export class MainScene extends GameScene {
             this.touch.handleTouches(touches)
         }
 
-        //const body = document.getElementsByTagName("BODY")[0];
-        //body.requestFullscreen()
+
     }
 
     handleKeyPress(keyevent) {

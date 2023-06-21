@@ -118,10 +118,9 @@ export class MazeGenerator {
             my = Math.floor(gEngine.view.height/2 - mh/2)
         }
 
-        ctx.save()
-        if (this.alpha < 1.0) {
-            ctx.globalAlpha = this.alpha
-        }
+
+
+
 
         ctx.beginPath();
         ctx.lineWidth = 2;
@@ -131,6 +130,11 @@ export class MazeGenerator {
 
         if (this.current_step == 0) {
             return
+        }
+
+        ctx.save()
+        if (this.alpha < 1.0) {
+            ctx.globalAlpha = this.alpha
         }
 
         // paint the maze
@@ -812,8 +816,6 @@ export class MazeScene extends GameScene {
         // in order to fit in the viewport on mobile
         this.gen = new MazeGenerator(71,41);
 
-        this.touch = new TouchInput(null)
-
     }
 
     update(dt) {
@@ -840,7 +842,6 @@ export class MazeScene extends GameScene {
     }
 
     handleTouches(touches) {
-        console.log("!", touches)
         if (touches.length == 0) {
             this.gen.reset()
         }

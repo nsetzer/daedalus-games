@@ -1,12 +1,16 @@
 
 
-.PHONY: breakout maze build
+.PHONY: breakout maze build widgets
 
 breakout:
 	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
 
 maze:
 	daedalus serve --paths=./src --static src/maze/resource --env debug=true src/maze/app.js
+
+widgets:
+	daedalus serve --paths=./src  --env debug=true src/widgets/widgets.js
+
 
 build:
 	mkdir -p build

@@ -97,10 +97,10 @@ export class ResourceLoaderScene extends GameScene {
         //ctx.fillStyle = "yellow";
         //ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`, 0, -8)
 
-        ctx.beginPath();
-        ctx.strokeStyle = 'red';
-        ctx.rect(-1, -1, gEngine.view.width+2, gEngine.view.height+2);
-        ctx.stroke();
+        //ctx.beginPath();
+        //ctx.strokeStyle = 'red';
+        //ctx.rect(-1, -1, gEngine.view.width+2, gEngine.view.height+2);
+        //ctx.stroke();
 
         let color = (this.loader.status==ResourceStatus.ERROR)?'red':'yellow'
         ctx.beginPath();
@@ -126,10 +126,6 @@ export class ResourceLoaderScene extends GameScene {
     }
 
     handleTouches(touches) {
-        console.log("!", touches)
-        if (touches.length == 0) {
-            this.gen.reset()
-        }
     }
 
     resize() {

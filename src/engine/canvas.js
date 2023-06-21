@@ -47,6 +47,7 @@ const style = {
 }
 
 const Keys = {
+    TAB: 9,
     PAUSE: 19,
     SCROLL_LOCK: 145,
 }
@@ -261,21 +262,27 @@ export class CanvasEngine extends DomElement {
 
     handleResize(width, height) {
 
-        // instead of setting /getting window screen width and height
-        // use the width/height of the node and adjust parameters accordingly
-        //if (daedalus.platform.isMobile) {
+        this.view.availWidth = width
+        this.view.availHeight = height
 
-        this.view.x = 32
-        this.view.y = 8
-
-
-        // TODO: try to fit 640x360 in the available space
-        //       then try to fit something smaller down to a minimum size
-        //       then try to scale up
+        const islandscape = screen.orientation.type.includes("landscape")
+        // TODO: swap width/height here?
+        if (!islandscape && width/height < 0.75 && !this.settings.portrait) {
+            [width, height] = [height, width]
+            console.log("rotate")
+            this.view.rotate = 1
+        } else {
+            this.view.rotate = 0
+        }
 
         if (daedalus.platform.isMobile) {
-            this.view.width = Math.floor((height - 32)/32)*32
-            this.view.height = Math.floor((width)/32)*32
+
+            this.view.width = Math.floor((width - 32)/32)*32
+            this.view.height = Math.floor((height)/16)*16
+
+            //this.view.width = Math.min(Math.floor(1920/3), this.view.width)
+            //this.view.height = Math.min(Math.floor(1080/3), this.view.height)
+
         } else {
             this.view.width = Math.floor(1920/3)
             this.view.height = Math.floor(1080/3)
@@ -287,24 +294,9 @@ export class CanvasEngine extends DomElement {
             this.view.height = t
         }
 
-        this.view.availWidth = width
-        this.view.availHeight = height
-
-        if (width/height < 0.75 && !this.settings.portrait) {
-            this.view.rotate = 1
-        } else {
-            this.view.rotate = 0
-        }
-
         this.view.scale = 1
-        if (this.view.rotate) {
-            if (height > 2*this.view.width && width > 2*this.view.height) {
-                this.view.scale = 2
-            }
-        } else {
-            if (width > 2*this.view.width && height > 2*this.view.height) {
-                this.view.scale = 2
-            }
+        if (width > 2*this.view.width && height > 2*this.view.height) {
+            this.view.scale = 2
         }
 
         if (!daedalus.platform.isMobile && !this.view.rotate) {
@@ -312,19 +304,17 @@ export class CanvasEngine extends DomElement {
             this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.min(32, Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale)))
         } else if (daedalus.platform.isMobile) {
-            if (this.view.rotate) {
-                this.view.x = Math.floor((height - (this.view.width*this.view.scale))/(2*this.view.scale))
-                this.view.y = Math.floor((width - (this.view.height*this.view.scale))/(2*this.view.scale))
-            } else {
-                this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
-                this.view.y = Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale))
-            }
+            this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
+            this.view.y = Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale))
         } else {
             this.view.x = 0
             this.view.y = 0
         }
 
-        // console.log('view', width / height, width, height, this.view)
+        console.log('view changed:',
+            `screen: orientation=${screen.orientation.type} size=(${width}, ${height})`,
+            `view: (${this.view.x}, ${this.view.x}) (${this.view.width}, ${this.view.height})`,
+            `rotate=${this.view.rotate}`)
 
         if (this.scene) {
             this.scene.resize()
@@ -334,6 +324,7 @@ export class CanvasEngine extends DomElement {
     handleKeyPress(event) {
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values#modifier_keys
         const kc = event.keyCode;
+        //console.log(kc, event.key)
 
         if (kc == Keys.PAUSE) {
             this.paused = ! this.paused
@@ -348,9 +339,12 @@ export class CanvasEngine extends DomElement {
 
             event.preventDefault();
         } else if (kc == Keys.SCROLL_LOCK) {
+            // todo single step frame
             event.preventDefault();
         } else if (!this.paused && kc < 112) {
-
+            if (kc == Keys.TAB) {
+                event.preventDefault();
+            }
             let keyevent = {
                 keyCode: kc,
                 text: event.key.length==1?event.key:""
@@ -363,6 +357,7 @@ export class CanvasEngine extends DomElement {
 
     handleKeyRelease(event) {
         const kc = event.keyCode;
+        //console.log(kc, event.key)
         if (kc < 112 && kc != Keys.PAUSE) {
 
             if (!this.paused) {
