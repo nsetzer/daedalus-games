@@ -122,11 +122,11 @@ export class MazeGenerator {
 
 
 
-        ctx.beginPath();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'red';
-        ctx.rect(mx-2, my-2, mw+4, mh+4);
-        ctx.stroke()
+        //ctx.beginPath();
+        //ctx.lineWidth = 2;
+        //ctx.strokeStyle = 'red';
+        //ctx.rect(mx-2, my-2, mw+4, mh+4);
+        //ctx.stroke()
 
         if (this.current_step == 0) {
             return
@@ -828,14 +828,14 @@ export class MazeScene extends GameScene {
         //ctx.fillStyle = "yellow";
         //ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`, 0, -8)
 
-        ctx.beginPath();
-        ctx.strokeStyle = 'red';
-        ctx.rect(-1, -1, gEngine.view.width+2, gEngine.view.height+2);
+        //ctx.beginPath();
+        //ctx.strokeStyle = 'red';
+        //ctx.rect(-1, -1, gEngine.view.width+2, gEngine.view.height+2);
         //ctx.moveTo(0,0)
         //ctx.lineTo(gEngine.view.width,gEngine.view.height)
         //ctx.moveTo(gEngine.view.width,0)
         //ctx.lineTo(0,gEngine.view.height)
-        ctx.stroke();
+        //ctx.stroke();
 
         this.gen.paint(ctx)
 

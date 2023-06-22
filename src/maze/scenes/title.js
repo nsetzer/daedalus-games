@@ -105,7 +105,18 @@ export class TitleScene extends GameScene {
     }
 
     resize() {
+        console.log("todo resize widgets")
+        if (this.decoy_text === null) {
+            for (const wgt of this.wgtgrp.widgets) {
 
+                if (wgt instanceof ButtonWidget) {
+                    console.log("move")
+                    wgt.rect.x = gEngine.view.width/2 - wgt.rect.w/2
+                } else if (wgt instanceof TextWidget) {
+                    wgt.rect.w = gEngine.view.width
+                }
+            }
+        }
     }
 
     handleTouchStart() {
@@ -136,10 +147,8 @@ export class TitleScene extends GameScene {
         w._sound = this.sound_click
 
         if (daedalus.platform.isMobile) {
-            const body = document.getElementsByTagName("BODY")[0];
-            body.requestFullscreen()
-            // screen lock does not work, request user to rotate phone
-            // screen.orientation.lock('landscape');
+            gEngine.setFullScreen(true)
+
         }
 
 

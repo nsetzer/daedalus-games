@@ -1049,80 +1049,87 @@ class BreakoutScene extends GameScene {
         this.ball = new Ball()
         this.ball.x = this.paddle.x + this.paddle.width/2
         this.ball.y = this.paddle.y - 32
-        this.ball.health = 0
         //this.ball.dx = 120
         //this.ball.dy = 0
+        if (daedalus.env.debug) {
+            this.ball.health = 0
+        }
         this.ball.dx = this.ball.basespeed * .7071
         this.ball.dy = -this.ball.basespeed * .7071
         this.agents.push(this.ball)
 
-        this.agents.push(new BrickShapeDiamond(this.paddle.x-50, this.paddle.y - 100))
-        this.agents.push(new BrickShapeCircle(this.paddle.x, this.paddle.y - 100, 16))
 
-        let cx = this.paddle.x + 50
-        let cy = this.paddle.y - 100
-        let r1 = 12
-        let r2 = 24
-        let r3 = 36
 
-        this.agents.push(new BrickShapeCircle(cx, cy, r1))
-        this.agents[this.agents.length-1].color = '#555555'
+        if (daedalus.env.debug) {
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r1, r2,
-            1, 89,
-            ))
-        this.agents[this.agents.length-1].color = 'white'
+            this.agents.push(new BrickShapeDiamond(this.paddle.x-50, this.paddle.y - 100))
+            this.agents.push(new BrickShapeCircle(this.paddle.x, this.paddle.y - 100, 16))
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r1, r2,
-            91, 179,
-            ))
-        this.agents[this.agents.length-1].color = 'white'
+            let cx = this.paddle.x + 50
+            let cy = this.paddle.y - 100
+            let r1 = 12
+            let r2 = 24
+            let r3 = 36
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r1, r2,
-            181, 269,
-            ))
-        this.agents[this.agents.length-1].color = 'white'
+            this.agents.push(new BrickShapeCircle(cx, cy, r1))
+            this.agents[this.agents.length-1].color = '#555555'
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r1, r2,
-            271, 359,
-            ))
-        this.agents[this.agents.length-1].color = 'white'
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r1, r2,
+                1, 89,
+                ))
+            this.agents[this.agents.length-1].color = 'white'
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r2, r3,
-            46, 134,
-            ))
-        this.agents[this.agents.length-1].color = '#555555'
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r1, r2,
+                91, 179,
+                ))
+            this.agents[this.agents.length-1].color = 'white'
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r2, r3,
-            136, 224,
-            ))
-        this.agents[this.agents.length-1].color = '#555555'
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r1, r2,
+                181, 269,
+                ))
+            this.agents[this.agents.length-1].color = 'white'
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r2, r3,
-            226, 314,
-            ))
-        this.agents[this.agents.length-1].color = '#555555'
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r1, r2,
+                271, 359,
+                ))
+            this.agents[this.agents.length-1].color = 'white'
 
-        this.agents.push(new BrickShapeArc(
-            cx, cy
-            r2, r3,
-            316, 404,
-            ))
-        this.agents[this.agents.length-1].color = '#555555'
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r2, r3,
+                46, 134,
+                ))
+            this.agents[this.agents.length-1].color = '#555555'
+
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r2, r3,
+                136, 224,
+                ))
+            this.agents[this.agents.length-1].color = '#555555'
+
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r2, r3,
+                226, 314,
+                ))
+            this.agents[this.agents.length-1].color = '#555555'
+
+            this.agents.push(new BrickShapeArc(
+                cx, cy
+                r2, r3,
+                316, 404,
+                ))
+            this.agents[this.agents.length-1].color = '#555555'
+        }
 
         //for (let i=0; i < 15; i ++) {
         //    let xs = this.attrs.view.width/2 + (.5 - Math.random()) * this.attrs.view.width

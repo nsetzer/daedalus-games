@@ -112,7 +112,14 @@ export class CanvasEngine extends DomElement {
         this.lastTime = null
         this.settings = settings??{}
 
+        // portrait: (true) preferred orientation is 0 degrees
+        //           (false) preferred orientation is 90 degrees
+        //           when set false on mobile the view will be
+        //           optimized for rotated phones
         this.settings.portrait = this.settings.portrait??1
+        // fullscreen: when set to true the app will switch to
+        //             full screen when the user taps the screen
+        this.settings.fullscreen = this.settings.portrait??0
 
         this.delta_accum = 0
 
@@ -255,8 +262,11 @@ export class CanvasEngine extends DomElement {
     onTouchEnd(event) {
         const touches = this._getTouches(event)
         if (!this.paused) {
-            console.log(touches)
             this.scene.handleTouches(touches)
+        }
+
+        if (this.settings.fullscreen && !this.view.fullscreen) {
+            this.setFullScreen(true)
         }
     }
 
@@ -266,32 +276,47 @@ export class CanvasEngine extends DomElement {
         this.view.availHeight = height
 
         const islandscape = screen.orientation.type.includes("landscape")
-        // TODO: swap width/height here?
+
+        // on mobile swap width and height for landscape mode
         if (!islandscape && width/height < 0.75 && !this.settings.portrait) {
             [width, height] = [height, width]
-            console.log("rotate")
             this.view.rotate = 1
         } else {
             this.view.rotate = 0
         }
 
+        // detect if the new resolution is full scren
+        if (daedalus.platform.isMobile) {
+            this.view.fullscreen = !!document.fullscreenElement
+        } else {
+            this.view.fullscreen = window.innerHeight == screen.height
+        }
+
         if (daedalus.platform.isMobile) {
 
-            this.view.width = Math.floor((width - 32)/32)*32
-            this.view.height = Math.floor((height)/16)*16
+            if (this.view.fullscreen) {
+                this.view.width = width
+                this.view.height = height
+
+            } else {
+                this.view.width = Math.floor((width - 32)/32)*32
+                this.view.height = Math.floor((height)/16)*16
+            }
 
             //this.view.width = Math.min(Math.floor(1920/3), this.view.width)
             //this.view.height = Math.min(Math.floor(1080/3), this.view.height)
 
         } else {
-            this.view.width = Math.floor(1920/3)
-            this.view.height = Math.floor(1080/3)
-        }
+            const minw = Math.floor((width)/32)*32
+            const minh = Math.floor((height)/16)*16
+            if (this.settings.portrait) {
+                this.view.width = Math.min(Math.floor(1080/3), minw)
+                this.view.height = Math.min(Math.floor(1920/3), minh)
 
-        if (!!this.settings.portrait) {
-            let t = this.view.width
-            this.view.width = this.view.height
-            this.view.height = t
+            } else {
+                this.view.width = Math.min(Math.floor(1920/3), minw)
+                this.view.height = Math.min(Math.floor(1080/3), minh)
+            }
         }
 
         this.view.scale = 1
@@ -311,10 +336,15 @@ export class CanvasEngine extends DomElement {
             this.view.y = 0
         }
 
+
+
+
         console.log('view changed:',
             `screen: orientation=${screen.orientation.type} size=(${width}, ${height})`,
             `view: (${this.view.x}, ${this.view.x}) (${this.view.width}, ${this.view.height})`,
-            `rotate=${this.view.rotate}`)
+            `rotate=${this.view.rotate}`,
+            `fullscreen=${this.view.fullscreen}`,
+            )
 
         if (this.scene) {
             this.scene.resize()
@@ -371,6 +401,15 @@ export class CanvasEngine extends DomElement {
 
             }
 
+        }
+    }
+
+    setFullScreen(enable) {
+        // screen lock does not work, request user to rotate phone
+        // screen.orientation.lock('landscape');
+        const body = document.getElementsByTagName("BODY")[0];
+        if (enable) {
+            body.requestFullscreen()
         }
     }
 

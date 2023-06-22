@@ -176,23 +176,26 @@ export class TouchInput {
         for (let j=0; j < this.buttons.length; j++) {
             let btn = this.buttons[j]
 
-            let pressed = 0;
+            let pressed = null;
             for (let i=touches.length-1; i >= 0; i--) {
                 let touch = touches[i];
                 const dx = btn.cx - touch.x
                 const dy = btn.cy - touch.y
                 if ((dx*dx + dy*dy) < btn.radius*btn.radius) {
-                    pressed = 1
+                    pressed = !!touch.pressed
                     touches.splice(i, 1);
+                    break;
                 }
             }
 
-            if (pressed && !btn.pressed) {
+            if (!btn.pressed && pressed === true) {
                 btn.pressed = 1
                 this.handleButtonPress(j)
-            } else if (!pressed && btn.pressed) {
+                console.log("press", j)
+            } else if (btn.pressed && !pressed) {
                 btn.pressed = 0
                 this.handleButtonRelease(j)
+                console.log("release", j)
             }
 
         }
@@ -237,7 +240,7 @@ export class TouchInput {
             },
         ]
 
-        radius = 32
+        radius = 40
         this.buttons = [
             {cx: gEngine.view.width - radius,
              cy: gEngine.view.height - 3*radius,

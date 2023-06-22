@@ -20,6 +20,26 @@ const style = {
     })
 }
 
+/*
+StyleSheet("", "@media screen and (min-width: 320)", {
+    "body": {
+        "background": "#AAAAAA",
+    },
+    `.${style.canvas}`: {
+        "border": "3px solid green",
+    },
+})
+
+StyleSheet("", "@media screen and (min-width: 720)", {
+    "body": {
+        background: "#AAAAAA",
+    },
+    `.${style.canvas}`: {
+        "border": "3px solid red",
+    },
+})
+*/
+
 export class ApplicationBase extends DomElement {
     constructor(settings, initialScene) {
 
@@ -32,6 +52,8 @@ export class ApplicationBase extends DomElement {
         body.className = style.body
 
         console.log("build app")
+
+        this.resize_timer = null
 
     }
 
@@ -58,6 +80,16 @@ export class ApplicationBase extends DomElement {
         canvas.width = window.innerWidth
         canvas.height = window.innerHeight
 
-        this.canvas.handleResize(window.innerWidth, window.innerHeight)
+        // debounce
+        // wait for the size to stop changing then issue a resize event
+        if (this.resize_timer !== null) {
+            clearTimeout(this.resize_timer)
+        }
+
+        this.resize_timer = setTimeout(() => {
+            this.canvas.handleResize(window.innerWidth, window.innerHeight)
+        }, 100)
+
+
     }
 }

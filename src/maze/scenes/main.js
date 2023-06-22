@@ -210,10 +210,10 @@ function setCharacterSpriteSheet(target, sheet, hero) {
     }
 
     if (hero) {
-        let aidd_atk = target.animation.register(sheet, [ 2,], .4, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
-        let aidu_atk = target.animation.register(sheet, [ 6,], .4, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
-        let aidl_atk = target.animation.register(sheet, [10,], .4, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
-        let aidr_atk = target.animation.register(sheet, [14,], .4, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
+        let aidd_atk = target.animation.register(sheet, [ 2, 2, 2, 2,], .1, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
+        let aidu_atk = target.animation.register(sheet, [ 6, 6, 6, 6,], .1, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
+        let aidl_atk = target.animation.register(sheet, [10,10,10,10,], .1, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
+        let aidr_atk = target.animation.register(sheet, [14,14,14,14,], .1, {xoffset:-8, yoffset:-16, loop: false, onend: target.handleAttackEnd.bind(target)})
 
         target.d2a_atk = {
             [Direction.UP]: aidu_atk,
@@ -248,6 +248,7 @@ class Hero extends Entity {
         this.attacking = 0
         this.attacking_tid = 0
         this.attacking_info = null
+        this.attacking_frame = -1
         this.mobs = []
 
         this.character = new CharacterComponent(this)
@@ -276,6 +277,14 @@ class Hero extends Entity {
 
     }
 
+    _check_damage() {
+        for (let i=0; i < this.mobs.length; i++) {
+            if (this.attacking_info.rect.collideRect(this.mobs[i].rect)) {
+                this.mobs[i].character.hit(1, this.facing)
+            }
+        }
+    }
+
     attack() {
         if (this.attacking == 0) {
             this.attacking = 1
@@ -289,11 +298,7 @@ class Hero extends Entity {
                 this.attacking_info.h)
             this.attacking_info.rect = rect
 
-            for (let i=0; i < this.mobs.length; i++) {
-                if (rect.collideRect(this.mobs[i].rect)) {
-                    this.mobs[i].character.hit(1, this.facing)
-                }
-            }
+            this.attacking_frame = -1
 
             this.sound_sword.play()
         }
@@ -321,10 +326,15 @@ class Hero extends Entity {
                     ent.handlePress()
                 }
             }
+        } else {
+            if (this.attacking_frame != this.animation.frame_index) {
+                this._check_damage()
+
+                this.attacking_frame = this.animation.frame_index
+            }
         }
         this.animation.update(dt)
         this.character.update(dt)
-
 
     }
 
@@ -337,17 +347,19 @@ class Hero extends Entity {
             this.sheet.drawTile(ctx, obj.tid, this.rect.x + obj.x, this.rect.y + obj.y)
         }
 
-        /*
-        if (this.attacking_info) {
-            ctx.save()
-            ctx.beginPath();
-            ctx.fillStyle = "#000000FF";
-            let r = this.attacking_info.rect
-            ctx.rect(r.x, r.y, r.w, r.h);
-            ctx.fill()
-            ctx.restore()
-        }
-        */
+
+        //if (this.attacking_info) {
+        //    ctx.save()
+        //    ctx.beginPath();
+        //    ctx.fillStyle = "#000000FF";
+        //    let r = this.attacking_info.rect
+        //    ctx.rect(r.x, r.y, r.w, r.h);
+        //    ctx.fill()
+        //    ctx.fillStyle = "#FFFFFF";
+        //    ctx.fillText(`${this.animation.frame_index}`, r.x+ r.w/2, r.y + r.h/2)
+        //    ctx.restore()
+        //}
+
 
     }
 }
