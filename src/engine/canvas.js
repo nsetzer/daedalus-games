@@ -119,11 +119,13 @@ export class CanvasEngine extends DomElement {
         this.settings.portrait = this.settings.portrait??1
         // fullscreen: when set to true the app will switch to
         //             full screen when the user taps the screen
-        this.settings.fullscreen = this.settings.portrait??0
+        this.settings.fullscreen = this.settings.fullscreen??0
 
         this.delta_accum = 0
 
         this.onReady = null
+
+        this.keyboard_focus_widget = null
 
         // x,y: top left coordinate for the game
         // width, height: size of the viewport
@@ -248,6 +250,11 @@ export class CanvasEngine extends DomElement {
     onTouchStart(event) {
         const touches = this._getTouches(event)
         if (!this.paused) {
+            if (daedalus.platform.isMobile) {
+                if (window.hiddenInput.hasKeyboardFocus()) {
+                    window.hiddenInput.clearKeyboardFocus()
+                }
+            }
             this.scene.handleTouches(touches)
         }
     }
@@ -265,7 +272,7 @@ export class CanvasEngine extends DomElement {
             this.scene.handleTouches(touches)
         }
 
-        if (this.settings.fullscreen && !this.view.fullscreen) {
+        if (!!this.settings.fullscreen && !this.view.fullscreen) {
             this.setFullScreen(true)
         }
     }
@@ -379,7 +386,12 @@ export class CanvasEngine extends DomElement {
                 keyCode: kc,
                 text: event.key.length==1?event.key:""
             }
-            this.scene.handleKeyPress(keyevent);
+            if (!!this.keyboard_focus_widget) {
+                this.keyboard_focus_widget.handleKeyPress(keyevent)
+            } else {
+                this.scene.handleKeyPress(keyevent);
+            }
+
         } else {
             console.log(kc)
         }
@@ -396,7 +408,11 @@ export class CanvasEngine extends DomElement {
                     keyCode: kc,
                     text: event.key.length==1?event.key:""
                 }
-                this.scene.handleKeyRelease(keyevent);
+                if (!!this.keyboard_focus_widget) {
+                    this.keyboard_focus_widget.handleKeyRelease(keyevent)
+                } else {
+                    this.scene.handleKeyRelease(keyevent);
+                }
                 //event.preventDefault();
 
             }
@@ -438,6 +454,16 @@ export class CanvasEngine extends DomElement {
         ctx.imageSmoothingEnabled = false;
 
         this.scene.paint(ctx)
+
+    }
+
+    requestKeyboardFocus(settings, widget) {
+
+        if (daedalus.platform.isMobile) {
+            window.hiddenInput.requestKeyboardFocus(settings, widget)
+        } else {
+            this.keyboard_focus_widget = widget
+        }
 
     }
 

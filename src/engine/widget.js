@@ -266,6 +266,8 @@ const Keys = {
     DOWN: 40,
     SPACE: 32,
     ENTER: 13,
+    BACKSPACE: 8,
+    DELETE: 46,
 }
 
 export class WidgetGroup {
@@ -577,12 +579,14 @@ export class ButtonWidget extends TextWidget {
 
         let style = this.style().button['primary']
 
+
         ctx.fillStyle = this.hasFocus()?style.focused:style.normal
         ctx.strokeStyle = '#000000'
         ctx.beginPath()
         ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, this.radius)
         ctx.fill()
         ctx.stroke()
+
 
         super.paint(ctx)
     }
@@ -604,5 +608,200 @@ export class ButtonWidget extends TextWidget {
         }
         this.clicked?.()
     }
+
+}
+
+export class TextInputWidget extends Widget {
+
+    constructor() {
+        super();
+
+        this.text = ""
+        this.flowText()
+
+        this.cursor = 0
+        this.cursor_timer = 0
+        this.cursor_timeout = .4
+        this.cursor_display = true
+        this.submit_callback = null
+        this.padding = [8,8,8,8] // top right bottom left
+
+    }
+
+    update(dt) {
+        this.cursor_timer += dt
+
+        if (this.cursor_timer > this.cursor_timeout) {
+            this.cursor_timer -= this.cursor_timeout
+            this.cursor_display = !this.cursor_display
+        }
+
+    }
+
+    measureText(text) {
+        const ctx = gEngine.ctx
+        ctx.save()
+        ctx.webkitImageSmoothingEnabled = true;
+        ctx.mozImageSmoothingEnabled = true;
+        ctx.imageSmoothingEnabled = true;
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        ctx.font = "12pt Arial"
+        let metrics = ctx.measureText(text);
+        ctx.restore()
+
+        let x = metrics.actualBoundingBoxLeft
+        let w = metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft
+        let y = - metrics.actualBoundingBoxAscent
+        let h = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+        let rect = new Rect(x,y,w,h)
+
+        return rect
+    }
+
+    paint(ctx) {
+
+        ctx.save()
+        ctx.webkitImageSmoothingEnabled = true;
+        ctx.mozImageSmoothingEnabled = true;
+        ctx.imageSmoothingEnabled = true;
+
+        ctx.font = "12pt Arial"
+
+        ctx.strokeStyle = "#c3c3c3"
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 4)
+        ctx.stroke()
+
+        ctx.fillStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        let dx = this.rect.left()
+        let dy = this.rect.cy()
+
+        let cursorwidth = 4
+        ctx.fillText(this.textb, this.padding[1] + dx + this.rectb.x, dy)
+
+        ctx.fillText(this.texta, this.padding[1] + dx + this.rectb.x + this.rectb.w + this.recta.x + cursorwidth, dy)
+
+        if (this.cursor_display) {
+            ctx.beginPath()
+            ctx.lineWidth = 2
+            ctx.strokeStyle = "yellow"
+            ctx.moveTo(this.padding[1] + dx + this.rectb.x + this.rectb.w + cursorwidth/2, dy - 8)
+            ctx.lineTo(this.padding[1] + dx + this.rectb.x + this.rectb.w + cursorwidth/2, dy + 8)
+            ctx.stroke()
+        }
+        ctx.restore()
+
+    }
+
+    submit() {
+        this.submit_callback?.(this.text)
+    }
+
+    clear() {
+        this.cursor = 0
+        this.text = ""
+        this.flowText()
+    }
+
+    insert(text) {
+        let b = this.text.slice(0, this.text.length - this.cursor)
+        let a = this.text.slice(this.text.length - this.cursor)
+        this.text = b + text + a
+        this.flowText()
+    }
+
+    deleteChar() {
+        if (this.cursor > 0) {
+            let b = this.text.slice(0, this.text.length - this.cursor )
+            let a = this.text.slice(this.text.length - this.cursor + 1)
+            this.cursor -= 1
+            this.text = b + a
+            this.flowText()
+        }
+    }
+
+    backspace() {
+
+        if (this.cursor < this.text.length) {
+            let b = this.text.slice(0, this.text.length - this.cursor - 1)
+            let a = this.text.slice(this.text.length - this.cursor)
+            this.text = b + a
+            this.flowText()
+        }
+
+    }
+
+    cursorLeft() {
+        if (this.cursor < this.text.length) {
+            this.cursor += 1
+        }
+
+        this.flowText()
+    }
+
+    cursorRight() {
+
+        if (this.cursor > 0) {
+            this.cursor -= 1
+        }
+
+        this.flowText()
+    }
+
+    flowText() {
+        this.textb = this.text.slice(0, this.text.length - this.cursor)
+        this.texta = this.text.slice(this.text.length - this.cursor)
+
+        this.rectb = this.measureText(this.textb)
+        this.recta = this.measureText(this.texta)
+
+    }
+
+    handleMobileInput(submit, value) {
+        console.log("mobile input", submit, value)
+        this.text = "" + value
+
+        if (submit) {
+            this.submit()
+        }
+        this.flowText()
+    }
+
+    handleKeyPress(keyevent) {
+
+        if (keyevent.text.length > 0) {
+            this.insert(keyevent.text)
+        } else if (keyevent.keyCode == Keys.ENTER) {
+            this.submit()
+        } else if (keyevent.keyCode == Keys.BACKSPACE) {
+            this.backspace()
+        } else if (keyevent.keyCode == Keys.DELETE) {
+            this.deleteChar()
+        } else if (keyevent.keyCode == Keys.LEFT) {
+            this.cursorLeft()
+        } else if (keyevent.keyCode == Keys.RIGHT) {
+            this.cursorRight()
+        }
+
+    }
+
+    handleKeyRelease(keyevent) {
+
+        console.log(keyevent)
+    }
+
+    handleTouchRelease() {
+
+        console.log("touch event")
+        gEngine.requestKeyboardFocus({
+            "type": "text",
+            "placeholder": "",
+            "text": this.text
+        }, this)
+
+    }
+
 
 }

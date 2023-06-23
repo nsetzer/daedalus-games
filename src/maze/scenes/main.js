@@ -327,6 +327,8 @@ class Hero extends Entity {
                 }
             }
         } else {
+            // on every attacking frame check for a collision
+            // TODO: make a callback in the animation
             if (this.attacking_frame != this.animation.frame_index) {
                 this._check_damage()
 

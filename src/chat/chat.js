@@ -1,10 +1,11 @@
-from module daedalus import {DomElement}
-from module engine import {
+
+$import("engine", {
     ApplicationBase,
     GameScene,
     TextWidget, TextInputWidget,
     Alignment
-}
+})
+
 
 class DemoScene extends GameScene {
 
@@ -14,25 +15,26 @@ class DemoScene extends GameScene {
         this.widgets = []
 
         let w;
-        w = new TextWidget()
-        w._text = "top left"
-        w._alignment = Alignment.TOP|Alignment.LEFT
-        w._alignment = Alignment.BOTTOM|Alignment.RIGHT
-        w._alignment = Alignment.CENTER
-        w.rect.x = 0
-        w.rect.y = 0
-        w.rect.w = gEngine.view.width
-        w.rect.h = gEngine.view.height
-        this.widgets.push(w)
 
         w = new TextInputWidget()
 
-        w.rect.x = gEngine.view.width/4
-        w.rect.y = 32
-        w.rect.w = gEngine.view.width/2
+        w.rect.w = gEngine.view.width
         w.rect.h = 48
 
+        w.rect.x = gEngine.view.width/2 - w.rect.w/2
+        w.rect.y = gEngine.view.height - w.rect.h
+
+        w.submit_callback = this.handleTextSubmit.bind(this)
+        this.textinput = w
+
         this.widgets.push(w)
+    }
+
+    handleTextSubmit(text) {
+
+        console.log("onsubmit", text)
+        this.textinput.clear()
+
     }
 
     handleTouches(touches) {
@@ -54,10 +56,15 @@ class DemoScene extends GameScene {
     }
 
     resize() {
+        let w = this.textinput
+        w.rect.x = gEngine.view.width/2 - w.rect.w/2
+        w.rect.y = gEngine.view.height - w.rect.h
     }
 
     update(dt) {
-
+        for (const wgt of this.widgets) {
+            wgt.update(dt)
+        }
     }
 
     paint(ctx) {
