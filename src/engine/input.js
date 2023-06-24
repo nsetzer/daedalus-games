@@ -21,6 +21,7 @@ export class KeyboardInput {
         this.keysDown = [];
 
         this.buttons = [Keys.CTRL, Keys.SPACE]
+        this.pressed = {}
 
     }
 
@@ -38,7 +39,10 @@ export class KeyboardInput {
             let match = 0;
             for (let i=0; i<this.buttons.length; i++) {
                 if (this.buttons[i] == kc) {
-                    this.target.handleButtonPress(i)
+                    if (!this.pressed[i]) {
+                        this.target.handleButtonPress(i)
+                        this.pressed[i] = true
+                    }
                     match = 1
                 }
             }
@@ -63,7 +67,10 @@ export class KeyboardInput {
             let match = 0;
             for (let i=0; i<this.buttons.length; i++) {
                 if (this.buttons[i] == kc) {
-                    this.target.handleButtonRelease(i)
+                    if (this.pressed[i]) {
+                        this.target.handleButtonRelease(i)
+                        this.pressed[i] = false
+                    }
                     match = 1
                 }
             }
@@ -217,9 +224,12 @@ export class TouchInput {
                     break
                 }
             }
+
             if (touch!==null && touch.pressed) {
+                wheel.pressed = true
                 this.handleMove(j, touch.x, touch.y)
-            } else {
+            } else if (wheel.pressed) {
+                wheel.pressed = false
                 this.handleMoveCancel(j)
             }
         }
@@ -228,15 +238,18 @@ export class TouchInput {
 
     resize() {
 
-        // 96
-        // 144.0
+        // TODO: implement addWheel / add button
+        //  alignment, which edge of the screen to anchor to
+        //  offset, relative to aligned edge
+        //  cx,cy: screen dimensions + alignment + offset
         let radius = (gEngine.view.height*.2) // 3 * 32
         this.wheels = [
             {
                 cx: radius,
                 cy: gEngine.view.height - radius,
                 radius: radius,
-                vector: {x:0, y:0}
+                vector: {x:0, y:0},
+                pressed: false
             },
         ]
 

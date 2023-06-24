@@ -147,6 +147,10 @@ class TextInputContainer extends DomElement {
 
     requestKeyboardFocus(settings, widget) {
 
+        // TODO: add setting for 'submit':
+        //   if submit is true, show the button
+        // e.g. a registration page would have submit false
+        //      and a final submit button not associated with the input
         this.text.props.type = settings.type ?? "text"
         this.text.props.placeholder = settings.placeholder ?? "text"
         this.text.getDomNode().value = settings.text ?? ""

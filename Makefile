@@ -1,6 +1,6 @@
 
 
-.PHONY: breakout maze build widgets chat
+.PHONY: breakout maze build widgets chat jumpwar
 
 breakout:
 	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
@@ -13,6 +13,9 @@ widgets:
 
 chat:
 	python -m src.chat.server --paths=./src --env debug=true ./src/chat/chat.js
+
+jumpwar:
+	python -m src.jumpwar.server --paths=./src --env debug=true ./src/jumpwar/app.js
 
 build:
 	mkdir -p build
