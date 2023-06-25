@@ -34,6 +34,29 @@ export function shuffle(array) {
   return array;
 }
 
+export const Alignment = {
+
+    TOP:     1,
+    BOTTOM:  2,
+    VCENTER: 3,
+
+    LEFT:    4,
+    RIGHT:   8,
+    HCENTER: 12,
+
+    CENTER: 15,
+
+    XMASK: 12,
+    YMASK: 3,
+
+    // for context fill text
+    // (alignment & XMASK >> 2)
+    // (alignment & YMASK)
+    XWORDS: ["", "left", "right", "center"], // textAlign
+    YWORDS: ["", "top", "bottom", "middle"], // textBaseline
+
+}
+
 export const Direction = {
     NONE: 0,
     LEFT: 1,

@@ -108,9 +108,10 @@ class DevSiteResource(Resource):
         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#browser_compatibility
         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag#browser_compatibility
         """
-        path = path_join_safe(self.static_path, matches['path'])
+        path = path_join_safe(self.static_path, unquote(request.matches['path']))
 
         if not os.path.exists(path):
+            print(path)
             return JsonResponse({"error": "not found"}, 404)
 
         response = Response(open(path, "rb"))
@@ -154,9 +155,10 @@ def main_server():
     logging.getLogger().setLevel(logging.DEBUG)
 
     index_js = "./src/jumpwar/app.js"
-    search_path = ["./src"]
+    # TODO: auto add the project directory to the  search path
+    search_path = ["./src", "./src/jumpwar"]
     static_data = {"env": {"debug": True}}
-    static_path = "./src/jumpwar/resource"
+    static_path = "./src/jumpwar/static"
 
     server = HTTPServer(("0.0.0.0", 4100))
     server.registerRoutes(WebSocketResource())

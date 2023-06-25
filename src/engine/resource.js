@@ -22,6 +22,7 @@ export class SoundEffect {
         this.status = ResourceStatus.LOADING
 
         sound.onerror = () => {
+            console.warn("error loading: " + path)
             this.status = ResourceStatus.ERROR
         }
 
@@ -144,6 +145,7 @@ export class SpriteSheet {
             this.status = ResourceStatus.READY
         }
         this.image.onerror = () => {
+            console.warn("error loading: " + path)
             this.status = ResourceStatus.ERROR
         }
         this.image.src = path
@@ -185,6 +187,14 @@ export class SpriteSheet {
 
     tile(tid) {
         return new SpriteTile(this, tid)
+    }
+
+    tiles() {
+        let tiles = []
+        for (let i=0; i < this.rows*this.cols; i++) {
+            tiles.push(i)
+        }
+        return tiles
     }
 }
 
@@ -317,8 +327,8 @@ export class ResourceLoader {
             let res = this.resources[i]
             if (res.instance === null) {
                 res.instance = res.builder.build()
-            } else if (res.instance.status == ResourceStatus.ERROR) {
-
+            } else if (this.status !== ResourceStatus.ERROR && res.instance.status == ResourceStatus.ERROR) {
+                console.warn(res.instance)
                 this.status = ResourceStatus.ERROR
 
             } else if (res.instance.ready) {

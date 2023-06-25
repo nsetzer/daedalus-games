@@ -1026,6 +1026,9 @@ export class MainScene extends GameScene {
 
         this.controller = new Controller(this, this.ent_hero)
         this.touch = new TouchInput(this.controller)
+        this.touch.addWheel(72, -72, 72)
+        this.touch.addButton(-40, -120, 40)
+        this.touch.addButton(-120, -40, 40)
 
         this.touch.button_icons = [
             this.loader.sheets.bomb.tile(0),

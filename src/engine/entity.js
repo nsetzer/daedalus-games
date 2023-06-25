@@ -142,7 +142,7 @@ export class Physics2d {
     }
 }
 
-export class Animation {
+export class AnimationComponent {
 
 
     constructor(target) {
@@ -304,7 +304,7 @@ export class Entity {
         this.rect = new Rect(0, 0, 0, 0)
 
         this.physics = new Physics2d(this)
-        this.animation = new Animation(this)
+        this.animation = new AnimationComponent(this)
     }
 
     update(dt) {

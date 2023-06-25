@@ -3,9 +3,12 @@ $import("engine", {
     ApplicationBase, Rect, Entity,
     GameScene, CameraBase,
     TextWidget, TextInputWidget,
-    Alignment, Direction, CharacterComponent,
+    Alignment, Direction,
+    AnimationComponent, CharacterComponent,
     TouchInput, KeyboardInput
 })
+
+$import("scenes", {global, ResourceLoaderScene})
 
 // todo: parallax background
 
@@ -84,12 +87,12 @@ class Camera extends CameraBase {
         // force camera to center player
         //x = Math.floor(this.target.rect.cx() - gEngine.view.width/2)
         //y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
-        //if (x < 0) { x = 0 }
+        if (x < 0) { x = 0 }
         //if (y < -32) { y = -32 }
-        //let mx = this.map.width - gEngine.view.width
-        //let my = this.map.height - gEngine.view.height/2
-        //if (x > mx) { x = mx }
-        //if (y > my) { y = my }
+        let mx = this.map.width - gEngine.view.width
+        let my = this.map.height - gEngine.view.height
+        if (x > mx) { x = mx }
+        if (y > my) { y = my }
 
         this.x = Math.floor(x)
         this.y = Math.floor(y)
@@ -148,12 +151,27 @@ class Controller {
             if (input.t < 0) {
                 if (input.btnid !== undefined) {
                     if (input.pressed) {
-                        this.target.physics.yspeed = this.target.physics.jumpspeed
-                        this.target.physics.jumptime = performance.now()
-                        this.target.physics.gravityboost = false
-                        if (this.target.physics.pressing) {
-                            let v = Direction.vector(this.target.direction)
-                            this.target.physics.xspeed = - v.x * 512
+
+                        if (this.target.physics.standing) {
+
+                            this.target.physics.yspeed = this.target.physics.jumpspeed
+                            this.target.physics.jumptime = performance.now()
+                            this.target.physics.gravityboost = false
+                            this.target.physics.doublejump = true
+
+                        } else if (this.target.physics.pressing && !this.target.physics.standing) {
+                            this.target.physics.yspeed = this.target.physics.jumpspeed
+                            this.target.physics.jumptime = performance.now()
+                            this.target.physics.gravityboost = false
+
+                            let v = Direction.vector(this.target.physics.direction)
+                            this.target.physics.xspeed = - v.x * this.target.physics.xjumpspeed
+                        } else if (!this.target.physics.standing && this.target.physics.doublejump && this.target.physics.yspeed > 0) {
+                            // double jump at half the height of a normal jump
+                            this.target.physics.yspeed = (this.target.physics.jumpspeed) / Math.sqrt(2)
+                            this.target.physics.jumptime = performance.now()
+                            this.target.physics.gravityboost = false
+                            this.target.physics.doublejump = false
                         }
                     } else {
                         this.target.physics.gravityboost = true
@@ -197,11 +215,23 @@ class Physics2d {
     constructor(target) {
         this.target = target
 
+        this.direction = 0
+
         this.xspeed = 0
         this.yspeed = 0
 
         this.ximpulse = 0
         this.yimpulse = 0
+
+        // double_jump
+        // fall
+        // hit
+        // idle
+        // jump
+        // run
+        // wall_slide
+
+        this.action = "idle"
 
         this.group = []
 
@@ -236,23 +266,25 @@ class Physics2d {
         // this will ensure the maximum height is as calculated
         // and that when the user releases, they will go a little higher and drop normally
 
+        this.doublejump = false
+
+        this.xmaxspeed = 7*32
+        this.xfriction = this.xmaxspeed / .1 // stop moving in .1 seconds
+        this.xacceleration = this.xmaxspeed / .5 // get up to max speed in half a second
+        this.xjumpspeed = Math.sqrt(2*32*this.xacceleration) // sqrt(2*distance*acceleration)
 
         this.jumpheight = 128
         this.jumpduration = .1875 // total duration divided by 4?
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
-        this.xmaxspeed = 50
+
         this.ymaxspeed = - this.jumpspeed
         this.jumptime = 0
         this.gravityboost = false
-        console.log("duration", Math.sqrt(this.jumpheight*this.jumpheight / (480*480)))
-        console.log("gravity", this.gravity)
-        console.log("jumpspeed", this.jumpspeed)
-        console.log("max vy", this.gravity * this.jumpduration/2)
-        //.5 * g * t * t + v * t
-        //g * t + v
+
+        // log velocity over time
         let speeds = []
-        let times = [0, .25, .5, .75, 1.0, 1.04]
+        let times = [0, .25, .5, .75, 1.0]
         for (const t of times) {
             speeds.push(this.jumpspeed + this.gravity * 4 * this.jumpduration * t)
         }
@@ -278,6 +310,29 @@ class Physics2d {
         this.ycollide = false
         this.collide = false
         this.collisions = new Set()
+
+        if ((this.direction & Direction.LEFT) > 0) {
+            if (this.xspeed > -this.xmaxspeed) {
+                this.xspeed -= this.xacceleration * dt
+            }
+        } else if ((this.direction & Direction.RIGHT) > 0) {
+            if (this.xspeed < this.xmaxspeed) {
+                this.xspeed += this.xacceleration * dt
+            }
+        } else if (this.standing) {
+            if (Math.abs(this.xspeed) < this.xfriction * dt) {
+                this.xspeed = 0
+            } else {
+                this.xspeed -= Math.sign(this.xspeed) * this.xfriction * dt
+            }
+        }
+        if (this.xspeed > this.xmaxspeed) {
+            this.xspeed = this.xmaxspeed
+        }
+        if (this.xspeed < -this.xmaxspeed) {
+            this.xspeed = -this.xmaxspeed
+        }
+
 
         let rect, solid;
         let dx, dy
@@ -359,9 +414,6 @@ class Physics2d {
 
         if (this.yspeed > 0 && this.ycollide) {
             this.standing = true
-            if (this.yspeed > 100) {
-                console.log((this.jumptime - performance.now())/1000, this.yspeed)
-            }
             this.yspeed = 0
         } else {
             if (this.yspeed < 0 && this.ycollide) {
@@ -392,8 +444,8 @@ class Physics2d {
 
         // bounds check
         if (Physics2d.maprect.w > 0) {
-            if (this.target.rect.x < 0) {
-                this.target.rect.x = 0
+            if (this.target.rect.x < Physics2d.maprect.x) {
+                this.target.rect.x = Physics2d.maprect.x
                 this.xspeed = 0
             }
 
@@ -403,8 +455,8 @@ class Physics2d {
                 this.xspeed = 0
             }
 
-            if (this.target.rect.y < 0) {
-                this.target.rect.y = 0
+            if (this.target.rect.y < Physics2d.maprect.y) {
+                this.target.rect.y = Physics2d.maprect.y
                 this.yspeed = 0
             }
 
@@ -414,6 +466,36 @@ class Physics2d {
                 this.target.rect.y = maxy
                 this.yspeed = 0
             }
+        }
+
+        // double_jump
+        // fall
+        // hit
+        // idle
+        // jump
+        // run
+        // wall_slide
+
+
+        let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
+        let falling = !this.standing && this.yspeed > 0
+        let rising = this.yspeed < 0
+        if (falling) {
+            if (this.pressing) {
+                this.action = "wall_slide"
+            } else {
+                this.action = "fall"
+            }
+        } else if (rising) {
+            if (!this.doublejump) {
+                this.action = "double_jump"
+            } else {
+                this.action = "jump"
+            }
+        } else if (not_moving) {
+            this.action = "idle"
+        } else {
+            this.action = "run"
         }
 
     }
@@ -454,73 +536,98 @@ class Character extends Entity {
 
     constructor() {
         super()
+        this.action = "idle"
         this.facing = Direction.RIGHT
 
+        this.rect.w = 16
+        this.rect.h = 16
+
         this.physics = new Physics2d(this)
+        this.animation = new AnimationComponent(this)
         this.character = new CharacterComponent(this)
 
+        this.buildAnimations()
+
+    }
+
+    buildAnimations() {
+
+        this.animations = {
+            "double_jump": {},
+            "fall": {},
+            "hit": {},
+            "idle": {},
+            "jump": {},
+            "run": {},
+            "wall_slide": {},
+            "appearing": {},
+            "dissapearing": {},
+        }
+
+        let chara = "frog"
+        let idx = "0"
+        let spf = 0.06
+        let xoffset = - 8
+        let yoffset = - 16
+
+        let defines = [
+            ["double_jump",Direction.LEFT,  `${chara}_` + `${idx}_l_double_jump`],
+            ["fall",       Direction.LEFT,  `${chara}_` + `${idx}_l_fall`],
+            ["hit",        Direction.LEFT,  `${chara}_` + `${idx}_l_hit`],
+            ["idle",       Direction.LEFT,  `${chara}_` + `${idx}_l_idle`],
+            ["jump",       Direction.LEFT,  `${chara}_` + `${idx}_l_jump`],
+            ["run",        Direction.LEFT,  `${chara}_` + `${idx}_l_run`],
+            ["wall_slide", Direction.LEFT,  `${chara}_` + `${idx}_l_wall_slide`],
+            ["double_jump",Direction.RIGHT, `${chara}_` + `${idx}_r_double_jump`],
+            ["fall",       Direction.RIGHT, `${chara}_` + `${idx}_r_fall`],
+            ["hit",        Direction.RIGHT, `${chara}_` + `${idx}_r_hit`],
+            ["idle",       Direction.RIGHT, `${chara}_` + `${idx}_r_idle`],
+            ["jump",       Direction.RIGHT, `${chara}_` + `${idx}_r_jump`],
+            ["run",        Direction.RIGHT, `${chara}_` + `${idx}_r_run`],
+            ["wall_slide", Direction.RIGHT, `${chara}_` + `${idx}_r_wall_slide`],
+        ]
+
+        for (const info of defines) {
+            let [animation_name, direction, sheet_name] = info;
+            let sheet = global.loader.sheets[sheet_name]
+            let aid = this.animation.register(sheet, sheet.tiles(), spf, {xoffset, yoffset})
+            this.animations[animation_name][direction] = aid
+        }
+
+        this.animation.setAnimationById(this.animations.idle[this.facing])
     }
 
     setDirection(direction) {
 
-        this.direction = direction
+        this.physics.direction = direction&Direction.LEFTRIGHT
 
         if (direction&Direction.LEFTRIGHT) {
             this.facing = direction&Direction.LEFTRIGHT
+            this.animation.setAnimationById(this.animations[this.action][this.facing])
         }
     }
+
     update(dt) {
 
-        this.physics.xfriction = 1024
-        this.physics.xacceleration = 512
-        this.physics.xmaxspeed = 256
-
-        if ((this.direction & Direction.LEFT) > 0) {
-            if (this.physics.xspeed > -this.physics.xmaxspeed) {
-                this.physics.xspeed -= this.physics.xacceleration * dt
-            }
-        } else if ((this.direction & Direction.RIGHT) > 0) {
-            if (this.physics.xspeed < this.physics.xmaxspeed) {
-                this.physics.xspeed += this.physics.xacceleration * dt
-            }
-        } else if (this.physics.standing) {
-            if (Math.abs(this.physics.xspeed) < this.physics.xfriction * dt) {
-                this.physics.xspeed = 0
-            } else {
-                this.physics.xspeed -= Math.sign(this.physics.xspeed) * this.physics.xfriction * dt
-            }
-        }
-        if (this.physics.xspeed > this.physics.xmaxspeed) {
-            this.physics.xspeed = this.physics.xmaxspeed
-        }
-        if (this.physics.xspeed < -this.physics.xmaxspeed) {
-            this.physics.xspeed = -this.physics.xmaxspeed
-        }
 
         this.physics.update(dt)
-        // this.animation.update(dt)
+        if (this.physics.action != this.action) {
+            this.action = this.physics.action
+            this.animation.setAnimationById(this.animations[this.action][this.facing])
+        }
+        this.animation.update(dt)
         this.character.update(dt)
 
     }
 
     paint(ctx) {
 
-        ctx.fillStyle = this.physics.standing?"#00bb00":this.physics.pressing?"#665533":"#009933";
-        ctx.beginPath()
-        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
-        ctx.fill()
+        //ctx.fillStyle = this.physics.standing?"#00bb00":this.physics.pressing?"#665533":"#009933";
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
+        //ctx.fill()
 
-        ctx.fillText(`${this.direction} ${this.physics.standing} ${Math.floor(this.physics.xspeed)}`, 32, 32)
-
-        ctx.beginPath()
-        ctx.fillStyle = "#000000";
-        let offset = (this.facing==Direction.LEFT)?-5:5
-        ctx.rect(this.rect.x+16+offset+2,this.rect.y + 6,6,3)
-        ctx.rect(this.rect.x+16+offset-2-6,this.rect.y + 6,6,3)
-        ctx.fill()
-
-
-        //this.animation.paint(ctx)
+        this.animation.paint(ctx)
 
 
     }
@@ -531,26 +638,32 @@ class DemoScene extends GameScene {
     constructor() {
         super()
 
-        this.walls = []
-        this.entities = []
-
-        let mapw = 640
+        let mapw = 640 * 2
         let maph = 360
-        Physics2d.maprect = new Rect(0,0,mapw,maph)
 
         this.map = {width: mapw, height: maph}
+        this.buildMap()
+    }
+
+    buildMap() {
+                this.walls = []
+        this.entities = []
+
+
+        Physics2d.maprect = new Rect(0,-64, this.map.width, this.map.height+64)
+
         console.log(gEngine.view, this.map)
 
         let w;
         w = new Wall()
         w.rect.x = 0
         w.rect.y = 320
-        w.rect.w = mapw
+        w.rect.w = this.map.width
         w.rect.h = 32
         this.walls.push(w)
 
         w = new Wall()
-        w.rect.x = this.map.width/2 - 32
+        w.rect.x = this.map.width/4 - 32
         w.rect.y = 320 - 32
         w.rect.w = 64
         w.rect.h = 32
@@ -560,31 +673,31 @@ class DemoScene extends GameScene {
         w.rect.x = 128
         w.rect.y = 0
         w.rect.w = 32
-        w.rect.h = maph - 128
+        w.rect.h = this.map.height - 128
         this.walls.push(w)
 
         w = new Wall()
-        w.rect.x = mapw - 128 - 32
+        w.rect.x = this.map.width/2 - 128 - 32
         w.rect.y = 0
         w.rect.w = 32
-        w.rect.h = maph - 128
+        w.rect.h = this.map.height - 128
         this.walls.push(w)
 
         let ent;
         ent = new Character()
         ent.rect.x = 304
         ent.rect.y = 128
-        ent.rect.w = 32
-        ent.rect.h = 32
         ent.physics.group = this.walls
 
         this.player = ent
 
         this.entities.push(ent)
 
-
         this.controller = new Controller(this, this.player)
         this.touch = new TouchInput(this.controller)
+
+        this.touch.addWheel(72, -72, 72)
+        this.touch.addButton(-60, -60, 40)
 
         this.keyboard = new KeyboardInput(this.controller);
         this.camera = new Camera(this.map, this.player)
@@ -626,6 +739,7 @@ class DemoScene extends GameScene {
         ctx.rect(0,0,gEngine.view.width, gEngine.view.height)
         ctx.stroke()
 
+
         ctx.save()
 
         ctx.beginPath();
@@ -633,8 +747,22 @@ class DemoScene extends GameScene {
         ctx.clip();
         ctx.translate(-this.camera.x, -this.camera.y)
 
+        ctx.fillStyle = "#69698c"
+        let buildings = [300, 100, 250, 300]
+        let bo = 200*5
+        for (let i = 0; i < buildings.length; i++) {
+            let bh = buildings[i]
+            let bw = 168
+            ctx.fillRect(  (this.camera.x + bo*(i+1))/5 , this.map.height - bh, bw, bh)
+        }
+
+
+        ctx.strokeStyle = "#FFFFFF1f"
+        ctx.beginPath()
+        ctx.rect(0,0,this.map.width,  this.map.height)
+        ctx.stroke()
+
         for (let y=32; y < this.map.height; y+=32) {
-            ctx.strokeStyle = "#FFFFFF1f"
             ctx.beginPath()
             ctx.moveTo(0, y)
             ctx.lineTo(this.map.width, y)
@@ -653,9 +781,10 @@ class DemoScene extends GameScene {
 
         ctx.restore()
         this.touch.paint(ctx)
+        ctx.fillStyle = "yellow"
+        ctx.fillText(`${this.player.physics.direction} ${this.player.physics.action}`, 32, 32)
 
     }
-
 }
 
 
@@ -665,7 +794,9 @@ export default class Application extends ApplicationBase {
             portrait: 0,
             fullscreen: 0
         }, () => {
-            return new DemoScene()
+            return new ResourceLoaderScene(() => {
+                gEngine.scene = new DemoScene()
+            })
         })
 
 

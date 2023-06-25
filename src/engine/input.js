@@ -14,6 +14,10 @@ const Keys = {
     ALT: 18,
 }
 
+// gamepad / joystick support in the browser
+// https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API
+//
+
 export class KeyboardInput {
     constructor(target) {
 
@@ -34,7 +38,7 @@ export class KeyboardInput {
             // keyboard is always wheel zero?
             let v = this.getDirectionVector(this.keysDown)
             this.target.setInputDirection(0, v)
-        } else {
+        } else if (kc > 0 ) {
 
             let match = 0;
             for (let i=0; i<this.buttons.length; i++) {
@@ -62,7 +66,7 @@ export class KeyboardInput {
             // keyboard is always wheel zero?
             let v = this.getDirectionVector(this.keysDown)
             this.target.setInputDirection(0, v)
-        } else {
+        } else if (kc > 0 ) {
 
             let match = 0;
             for (let i=0; i<this.buttons.length; i++) {
@@ -127,6 +131,33 @@ export class TouchInput {
         this.button_icons = []
 
         this.resize()
+    }
+
+    addWheel(x, y, radius, options) {
+
+        let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
+
+        this.wheels.push({
+            x, y, radius,
+            cx: x,
+            cy: gEngine.view.height + y,
+            alignment: alignment,
+            vector: {x:0, y:0},
+            pressed: false
+        })
+    }
+
+    addButton(x, y, radius, options) {
+
+        let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
+
+        this.buttons.push({
+            x, y, radius,
+            cx: gEngine.view.width + x,
+            cy: gEngine.view.height + y,
+            alignment: alignment,
+            pressed: false
+        })
     }
 
     handleMove(whlid, tx, ty) {
@@ -198,11 +229,11 @@ export class TouchInput {
             if (!btn.pressed && pressed === true) {
                 btn.pressed = 1
                 this.handleButtonPress(j)
-                console.log("press", j)
+                //console.log("press", j)
             } else if (btn.pressed && !pressed) {
                 btn.pressed = 0
                 this.handleButtonRelease(j)
-                console.log("release", j)
+                //console.log("release", j)
             }
 
         }
@@ -242,26 +273,34 @@ export class TouchInput {
         //  alignment, which edge of the screen to anchor to
         //  offset, relative to aligned edge
         //  cx,cy: screen dimensions + alignment + offset
-        let radius = (gEngine.view.height*.2) // 3 * 32
-        this.wheels = [
-            {
-                cx: radius,
-                cy: gEngine.view.height - radius,
-                radius: radius,
-                vector: {x:0, y:0},
-                pressed: false
-            },
-        ]
+        //let radius = (gEngine.view.height*.2) // 3 * 32
+        //this.wheels = [
+        //    {
+        //        cx: radius,
+        //        cy: gEngine.view.height - radius,
+        //        radius: radius,
+        //        vector: {x:0, y:0},
+        //        pressed: false
+        //    },
+        //]
+        for (let wheel of this.wheels) {
+            wheel.cx = gEngine.view.width + button.x
+            wheel.cy = gEngine.view.height + button.y
+        }
 
-        radius = 40
-        this.buttons = [
-            {cx: gEngine.view.width - radius,
-             cy: gEngine.view.height - 3*radius,
-             radius: radius, pressed: 0},
-            {cx: gEngine.view.width - 3*radius,
-            cy: gEngine.view.height - radius,
-            radius: radius, pressed: 0},
-        ]
+        //radius = 40
+        //this.buttons = [
+        //    {cx: gEngine.view.width - radius,
+        //     cy: gEngine.view.height - 3*radius,
+        //     radius: radius, pressed: 0},
+        //    {cx: gEngine.view.width - 3*radius,
+        //    cy: gEngine.view.height - radius,
+        //    radius: radius, pressed: 0},
+        //]
+        for (let button of this.buttons) {
+            button.cx = gEngine.view.width + button.x
+            button.cy = gEngine.view.height + button.y
+        }
     }
 
     paint(ctx) {
