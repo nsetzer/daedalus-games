@@ -1,16 +1,62 @@
 
+$import("daedalus", {})
+
 $import("engine", {
     ApplicationBase, Rect, Entity,
     GameScene, CameraBase,
     TextWidget, TextInputWidget,
     Alignment, Direction,
     AnimationComponent, CharacterComponent,
-    TouchInput, KeyboardInput
+    TouchInput, KeyboardInput, RealTimeClient
 })
 
 $import("scenes", {global, ResourceLoaderScene})
 
+class DummyClient {
+    send(obj) {
+
+    }
+}
+
+class DemoRealTimeClient extends RealTimeClient {
+
+    constructor(callback) {
+        super();
+        this.callback = callback
+        this.dcInterval = null
+    }
+
+    onClose() {
+        console.log("rtc closed")
+    }
+
+    onOpen() {
+        console.log("rtc opened")
+    }
+
+    onMessage(evt) {
+        const obj = JSON.parse(evt.data)
+        this.callback(obj)
+    }
+}
+
 // todo: parallax background
+
+/*
+
+https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
+
+g = negative
+position = 0.5*g*t*t + v'*t
+speed = g*t + v'
+
+initial velocity = sqrt(2*H*g)
+283.3400783510868
+
+gravity = H/(2t*t)
+jumpspeed = - sqrt(2*H*g)
+
+*/
 
 class Camera extends CameraBase {
     constructor(map, target) {
@@ -124,26 +170,47 @@ class Controller {
         this.direction = 0
         this.remotedelay = 0.1
         this.inputqueue = []
+
+        this.remotetimer = 0
+        this.remotetimeout = 0.1
     }
 
     setInputDirection(whlid, vector) {
-        this.inputqueue.push({t: this.remotedelay, whlid: whlid, vector: vector})
+        let message = {type: "input", t0: performance.now(), t: this.remotedelay, whlid: whlid, vector: vector}
+        this.inputqueue.push(message)
+        this.scene.client.send(message)
     }
 
     handleButtonPress(btnid) {
         // TODO: debounce keyboard input: require a release before another press
         if (btnid === 0 || btnid === 1) {
-            this.inputqueue.push({t: this.remotedelay, btnid: btnid, pressed: true})
+            let message = {type: "input", t0: performance.now(), t: this.remotedelay, btnid: btnid, pressed: true}
+            this.inputqueue.push(message)
+            this.scene.client.send(message)
         }
     }
 
     handleButtonRelease(btnid) {
         if (btnid === 0 || btnid === 1) {
-            this.inputqueue.push({t: this.remotedelay, btnid: btnid, pressed: false})
+            let message = {type: "input", t0: performance.now(), t: this.remotedelay, btnid: btnid, pressed: false}
+            this.inputqueue.push(message)
+            this.scene.client.send(message)
         }
     }
 
     update(dt) {
+
+        this.remotetimer += dt
+        if (this.remotetimer > this.remotetimeout) {
+            this.remotetimer -= this.remotetimeout
+            let message = {
+                "type": "update",
+                t0: performance.now(),
+                x: this.target.rect.x,
+                y: this.target.rect.y,
+            }
+            this.scene.client.send(message)
+        }
 
         let slice = 0
         for (let input of this.inputqueue) {
@@ -195,21 +262,91 @@ class Controller {
     }
 }
 
-/*
+class RemoteController {
+    constructor() {
 
-https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
+        this.queue = []
 
-g = negative
-position = 0.5*g*t*t + v'*t
-speed = g*t + v'
+        this.first_received = false
+        this.previous_state = null
+        this.previous_clock = 0
 
-initial velocity = sqrt(2*H*g)
-283.3400783510868
+        this.position = {x:0, y:0}
+        this.input_clock = 0
+        this.input_delay = 0.1
+    }
 
-gravity = H/(2t*t)
-jumpspeed = - sqrt(2*H*g)
+    receiveState(state) {
+        //
+        //this.position.x = state.x
+        //this.position.y = state.y
 
-*/
+        state.t0 /= 1000
+
+        if (!this.first_received) {
+            this.input_clock = state.t0
+            this.first_received =  true
+        }
+
+        let t =  this.input_clock - this.input_delay
+
+        if (state.t0 >= t) {
+            this.queue.push(state)
+        } else {
+            console.log("drop", state)
+            // TODO
+        }
+
+    }
+
+    update(dt) {
+
+        this.input_clock += dt
+
+        if (this.queue.length > 0) {
+
+            let t = this.queue[0].t0
+            let c = this.input_clock - this.input_delay
+            if (t < c) {
+
+                let state = this.queue.shift()
+
+                this.position.x = state.x
+                this.position.y = state.y
+
+                this.previous_state = state
+                this.previous_clock = state.t0
+                //console.log(1, t, c, this.position, state)
+
+            } else if (this.previous_state != null) {
+                let t0 = this.previous_clock
+                let p = (c - t0) / (t - t0)
+
+                let x1 = this.previous_state.x
+                let y1 = this.previous_state.y
+                let x2 = this.queue[0].x
+                let y2 = this.queue[0].y
+
+                this.position.x = x1 + p * (x2 - x1)
+                this.position.y = y1 + p * (y2 - y1)
+                //console.log(2, p, this.position)
+
+            }
+        }
+
+
+
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#FFFF007f"
+        ctx.rect(this.position.x, this.position.y, 16, 16)
+        ctx.fill()
+    }
+}
+
 class Physics2d {
 
     constructor(target) {
@@ -643,6 +780,21 @@ class DemoScene extends GameScene {
 
         this.map = {width: mapw, height: maph}
         this.buildMap()
+
+        console.log("environment",daedalus.env)
+
+        if (daedalus.env.debug) {
+            this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
+            this.client.connect("/rtc/offer", {})
+        } else {
+            this.client = new DummyClient()
+        }
+
+        this.ghost = new RemoteController()
+        this.messages = []
+
+        this.latency = 0
+        this.message_count = 0
     }
 
     buildMap() {
@@ -703,6 +855,10 @@ class DemoScene extends GameScene {
         this.camera = new Camera(this.map, this.player)
     }
 
+    handleMessage(message) {
+        this.messages.push(message)
+    }
+
     handleTouches(touches) {
         this.touch.handleTouches(touches)
     }
@@ -722,6 +878,18 @@ class DemoScene extends GameScene {
 
     update(dt) {
 
+        if (this.messages.length > 0) {
+            this.message_count = this.messages.length
+            for (let message of this.messages) {
+                //console.log("received", performance.now() - message.t0, message)
+                if (message.type == "update") {
+                    this.latency = Math.floor(performance.now() - message.t0)
+                    this.ghost.receiveState(message)
+                }
+            }
+            this.messages = []
+
+        }
         this.controller.update(dt)
         this.camera.update(dt)
 
@@ -729,6 +897,8 @@ class DemoScene extends GameScene {
             let ent = this.entities[i]
             ent.update(dt)
         }
+
+        this.ghost.update(dt)
 
     }
 
@@ -779,10 +949,12 @@ class DemoScene extends GameScene {
             ent.paint(ctx)
         }
 
+        this.ghost.paint(ctx)
+
         ctx.restore()
         this.touch.paint(ctx)
         ctx.fillStyle = "yellow"
-        ctx.fillText(`${this.player.physics.direction} ${this.player.physics.action}`, 32, 32)
+        ctx.fillText(`latency=${this.latency} ${this.message_count} action=${this.player.physics.action}`, 32, 32)
 
     }
 }

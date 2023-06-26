@@ -82,10 +82,12 @@ current direction
 */
 
 
-include "./primitives.js"
-include "./resource.js"
-include "./entity.js"
-include "./input.js"
-include "./widget.js"
-include "./canvas.js"
-include "./application.js"
+$include("./primitives.js")
+$include("./resource.js")
+$include("./entity.js")
+$include("./input.js")
+$include("./widget.js")
+$include("./websocket.js")
+$include("./webrtc.js")
+$include("./canvas.js")
+$include("./application.js")

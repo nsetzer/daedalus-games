@@ -15,7 +15,8 @@ chat:
 	python -m src.chat.server --paths=./src --env debug=true ./src/chat/chat.js
 
 jumpwar:
-	python -m src.jumpwar.server --paths=./src --static src/maze/static --env debug=true ./src/jumpwar/app.js
+	python -m src.jumpwar.rtserver
+	#--paths=./src --static src/maze/static --env debug=true ./src/jumpwar/app.js
 
 build:
 	mkdir -p build

@@ -26,6 +26,7 @@ export class KeyboardInput {
 
         this.buttons = [Keys.CTRL, Keys.SPACE]
         this.pressed = {}
+        this.last_vector = {x:null, y:null}
 
     }
 
@@ -37,7 +38,10 @@ export class KeyboardInput {
             }
             // keyboard is always wheel zero?
             let v = this.getDirectionVector(this.keysDown)
-            this.target.setInputDirection(0, v)
+            if (this.last_vector.x !=v.x || this.last_vector.y != v.y) {
+                this.last_vector = v
+                this.target.setInputDirection(0, v)
+            }
         } else if (kc > 0 ) {
 
             let match = 0;
@@ -66,6 +70,7 @@ export class KeyboardInput {
             // keyboard is always wheel zero?
             let v = this.getDirectionVector(this.keysDown)
             this.target.setInputDirection(0, v)
+            this.last_vector = {x:null, y:null}
         } else if (kc > 0 ) {
 
             let match = 0;

@@ -178,6 +178,11 @@ class Ball extends Agent {
 
     move_xy(dt) {
 
+        // TODO: two issues
+        //  1. the "ideal previous position" should be replaced
+        //      either current position, or real last position
+        //  2. when there are multiple hits, use the closest tangent point
+
         let currx = this.x
         let curry = this.y
         let stepx = this.x + this.dx * dt
@@ -229,52 +234,11 @@ class Ball extends Agent {
                             point: result.point,
                         })
 
-                    } else {
-                        continue
                     }
-
-
-
-                    this.dy = -this.dy
-                    break
                 }
             }
         }
 
-        // check hits
-        /*
-                    if (agent instanceof Paddle) {
-                        if (agent.y > this.y) {
-                            let pr = (this.x - agent.x) / agent.width
-                            pr += 0.5
-                            pr = Math.max(0.0, Math.min(1.0, pr))
-
-                            let v1,v2,dx3,dy3;
-                            v1 = {x: this.dx, y:this.dy}
-                            if (pr < 0.3) {
-                                pr = 1.0 - (pr / 0.3)
-                                v2 = {x: -this.basespeed, y:this.basespeed}
-                                console.log("y hit paddle <", pr)
-
-                                dx3 = pr*v2.x + (1-pr)*v1.x
-                                dy3 = pr*v2.y + (1-pr)*v1.y
-                                dy = dy3*dt
-                                this.dx = dx3
-                            } else if (pr > 0.7) {
-                                pr = (pr - 0.7) / 0.3
-                                v2 = {x: this.basespeed, y:this.basespeed}
-                                console.log("y hit paddle >", pr)
-
-                                dx3 = pr*v2.x + (1-pr)*v1.x
-                                dy3 = pr*v2.y + (1-pr)*v1.y
-                                dy = dy3*dt
-                                this.dx = dx3
-                            }
-
-
-                        }
-                    }
-        */
         let bounced = false
 
         if (hits.length > 0) {
@@ -282,6 +246,9 @@ class Ball extends Agent {
             if (hits.length > 1) {
                 throw hits
             }
+
+            this.dy = -this.dy
+
             this.hit = hits[0]
             if (this.last_hit_object === this.hit.agent &&
                 this.last_hit_object === gEngine.scene.paddle) {

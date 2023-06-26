@@ -33,46 +33,21 @@ class WebSocketResource(Resource):
     def __init__(self):
         super().__init__()
         self.connections = {}
+
     @websocket("/ws")
     def socket(self, request, opcode, payload):
 
         if opcode == WebSocketOpCodes.Open:
-            print("socket open")
-
-            username = "user-%s" % request.uid
-            request.send(json.dumps({
-                "type": "setusername",
-                "username": username
-            }))
-
-            for client in self.connections.values():
-                client.send(json.dumps({
-                    "type": "message",
-                    "message": "%s joined the chat" % username,
-                    "username": "system"
-                }))
             self.connections[request.uid] = request
-
         elif opcode == WebSocketOpCodes.Close:
-
-            username = "user-%s" % request.uid
             del self.connections[request.uid]
-            for client in self.connections.values():
-                client.send(json.dumps({
-                    "type": "message",
-                    "message": "%s left the chat" % username,
-                    "username": "system"
-                }))
-
-
         else:
             obj = json.loads(payload)
+            if obj['type'] != "keepalive":
+                request.send(json.dumps(obj))
+            else:
+                request.send(json.dumps({"type": "keepalive"})) # ack
 
-            # TODO: fill in username based on request.uid
-            #       dont trust the user
-            if obj['type'] == "message":
-                for client in self.connections.values():
-                    client.send(payload)
 
 class DevSiteResource(Resource):
 
@@ -95,7 +70,7 @@ class DevSiteResource(Resource):
     @get("/static/index.js")
     def get_source(self, request):
         #path = path_join_safe(self.static, "index.js")
-        response = Response(self.source)
+        respons{} = Response(self.source)
         response.headers['Content-Type'] = 'application/javascript'
         return response
 
@@ -157,7 +132,7 @@ def main_server():
     index_js = "./src/jumpwar/app.js"
     # TODO: auto add the project directory to the  search path
     search_path = ["./src", "./src/jumpwar"]
-    static_data = {"env": {"debug": True}}
+    static_data = {"daedalus": {"env": {"debug": True}}}
     static_path = "./src/jumpwar/static"
 
     server = HTTPServer(("0.0.0.0", 4100))
