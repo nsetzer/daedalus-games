@@ -133,9 +133,12 @@ class Camera extends CameraBase {
         // force camera to center player
         //x = Math.floor(this.target.rect.cx() - gEngine.view.width/2)
         //y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
-        if (x < 0) { x = 0 }
+        // allow the camera to display outside of the map
+        // so that the character is never under the inputs
+        let input_border = 128
+        if (x < -input_border) { x = -input_border}
         //if (y < -32) { y = -32 }
-        let mx = this.map.width - gEngine.view.width
+        let mx = this.map.width - gEngine.view.width + input_border
         let my = this.map.height - gEngine.view.height
         if (x > mx) { x = mx }
         if (y > my) { y = my }
@@ -163,36 +166,102 @@ class Camera extends CameraBase {
     }
 }
 
+function apply_input(input, physics) {
+
+    if (input.btnid !== undefined) {
+        if (input.pressed) {
+
+            if (physics.standing) {
+
+                physics.yspeed = physics.jumpspeed
+                physics.jumptime = performance.now()
+                physics.gravityboost = false
+                physics.doublejump = true
+
+            } else if (physics.pressing && !physics.standing) {
+                physics.yspeed = physics.jumpspeed
+                physics.jumptime = performance.now()
+                physics.gravityboost = false
+
+                let v = Direction.vector(physics.direction)
+                physics.xspeed = - v.x * physics.xjumpspeed
+            } else if (!physics.standing && physics.doublejump && physics.yspeed > 0) {
+                // double jump at half the height of a normal jump
+                physics.yspeed = (physics.jumpspeed) / Math.sqrt(2)
+                physics.jumptime = performance.now()
+                physics.gravityboost = false
+                physics.doublejump = false
+            }
+        } else {
+            physics.gravityboost = true
+        }
+    }
+    else if (input.whlid !== undefined) {
+        let direction = Direction.fromVector(input.vector.x, input.vector.y)
+        physics.direction = direction&Direction.LEFTRIGHT
+        // TODO: maybe facing should only change when physics.update is run?
+        if (direction != 0) {
+            physics.facing = direction
+        }
+    }
+}
+
 class Controller {
     constructor(scene, target) {
         this.scene = scene
         this.target = target
-        this.direction = 0
+        //this.direction = 0
         this.remotedelay = 0.1
         this.inputqueue = []
 
         this.remotetimer = 0
         this.remotetimeout = 0.1
+
+        this.keepalivetimer = 0
+        this.keepalivetimeout = 1.0
     }
 
     setInputDirection(whlid, vector) {
-        let message = {type: "input", t0: performance.now(), t: this.remotedelay, whlid: whlid, vector: vector}
+        let message = {
+            type: "input",
+            t0: performance.now()/1000,
+            t: this.remotedelay,
+            x: this.target.rect.x,
+            y: this.target.rect.y,
+            whlid: whlid,
+            vector: vector
+        }
         this.inputqueue.push(message)
         this.scene.client.send(message)
     }
 
     handleButtonPress(btnid) {
-        // TODO: debounce keyboard input: require a release before another press
-        if (btnid === 0 || btnid === 1) {
-            let message = {type: "input", t0: performance.now(), t: this.remotedelay, btnid: btnid, pressed: true}
+        if (btnid === 0) {
+            let message = {
+                type: "input",
+                t0: performance.now()/1000,
+                t: this.remotedelay,
+                x: this.target.rect.x,
+                y: this.target.rect.y,
+                btnid: btnid,
+                pressed: true
+            }
             this.inputqueue.push(message)
             this.scene.client.send(message)
         }
     }
 
     handleButtonRelease(btnid) {
-        if (btnid === 0 || btnid === 1) {
-            let message = {type: "input", t0: performance.now(), t: this.remotedelay, btnid: btnid, pressed: false}
+        if (btnid === 0) {
+            let message = {
+                type: "input",
+                t0: performance.now()/1000,
+                t: this.remotedelay,
+                x: this.target.rect.x,
+                y: this.target.rect.y,
+                btnid: btnid,
+                pressed: false
+            }
             this.inputqueue.push(message)
             this.scene.client.send(message)
         }
@@ -204,10 +273,20 @@ class Controller {
         if (this.remotetimer > this.remotetimeout) {
             this.remotetimer -= this.remotetimeout
             let message = {
-                "type": "update",
-                t0: performance.now(),
+                type: "update",
+                t0: performance.now()/1000,
                 x: this.target.rect.x,
                 y: this.target.rect.y,
+            }
+            this.scene.client.send(message)
+        }
+
+        this.keepalivetimer += dt
+        if (this.keepalivetimer > this.keepalivetimeout) {
+            this.keepalivetimer -= this.keepalivetimeout
+            let message = {
+                "type": "keepalive",
+                t0: performance.now(),
             }
             this.scene.client.send(message)
         }
@@ -216,37 +295,7 @@ class Controller {
         for (let input of this.inputqueue) {
             input.t -= dt
             if (input.t < 0) {
-                if (input.btnid !== undefined) {
-                    if (input.pressed) {
-
-                        if (this.target.physics.standing) {
-
-                            this.target.physics.yspeed = this.target.physics.jumpspeed
-                            this.target.physics.jumptime = performance.now()
-                            this.target.physics.gravityboost = false
-                            this.target.physics.doublejump = true
-
-                        } else if (this.target.physics.pressing && !this.target.physics.standing) {
-                            this.target.physics.yspeed = this.target.physics.jumpspeed
-                            this.target.physics.jumptime = performance.now()
-                            this.target.physics.gravityboost = false
-
-                            let v = Direction.vector(this.target.physics.direction)
-                            this.target.physics.xspeed = - v.x * this.target.physics.xjumpspeed
-                        } else if (!this.target.physics.standing && this.target.physics.doublejump && this.target.physics.yspeed > 0) {
-                            // double jump at half the height of a normal jump
-                            this.target.physics.yspeed = (this.target.physics.jumpspeed) / Math.sqrt(2)
-                            this.target.physics.jumptime = performance.now()
-                            this.target.physics.gravityboost = false
-                            this.target.physics.doublejump = false
-                        }
-                    } else {
-                        this.target.physics.gravityboost = true
-                    }
-                } else if (input.whlid !== undefined) {
-                    this.direction = Direction.fromVector(input.vector.x, input.vector.y)
-                    this.target.setDirection(this.direction)
-                }
+                apply_input(input, this.target.physics)
                 slice += 1
             }
         }
@@ -281,7 +330,7 @@ class RemoteController {
         //this.position.x = state.x
         //this.position.y = state.y
 
-        state.t0 /= 1000
+        // state.t0 /= 1000
 
         if (!this.first_received) {
             this.input_clock = state.t0
@@ -292,9 +341,12 @@ class RemoteController {
 
         if (state.t0 >= t) {
             this.queue.push(state)
+            this.queue.sort((a,b) => {
+                a.t0 - b.t0
+            })
         } else {
             console.log("drop", state)
-            // TODO
+            self.input_clock += (t - state.t0)/4
         }
 
     }
@@ -347,12 +399,118 @@ class RemoteController {
     }
 }
 
+class RemoteController2 {
+    constructor() {
+
+        this.queue = []
+
+        this.rect = new Rect(0,0,16,16)
+        this.error = {x:0, y:0}
+        this.physics = new Physics2d(this)
+
+        this.first_received = false
+        this.previous_state = null
+        this.previous_clock = 0
+
+        this.input_clock = 0
+        this.input_delay = 0.1
+    }
+
+    receiveState(state) {
+        //
+        //this.position.x = state.x
+        //this.position.y = state.y
+
+        // state.t0 /= 1000
+
+        if (!this.first_received) {
+            this.input_clock = state.t0
+            this.first_received =  true
+        }
+
+        let t =  this.input_clock - this.input_delay
+
+        if (state.t0 >= t) {
+            this.queue.push(state)
+            this.queue.sort((a,b) => {
+                a.t0 - b.t0
+            })
+        } else {
+            console.log("drop", t, state)
+            // this.input_clock += (t - state.t0)/4
+        }
+
+    }
+
+    update(dt) {
+
+        this.input_clock += dt
+
+        if (this.queue.length > 0) {
+
+            let t = this.queue[0].t0
+            let c = this.input_clock - this.input_delay
+            if (t < c) {
+
+                // consider: not applying an input if the error is too high
+                //           instead wait 1-2 frames to reconcile the error.
+
+                let state = this.queue[0]
+
+
+                if (state.type === "update") {
+
+                    this.error.x = this.rect.x - state.x
+                    this.error.y = this.rect.y - state.y
+                    this.queue.shift()
+                } else {
+                    //this.rect.x = state.x
+                    //this.rect.y = state.y
+
+                    //if (Math.floor(this.error.x) < 8 && Math.floor(this.error.y) < 8) {
+                    apply_input(state, this.physics)
+                    this.queue.shift()
+                }
+
+            }
+        }
+
+        // let dd = 2
+        // let dx = Math.abs(this.error.x)
+        // if (dx > 0) {
+        //     dx = - Math.sign(this.error.x) * Math.min(dd, dx)
+        //     this.error.x += dx
+        //     this.rect.x += dx
+        //     //console.log("apply error dx", dx)
+        // }
+        // let dy = Math.abs(this.error.y)
+        // if (dy > 0) {
+        //     dy = - Math.sign(this.error.y) * Math.min(dd, dy)
+        //     this.error.y += dy
+        //     this.rect.y += dy
+        //     //console.log("apply error dy", dy)
+        // }
+
+        this.physics.update(dt)
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#00FF007f"
+        ctx.rect(this.rect.x, this.rect.y, 16, 16)
+        ctx.fill()
+    }
+
+}
+
 class Physics2d {
 
     constructor(target) {
         this.target = target
 
         this.direction = 0
+        this.facing = Direction.RIGHT
 
         this.xspeed = 0
         this.yspeed = 0
@@ -517,8 +675,6 @@ class Physics2d {
             this.pressing = false
         }
 
-
-
         // move y
         rect = new Rect(
             this.target.rect.x,
@@ -673,8 +829,9 @@ class Character extends Entity {
 
     constructor() {
         super()
-        this.action = "idle"
-        this.facing = Direction.RIGHT
+        this.current_action = "idle"
+        this.current_facing = Direction.RIGHT
+
 
         this.rect.w = 16
         this.rect.h = 16
@@ -731,27 +888,36 @@ class Character extends Entity {
             this.animations[animation_name][direction] = aid
         }
 
-        this.animation.setAnimationById(this.animations.idle[this.facing])
+        this.animation.setAnimationById(this.animations.idle[this.physics.facing])
     }
 
-    setDirection(direction) {
+    //setDirection(direction) {
 
-        this.physics.direction = direction&Direction.LEFTRIGHT
+        //this.physics.direction = direction&Direction.LEFTRIGHT
 
-        if (direction&Direction.LEFTRIGHT) {
-            this.facing = direction&Direction.LEFTRIGHT
-            this.animation.setAnimationById(this.animations[this.action][this.facing])
-        }
-    }
+        //if (direction&Direction.LEFTRIGHT) {
+        //    this.physics.facing = direction&Direction.LEFTRIGHT
+        //    this.animation.setAnimationById(this.animations[this.current_action][this.physics.facing])
+        //}
+    //}
 
     update(dt) {
 
 
         this.physics.update(dt)
-        if (this.physics.action != this.action) {
-            this.action = this.physics.action
-            this.animation.setAnimationById(this.animations[this.action][this.facing])
+
+        if (this.physics.facing != this.current_facing) {
+            this.current_facing = this.physics.facing
+            let aid = this.animations[this.current_action][this.current_facing]
+            this.animation.setAnimationById(aid)
         }
+
+        if (this.physics.action != this.current_action) {
+            this.current_action = this.physics.action
+            let aid = this.animations[this.current_action][this.current_facing]
+            this.animation.setAnimationById(aid)
+        }
+
         this.animation.update(dt)
         this.character.update(dt)
 
@@ -790,7 +956,7 @@ class DemoScene extends GameScene {
             this.client = new DummyClient()
         }
 
-        this.ghost = new RemoteController()
+
         this.messages = []
 
         this.latency = 0
@@ -841,6 +1007,15 @@ class DemoScene extends GameScene {
         ent.rect.y = 128
         ent.physics.group = this.walls
 
+        this.ghost = new RemoteController()
+        this.ghost.position.x = 304
+        this.ghost.position.y = 128
+        this.ghost2 = new RemoteController2()
+        this.ghost2.rect.x = 304
+        this.ghost2.rect.y = 128
+        this.ghost2.physics.group = this.walls
+
+
         this.player = ent
 
         this.entities.push(ent)
@@ -882,9 +1057,14 @@ class DemoScene extends GameScene {
             this.message_count = this.messages.length
             for (let message of this.messages) {
                 //console.log("received", performance.now() - message.t0, message)
-                if (message.type == "update") {
+                if (message.type == "keepalive") {
                     this.latency = Math.floor(performance.now() - message.t0)
+                }
+                if (message.type == "update") {
                     this.ghost.receiveState(message)
+                }
+                if (message.type === "input" || message.type === "update") {
+                    this.ghost2.receiveState(message)
                 }
             }
             this.messages = []
@@ -899,6 +1079,7 @@ class DemoScene extends GameScene {
         }
 
         this.ghost.update(dt)
+        this.ghost2.update(dt)
 
     }
 
@@ -908,7 +1089,6 @@ class DemoScene extends GameScene {
         ctx.beginPath()
         ctx.rect(0,0,gEngine.view.width, gEngine.view.height)
         ctx.stroke()
-
 
         ctx.save()
 
@@ -925,7 +1105,6 @@ class DemoScene extends GameScene {
             let bw = 168
             ctx.fillRect(  (this.camera.x + bo*(i+1))/5 , this.map.height - bh, bw, bh)
         }
-
 
         ctx.strokeStyle = "#FFFFFF1f"
         ctx.beginPath()
@@ -950,11 +1129,16 @@ class DemoScene extends GameScene {
         }
 
         this.ghost.paint(ctx)
+        this.ghost2.paint(ctx)
 
         ctx.restore()
         this.touch.paint(ctx)
+        ctx.font = "bold 12pt Courier";
         ctx.fillStyle = "yellow"
-        ctx.fillText(`latency=${this.latency} ${this.message_count} action=${this.player.physics.action}`, 32, 32)
+        ctx.fillText(`latency=${this.latency}`, 32, 32)
+        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 48)
+        ctx.fillStyle = "#00FF00"
+        ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 64)
 
     }
 }

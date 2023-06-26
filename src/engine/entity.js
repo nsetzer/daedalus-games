@@ -177,10 +177,15 @@ export class AnimationComponent {
 
     setAnimationById(aid) {
         if (aid != this.aid) {
-            this.timer = 0
-            this.frame_index = 0
-            this.animation = this.animations[aid]
-            this.aid = aid
+
+            if (aid === undefined || this.animations[aid] === undefined) {
+                console.error("invalid aid")
+            } else {
+                this.timer = 0
+                this.frame_index = 0
+                this.animation = this.animations[aid]
+                this.aid = aid
+            }
         }
         this.paused = 0
     }
