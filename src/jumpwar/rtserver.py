@@ -194,15 +194,21 @@ class Context():
         #        peer.send(json.dumps(message))
 
 async def main_loop(ctxt):
+
+    #queue = [[] for i in range(12)]
+    #idx = 0
+    #while True:
+    #    for peer_id, message in queue[idx%len(queue)]:
+    #        ctxt.onMessage(peer_id, message)
+    #    queue[idx%len(queue)] = messages[:]
+    #    messages.clear()
+    #    idx += 1
+    #    await asyncio.sleep(1/60)
+
     while True:
-
-        while len(messages):
-
-            peer_id, message = messages.pop(0)
+        for peer_id, message in messages:
             ctxt.onMessage(peer_id, message)
-
-
-
+        messages.clear()
         await asyncio.sleep(1/60)
 
 def main():

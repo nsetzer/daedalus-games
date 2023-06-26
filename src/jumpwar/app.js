@@ -16,6 +16,10 @@ class DummyClient {
     send(obj) {
 
     }
+
+    connected() {
+        return true
+    }
 }
 
 class DemoRealTimeClient extends RealTimeClient {
@@ -39,6 +43,9 @@ class DemoRealTimeClient extends RealTimeClient {
         this.callback(obj)
     }
 }
+
+// TODO: wall jump should check to see if !standing && pressing in the last 6 frames
+//       require pressing in the opposite direction of the wall
 
 // todo: parallax background
 
@@ -197,11 +204,10 @@ function apply_input(input, physics) {
         }
     }
     else if (input.whlid !== undefined) {
-        let direction = Direction.fromVector(input.vector.x, input.vector.y)
-        physics.direction = direction&Direction.LEFTRIGHT
+        physics.direction = input.direction
         // TODO: maybe facing should only change when physics.update is run?
-        if (direction != 0) {
-            physics.facing = direction
+        if (physics.direction != 0) {
+            physics.facing = physics.direction
         }
     }
 }
@@ -210,44 +216,71 @@ class Controller {
     constructor(scene, target) {
         this.scene = scene
         this.target = target
-        //this.direction = 0
-        this.remotedelay = 0.1
+        this.remotedelay = 6
+
+        this.inputqueue_capacity = 60
         this.inputqueue = []
+        for (let i=0; i < this.inputqueue_capacity; i++) {
+            this.inputqueue.push([])
+        }
 
         this.remotetimer = 0
         this.remotetimeout = 0.1
 
         this.keepalivetimer = 0
         this.keepalivetimeout = 1.0
+
+        this.frame_id = 0
+        this.input_id = 0
+
+        this.last_direction = 0
+    }
+
+    send(message) {
+        message.t0 = performance.now()/1000
+        message.frame = this.frame_id
+        message.uid = this.input_id
+
+        this.input_id += 1
+
+        this.scene.client.send(message)
     }
 
     setInputDirection(whlid, vector) {
-        let message = {
-            type: "input",
-            t0: performance.now()/1000,
-            t: this.remotedelay,
-            x: this.target.rect.x,
-            y: this.target.rect.y,
-            whlid: whlid,
-            vector: vector
+
+        // de-bounce touch input
+        let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
+        if (direction != this.last_direction) {
+            let message = {
+                type: "input",
+                t: this.remotedelay,
+                x: this.target.rect.x,
+                y: this.target.rect.y,
+                whlid: whlid,
+                direction: direction
+            }
+
+            this.send(message)
+            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            this.inputqueue[idx].push(message)
+            this.last_direction = direction
         }
-        this.inputqueue.push(message)
-        this.scene.client.send(message)
+
     }
 
     handleButtonPress(btnid) {
         if (btnid === 0) {
             let message = {
                 type: "input",
-                t0: performance.now()/1000,
                 t: this.remotedelay,
                 x: this.target.rect.x,
                 y: this.target.rect.y,
                 btnid: btnid,
                 pressed: true
             }
-            this.inputqueue.push(message)
-            this.scene.client.send(message)
+            this.send(message)
+            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            this.inputqueue[idx].push(message)
         }
     }
 
@@ -255,30 +288,31 @@ class Controller {
         if (btnid === 0) {
             let message = {
                 type: "input",
-                t0: performance.now()/1000,
                 t: this.remotedelay,
                 x: this.target.rect.x,
                 y: this.target.rect.y,
                 btnid: btnid,
                 pressed: false
             }
-            this.inputqueue.push(message)
-            this.scene.client.send(message)
+            this.send(message)
+            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            this.inputqueue[idx].push(message)
         }
     }
 
     update(dt) {
+
+        this.frame_id += 1
 
         this.remotetimer += dt
         if (this.remotetimer > this.remotetimeout) {
             this.remotetimer -= this.remotetimeout
             let message = {
                 type: "update",
-                t0: performance.now()/1000,
                 x: this.target.rect.x,
                 y: this.target.rect.y,
             }
-            this.scene.client.send(message)
+            this.send(message)
         }
 
         this.keepalivetimer += dt
@@ -291,17 +325,25 @@ class Controller {
             this.scene.client.send(message)
         }
 
-        let slice = 0
-        for (let input of this.inputqueue) {
-            input.t -= dt
-            if (input.t < 0) {
+        let idx = (this.frame_id)%this.inputqueue_capacity
+        if (this.inputqueue[idx].length > 0){
+            for (let input of this.inputqueue[idx]) {
                 apply_input(input, this.target.physics)
-                slice += 1
             }
+            this.inputqueue[idx] = []
         }
-        if (slice > 0) {
-            this.inputqueue = this.inputqueue.slice(slice)
-        }
+
+        //let slice = 0
+        //for (let input of this.inputqueue) {
+        //    input.t -= dt
+        //    if (input.t < 0) {
+        //        apply_input(input, this.target.physics)
+        //        slice += 1
+        //    }
+        //}
+        //if (slice > 0) {
+        //    this.inputqueue = this.inputqueue.slice(slice)
+        //}
 
         // let speed = 128;
         // let v = Direction.vector(this.direction)
@@ -402,7 +444,14 @@ class RemoteController {
 class RemoteController2 {
     constructor() {
 
-        this.queue = []
+        //this.queue = []
+
+        // capacity allows for +/- 2 seconds of inputs to be queued or cached
+        this.inputqueue_capacity = 120
+        this.inputqueue = []
+        for (let i=0; i < this.inputqueue_capacity; i++) {
+            this.inputqueue.push({})
+        }
 
         this.rect = new Rect(0,0,16,16)
         this.error = {x:0, y:0}
@@ -413,57 +462,109 @@ class RemoteController2 {
         this.previous_clock = 0
 
         this.input_clock = 0
-        this.input_delay = 0.1
+        // double the input delay from 6 to 12
+        // the simulation now runs 6 frames behind real time
+        // the update ghost runs 6 frames behind
+
+        this.input_delay = 12
     }
 
     receiveState(state) {
-        //
-        //this.position.x = state.x
-        //this.position.y = state.y
-
-        // state.t0 /= 1000
 
         if (!this.first_received) {
-            this.input_clock = state.t0
+            this.input_clock = state.frame
             this.first_received =  true
         }
 
-        let t =  this.input_clock - this.input_delay
-
-        if (state.t0 >= t) {
-            this.queue.push(state)
-            this.queue.sort((a,b) => {
-                a.t0 - b.t0
-            })
-        } else {
-            console.log("drop", t, state)
-            // this.input_clock += (t - state.t0)/4
+        // TODO: check for rounding errors and modulous index
+        let delta = this.inputqueue_capacity/2
+        if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
+            console.log("drop stale state", this.input_clock, state.frame, state)
+            return
         }
+
+        //if (state.type == "update") {
+        //    return
+        //}
+
+        let idx = (state.frame) % this.inputqueue_capacity
+        if (this.inputqueue[idx][state.uid] === undefined) {
+            this.inputqueue[idx][state.uid] = state
+
+        } else {
+            // duplicate ignored
+        }
+
+        //let t =  this.input_clock - this.input_delay
+        //if (state.frame >= t) {
+        //    this.queue.push(state)
+        //    this.queue.sort((a,b) => {
+        //        a.frame - b.frame
+        //    })
+        //} else {
+        //    console.log("drop", t, state)
+        //    // this.input_clock += (t - state.frame)/4
+        //}
 
     }
 
     update(dt) {
 
-        this.input_clock += dt
+        this.input_clock += 1
 
-        if (this.queue.length > 0) {
 
-            let t = this.queue[0].t0
+        let idx;
+        idx = (this.input_clock - 60) % this.inputqueue_capacity
+        if (idx < 0) {
+            idx += this.inputqueue_capacity
+        }
+        this.inputqueue[idx] = {}
+
+        idx = (this.input_clock - this.input_delay) % this.inputqueue_capacity
+        if (idx < 0) {
+            idx += this.inputqueue_capacity
+        }
+
+        if (Object.keys(this.inputqueue[idx]).length > 0) {
+
+            for (const key in this.inputqueue[idx]) {
+                const state = this.inputqueue[idx][key]
+
+                //if (state.type === "update") {
+                //}
+                if (state.type === "input") {
+                    apply_input(state, this.physics)
+                    state.applied = true
+                }
+
+            }
+
+
+        }
+
+
+
+        if (false && this.queue.length > 0) {
+
+            let t = this.queue[0].frame
             let c = this.input_clock - this.input_delay
             if (t < c) {
 
                 // consider: not applying an input if the error is too high
                 //           instead wait 1-2 frames to reconcile the error.
+                //           try to minimize error at the time the input is applied
 
                 let state = this.queue[0]
 
 
                 if (state.type === "update") {
 
-                    this.error.x = this.rect.x - state.x
-                    this.error.y = this.rect.y - state.y
+                    //this.error.x = this.rect.x - state.x
+                    //this.error.y = this.rect.y - state.y
                     this.queue.shift()
                 } else {
+                    this.error.x = this.rect.x - state.x
+                    this.error.y = this.rect.y - state.y
                     //this.rect.x = state.x
                     //this.rect.y = state.y
 
@@ -475,21 +576,21 @@ class RemoteController2 {
             }
         }
 
-        // let dd = 2
-        // let dx = Math.abs(this.error.x)
-        // if (dx > 0) {
-        //     dx = - Math.sign(this.error.x) * Math.min(dd, dx)
-        //     this.error.x += dx
-        //     this.rect.x += dx
-        //     //console.log("apply error dx", dx)
-        // }
-        // let dy = Math.abs(this.error.y)
-        // if (dy > 0) {
-        //     dy = - Math.sign(this.error.y) * Math.min(dd, dy)
-        //     this.error.y += dy
-        //     this.rect.y += dy
-        //     //console.log("apply error dy", dy)
-        // }
+        //let dd = 2
+        //let dx = Math.abs(this.error.x)
+        //if (dx > 0) {
+        //    dx = - Math.sign(this.error.x) * Math.min(dd, dx)
+        //    this.error.x += dx
+        //    this.rect.x += dx
+        //    //console.log("apply error dx", dx)
+        //}
+        //let dy = Math.abs(this.error.y)
+        //if (dy > 0) {
+        //    dy = - Math.sign(this.error.y) * Math.min(dd, dy)
+        //    this.error.y += dy
+        //    this.rect.y += dy
+        //    //console.log("apply error dy", dy)
+        //}
 
         this.physics.update(dt)
     }
@@ -500,6 +601,8 @@ class RemoteController2 {
         ctx.fillStyle = "#00FF007f"
         ctx.rect(this.rect.x, this.rect.y, 16, 16)
         ctx.fill()
+
+
     }
 
 }
@@ -508,27 +611,18 @@ class Physics2d {
 
     constructor(target) {
         this.target = target
+        this.group = []
 
+        // state
         this.direction = 0
-        this.facing = Direction.RIGHT
-
         this.xspeed = 0
         this.yspeed = 0
 
-        this.ximpulse = 0
-        this.yimpulse = 0
 
-        // double_jump
-        // fall
-        // hit
-        // idle
-        // jump
-        // run
-        // wall_slide
-
+        // computed states
         this.action = "idle"
+        this.facing = Direction.RIGHT
 
-        this.group = []
 
         // properties that are updated on every update()
         this.xcollide = false
@@ -593,11 +687,6 @@ class Physics2d {
             }
         }
         return null
-    }
-
-    impulse(dx, dy) {
-        this.ximpulse = dx
-        this.yimpulse = dy
     }
 
     update(dt) {
@@ -1080,7 +1169,8 @@ class DemoScene extends GameScene {
 
         this.ghost.update(dt)
         this.ghost2.update(dt)
-
+        this.ghost2.error.x = this.ghost2.rect.x - this.ghost.position.x
+        this.ghost2.error.y = this.ghost2.rect.y - this.ghost.position.y
     }
 
     paint(ctx) {
@@ -1131,6 +1221,8 @@ class DemoScene extends GameScene {
         this.ghost.paint(ctx)
         this.ghost2.paint(ctx)
 
+
+
         ctx.restore()
         this.touch.paint(ctx)
         ctx.font = "bold 12pt Courier";
@@ -1139,6 +1231,53 @@ class DemoScene extends GameScene {
         ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 48)
         ctx.fillStyle = "#00FF00"
         ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 64)
+
+
+        ctx.save()
+        let bw = 4
+        let w = bw*this.ghost2.inputqueue_capacity
+        let h = 6
+        ctx.fillStyle = "#7f7f7f"
+        ctx.beginPath()
+        ctx.rect(0, 16, w, h)
+        ctx.fill()
+        // draw center marker
+        ctx.fillStyle = "#0000FF"
+        ctx.beginPath()
+        ctx.rect(w/2, 8, 2, 16)
+        ctx.fill()
+
+        console.log()
+        for (let i=-60; i<60; i++) {
+            let j = this.ghost2.input_clock + i - this.ghost2.input_delay
+            if (j < 0) {
+                j += this.ghost2.inputqueue_capacity
+            }
+            j = j % this.ghost2.inputqueue_capacity
+
+            if (Object.keys(this.ghost2.inputqueue[j]).length > 0) {
+                let x = i*bw + w/2
+                let y = 16
+                let k = 0;
+                for (const key in this.ghost2.inputqueue[j]) {
+                    let state = this.ghost2.inputqueue[j][key]
+                    ctx.beginPath()
+                    if (state.type == "update") {
+                        ctx.fillStyle = "#FFFF00"
+                        continue
+                    } else if (state.applied) {
+                        ctx.fillStyle = "#00FF00"
+                    } else {
+                        ctx.fillStyle = "#FF0000"
+                    }
+                    ctx.rect(x, y, bw, h)
+                    ctx.fill()
+                }
+
+            }
+        }
+        ctx.restore()
+
 
     }
 }

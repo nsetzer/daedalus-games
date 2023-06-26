@@ -106,7 +106,7 @@ export class RealTimeClient {
         // Unordered, 500ms lifetime</option>
         // {"ordered": false, "maxPacketLifetime": 500}
 
-        let parameters = {"ordered": true}
+        let parameters = {"ordered": false, "maxRetransmits": 0}
 
         this.dc = this.pc.createDataChannel('chat', parameters);
 
@@ -162,6 +162,10 @@ export class RealTimeClient {
         if (this._open) {
             this.dc.send(JSON.stringify(obj))
         }
+    }
+
+    connected() {
+        return this._open
     }
 }
 
