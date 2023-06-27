@@ -44,11 +44,6 @@ class DemoRealTimeClient extends RealTimeClient {
     }
 }
 
-// TODO: wall jump should check to see if !standing && pressing in the last 6 frames
-//       require pressing in the opposite direction of the wall
-
-// todo: parallax background
-
 /*
 
 https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
@@ -142,7 +137,7 @@ class Camera extends CameraBase {
         //y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
         // allow the camera to display outside of the map
         // so that the character is never under the inputs
-        let input_border = 128
+        let input_border = 192
         if (x < -input_border) { x = -input_border}
         //if (y < -32) { y = -32 }
         let mx = this.map.width - gEngine.view.width + input_border
@@ -178,23 +173,30 @@ function apply_input(input, physics) {
     if (input.btnid !== undefined) {
         if (input.pressed) {
 
-            if (physics.standing) {
+            // coyote time
+            let standing = physics.standing_frame >= (physics.frame_index - 6)
+            let pressing = physics.pressing_frame >= (physics.frame_index - 6)
+
+            if (standing) {
 
                 physics.yspeed = physics.jumpspeed
                 physics.jumptime = performance.now()
                 physics.gravityboost = false
                 physics.doublejump = true
 
-            } else if (physics.pressing && !physics.standing) {
-                physics.yspeed = physics.jumpspeed
+            } else if (pressing && !standing) {
+                //let v = Direction.vector(physics.direction)
+                //physics.xspeed = - v.x * physics.xjumpspeed
+                physics.xspeed = physics.pressing_direction * physics.xjumpspeed
+                physics.yspeed = physics.jumpspeed / Math.sqrt(2)
                 physics.jumptime = performance.now()
                 physics.gravityboost = false
+                console.log("wall jump", physics.xspeed)
 
-                let v = Direction.vector(physics.direction)
-                physics.xspeed = - v.x * physics.xjumpspeed
-            } else if (!physics.standing && physics.doublejump && physics.yspeed > 0) {
+            } else if (!standing && physics.doublejump && physics.yspeed > 0) {
+                console.log("double jump")
                 // double jump at half the height of a normal jump
-                physics.yspeed = (physics.jumpspeed) / Math.sqrt(2)
+                physics.yspeed = physics.jumpspeed / Math.sqrt(2)
                 physics.jumptime = performance.now()
                 physics.gravityboost = false
                 physics.doublejump = false
@@ -353,7 +355,7 @@ class Controller {
     }
 }
 
-class RemoteController {
+class RemoteController1 {
     constructor() {
 
         this.queue = []
@@ -454,6 +456,7 @@ class RemoteController2 {
         }
 
         this.rect = new Rect(0,0,16,16)
+        this.position = {x:0, y:0}
         this.error = {x:0, y:0}
         this.physics = new Physics2d(this)
 
@@ -520,6 +523,30 @@ class RemoteController2 {
         }
         this.inputqueue[idx] = {}
 
+        idx = (this.input_clock - 6) % this.inputqueue_capacity
+        if (idx < 0) {
+            idx += this.inputqueue_capacity
+        }
+        if (Object.keys(this.inputqueue[idx]).length > 0) {
+            for (const key in this.inputqueue[idx]) {
+                const state = this.inputqueue[idx][key]
+                if (state.type === "update") {
+
+                    this.position.x = state.x
+                    this.position.y = state.y
+
+                    this.error.x = this.rect.x - this.position.x
+                    this.error.y = this.rect.y - this.position.y
+
+                    // todo: smooth this out somehow
+                    this.rect.x = this.position.x
+                    this.rect.y = this.position.y
+
+
+                }
+            }
+        }
+
         idx = (this.input_clock - this.input_delay) % this.inputqueue_capacity
         if (idx < 0) {
             idx += this.inputqueue_capacity
@@ -529,68 +556,13 @@ class RemoteController2 {
 
             for (const key in this.inputqueue[idx]) {
                 const state = this.inputqueue[idx][key]
-
-                //if (state.type === "update") {
-                //}
                 if (state.type === "input") {
                     apply_input(state, this.physics)
                     state.applied = true
                 }
-
-            }
-
-
-        }
-
-
-
-        if (false && this.queue.length > 0) {
-
-            let t = this.queue[0].frame
-            let c = this.input_clock - this.input_delay
-            if (t < c) {
-
-                // consider: not applying an input if the error is too high
-                //           instead wait 1-2 frames to reconcile the error.
-                //           try to minimize error at the time the input is applied
-
-                let state = this.queue[0]
-
-
-                if (state.type === "update") {
-
-                    //this.error.x = this.rect.x - state.x
-                    //this.error.y = this.rect.y - state.y
-                    this.queue.shift()
-                } else {
-                    this.error.x = this.rect.x - state.x
-                    this.error.y = this.rect.y - state.y
-                    //this.rect.x = state.x
-                    //this.rect.y = state.y
-
-                    //if (Math.floor(this.error.x) < 8 && Math.floor(this.error.y) < 8) {
-                    apply_input(state, this.physics)
-                    this.queue.shift()
-                }
-
             }
         }
 
-        //let dd = 2
-        //let dx = Math.abs(this.error.x)
-        //if (dx > 0) {
-        //    dx = - Math.sign(this.error.x) * Math.min(dd, dx)
-        //    this.error.x += dx
-        //    this.rect.x += dx
-        //    //console.log("apply error dx", dx)
-        //}
-        //let dy = Math.abs(this.error.y)
-        //if (dy > 0) {
-        //    dy = - Math.sign(this.error.y) * Math.min(dd, dy)
-        //    this.error.y += dy
-        //    this.rect.y += dy
-        //    //console.log("apply error dy", dy)
-        //}
 
         this.physics.update(dt)
     }
@@ -602,7 +574,58 @@ class RemoteController2 {
         ctx.rect(this.rect.x, this.rect.y, 16, 16)
         ctx.fill()
 
+        //ctx.beginPath();
+        //ctx.fillStyle = "#FF00007f"
+        //ctx.rect(this.position.x, this.position.y, 16, 16)
+        //ctx.fill()
 
+    }
+
+    paintOverlay(ctx) {
+        // draw an animation of the packets as they arrive
+        ctx.save()
+        let bw = 4
+        let w = bw*this.inputqueue_capacity
+        let h = 6
+        ctx.fillStyle = "#7f7f7f"
+        ctx.beginPath()
+        ctx.rect(0, 16, w, h)
+        ctx.fill()
+        // draw center marker
+        ctx.fillStyle = "#0000FF"
+        ctx.beginPath()
+        ctx.rect(w/2, 8, 2, 16)
+        ctx.fill()
+
+        for (let i=-60; i<60; i++) {
+            let j = this.input_clock + i - this.input_delay
+            if (j < 0) {
+                j += this.inputqueue_capacity
+            }
+            j = j % this.inputqueue_capacity
+
+            if (Object.keys(this.inputqueue[j]).length > 0) {
+                let x = i*bw + w/2
+                let y = 16
+                let k = 0;
+                for (const key in this.inputqueue[j]) {
+                    let state = this.inputqueue[j][key]
+                    ctx.beginPath()
+                    if (state.type == "update") {
+                        ctx.fillStyle = "#FFFF00"
+                        continue
+                    } else if (state.applied) {
+                        ctx.fillStyle = "#00FF00"
+                    } else {
+                        ctx.fillStyle = "#FF0000"
+                    }
+                    ctx.rect(x, y, bw, h)
+                    ctx.fill()
+                }
+
+            }
+        }
+        ctx.restore()
     }
 
 }
@@ -631,8 +654,13 @@ class Physics2d {
         this.collisions = new Set()
 
         // new for platformer
-        this.standing = false
-        this.pressing = false
+        this.standing = false       //
+        this.standing_frame = 0     // last frame standing on the ground
+        this.pressing = false       //
+        this.pressing_frame = 0     // last frame pressing on a wall
+        this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
+
+        this.frame_index = 0
 
         // the duration that gives some specified maximum velocity v'
         //      t = sqrt(H^2 / v'^2)
@@ -659,11 +687,12 @@ class Physics2d {
 
         this.xmaxspeed = 7*32
         this.xfriction = this.xmaxspeed / .1 // stop moving in .1 seconds
-        this.xacceleration = this.xmaxspeed / .5 // get up to max speed in half a second
+        this.xacceleration = this.xmaxspeed / .2 // get up to max speed in .2 seconds
         this.xjumpspeed = Math.sqrt(2*32*this.xacceleration) // sqrt(2*distance*acceleration)
 
-        this.jumpheight = 128
-        this.jumpduration = .1875 // total duration divided by 4?
+        this.jumpheight = 96
+        //this.jumpduration = .1875 // total duration divided by 4?
+        this.jumpduration = .22 // total duration divided by 4?
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 
@@ -690,6 +719,8 @@ class Physics2d {
     }
 
     update(dt) {
+        this.frame_index += 1
+
         this.xcollide = false
         this.ycollide = false
         this.collide = false
@@ -756,10 +787,14 @@ class Physics2d {
         this.target.rect.x += dx
         if (this.xspeed > 0 && this.xcollide) {
             this.xspeed = 0
-            this.pressing = true
+            this.pressing = this.frame_index
+            this.pressing_frame = this.frame_index
+            this.pressing_direction = -1
         } else if (this.xspeed < 0 && this.xcollide) {
             this.xspeed = 0
-            this.pressing = true
+            this.pressing = this.frame_index
+            this.pressing_frame = this.frame_index
+            this.pressing_direction = 1
         } else {
             this.pressing = false
         }
@@ -796,6 +831,7 @@ class Physics2d {
 
         if (this.yspeed > 0 && this.ycollide) {
             this.standing = true
+            this.standing_frame = this.frame_index
             this.yspeed = 0
         } else {
             if (this.yspeed < 0 && this.ycollide) {
@@ -1057,21 +1093,21 @@ class DemoScene extends GameScene {
         this.entities = []
 
 
-        Physics2d.maprect = new Rect(0,-64, this.map.width, this.map.height+64)
+        Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
 
         console.log(gEngine.view, this.map)
 
         let w;
         w = new Wall()
         w.rect.x = 0
-        w.rect.y = 320
+        w.rect.y = 320 - 32
         w.rect.w = this.map.width
         w.rect.h = 32
         this.walls.push(w)
 
         w = new Wall()
         w.rect.x = this.map.width/4 - 32
-        w.rect.y = 320 - 32
+        w.rect.y = 320 - 64
         w.rect.w = 64
         w.rect.h = 32
         this.walls.push(w)
@@ -1090,15 +1126,23 @@ class DemoScene extends GameScene {
         w.rect.h = this.map.height - 128
         this.walls.push(w)
 
+        w = new Wall()
+        w.rect.x = this.map.width/2 - 128 - 32 + 96
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height - 128
+        this.walls.push(w)
+
+
         let ent;
         ent = new Character()
         ent.rect.x = 304
         ent.rect.y = 128
         ent.physics.group = this.walls
 
-        this.ghost = new RemoteController()
-        this.ghost.position.x = 304
-        this.ghost.position.y = 128
+        //this.ghost = new RemoteController1()
+        //this.ghost.position.x = 304
+        //this.ghost.position.y = 128
         this.ghost2 = new RemoteController2()
         this.ghost2.rect.x = 304
         this.ghost2.rect.y = 128
@@ -1149,9 +1193,9 @@ class DemoScene extends GameScene {
                 if (message.type == "keepalive") {
                     this.latency = Math.floor(performance.now() - message.t0)
                 }
-                if (message.type == "update") {
-                    this.ghost.receiveState(message)
-                }
+                //if (message.type == "update") {
+                //    this.ghost.receiveState(message)
+                //}
                 if (message.type === "input" || message.type === "update") {
                     this.ghost2.receiveState(message)
                 }
@@ -1167,10 +1211,9 @@ class DemoScene extends GameScene {
             ent.update(dt)
         }
 
-        this.ghost.update(dt)
+        //this.ghost.update(dt)
         this.ghost2.update(dt)
-        this.ghost2.error.x = this.ghost2.rect.x - this.ghost.position.x
-        this.ghost2.error.y = this.ghost2.rect.y - this.ghost.position.y
+
     }
 
     paint(ctx) {
@@ -1218,7 +1261,7 @@ class DemoScene extends GameScene {
             ent.paint(ctx)
         }
 
-        this.ghost.paint(ctx)
+        //this.ghost.paint(ctx)
         this.ghost2.paint(ctx)
 
 
@@ -1232,51 +1275,8 @@ class DemoScene extends GameScene {
         ctx.fillStyle = "#00FF00"
         ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 64)
 
+        this.ghost2.paintOverlay(ctx)
 
-        ctx.save()
-        let bw = 4
-        let w = bw*this.ghost2.inputqueue_capacity
-        let h = 6
-        ctx.fillStyle = "#7f7f7f"
-        ctx.beginPath()
-        ctx.rect(0, 16, w, h)
-        ctx.fill()
-        // draw center marker
-        ctx.fillStyle = "#0000FF"
-        ctx.beginPath()
-        ctx.rect(w/2, 8, 2, 16)
-        ctx.fill()
-
-        console.log()
-        for (let i=-60; i<60; i++) {
-            let j = this.ghost2.input_clock + i - this.ghost2.input_delay
-            if (j < 0) {
-                j += this.ghost2.inputqueue_capacity
-            }
-            j = j % this.ghost2.inputqueue_capacity
-
-            if (Object.keys(this.ghost2.inputqueue[j]).length > 0) {
-                let x = i*bw + w/2
-                let y = 16
-                let k = 0;
-                for (const key in this.ghost2.inputqueue[j]) {
-                    let state = this.ghost2.inputqueue[j][key]
-                    ctx.beginPath()
-                    if (state.type == "update") {
-                        ctx.fillStyle = "#FFFF00"
-                        continue
-                    } else if (state.applied) {
-                        ctx.fillStyle = "#00FF00"
-                    } else {
-                        ctx.fillStyle = "#FF0000"
-                    }
-                    ctx.rect(x, y, bw, h)
-                    ctx.fill()
-                }
-
-            }
-        }
-        ctx.restore()
 
 
     }
