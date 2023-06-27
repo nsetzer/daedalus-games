@@ -200,6 +200,8 @@ function apply_input(input, physics) {
                 physics.jumptime = performance.now()
                 physics.gravityboost = false
                 physics.doublejump = false
+                physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
+                physics.doublejump_timer = .4
             }
         } else {
             physics.gravityboost = true
@@ -236,6 +238,8 @@ class Controller {
         this.input_id = 0
 
         this.last_direction = 0
+
+        this.update_sent = false
     }
 
     send(message) {
@@ -255,14 +259,12 @@ class Controller {
         if (direction != this.last_direction) {
             let message = {
                 type: "input",
-                t: this.remotedelay,
-                x: this.target.rect.x,
-                y: this.target.rect.y,
                 whlid: whlid,
                 direction: direction
             }
 
             this.send(message)
+            this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
             this.last_direction = direction
@@ -274,13 +276,11 @@ class Controller {
         if (btnid === 0) {
             let message = {
                 type: "input",
-                t: this.remotedelay,
-                x: this.target.rect.x,
-                y: this.target.rect.y,
                 btnid: btnid,
                 pressed: true
             }
             this.send(message)
+            this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
         }
@@ -290,13 +290,11 @@ class Controller {
         if (btnid === 0) {
             let message = {
                 type: "input",
-                t: this.remotedelay,
-                x: this.target.rect.x,
-                y: this.target.rect.y,
                 btnid: btnid,
                 pressed: false
             }
             this.send(message)
+            this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
         }
@@ -309,12 +307,18 @@ class Controller {
         this.remotetimer += dt
         if (this.remotetimer > this.remotetimeout) {
             this.remotetimer -= this.remotetimeout
-            let message = {
-                type: "update",
-                x: this.target.rect.x,
-                y: this.target.rect.y,
+
+            // TODO: counter to send N updates after last input?
+            if (!this.update_sent) {
+                let message = {
+                    type: "update",
+                    x: this.target.rect.x,
+                    y: this.target.rect.y,
+                }
+                this.send(message)
+
+                this.update_sent = true
             }
-            this.send(message)
         }
 
         this.keepalivetimer += dt
@@ -335,27 +339,11 @@ class Controller {
             this.inputqueue[idx] = []
         }
 
-        //let slice = 0
-        //for (let input of this.inputqueue) {
-        //    input.t -= dt
-        //    if (input.t < 0) {
-        //        apply_input(input, this.target.physics)
-        //        slice += 1
-        //    }
-        //}
-        //if (slice > 0) {
-        //    this.inputqueue = this.inputqueue.slice(slice)
-        //}
-
-        // let speed = 128;
-        // let v = Direction.vector(this.direction)
-        // this.target.physics.xspeed = speed*v.x;
-        // this.target.physics.yspeed = speed*v.y;
-
     }
 }
 
 class RemoteController1 {
+    // interpolate between two received states
     constructor() {
 
         this.queue = []
@@ -444,6 +432,8 @@ class RemoteController1 {
 }
 
 class RemoteController2 {
+    // run simulation on user input
+    // synchronize periodically
     constructor() {
 
         //this.queue = []
@@ -455,10 +445,12 @@ class RemoteController2 {
             this.inputqueue.push({})
         }
 
-        this.rect = new Rect(0,0,16,16)
+        this.ent = new Character()
+        this.rect = this.ent.rect
+
         this.position = {x:0, y:0}
         this.error = {x:0, y:0}
-        this.physics = new Physics2d(this)
+        this.physics = this.ent.physics // new Physics2d(this)
 
         this.first_received = false
         this.previous_state = null
@@ -563,16 +555,21 @@ class RemoteController2 {
             }
         }
 
-
-        this.physics.update(dt)
+        this.ent.update(dt)
+        // this.physics.update(dt)
     }
 
     paint(ctx) {
 
-        ctx.beginPath();
-        ctx.fillStyle = "#00FF007f"
-        ctx.rect(this.rect.x, this.rect.y, 16, 16)
-        ctx.fill()
+        ctx.save()
+        ctx.globalAlpha = 0.25;
+        this.ent.paint(ctx)
+        ctx.restore()
+
+        //ctx.beginPath();
+        //ctx.fillStyle = "#00FF007f"
+        //ctx.rect(this.rect.x, this.rect.y, 16, 16)
+        //ctx.fill()
 
         //ctx.beginPath();
         //ctx.fillStyle = "#FF00007f"
@@ -659,6 +656,10 @@ class Physics2d {
         this.pressing = false       //
         this.pressing_frame = 0     // last frame pressing on a wall
         this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
+
+        this.doublejump_position = {x:0, y: 0}
+        this.doublejump_timer = 0
+
 
         this.frame_index = 0
 
@@ -894,6 +895,10 @@ class Physics2d {
         // run
         // wall_slide
 
+        if (this.doublejump_timer > 0) {
+            this.doublejump_timer -= dt
+        }
+
 
         let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
         let falling = !this.standing && this.yspeed > 0
@@ -967,6 +972,8 @@ class Character extends Entity {
 
         this.buildAnimations()
 
+        this.spawning = true
+
     }
 
     buildAnimations() {
@@ -979,8 +986,8 @@ class Character extends Entity {
             "jump": {},
             "run": {},
             "wall_slide": {},
-            "appearing": {},
-            "dissapearing": {},
+            "appear": {},
+            "disappear": {},
         }
 
         let chara = "frog"
@@ -989,31 +996,51 @@ class Character extends Entity {
         let xoffset = - 8
         let yoffset = - 16
 
-        let defines = [
-            ["double_jump",Direction.LEFT,  `${chara}_` + `${idx}_l_double_jump`],
-            ["fall",       Direction.LEFT,  `${chara}_` + `${idx}_l_fall`],
-            ["hit",        Direction.LEFT,  `${chara}_` + `${idx}_l_hit`],
-            ["idle",       Direction.LEFT,  `${chara}_` + `${idx}_l_idle`],
-            ["jump",       Direction.LEFT,  `${chara}_` + `${idx}_l_jump`],
-            ["run",        Direction.LEFT,  `${chara}_` + `${idx}_l_run`],
-            ["wall_slide", Direction.LEFT,  `${chara}_` + `${idx}_l_wall_slide`],
-            ["double_jump",Direction.RIGHT, `${chara}_` + `${idx}_r_double_jump`],
-            ["fall",       Direction.RIGHT, `${chara}_` + `${idx}_r_fall`],
-            ["hit",        Direction.RIGHT, `${chara}_` + `${idx}_r_hit`],
-            ["idle",       Direction.RIGHT, `${chara}_` + `${idx}_r_idle`],
-            ["jump",       Direction.RIGHT, `${chara}_` + `${idx}_r_jump`],
-            ["run",        Direction.RIGHT, `${chara}_` + `${idx}_r_run`],
-            ["wall_slide", Direction.RIGHT, `${chara}_` + `${idx}_r_wall_slide`],
+        let defines1 = [
+            ["double_jump",Direction.LEFT,  `${chara}_${idx}_l_double_jump`],
+            ["fall",       Direction.LEFT,  `${chara}_${idx}_l_fall`],
+            ["hit",        Direction.LEFT,  `${chara}_${idx}_l_hit`],
+            ["idle",       Direction.LEFT,  `${chara}_${idx}_l_idle`],
+            ["jump",       Direction.LEFT,  `${chara}_${idx}_l_jump`],
+            ["run",        Direction.LEFT,  `${chara}_${idx}_l_run`],
+            ["wall_slide", Direction.LEFT,  `${chara}_${idx}_l_wall_slide`],
+            ["double_jump",Direction.RIGHT, `${chara}_${idx}_r_double_jump`],
+            ["fall",       Direction.RIGHT, `${chara}_${idx}_r_fall`],
+            ["hit",        Direction.RIGHT, `${chara}_${idx}_r_hit`],
+            ["idle",       Direction.RIGHT, `${chara}_${idx}_r_idle`],
+            ["jump",       Direction.RIGHT, `${chara}_${idx}_r_jump`],
+            ["run",        Direction.RIGHT, `${chara}_${idx}_r_run`],
+            ["wall_slide", Direction.RIGHT, `${chara}_${idx}_r_wall_slide`],
         ]
 
-        for (const info of defines) {
+        let defines2 = [
+            ["appear",    Direction.LEFT,  `default_l_appear`],
+            ["disappear", Direction.LEFT,  `default_l_disappear`],
+            ["appear",    Direction.RIGHT, `default_r_appear`],
+            ["disappear", Direction.RIGHT, `default_r_disappear`],
+        ]
+
+        for (const info of defines1) {
             let [animation_name, direction, sheet_name] = info;
             let sheet = global.loader.sheets[sheet_name]
             let aid = this.animation.register(sheet, sheet.tiles(), spf, {xoffset, yoffset})
             this.animations[animation_name][direction] = aid
         }
 
-        this.animation.setAnimationById(this.animations.idle[this.physics.facing])
+        spf = 1/14
+        xoffset = -40
+        yoffset = -48
+        let onend = this.onSpawnAnimationEnd.bind(this)
+        for (const info of defines2) {
+            let [animation_name, direction, sheet_name] = info;
+            let sheet = global.loader.sheets[sheet_name]
+            let aid = this.animation.register(
+                sheet, sheet.tiles(), spf, {xoffset, yoffset, loop: false, onend}
+            )
+            this.animations[animation_name][direction] = aid
+        }
+
+        this.animation.setAnimationById(this.animations.appear[this.physics.facing])
     }
 
     //setDirection(direction) {
@@ -1026,21 +1053,29 @@ class Character extends Entity {
         //}
     //}
 
+    onSpawnAnimationEnd() {
+        let aid = this.animations[this.current_action][this.current_facing]
+        this.animation.setAnimationById(aid)
+        this.spawning = false
+    }
+
     update(dt) {
 
 
         this.physics.update(dt)
 
-        if (this.physics.facing != this.current_facing) {
-            this.current_facing = this.physics.facing
-            let aid = this.animations[this.current_action][this.current_facing]
-            this.animation.setAnimationById(aid)
-        }
+        if (!this.spawning) {
+            if (this.physics.facing != this.current_facing) {
+                this.current_facing = this.physics.facing
+                let aid = this.animations[this.current_action][this.current_facing]
+                this.animation.setAnimationById(aid)
+            }
 
-        if (this.physics.action != this.current_action) {
-            this.current_action = this.physics.action
-            let aid = this.animations[this.current_action][this.current_facing]
-            this.animation.setAnimationById(aid)
+            if (this.physics.action != this.current_action) {
+                this.current_action = this.physics.action
+                let aid = this.animations[this.current_action][this.current_facing]
+                this.animation.setAnimationById(aid)
+            }
         }
 
         this.animation.update(dt)
@@ -1057,7 +1092,14 @@ class Character extends Entity {
 
         this.animation.paint(ctx)
 
+        if (this.physics.doublejump_timer > 0) {
+            const p = this.physics.doublejump_position
 
+            ctx.strokeStyle = "#CCCC004f"
+            ctx.beginPath()
+            ctx.roundRect(p.x-9, p.y, 18, 4, 4)
+            ctx.stroke()
+        }
     }
 }
 
@@ -1068,6 +1110,8 @@ class DemoScene extends GameScene {
 
         let mapw = 640 * 2
         let maph = 360
+
+        this.game_ready = false
 
         this.map = {width: mapw, height: maph}
         this.buildMap()
@@ -1186,6 +1230,10 @@ class DemoScene extends GameScene {
 
     update(dt) {
 
+
+
+        this.camera.update(dt)
+
         if (this.messages.length > 0) {
             this.message_count = this.messages.length
             for (let message of this.messages) {
@@ -1203,8 +1251,16 @@ class DemoScene extends GameScene {
             this.messages = []
 
         }
+
+        if (!this.game_ready) {
+            if (this.client.connected()) {
+                this.game_ready = true
+            }
+            return
+        }
+
         this.controller.update(dt)
-        this.camera.update(dt)
+
 
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i]
@@ -1255,6 +1311,11 @@ class DemoScene extends GameScene {
             let ent = this.walls[i]
             ent.paint(ctx)
         }
+
+        if (!this.game_ready) {
+            return
+        }
+
 
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i]

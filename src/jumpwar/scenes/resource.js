@@ -28,7 +28,15 @@ export class ResourceLoaderScene extends GameScene {
 
         // this.loader.addSoundEffect("hit").path(RES_ROOT + "*.wav")
 
-        const sprite_info = [
+        const sprite_info1 = [
+            ["default_l_appear",    1,  7, "/sprites/chars/default/left/Appearing (96x96).png"],
+            ["default_l_disappear", 1,  7, "/sprites/chars/default/left/Disappearing (96x96).png"],
+
+            ["default_r_appear",    1,  7, "/sprites/chars/default/right/Appearing (96x96).png"],
+            ["default_r_disappear", 1,  7, "/sprites/chars/default/right/Disappearing (96x96).png"],
+        ]
+        const sprite_info2 = [
+
             ["frog_0_l_double_jump", 1,  6, "/sprites/chars/Ninja Frog/0/left/Double Jump (32x32).png"],
             ["frog_0_l_fall"       , 1,  1, "/sprites/chars/Ninja Frog/0/left/Fall (32x32).png"],
             ["frog_0_l_hit"        , 1,  7, "/sprites/chars/Ninja Frog/0/left/Hit (32x32).png"],
@@ -46,9 +54,18 @@ export class ResourceLoaderScene extends GameScene {
             ["frog_0_r_wall_slide" , 1,  5, "/sprites/chars/Ninja Frog/0/right/Wall Jump (32x32).png"]
 
         ]
-        // ["frog_hit", "sprites/chars/Ninja Frog/0/Head (31x28).png"],
+        // ["frog_head", "sprites/chars/Ninja Frog/0/Head (31x28).png"],
 
-        for (const info of sprite_info) {
+        for (const info of sprite_info1) {
+            let [name, rows, cols, url] = info
+
+            this.loader.addSpriteSheet(name)
+                .path(RES_ROOT + url)
+                .dimensions(96, 96)
+                .layout(rows, cols)
+        }
+
+        for (const info of sprite_info2) {
             let [name, rows, cols, url] = info
 
             this.loader.addSpriteSheet(name)
