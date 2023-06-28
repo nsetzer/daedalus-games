@@ -501,7 +501,6 @@ export class TextWidget extends Widget {
         let dx;
         let dy;
 
-
         if ((this._alignment & Alignment.VCENTER) === Alignment.VCENTER) {
             dy = this.rect.cy()
         }
@@ -528,6 +527,7 @@ export class TextWidget extends Widget {
 
         //ctx.strokeStyle = "red"
         //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.rect(dx, dy, this.rect.w, this.rect.h)
         //ctx.stroke()
     }
 }
@@ -589,6 +589,45 @@ export class ButtonWidget extends TextWidget {
             this._sound.play()
         }
         this.clicked?.()
+    }
+
+}
+
+export class ArrowButtonWidget extends ButtonWidget {
+
+    constructor(direction) {
+        super()
+        this.direction = direction
+    }
+
+    paint(ctx) {
+
+        let style = this.style().button['primary']
+
+        ctx.fillStyle = this.hasFocus()?style.focused:style.normal
+        ctx.strokeStyle = '#000000'
+        ctx.beginPath()
+        switch (this.direction) {
+        case Direction.LEFT:
+            ctx.moveTo(this.rect.right(), this.rect.top())
+            ctx.lineTo(this.rect.right(), this.rect.bottom())
+            ctx.lineTo(this.rect.left(), this.rect.cy())
+            break;
+        case Direction.RIGHT:
+            ctx.moveTo(this.rect.left(), this.rect.top())
+            ctx.lineTo(this.rect.left(), this.rect.bottom())
+            ctx.lineTo(this.rect.right(), this.rect.cy())
+            break;
+        case Direction.DOWN:
+            break;
+        case Direction.UP:
+            break;
+        default:
+            break
+        }
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
     }
 
 }

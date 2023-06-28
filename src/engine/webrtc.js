@@ -167,5 +167,9 @@ export class RealTimeClient {
     connected() {
         return this._open
     }
+
+    update(dt) {
+
+    }
 }
 

@@ -7,19 +7,112 @@ $import("engine", {
     TextWidget, TextInputWidget,
     Alignment, Direction,
     AnimationComponent, CharacterComponent,
-    TouchInput, KeyboardInput, RealTimeClient
+    TouchInput, KeyboardInput, RealTimeClient,
+    ArrowButtonWidget
 })
 
 $import("scenes", {global, ResourceLoaderScene})
 
+
+function mean(seq) {
+
+    let total = 0
+    for (const v of seq) {
+        total += v
+    }
+    return total / seq.length
+}
+
+function stddev(seq) {
+    let m = mean(seq)
+    if (seq.length < 2) {
+        return 0
+    }
+
+    let ddof = 0
+    let total = 0
+    for (const v of seq) {
+        total += (v - m) * (v - m)
+    }
+
+    return Math.sqrt(total / (seq.length - ddof))
+}
+
+function normalPolar(mean=0, stdev=1) {
+    while (true) {
+
+        const x = ((1 - Math.random()) * 2) - 1
+        const y = (Math.random() * 2) - 1
+        const s = x*x + y*y
+        const t = Math.sqrt(-2 * Math.log(s)/s)
+        if (s < 1) {
+            return mean + stdev * (x * t)
+        }
+    }
+}
+
+function normalBoxMuller(mean=0, stdev=1) {
+    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    // Transform to the desired mean and standard deviation:
+    return z * stdev + mean;
+}
+
 class DummyClient {
+
+    constructor(callback) {
+
+        this.callback = callback
+
+        this.latency_mean = 200
+        this.latency_stddev = 75
+        this.packet_lossrate = 0.0
+
+
+        this.frame_index = 0
+        this.inputqueue = []
+        this.inputqueue_capacity = 240
+        for (let i=0; i < this.inputqueue_capacity; i++) {
+            this.inputqueue.push([])
+        }
+    }
+
     send(obj) {
 
+        if (Math.random() < this.packet_lossrate) {
+            return
+        }
+        const framerate = 60
+        const latmin = this.latency_mean - this.latency_stddev
+        const latmax = this.latency_mean + this.latency_stddev
+        let latency = normalBoxMuller(this.latency_mean, this.latency_stddev)
+        latency = Math.min(latmax, Math.max(latmin, latency))
+        const offset = Math.round(framerate*latency/1000)
+        const idx = (this.frame_index + offset) % this.inputqueue_capacity
+        this.inputqueue[idx].push(obj)
+    }
+
+    update(dt) {
+        this.frame_index += 1
+
+        const idx = (this.frame_index) % this.inputqueue_capacity
+        if (this.inputqueue[idx].length > 0) {
+            for (const obj of this.inputqueue[idx]) {
+                this.onMessage(obj)
+            }
+            this.inputqueue[idx] = []
+        }
     }
 
     connected() {
         return true
     }
+
+    onMessage(obj) {
+        this.callback(obj)
+    }
+
 }
 
 class DemoRealTimeClient extends RealTimeClient {
@@ -273,7 +366,7 @@ class Controller {
     }
 
     handleButtonPress(btnid) {
-        if (btnid === 0) {
+        if (btnid === 0 || btnid === 1) {
             let message = {
                 type: "input",
                 btnid: btnid,
@@ -287,7 +380,7 @@ class Controller {
     }
 
     handleButtonRelease(btnid) {
-        if (btnid === 0) {
+        if (btnid === 0 || btnid === 1) {
             let message = {
                 type: "input",
                 btnid: btnid,
@@ -474,7 +567,8 @@ class RemoteController2 {
         // TODO: check for rounding errors and modulous index
         let delta = this.inputqueue_capacity/2
         if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
-            console.log("drop stale state", this.input_clock, state.frame, state)
+            console.log("drop stale state", this.input_clock - state.frame, this.input_clock, state.frame, state)
+            //this.input_clock -= Math.round((this.input_clock - state.frame)/4)
             return
         }
 
@@ -562,6 +656,7 @@ class RemoteController2 {
     paint(ctx) {
 
         ctx.save()
+        ctx.filter = `hue-rotate(+180deg)`
         ctx.globalAlpha = 0.25;
         this.ent.paint(ctx)
         ctx.restore()
@@ -1113,23 +1208,271 @@ class DemoScene extends GameScene {
 
         this.game_ready = false
 
+        this.messages = []
+        this.widgets = []
         this.map = {width: mapw, height: maph}
         this.buildMap()
 
-        console.log("environment",daedalus.env)
+        this.profiles = [
+            {name: "Excellent", mean: 25, stddev: 0, droprate: 0},
+            {name: "good", mean: 50, stddev: 10, droprate: 0},
+            {name: "bad", mean: 200, stddev: 100, droprate: 0},
+            {name: "poor", mean: 250, stddev: 150, droprate: 0},
+        ]
 
-        if (daedalus.env.debug) {
-            this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
-            this.client.connect("/rtc/offer", {})
-        } else {
-            this.client = new DummyClient()
+        const query = daedalus.util.parseParameters()
+        this.profile_index = parseInt(query.quality)||0
+        if (this.profile_index < 0 || this.profile_index > this.profiles.length - 1) {
+            this.profile_index = 0
         }
 
 
-        this.messages = []
+        if (0 && daedalus.env.debug) {
+            this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
+            this.client.connect("/rtc/offer", {})
 
-        this.latency = 0
+            const profile = this.profiles[this.profile_index]
+            this.client.latency_mean = profile.mean
+            this.client.latency_stddev = profile.stddev
+            this.client.packet_lossrate = profile.droprate
+
+
+        } else {
+            this.client = new DummyClient(this.handleMessage.bind(this))
+            this.buildWidgets()
+        }
+
+        // statistics on received information
+        this.latencies = []
+        this.latency_max = 0
+        this.latency_min = 0
+        this.latency_mean = 0
+        this.latency_stddev = 0
         this.message_count = 0
+
+    }
+
+    buildWidgets() {
+
+        let wgtx = gEngine.view.width - 32
+        let wgto = 128
+        let wgty = 8
+        let wgth = 24
+
+        let wgt1, wgt2, txt1, txt2;
+        wgt1 = new ArrowButtonWidget(Direction.LEFT)
+        wgt1.rect = new Rect(wgtx - wgto,wgty,24,24)
+        this.widgets.push(wgt1)
+        wgt2 = new ArrowButtonWidget(Direction.RIGHT)
+        wgt2.rect = new Rect(wgtx,wgty,24,24)
+        this.widgets.push(wgt2)
+        txt1 = new TextWidget()
+        txt1.rect = new Rect(
+            wgt1.rect.right() + 8,
+            wgt1.rect.y - 2,
+            wgt2.rect.left() - wgt1.rect.right() - 16,
+            wgt1.rect.h + 4
+        )
+        txt1._text = "lat mean"
+        txt1._alignment = Alignment.HCENTER|Alignment.TOP
+        this.widgets.push(txt1)
+        txt2 = new TextWidget()
+        txt2.rect = new Rect(
+            wgt1.rect.right() + 8,
+            wgt1.rect.y - 8,
+            wgt2.rect.left() - wgt1.rect.right() - 16,
+            wgt1.rect.h + 16
+        )
+        txt2._text = this.client.latency_mean
+        txt2._alignment = Alignment.HCENTER|Alignment.BOTTOM
+        this.widgets.push(txt2)
+
+
+        let wgt3, wgt4, txt3, txt4;
+        wgty += wgth + 12
+        wgt3 = new ArrowButtonWidget(Direction.LEFT)
+        wgt3.rect = new Rect(wgtx - wgto,wgty,24,24)
+        this.widgets.push(wgt3)
+        wgt4 = new ArrowButtonWidget(Direction.RIGHT)
+        wgt4.rect = new Rect(wgtx,wgty,24,24)
+        this.widgets.push(wgt4)
+        txt3 = new TextWidget()
+        txt3.rect = new Rect(
+            wgt3.rect.right() + 8,
+            wgt3.rect.y - 2,
+            wgt4.rect.left() - wgt3.rect.right() - 16,
+            wgt3.rect.h + 4
+        )
+        txt3._text = "lat stddev"
+        txt3._alignment = Alignment.HCENTER|Alignment.TOP
+        this.widgets.push(txt3)
+        txt4 = new TextWidget()
+        txt4.rect = new Rect(
+            wgt3.rect.right() + 8,
+            wgt3.rect.y - 8,
+            wgt4.rect.left() - wgt3.rect.right() - 16,
+            wgt3.rect.h + 16
+        )
+        txt4._text = this.client.latency_stddev
+        txt4._alignment = Alignment.HCENTER|Alignment.BOTTOM
+        this.widgets.push(txt4)
+
+
+
+        let wgt5, wgt6, txt5, txt6;
+        wgty += wgth + 12
+        wgt5 = new ArrowButtonWidget(Direction.LEFT)
+        wgt5.rect = new Rect(wgtx - wgto,wgty,24,24)
+        this.widgets.push(wgt5)
+        wgt6 = new ArrowButtonWidget(Direction.RIGHT)
+        wgt6.rect = new Rect(wgtx,wgty,24,24)
+        this.widgets.push(wgt6)
+        txt5 = new TextWidget()
+        txt5.rect = new Rect(
+            wgt5.rect.right() + 8,
+            wgt5.rect.y - 2,
+            wgt6.rect.left() - wgt5.rect.right() - 16,
+            wgt5.rect.h + 4
+        )
+        txt5._text = "droprate"
+        txt5._alignment = Alignment.HCENTER|Alignment.TOP
+        this.widgets.push(txt5)
+        txt6 = new TextWidget()
+        txt6.rect = new Rect(
+            wgt5.rect.right() + 8,
+            wgt5.rect.y - 8,
+            wgt6.rect.left() - wgt5.rect.right() - 16,
+            wgt5.rect.h + 16
+        )
+        txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
+        txt6._alignment = Alignment.HCENTER|Alignment.BOTTOM
+        this.widgets.push(txt6)
+
+        let wgt7, wgt8, txt7, txt8;
+        wgty += wgth + 12
+        wgt7 = new ArrowButtonWidget(Direction.LEFT)
+        wgt7.rect = new Rect(wgtx - wgto,wgty,24,24)
+        this.widgets.push(wgt7)
+        wgt8 = new ArrowButtonWidget(Direction.RIGHT)
+        wgt8.rect = new Rect(wgtx,wgty,24,24)
+        this.widgets.push(wgt8)
+        txt7 = new TextWidget()
+        txt7.rect = new Rect(
+            wgt7.rect.right() + 8,
+            wgt7.rect.y - 2,
+            wgt8.rect.left() - wgt7.rect.right() - 16,
+            wgt7.rect.h + 4
+        )
+        txt7._text = "quality"
+        txt7._alignment = Alignment.HCENTER|Alignment.TOP
+        this.widgets.push(txt7)
+        txt8 = new TextWidget()
+        txt8.rect = new Rect(
+            wgt7.rect.right() + 8,
+            wgt7.rect.y - 8,
+            wgt8.rect.left() - wgt7.rect.right() - 16,
+            wgt7.rect.h + 16
+        )
+        txt8._text = this.profiles[this.profile_index].name
+        txt8._alignment = Alignment.HCENTER|Alignment.BOTTOM
+        this.widgets.push(txt8)
+
+        wgt1.clicked = () => {
+            this.client.latency_mean -= 5
+            this.client.latency_mean = Math.max(25, Math.min(1000,this.client.latency_mean))
+            this.client.latency_stddev = Math.min(
+                this.client.latency_stddev,
+                Math.floor(this.client.latency_mean/2)
+            )
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt2.clicked = () => {
+            this.client.latency_mean += 5
+            this.client.latency_mean = Math.max(25, Math.min(1000,this.client.latency_mean))
+            this.client.latency_stddev = Math.min(
+                this.client.latency_stddev,
+                Math.floor(this.client.latency_mean/2)
+            )
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt3.clicked = () => {
+            this.client.latency_stddev -= 5
+            this.client.latency_stddev = Math.max(0, Math.min(
+                this.client.latency_stddev,
+                Math.floor(this.client.latency_mean/2)
+            ))
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt4.clicked = () => {
+            this.client.latency_stddev += 5
+            this.client.latency_stddev = Math.max(0, Math.min(
+                this.client.latency_stddev,
+                Math.floor(this.client.latency_mean/2)
+            ))
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt5.clicked = () => {
+            this.client.packet_lossrate -= 0.01
+            this.client.packet_lossrate = Math.max(0, Math.min(.20,
+                this.client.packet_lossrate
+            ))
+            txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt6.clicked = () => {
+            this.client.packet_lossrate += 0.01
+            this.client.packet_lossrate = Math.max(0, Math.min(.20,
+                this.client.packet_lossrate
+            ))
+            txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
+            txt8._text = "custom"
+            this.profile_index = -1
+        }
+        wgt7.clicked = () => {
+            this.profile_index -= 1
+            if (this.profile_index < 0) {
+                this.profile_index = this.profiles.length - 1
+            }
+            const profile = this.profiles[this.profile_index]
+            this.client.latency_mean = profile.mean
+            this.client.latency_stddev = profile.stddev
+            this.client.packet_lossrate = profile.droprate
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
+            txt8._text = profile.name
+        }
+        wgt8.clicked = () => {
+            this.profile_index += 1
+            if (this.profile_index >= this.profiles.length) {
+                this.profile_index = 0
+            }
+            const profile = this.profiles[this.profile_index]
+            this.client.latency_mean = profile.mean
+            this.client.latency_stddev = profile.stddev
+            this.client.packet_lossrate = profile.droprate
+            txt2._text = this.client.latency_mean
+            txt4._text = this.client.latency_stddev
+            txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
+            txt8._text = profile.name
+        }
+
+        console.log("ASDASDASDASD")
+
+
     }
 
     buildMap() {
@@ -1213,6 +1556,10 @@ class DemoScene extends GameScene {
 
     handleTouches(touches) {
         this.touch.handleTouches(touches)
+
+        for (const wgt of this.widgets) {
+            wgt.handleTouches(touches)
+        }
     }
 
     handleKeyPress(keyevent) {
@@ -1231,7 +1578,7 @@ class DemoScene extends GameScene {
     update(dt) {
 
 
-
+        this.client.update(dt)
         this.camera.update(dt)
 
         if (this.messages.length > 0) {
@@ -1239,7 +1586,14 @@ class DemoScene extends GameScene {
             for (let message of this.messages) {
                 //console.log("received", performance.now() - message.t0, message)
                 if (message.type == "keepalive") {
-                    this.latency = Math.floor(performance.now() - message.t0)
+                    this.latencies.push(Math.floor(performance.now() - message.t0))
+                    while (this.latencies.length > 15) {
+                        this.latencies.shift()
+                    }
+                    this.latency_min = Math.min(...this.latencies)
+                    this.latency_max = Math.max(...this.latencies)
+                    this.latency_mean = mean(this.latencies)
+                    this.latency_stddev = stddev(this.latencies)
                 }
                 //if (message.type == "update") {
                 //    this.ghost.receiveState(message)
@@ -1269,6 +1623,11 @@ class DemoScene extends GameScene {
 
         //this.ghost.update(dt)
         this.ghost2.update(dt)
+
+        for (const wgt of this.widgets) {
+            wgt.update(dt)
+        }
+
 
     }
 
@@ -1328,15 +1687,29 @@ class DemoScene extends GameScene {
 
 
         ctx.restore()
+
+        // boxes to make text easier to read
+        ctx.fillStyle = "#333344af"
+        ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
+        ctx.fillRect(0, 0, 300, 80)
+
+
         this.touch.paint(ctx)
         ctx.font = "bold 12pt Courier";
         ctx.fillStyle = "yellow"
-        ctx.fillText(`latency=${this.latency}`, 32, 32)
-        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 48)
+        // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
+        ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
+        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         ctx.fillStyle = "#00FF00"
-        ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 64)
+        ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 72)
 
         this.ghost2.paintOverlay(ctx)
+
+
+
+        for (const wgt of this.widgets) {
+            wgt.paint(ctx)
+        }
 
 
 
