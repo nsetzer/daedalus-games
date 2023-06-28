@@ -1,4 +1,7 @@
 
+/**
+ * jump war
+ */
 $import("daedalus", {})
 
 $import("engine", {
@@ -13,6 +16,9 @@ $import("engine", {
 
 $import("scenes", {global, ResourceLoaderScene})
 
+/**
+ * jump war
+ */
 
 function mean(seq) {
 
@@ -59,9 +65,37 @@ function normalBoxMuller(mean=0, stdev=1) {
     return z * stdev + mean;
 }
 
+class RingBuffer {
+
+    constructor(capacity) {
+
+        this.capacity = capacity
+        this.data = []
+        for (let i = 0; i < capacity; i++) {
+            this.data.push(null)
+        }
+
+    }
+
+    set(index, value) {
+        this.data[index % this.capacity] = value
+    }
+
+    get(index) {
+        return this.data[index % this.capacity]
+    }
+}
+
+const byteSize = str => new Blob([str]).size
+
 class DummyClient {
 
     constructor(callback) {
+
+        // average total bytes sent and received over a 3 second window
+        this.rb_xmit = new RingBuffer(60*3)
+        this.total_sent = 0
+        this.total_received = 0
 
         this.callback = callback
 
@@ -76,13 +110,20 @@ class DummyClient {
         for (let i=0; i < this.inputqueue_capacity; i++) {
             this.inputqueue.push([])
         }
+
+        this.rb_xmit.set(this.frame_index, {sent:0, received:0})
     }
 
     send(obj) {
 
+        let nbytes = byteSize(JSON.stringify(obj))
+        this.total_sent += nbytes
+        this.rb_xmit.get(this.frame_index).sent += nbytes
+
         if (Math.random() < this.packet_lossrate) {
             return
         }
+
         const framerate = 60
         const latmin = this.latency_mean - this.latency_stddev
         const latmax = this.latency_mean + this.latency_stddev
@@ -95,6 +136,13 @@ class DummyClient {
 
     update(dt) {
         this.frame_index += 1
+
+        const info = this.rb_xmit.get(this.frame_index)
+        if (!!info) {
+            this.total_sent -= info.sent
+            this.total_received -= info.received
+        }
+        this.rb_xmit.set(this.frame_index, {sent:0, received:0})
 
         const idx = (this.frame_index) % this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0) {
@@ -110,9 +158,13 @@ class DummyClient {
     }
 
     onMessage(obj) {
+
+        let nbytes = byteSize(JSON.stringify(obj))
+        this.total_received += nbytes
+        this.rb_xmit.get(this.frame_index).received += nbytes
+
         this.callback(obj)
     }
-
 }
 
 class DemoRealTimeClient extends RealTimeClient {
@@ -424,6 +476,12 @@ class Controller {
             this.scene.client.send(message)
         }
 
+        let msgcnt = 0
+        for (let k = 0; k < this.inputqueue_capacity; k++) {
+            msgcnt += this.inputqueue[k].length
+        }
+        //console.log(msgcnt)
+
         let idx = (this.frame_id)%this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0){
             for (let input of this.inputqueue[idx]) {
@@ -575,6 +633,7 @@ class RemoteController2 {
         //if (state.type == "update") {
         //    return
         //}
+        console.log("offset", state.frame - (this.input_clock - this.input_delay))
 
         let idx = (state.frame) % this.inputqueue_capacity
         if (this.inputqueue[idx][state.uid] === undefined) {
@@ -1231,14 +1290,15 @@ class DemoScene extends GameScene {
             this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
             this.client.connect("/rtc/offer", {})
 
-            const profile = this.profiles[this.profile_index]
-            this.client.latency_mean = profile.mean
-            this.client.latency_stddev = profile.stddev
-            this.client.packet_lossrate = profile.droprate
+
 
 
         } else {
             this.client = new DummyClient(this.handleMessage.bind(this))
+            const profile = this.profiles[this.profile_index]
+            this.client.latency_mean = profile.mean
+            this.client.latency_stddev = profile.stddev
+            this.client.packet_lossrate = profile.droprate
             this.buildWidgets()
         }
 
@@ -1675,14 +1735,15 @@ class DemoScene extends GameScene {
             return
         }
 
+        //this.ghost.paint(ctx)
+        this.ghost2.paint(ctx)
 
         for (let i = this.entities.length - 1; i >= 0; i--) {
             let ent = this.entities[i]
             ent.paint(ctx)
         }
 
-        //this.ghost.paint(ctx)
-        this.ghost2.paint(ctx)
+
 
 
 
@@ -1700,8 +1761,9 @@ class DemoScene extends GameScene {
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
         ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
         ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
+        ctx.fillText(`bytes: sent=${Math.floor(this.client.total_sent/3)} received=${Math.floor(this.client.total_received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
-        ctx.fillText(`errror = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 72)
+        ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 88)
 
         this.ghost2.paintOverlay(ctx)
 

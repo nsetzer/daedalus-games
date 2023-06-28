@@ -13,7 +13,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.exceptions import InvalidStateError
 from threading import Thread, Lock, Condition
 
-from daedalus.builder import Builder
+from daedalus.builder import Builder, Lexer
 
 ROOT = os.path.dirname(__file__)
 
@@ -58,7 +58,9 @@ class DevSite(object):
         self.static_path = static_path
         self.opts = opts
 
+        Lexer.debug = True
         self.builder = Builder(search_path, static_data, platform=platform)
+        self.builder.lexer_opts = {"preserve_documentation": True}
 
         self.build()
 
