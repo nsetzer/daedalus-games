@@ -74,7 +74,7 @@ class TextInput extends DomElement {
     }
 
     elementMounted() {
-        console.log("input height", this.getDomNode().clientHeight)
+        // console.log("input height", this.getDomNode().clientHeight)
     }
 
     onChange(event) {

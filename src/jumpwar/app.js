@@ -333,10 +333,10 @@ function apply_input(input, physics) {
                 physics.xspeed = physics.pressing_direction * physics.xjumpspeed
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
                 physics.gravityboost = false
-                console.log("wall jump", physics.xspeed)
+                //console.log("wall jump", physics.xspeed)
 
             } else if (!standing && physics.doublejump && physics.yspeed > 0) {
-                console.log("double jump")
+                //console.log("double jump")
                 // double jump at half the height of a normal jump
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
                 physics.gravityboost = false
@@ -389,9 +389,11 @@ class Controller {
         let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
         if (direction != this.last_direction) {
             let message = {
+                x: this.target.rect.x,
+                y: this.target.rect.y,
                 whlid: whlid,
                 direction: direction,
-                frame: this.frame_id,
+                frame: this.frame_id + this.remotedelay,
                 uid: this.input_id
             }
             this.input_id += 1
@@ -407,9 +409,11 @@ class Controller {
     handleButtonPress(btnid) {
         if (btnid === 0 || btnid === 1) {
             let message = {
+                x: this.target.rect.x,
+                y: this.target.rect.y,
                 btnid: btnid,
                 pressed: true,
-                frame: this.frame_id,
+                frame: this.frame_id + this.remotedelay,
                 uid: this.input_id
             }
             this.input_id += 1
@@ -423,9 +427,11 @@ class Controller {
     handleButtonRelease(btnid) {
         if (btnid === 0 || btnid === 1) {
             let message = {
+                x: this.target.rect.x,
+                y: this.target.rect.y,
                 btnid: btnid,
                 pressed: false,
-                frame: this.frame_id,
+                frame: this.frame_id + this.remotedelay,
                 uid: this.input_id
             }
             this.input_id += 1
@@ -608,6 +614,12 @@ class RemoteController2 {
             this.inputqueue.push({})
         }
 
+        this.statequeue_capacity = 120 // must be the same size as the inputqueue
+        this.statequeue = []
+        for (let i=0; i < this.statequeue_capacity; i++) {
+            this.statequeue.push(null)
+        }
+
         this.ent = new Character()
         this.rect = this.ent.rect
 
@@ -620,11 +632,7 @@ class RemoteController2 {
         this.previous_clock = 0
 
         this.input_clock = 0
-        // double the input delay from 6 to 12
-        // the simulation now runs 6 frames behind real time
-        // the update ghost runs 6 frames behind
-
-        this.input_delay = 12
+        this.input_delay = 6
 
         this.received_offset = 0
     }
@@ -633,12 +641,21 @@ class RemoteController2 {
 
         let inputs;
         if (message.type == "update") {
-            inputs = [message]
+            //inputs = [message]
+            return
         } else {
             inputs = message.inputs
         }
 
         let dirty_index = this.input_clock
+
+        const getindex = (k) => {
+            let idx = (k) % this.inputqueue_capacity
+            if (idx < 0) {
+                idx += this.inputqueue_capacity
+            }
+            return idx
+        }
 
         for (const state of inputs) {
 
@@ -656,9 +673,7 @@ class RemoteController2 {
                 return
             }
 
-
             // console.log("offset", )
-
 
             let idx = (state.frame) % this.inputqueue_capacity
             if (this.inputqueue[idx][state.uid] === undefined) {
@@ -667,6 +682,17 @@ class RemoteController2 {
                 if (state.frame <= this.input_clock - this.input_delay && state.type !== "update") {
 
                     dirty_index = Math.min(dirty_index, state.frame)
+
+                    const old_state = this.statequeue[getindex(state.frame - this.input_delay)]
+                    if (!!state) {
+                        // calculate the position error as a single number
+                        // TODO: if the error accumulates then set the dirt index - input_delay
+                        //       and snap the position
+                        this.error.x = Math.sqrt(Math.pow(old_state.x - state.x,2) + Math.pow(old_state.y - state.y,2))
+                        //this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
+                    }
+
+
                 }
                 //this.received_offset = Math.max(this.received_offset, state.frame - (this.input_clock - this.input_delay))
             }
@@ -674,15 +700,48 @@ class RemoteController2 {
             // received offset is how far in the future there are updates from now
             this.received_offset = -1
             for (let i = 0; i < 60; i++) {
-                let j = (this.input_clock - this.input_delay + i) % this.inputqueue_capacity
-                if (j > 0 && Object.keys(this.inputqueue[j]).length > 0) {
+                let j = getindex(this.input_clock - this.input_delay + i)
+                if (Object.keys(this.inputqueue[j]).length > 0) {
                     this.received_offset = i
                 }
             }
         }
 
+
+
         if (dirty_index < this.input_clock) {
-            console.log("found dirty index at", dirty_index, this.input_clock- this.input_delay, "offset", this.received_offset)
+            //console.log("found dirty index at", dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
+
+
+
+            const last_known_state = this.statequeue[getindex(dirty_index - 1)]
+            //console.log("restore state", dirty_index-1, idx, last_known_state)
+            if (last_known_state === null) {
+                console.log("last known state is null")
+            } else {
+                this.physics.setState(last_known_state)
+            }
+
+            for (let clock = dirty_index; clock < this.input_clock - this.input_delay + 1; clock += 1) {
+                //console.log("recalculate physics at time", clock, this.input_clock - this.input_delay)
+
+                let idx = (clock) % this.inputqueue_capacity
+                if (idx < 0) {
+                    idx += this.inputqueue_capacity
+                }
+
+                for (const uid in this.inputqueue[idx]) {
+                    const state = this.inputqueue[idx][uid]
+                    if (state.type !== "update") {
+                        apply_input(state, this.physics)
+                        state.applied = true
+                    }
+                }
+
+                this.ent.update(1/60)
+                this.statequeue[idx] = this.physics.getState()
+
+            }
         }
 
     }
@@ -691,7 +750,6 @@ class RemoteController2 {
 
         this.input_clock += 1
 
-
         let idx;
         idx = (this.input_clock - 60) % this.inputqueue_capacity
         if (idx < 0) {
@@ -699,6 +757,7 @@ class RemoteController2 {
         }
         this.inputqueue[idx] = {}
 
+        /*
         idx = (this.input_clock - 6) % this.inputqueue_capacity
         if (idx < 0) {
             idx += this.inputqueue_capacity
@@ -722,6 +781,7 @@ class RemoteController2 {
                 }
             }
         }
+        */
 
         idx = (this.input_clock - this.input_delay) % this.inputqueue_capacity
         if (idx < 0) {
@@ -732,14 +792,26 @@ class RemoteController2 {
 
             for (const uid in this.inputqueue[idx]) {
                 const state = this.inputqueue[idx][uid]
-                if (state.type !== "update") {
-                    apply_input(state, this.physics)
-                    state.applied = true
-                }
+                //if (state.type !== "update") {
+                    //let p1 = {x: Math.floor(state.x), y: Math.floor(state.y)}
+                    //console.log("receive", this.input_clock - this.input_delay, p1)
+                    // NOTE: the position at {state.x, state.y} corresponds to the player
+                    //       at time step state.frame - this.input_delay
+                    //this.rect.x = state.x
+                    //this.rect.y = state.y
+                apply_input(state, this.physics)
+                state.applied = true
+                    //let p3 = {x: Math.floor(this.rect.x), y: Math.floor(this.rect.y)}
+                    //console.log("apply", this.input_clock - this.input_delay, p3)
+                //}
             }
         }
 
+
         this.ent.update(dt)
+        this.statequeue[idx] = this.physics.getState()
+        //let p3 = {x: Math.floor(this.rect.x), y: Math.floor(this.rect.y)}
+        //console.log("update", this.input_clock - this.input_delay, p3)
         // this.physics.update(dt)
     }
 
@@ -747,7 +819,7 @@ class RemoteController2 {
 
         ctx.save()
         ctx.filter = `hue-rotate(+180deg)`
-        ctx.globalAlpha = 0.25;
+        ctx.globalAlpha = 0.5;
         this.ent.paint(ctx)
         ctx.restore()
 
@@ -880,12 +952,12 @@ class Physics2d {
         this.ymaxspeed = - this.jumpspeed
 
         // log velocity over time
-        let speeds = []
-        let times = [0, .25, .5, .75, 1.0]
-        for (const t of times) {
-            speeds.push(this.jumpspeed + this.gravity * 4 * this.jumpduration * t)
-        }
-        console.log("velocities", speeds)
+        //let speeds = []
+        //let times = [0, .25, .5, .75, 1.0]
+        //for (const t of times) {
+        //    speeds.push(this.jumpspeed + this.gravity * 4 * this.jumpduration * t)
+        //}
+        //console.log("velocities", speeds)
     }
 
     collidePoint(x, y) {
@@ -1114,6 +1186,7 @@ class Physics2d {
             doublejump_position: this.doublejump_position,
             doublejump_timer: this.doublejump_timer,
         }
+        return state
     }
 
     setState(state) {
@@ -1581,8 +1654,6 @@ class DemoScene extends GameScene {
             txt6._text = "" + Math.round(this.client.packet_lossrate*100) + "%"
             txt8._text = profile.name
         }
-
-        console.log("ASDASDASDASD")
 
 
     }
