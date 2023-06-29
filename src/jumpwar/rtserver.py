@@ -66,6 +66,7 @@ class DevSite(object):
 
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
+        print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
 
 site = None
 

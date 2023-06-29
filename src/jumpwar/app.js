@@ -29,13 +29,12 @@ function mean(seq) {
     return total / seq.length
 }
 
-function stddev(seq) {
+function stddev(seq, ddof = 1) {
     let m = mean(seq)
     if (seq.length < 2) {
         return 0
     }
 
-    let ddof = 0
     let total = 0
     for (const v of seq) {
         total += (v - m) * (v - m)
@@ -325,7 +324,6 @@ function apply_input(input, physics) {
             if (standing) {
 
                 physics.yspeed = physics.jumpspeed
-                physics.jumptime = performance.now()
                 physics.gravityboost = false
                 physics.doublejump = true
 
@@ -334,7 +332,6 @@ function apply_input(input, physics) {
                 //physics.xspeed = - v.x * physics.xjumpspeed
                 physics.xspeed = physics.pressing_direction * physics.xjumpspeed
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
-                physics.jumptime = performance.now()
                 physics.gravityboost = false
                 console.log("wall jump", physics.xspeed)
 
@@ -342,7 +339,6 @@ function apply_input(input, physics) {
                 console.log("double jump")
                 // double jump at half the height of a normal jump
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
-                physics.jumptime = performance.now()
                 physics.gravityboost = false
                 physics.doublejump = false
                 physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
@@ -367,7 +363,7 @@ class Controller {
         this.target = target
         this.remotedelay = 6
 
-        this.inputqueue_capacity = 60
+        this.inputqueue_capacity = 7
         this.inputqueue = []
         for (let i=0; i < this.inputqueue_capacity; i++) {
             this.inputqueue.push([])
@@ -384,17 +380,7 @@ class Controller {
 
         this.last_direction = 0
 
-        this.update_sent = false
-    }
-
-    send(message) {
-        message.t0 = performance.now()/1000
-        message.frame = this.frame_id
-        message.uid = this.input_id
-
-        this.input_id += 1
-
-        this.scene.client.send(message)
+        //this.update_sent = false
     }
 
     setInputDirection(whlid, vector) {
@@ -403,13 +389,14 @@ class Controller {
         let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
         if (direction != this.last_direction) {
             let message = {
-                type: "input",
                 whlid: whlid,
-                direction: direction
+                direction: direction,
+                frame: this.frame_id,
+                uid: this.input_id
             }
+            this.input_id += 1
 
-            this.send(message)
-            this.update_sent = false
+            //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
             this.last_direction = direction
@@ -420,12 +407,14 @@ class Controller {
     handleButtonPress(btnid) {
         if (btnid === 0 || btnid === 1) {
             let message = {
-                type: "input",
                 btnid: btnid,
-                pressed: true
+                pressed: true,
+                frame: this.frame_id,
+                uid: this.input_id
             }
-            this.send(message)
-            this.update_sent = false
+            this.input_id += 1
+
+            //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
         }
@@ -434,14 +423,34 @@ class Controller {
     handleButtonRelease(btnid) {
         if (btnid === 0 || btnid === 1) {
             let message = {
-                type: "input",
                 btnid: btnid,
-                pressed: false
+                pressed: false,
+                frame: this.frame_id,
+                uid: this.input_id
             }
-            this.send(message)
-            this.update_sent = false
+            this.input_id += 1
+
+            //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+        }
+    }
+
+    sendInput() {
+
+        let inputs = []
+        for (const messages of this.inputqueue) {
+            for (const message of messages) {
+                inputs.push(message)
+            }
+        }
+
+        if (inputs.length > 0) {
+            const message = {
+                type: "input",
+                inputs: inputs
+            }
+            this.scene.client.send(message)
         }
     }
 
@@ -449,21 +458,24 @@ class Controller {
 
         this.frame_id += 1
 
+        this.sendInput()
+
         this.remotetimer += dt
         if (this.remotetimer > this.remotetimeout) {
             this.remotetimer -= this.remotetimeout
 
             // TODO: counter to send N updates after last input?
-            if (!this.update_sent) {
+            //if (!this.update_sent) {
                 let message = {
                     type: "update",
                     x: this.target.rect.x,
                     y: this.target.rect.y,
+                    frame: this.frame_id,
                 }
-                this.send(message)
+                this.scene.client.send(message)
 
                 this.update_sent = true
-            }
+            //}
         }
 
         this.keepalivetimer += dt
@@ -613,46 +625,65 @@ class RemoteController2 {
         // the update ghost runs 6 frames behind
 
         this.input_delay = 12
+
+        this.received_offset = 0
     }
 
-    receiveState(state) {
+    receiveState(message) {
 
-        if (!this.first_received) {
-            this.input_clock = state.frame
-            this.first_received =  true
-        }
-
-        // TODO: check for rounding errors and modulous index
-        let delta = this.inputqueue_capacity/2
-        if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
-            console.log("drop stale state", this.input_clock - state.frame, this.input_clock, state.frame, state)
-            //this.input_clock -= Math.round((this.input_clock - state.frame)/4)
-            return
-        }
-
-        //if (state.type == "update") {
-        //    return
-        //}
-        console.log("offset", state.frame - (this.input_clock - this.input_delay))
-
-        let idx = (state.frame) % this.inputqueue_capacity
-        if (this.inputqueue[idx][state.uid] === undefined) {
-            this.inputqueue[idx][state.uid] = state
-
+        let inputs;
+        if (message.type == "update") {
+            inputs = [message]
         } else {
-            // duplicate ignored
+            inputs = message.inputs
         }
 
-        //let t =  this.input_clock - this.input_delay
-        //if (state.frame >= t) {
-        //    this.queue.push(state)
-        //    this.queue.sort((a,b) => {
-        //        a.frame - b.frame
-        //    })
-        //} else {
-        //    console.log("drop", t, state)
-        //    // this.input_clock += (t - state.frame)/4
-        //}
+        let dirty_index = this.input_clock
+
+        for (const state of inputs) {
+
+            if (!this.first_received) {
+                // TODO: should this be index - delay?
+                this.input_clock = state.frame
+                this.first_received =  true
+            }
+
+            // TODO: check for rounding errors and modulous index
+            let delta = this.inputqueue_capacity/2
+            if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
+                console.log("drop stale state", this.input_clock - state.frame, this.input_clock, state.frame, state)
+                //this.input_clock -= Math.round((this.input_clock - state.frame)/4)
+                return
+            }
+
+
+            // console.log("offset", )
+
+
+            let idx = (state.frame) % this.inputqueue_capacity
+            if (this.inputqueue[idx][state.uid] === undefined) {
+                this.inputqueue[idx][state.uid] = state
+
+                if (state.frame <= this.input_clock - this.input_delay && state.type !== "update") {
+
+                    dirty_index = Math.min(dirty_index, state.frame)
+                }
+                //this.received_offset = Math.max(this.received_offset, state.frame - (this.input_clock - this.input_delay))
+            }
+
+            // received offset is how far in the future there are updates from now
+            this.received_offset = -1
+            for (let i = 0; i < 60; i++) {
+                let j = (this.input_clock - this.input_delay + i) % this.inputqueue_capacity
+                if (j > 0 && Object.keys(this.inputqueue[j]).length > 0) {
+                    this.received_offset = i
+                }
+            }
+        }
+
+        if (dirty_index < this.input_clock) {
+            console.log("found dirty index at", dirty_index, this.input_clock- this.input_delay, "offset", this.received_offset)
+        }
 
     }
 
@@ -699,9 +730,9 @@ class RemoteController2 {
 
         if (Object.keys(this.inputqueue[idx]).length > 0) {
 
-            for (const key in this.inputqueue[idx]) {
-                const state = this.inputqueue[idx][key]
-                if (state.type === "input") {
+            for (const uid in this.inputqueue[idx]) {
+                const state = this.inputqueue[idx][uid]
+                if (state.type !== "update") {
                     apply_input(state, this.physics)
                     state.applied = true
                 }
@@ -788,15 +819,18 @@ class Physics2d {
         this.group = []
 
         // state
+        this.frame_index = 0 // candidate for 'world state'
         this.direction = 0
         this.xspeed = 0
         this.yspeed = 0
-
+        this.gravityboost = false // more gravity when button not pressed
+        this.doublejump = false
+        this.doublejump_position = {x:0, y: 0}
+        this.doublejump_timer = 0
 
         // computed states
         this.action = "idle"
         this.facing = Direction.RIGHT
-
 
         // properties that are updated on every update()
         this.xcollide = false
@@ -804,18 +838,11 @@ class Physics2d {
         this.collide = false
         this.collisions = new Set()
 
-        // new for platformer
         this.standing = false       //
         this.standing_frame = 0     // last frame standing on the ground
         this.pressing = false       //
         this.pressing_frame = 0     // last frame pressing on a wall
         this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
-
-        this.doublejump_position = {x:0, y: 0}
-        this.doublejump_timer = 0
-
-
-        this.frame_index = 0
 
         // the duration that gives some specified maximum velocity v'
         //      t = sqrt(H^2 / v'^2)
@@ -838,11 +865,10 @@ class Physics2d {
         // this will ensure the maximum height is as calculated
         // and that when the user releases, they will go a little higher and drop normally
 
-        this.doublejump = false
-
         this.xmaxspeed = 7*32
         this.xfriction = this.xmaxspeed / .1 // stop moving in .1 seconds
         this.xacceleration = this.xmaxspeed / .2 // get up to max speed in .2 seconds
+        // horizontal direction in a wall jump
         this.xjumpspeed = Math.sqrt(2*32*this.xacceleration) // sqrt(2*distance*acceleration)
 
         this.jumpheight = 96
@@ -852,8 +878,6 @@ class Physics2d {
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 
         this.ymaxspeed = - this.jumpspeed
-        this.jumptime = 0
-        this.gravityboost = false
 
         // log velocity over time
         let speeds = []
@@ -1075,6 +1099,34 @@ class Physics2d {
             this.action = "run"
         }
 
+    }
+
+    getState() {
+        const state = {
+            x: this.target.rect.x,
+            y: this.target.rect.y,
+            frame_index: this.frame_index,
+            direction: this.direction,
+            xspeed: this.xspeed,
+            yspeed: this.yspeed,
+            gravityboost: this.gravityboost,
+            doublejump: this.doublejump,
+            doublejump_position: this.doublejump_position,
+            doublejump_timer: this.doublejump_timer,
+        }
+    }
+
+    setState(state) {
+        this.target.rect.x = state.x
+        this.target.rect.y = state.y
+        this.frame_index = state.frame_index
+        this.direction = state.direction
+        this.xspeed = state.xspeed
+        this.yspeed = state.yspeed
+        this.gravityboost = state.gravityboost
+        this.doublejump = state.doublejump
+        this.doublejump_position = state.doublejump_position
+        this.doublejump_timer = state.doublejump_timer
     }
 }
 
@@ -1752,7 +1804,7 @@ class DemoScene extends GameScene {
         // boxes to make text easier to read
         ctx.fillStyle = "#333344af"
         ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
-        ctx.fillRect(0, 0, 300, 80)
+        ctx.fillRect(0, 0, 320, 100)
 
 
         this.touch.paint(ctx)
@@ -1763,7 +1815,7 @@ class DemoScene extends GameScene {
         ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         ctx.fillText(`bytes: sent=${Math.floor(this.client.total_sent/3)} received=${Math.floor(this.client.total_received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
-        ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)})`, 32, 88)
+        ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
 
         this.ghost2.paintOverlay(ctx)
 
