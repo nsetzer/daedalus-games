@@ -1,6 +1,29 @@
 
 /**
  * jump war
+ *
+ * - color: green for accepted inputs
+ *          run for non accepted inputs
+ *          yellow for resynced inputs
+ * - implement snap on error
+ *      detect error from real position and simulated position
+ * - adjust frequency of sending duplicate input packets
+ *      with snap on error, this can be dropped to 2 assuming 10% packet loss
+ * - speed up / slow down simulation
+ *      detect when the simulation is falling behind real time
+ *      process extra frames
+ *      **  if an inout comes in more than 6 frames in the future of 'now'
+ *          speed up the simulation
+ *      ** if every input comes in in the past, slow down the simulation
+ *
+ * World state
+ *      receiveMessages
+ *          process all received messages
+ *      reconcile
+ *          if there are any errors rewind the simulation and update all entities in lock step
+ *      update
+ *          run a single normal update for registered entities
+
  */
 $import("daedalus", {})
 
@@ -10,7 +33,9 @@ $import("engine", {
     TextWidget, TextInputWidget,
     Alignment, Direction,
     AnimationComponent, CharacterComponent,
-    TouchInput, KeyboardInput, RealTimeClient,
+    TouchInput, KeyboardInput,
+    RealTimeClient, RealTimeEchoClient
+    CspRingBuffer, mean, stddev,
     ArrowButtonWidget
 })
 
@@ -20,151 +45,6 @@ $import("scenes", {global, ResourceLoaderScene})
  * jump war
  */
 
-function mean(seq) {
-
-    let total = 0
-    for (const v of seq) {
-        total += v
-    }
-    return total / seq.length
-}
-
-function stddev(seq, ddof = 1) {
-    let m = mean(seq)
-    if (seq.length < 2) {
-        return 0
-    }
-
-    let total = 0
-    for (const v of seq) {
-        total += (v - m) * (v - m)
-    }
-
-    return Math.sqrt(total / (seq.length - ddof))
-}
-
-function normalPolar(mean=0, stdev=1) {
-    while (true) {
-
-        const x = ((1 - Math.random()) * 2) - 1
-        const y = (Math.random() * 2) - 1
-        const s = x*x + y*y
-        const t = Math.sqrt(-2 * Math.log(s)/s)
-        if (s < 1) {
-            return mean + stdev * (x * t)
-        }
-    }
-}
-
-function normalBoxMuller(mean=0, stdev=1) {
-    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
-    const v = Math.random();
-    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-    // Transform to the desired mean and standard deviation:
-    return z * stdev + mean;
-}
-
-class RingBuffer {
-
-    constructor(capacity) {
-
-        this.capacity = capacity
-        this.data = []
-        for (let i = 0; i < capacity; i++) {
-            this.data.push(null)
-        }
-
-    }
-
-    set(index, value) {
-        this.data[index % this.capacity] = value
-    }
-
-    get(index) {
-        return this.data[index % this.capacity]
-    }
-}
-
-const byteSize = str => new Blob([str]).size
-
-class DummyClient {
-
-    constructor(callback) {
-
-        // average total bytes sent and received over a 3 second window
-        this.rb_xmit = new RingBuffer(60*3)
-        this.total_sent = 0
-        this.total_received = 0
-
-        this.callback = callback
-
-        this.latency_mean = 200
-        this.latency_stddev = 75
-        this.packet_lossrate = 0.0
-
-
-        this.frame_index = 0
-        this.inputqueue = []
-        this.inputqueue_capacity = 240
-        for (let i=0; i < this.inputqueue_capacity; i++) {
-            this.inputqueue.push([])
-        }
-
-        this.rb_xmit.set(this.frame_index, {sent:0, received:0})
-    }
-
-    send(obj) {
-
-        let nbytes = byteSize(JSON.stringify(obj))
-        this.total_sent += nbytes
-        this.rb_xmit.get(this.frame_index).sent += nbytes
-
-        if (Math.random() < this.packet_lossrate) {
-            return
-        }
-
-        const framerate = 60
-        const latmin = this.latency_mean - this.latency_stddev
-        const latmax = this.latency_mean + this.latency_stddev
-        let latency = normalBoxMuller(this.latency_mean, this.latency_stddev)
-        latency = Math.min(latmax, Math.max(latmin, latency))
-        const offset = Math.round(framerate*latency/1000)
-        const idx = (this.frame_index + offset) % this.inputqueue_capacity
-        this.inputqueue[idx].push(obj)
-    }
-
-    update(dt) {
-        this.frame_index += 1
-
-        const info = this.rb_xmit.get(this.frame_index)
-        if (!!info) {
-            this.total_sent -= info.sent
-            this.total_received -= info.received
-        }
-        this.rb_xmit.set(this.frame_index, {sent:0, received:0})
-
-        const idx = (this.frame_index) % this.inputqueue_capacity
-        if (this.inputqueue[idx].length > 0) {
-            for (const obj of this.inputqueue[idx]) {
-                this.onMessage(obj)
-            }
-            this.inputqueue[idx] = []
-        }
-    }
-
-    connected() {
-        return true
-    }
-
-    onMessage(obj) {
-
-        let nbytes = byteSize(JSON.stringify(obj))
-        this.total_received += nbytes
-        this.rb_xmit.get(this.frame_index).received += nbytes
-
-        this.callback(obj)
-    }
-}
 
 class DemoRealTimeClient extends RealTimeClient {
 
@@ -335,6 +215,11 @@ function apply_input(input, physics) {
                 physics.gravityboost = false
                 //console.log("wall jump", physics.xspeed)
 
+                // TODO: this causes a stutter when trying to wall jump  on the same wall
+                //       if the direction of travel is the same as the current direction button
+                //       the facing direction will need to be fixed, without a new input
+                physics.facing = (physics.facing == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+
             } else if (!standing && physics.doublejump && physics.yspeed > 0) {
                 //console.log("double jump")
                 // double jump at half the height of a normal jump
@@ -343,6 +228,8 @@ function apply_input(input, physics) {
                 physics.doublejump = false
                 physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
                 physics.doublejump_timer = .4
+            } else {
+                console.log(`jump standing=${standing} pressing=${pressing}`)
             }
         } else {
             physics.gravityboost = true
@@ -657,6 +544,7 @@ class RemoteController2 {
             return idx
         }
 
+        let snap_position = null
         for (const state of inputs) {
 
             if (!this.first_received) {
@@ -675,22 +563,34 @@ class RemoteController2 {
 
             // console.log("offset", )
 
+
+            //        snap_position = state
+            //        dirty_index -= this.input_delay
+            //
+            //    }
+            //    //this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
+            //}
+
             let idx = (state.frame) % this.inputqueue_capacity
             if (this.inputqueue[idx][state.uid] === undefined) {
                 this.inputqueue[idx][state.uid] = state
 
-                if (state.frame <= this.input_clock - this.input_delay && state.type !== "update") {
+                const old_state = this.statequeue[getindex(state.frame - this.input_delay)]
+                let error = false
+                if (!!old_state) {
+                    this.error.x = Math.sqrt(Math.pow(old_state.x - state.x,2))
+                    this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
+                    error =  (this.error.x > 0) || (this.error.y > 0)
+                }
 
-                    dirty_index = Math.min(dirty_index, state.frame)
+                if (error || state.frame <= this.input_clock - this.input_delay && state.type !== "update") {
 
-                    const old_state = this.statequeue[getindex(state.frame - this.input_delay)]
-                    if (!!state) {
-                        // calculate the position error as a single number
-                        // TODO: if the error accumulates then set the dirt index - input_delay
-                        //       and snap the position
-                        this.error.x = Math.sqrt(Math.pow(old_state.x - state.x,2) + Math.pow(old_state.y - state.y,2))
-                        //this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
-                    }
+                    // TODO: dont always need to force resync if there is no error
+                    // if the dirty frame is earlier than the current dirty frame but there is no error
+                    // clear the snap position
+                    dirty_index = Math.min(dirty_index, state.frame - this.input_delay)
+                    //snap_position = state
+                    console.log("force rync", this.error, error)
 
 
                 }
@@ -720,6 +620,11 @@ class RemoteController2 {
                 console.log("last known state is null")
             } else {
                 this.physics.setState(last_known_state)
+            }
+
+            if (snap_position !== null) {
+                this.physics.target.rect.x = snap_position.x
+                this.physics.target.rect.y = snap_position.y
             }
 
             for (let clock = dirty_index; clock < this.input_clock - this.input_delay + 1; clock += 1) {
@@ -895,10 +800,12 @@ class Physics2d {
         this.direction = 0
         this.xspeed = 0
         this.yspeed = 0
+        this.xaccum = 0
+        this.yaccum = 0
         this.gravityboost = false // more gravity when button not pressed
         this.doublejump = false
-        this.doublejump_position = {x:0, y: 0}
-        this.doublejump_timer = 0
+        this.doublejump_position = {x:0, y: 0} // animation center
+        this.doublejump_timer = 0 // for the animation duration
 
         // computed states
         this.action = "idle"
@@ -948,6 +855,7 @@ class Physics2d {
         this.jumpduration = .22 // total duration divided by 4?
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
+        this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
 
@@ -969,148 +877,195 @@ class Physics2d {
         return null
     }
 
+    _move_y(dt) {
+
+    }
+
     update(dt) {
         this.frame_index += 1
 
-        this.xcollide = false
-        this.ycollide = false
-        this.collide = false
-        this.collisions = new Set()
+        if (true) {
+            /////////////////////////////////////////////////////////////
+            // apply x acceleration
 
-        if ((this.direction & Direction.LEFT) > 0) {
-            if (this.xspeed > -this.xmaxspeed) {
-                this.xspeed -= this.xacceleration * dt
+            if ((this.direction & Direction.LEFT) > 0) {
+                if (this.xspeed > -this.xmaxspeed) {
+                    this.xspeed -= this.xacceleration * dt
+                }
+            } else if ((this.direction & Direction.RIGHT) > 0) {
+                if (this.xspeed < this.xmaxspeed) {
+                    this.xspeed += this.xacceleration * dt
+                }
+            } else if (this.standing) {
+                if (Math.abs(this.xspeed) < this.xfriction * dt) {
+                    this.xspeed = 0
+                } else {
+                    this.xspeed -= Math.sign(this.xspeed) * this.xfriction * dt
+                }
             }
-        } else if ((this.direction & Direction.RIGHT) > 0) {
-            if (this.xspeed < this.xmaxspeed) {
-                this.xspeed += this.xacceleration * dt
+
+            // bounds check x velocity
+            if (this.xspeed > this.xmaxspeed) {
+                this.xspeed = this.xmaxspeed
             }
-        } else if (this.standing) {
-            if (Math.abs(this.xspeed) < this.xfriction * dt) {
+            if (this.xspeed < -this.xmaxspeed) {
+                this.xspeed = -this.xmaxspeed
+            }
+
+            /////////////////////////////////////////////////////////////
+            // apply y acceleration
+
+            this.yspeed += this.gravity * dt
+
+            // increase gravity when not pressing a jump button
+            if (this.gravityboost && this.yspeed < 0) {
+                this.yspeed += this.gravity * dt
+            }
+
+            // check for terminal velocity
+            if (this.yspeed > this.ymaxspeed) {
+                this.yspeed = this.ymaxspeed
+            }
+
+            // reduce speed when pressed on a wall?
+            if (this.pressing && this.yspeed > 0) {
+                if (this.yspeed > this.ymaxspeed*this.wallfriction) {
+                    this.yspeed = this.ymaxspeed*this.wallfriction
+                }
+            }
+        }
+
+        /////////////////////////////////////////////////////////////
+        // move x
+        this.xaccum += dt*this.xspeed
+        let dx = Math.trunc(this.xaccum)
+        let xstep = dx
+        if (xstep == 0) {
+            xstep = (this.facing == Direction.LEFT)?-1:1
+        }
+        if (true) {
+            this.xcollide = false
+            this.xcollisions = new Set()
+            this.xaccum -= dx
+
+            let rect = new Rect(
+                this.target.rect.x + xstep,
+                this.target.rect.y,
+                this.target.rect.w,
+                this.target.rect.h,
+            )
+
+            let solid = false;
+            for (let i=0; i < this.group.length; i++) {
+                if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
+                    this.collisions.add(this.group[i])
+                    solid = true
+                    if (this.xspeed > 0) {
+                        dx = Math.min(this.group[i].rect.left() - this.target.rect.right())
+                    } else if (this.xspeed < 0) {
+                        dx = Math.min(this.group[i].rect.right() - this.target.rect.left())
+                    }
+                    break;
+                }
+            }
+
+            this.target.rect.x += dx
+            if (solid) {
+                //this.xspeed = 0 // Math.sign(this.xspeed) * 60
+                this.xcollide = true
+            }
+
+
+            if (this.xcollide) {
+                this.pressing = true
+                // check the movement vector and fix the facing direction to stick to a wall
+                this.facing = (dx > 0)?Direction.RIGHT:(dx<0)?Direction.LEFT:this.facing
+                // configure the direction for when pressing the jump button
+                // TODO: can this be removed if instead check the facing direction?
+                this.pressing_direction = (this.facing == Direction.LEFT)?1:-1;
                 this.xspeed = 0
             } else {
-                this.xspeed -= Math.sign(this.xspeed) * this.xfriction * dt
+                this.pressing = false
             }
-        }
-        if (this.xspeed > this.xmaxspeed) {
-            this.xspeed = this.xmaxspeed
-        }
-        if (this.xspeed < -this.xmaxspeed) {
-            this.xspeed = -this.xmaxspeed
-        }
+            //console.log(this.pressing?"pressing":"not", Direction.name[this.facing], xstep, dx)
+            /*
 
-
-        let rect, solid;
-        let dx, dy
-
-        dx = dt*this.xspeed
-        dy = dt*this.yspeed
-
-
-        // move x
-        rect = new Rect(
-            this.target.rect.x + dx,
-            this.target.rect.y,
-            this.target.rect.w,
-            this.target.rect.h,
-        )
-
-        solid = false;
-        for (let i=0; i < this.group.length; i++) {
-            if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
-                this.collisions.add(this.group[i])
-                solid = true
-                if (this.xspeed > 0) {
-                    dx = Math.min(this.group[i].rect.left() - this.target.rect.right())
-                } else if (this.xspeed < 0) {
-                    dx = Math.min(this.group[i].rect.right() - this.target.rect.left())
-                }
-                break;
+            if (this.xspeed > 0 && this.xcollide) {
+                this.xspeed = 0
+                this.pressing = this.frame_index
+                this.pressing_direction = -1
+            } else if (this.xspeed < 0 && this.xcollide) {
+                this.xspeed = 0
+                this.pressing = this.frame_index
+                this.pressing_direction = 1
+            } else {
+                this.pressing = false
+            }
+            */
+            // update state
+            if (this.pressing) {
+                this.pressing_frame = this.frame_index
             }
         }
 
-        if (solid) {
-            //this.xspeed = 0 // Math.sign(this.xspeed) * 60
-            this.xcollide = true
-        }
-
-
-        this.target.rect.x += dx
-        if (this.xspeed > 0 && this.xcollide) {
-            this.xspeed = 0
-            this.pressing = this.frame_index
-            this.pressing_frame = this.frame_index
-            this.pressing_direction = -1
-        } else if (this.xspeed < 0 && this.xcollide) {
-            this.xspeed = 0
-            this.pressing = this.frame_index
-            this.pressing_frame = this.frame_index
-            this.pressing_direction = 1
-        } else {
-            this.pressing = false
-        }
-
+        /////////////////////////////////////////////////////////////
         // move y
-        rect = new Rect(
-            this.target.rect.x,
-            this.target.rect.y + dy,
-            this.target.rect.w,
-            this.target.rect.h,
-        )
+        this.yaccum += dt*this.yspeed
+        let dy = Math.trunc(this.yaccum)
+        let ystep = dy
+        if (ystep == 0) {
+            // check if standing
+            ystep = 1
+        }
+        if (true) {
+            this.ycollisions = new Set()
+            this.ycollide = false
+            this.yaccum -= dy
+            let rect = new Rect(
+                this.target.rect.x,
+                this.target.rect.y + ystep,
+                this.target.rect.w,
+                this.target.rect.h,
+            )
 
-        solid = false;
-        for (let i=0; i < this.group.length; i++) {
-            if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
-                this.collisions.add(this.group[i])
-                solid = true
-                if (this.yspeed > 0) {
-                    dy = Math.min(this.group[i].rect.top() - this.target.rect.bottom())
-                } else if (this.yspeed < 0) {
-                    dy = Math.min(this.group[i].rect.bottom() - this.target.rect.top())
+            let solid = false;
+            for (let i=0; i < this.group.length; i++) {
+                if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
+                    this.collisions.add(this.group[i])
+                    solid = true
+                    if (this.yspeed > 0) {
+                        dy = Math.min(this.group[i].rect.top() - this.target.rect.bottom())
+                    } else if (this.yspeed < 0) {
+                        dy = Math.min(this.group[i].rect.bottom() - this.target.rect.top())
+                    }
+                    break;
                 }
-                break;
             }
-        }
 
-        this.target.rect.y += dy
-        if (solid) {
-            this.ycollide = true
-        }
+            this.target.rect.y += dy
+            if (solid) {
+                this.ycollide = true
+            }
 
+            if (this.yspeed > 0 && this.ycollide) {
+                this.standing = true
+                this.yspeed = 0
+            } else {
+                if (this.yspeed < 0 && this.ycollide) {
+                    this.yspeed = 0
+                }
+                this.standing = false
+            }
+
+            if (this.standing) {
+                this.standing_frame = this.frame_index
+            }
+
+        }
 
         this.collide = this.xcollide || this.ycollide
 
-        if (this.yspeed > 0 && this.ycollide) {
-            this.standing = true
-            this.standing_frame = this.frame_index
-            this.yspeed = 0
-        } else {
-            if (this.yspeed < 0 && this.ycollide) {
-                this.yspeed = 0
-            }
-            this.standing = false
-        }
-
-
-        this.yspeed += this.gravity * dt
-
-        // increase gravity when not pressing a jump button
-        if (this.gravityboost && this.yspeed < 0) {
-            this.yspeed += this.gravity * dt
-        }
-
-        // check for terminal velocity
-        if (this.yspeed > this.ymaxspeed) {
-            this.yspeed = this.ymaxspeed
-        }
-
-        // reduce speed when pressed on a wall?
-        if (this.pressing && this.yspeed > 0) {
-            if (this.yspeed > this.ymaxspeed/5) {
-                this.yspeed = this.ymaxspeed/5
-            }
-        }
-
+        /////////////////////////////////////////////////////////////
         // bounds check
         if (Physics2d.maprect.w > 0) {
             if (this.target.rect.x < Physics2d.maprect.x) {
@@ -1137,6 +1092,9 @@ class Physics2d {
             }
         }
 
+        /////////////////////////////////////////////////////////////
+        // update current action
+
         // double_jump
         // fall
         // hit
@@ -1148,7 +1106,6 @@ class Physics2d {
         if (this.doublejump_timer > 0) {
             this.doublejump_timer -= dt
         }
-
 
         let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
         let falling = !this.standing && this.yspeed > 0
@@ -1177,10 +1134,14 @@ class Physics2d {
         const state = {
             x: this.target.rect.x,
             y: this.target.rect.y,
+            xaccum: this.xaccum,
+            yaccum: this.yaccum,
             frame_index: this.frame_index,
             direction: this.direction,
             xspeed: this.xspeed,
             yspeed: this.yspeed,
+            xaccum: this.xaccum,
+            yaccum: this.yaccum,
             gravityboost: this.gravityboost,
             doublejump: this.doublejump,
             doublejump_position: this.doublejump_position,
@@ -1196,6 +1157,8 @@ class Physics2d {
         this.direction = state.direction
         this.xspeed = state.xspeed
         this.yspeed = state.yspeed
+        this.xaccum = state.xaccum
+        this.yaccum = state.yaccum
         this.gravityboost = state.gravityboost
         this.doublejump = state.doublejump
         this.doublejump_position = state.doublejump_position
@@ -1411,20 +1374,19 @@ class DemoScene extends GameScene {
         }
 
 
-        if (0 && daedalus.env.debug) {
+        if (false && daedalus.env.debug) {
             this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
             this.client.connect("/rtc/offer", {})
-
-
-
+            this.use_network = true
 
         } else {
-            this.client = new DummyClient(this.handleMessage.bind(this))
+            this.client = new RealTimeEchoClient(this.handleMessage.bind(this))
             const profile = this.profiles[this.profile_index]
             this.client.latency_mean = profile.mean
             this.client.latency_stddev = profile.stddev
             this.client.packet_lossrate = profile.droprate
             this.buildWidgets()
+            this.use_network = false
         }
 
         // statistics on received information
@@ -1866,15 +1828,13 @@ class DemoScene extends GameScene {
             ent.paint(ctx)
         }
 
-
-
-
-
         ctx.restore()
 
         // boxes to make text easier to read
         ctx.fillStyle = "#333344af"
-        ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
+        if (!this.use_network) {
+            ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
+        }
         ctx.fillRect(0, 0, 320, 100)
 
 
@@ -1884,9 +1844,11 @@ class DemoScene extends GameScene {
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
         ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
         ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
-        ctx.fillText(`bytes: sent=${Math.floor(this.client.total_sent/3)} received=${Math.floor(this.client.total_received/3)}`, 32, 72)
+        const stats = this.client.stats()
+        ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
         ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
+        ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
 
         this.ghost2.paintOverlay(ctx)
 
