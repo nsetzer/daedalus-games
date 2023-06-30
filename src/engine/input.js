@@ -14,6 +14,9 @@ const Keys = {
     ALT: 18,
 }
 
+//[ord(c) for c in "WDSA"]
+//[87, 68, 83, 65]
+
 // gamepad / joystick support in the browser
 // https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API
 //
@@ -24,10 +27,28 @@ export class KeyboardInput {
         this.target = target
         this.keysDown = [];
 
-        this.buttons = [Keys.CTRL, Keys.SPACE]
+        this.buttons = []
         this.pressed = {}
         this.last_vector = {x:null, y:null}
 
+        this.wheels = []
+
+    }
+
+    addWheel(up, right, down, left) {
+        this.wheels.push({up, right, down, left})
+    }
+
+    addWheel_WASD() {
+        this.addWheel(87, 68, 83, 65)
+    }
+
+    addWheel_ArrowKeys() {
+        this.addWheel(Keys.UP, Keys.RIGHT, Keys.DOWN, Keys.LEFT)
+    }
+
+    addButton(keyCode) {
+        this.buttons.push(keyCode)
     }
 
     handleKeyPress(keyevent) {
@@ -116,6 +137,7 @@ export class KeyboardInput {
         return {x, y};
     }
 }
+KeyboardInput.Keys = Keys
 
 export class TouchInput {
     // todo: make direction circles generic.

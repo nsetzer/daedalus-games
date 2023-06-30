@@ -294,7 +294,7 @@ class Controller {
     }
 
     handleButtonPress(btnid) {
-        if (btnid === 0 || btnid === 1) {
+        if (btnid === 0) {
             let message = {
                 x: this.target.rect.x,
                 y: this.target.rect.y,
@@ -308,11 +308,14 @@ class Controller {
             //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+        } else if  (btnid === 1) {
+
         }
+
     }
 
     handleButtonRelease(btnid) {
-        if (btnid === 0 || btnid === 1) {
+        if (btnid === 0) {
             let message = {
                 x: this.target.rect.x,
                 y: this.target.rect.y,
@@ -326,6 +329,8 @@ class Controller {
             //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+        } else if  (btnid === 1) {
+
         }
     }
 
@@ -583,18 +588,28 @@ class RemoteController2 {
                     error =  (this.error.x > 0) || (this.error.y > 0)
                 }
 
-                if (error || state.frame <= this.input_clock - this.input_delay && state.type !== "update") {
+                //  && state.type !== "update"
+                if ((error || state.frame <= this.input_clock - this.input_delay)) {
 
-                    // TODO: dont always need to force resync if there is no error
-                    // if the dirty frame is earlier than the current dirty frame but there is no error
-                    // clear the snap position
-                    dirty_index = Math.min(dirty_index, state.frame - this.input_delay)
-                    //snap_position = state
-                    console.log("force rync", this.error, error)
-
+                    // TODO: there are a few ways to resync:
+                    //       send an update message with the full state
+                    //            - send it after a delay of no input (.5 seconds)?
+                    //       snap on position
+                    //       expand into an error api
+                    //         entity target can have a function to compute error between two states
+                    //         snap position can then be set.
+                    //         second api for applying a snap position
+                    //         some entities may require more than just position updates
+                    let tmp = state.frame - this.input_delay + 1
+                    if (error && tmp < dirty_index) {
+                        dirty_index = tmp
+                        snap_position = {frameIndex: tmp, state: state}
+                    } else if (state.frame < dirty_index) {
+                        dirty_index = state.frame
+                        snap_position = null
+                    }
 
                 }
-                //this.received_offset = Math.max(this.received_offset, state.frame - (this.input_clock - this.input_delay))
             }
 
             // received offset is how far in the future there are updates from now
@@ -607,24 +622,25 @@ class RemoteController2 {
             }
         }
 
-
+        // TODO: there seems to be a receiver bug, perhaps duplicate processing not working
+        //console.log(dirty_index, this.input_clock, dirty_index < this.input_clock, dirty_index - (this.input_clock - this.input_delay))
 
         if (dirty_index < this.input_clock) {
             //console.log("found dirty index at", dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
 
-
-
             const last_known_state = this.statequeue[getindex(dirty_index - 1)]
             //console.log("restore state", dirty_index-1, idx, last_known_state)
             if (last_known_state === null) {
-                console.log("last known state is null")
+                // TODO: null last state could be a non issue
+                // or instead we need to get the 'first' state
+                console.error("last known state is null")
             } else {
                 this.physics.setState(last_known_state)
             }
 
-            if (snap_position !== null) {
-                this.physics.target.rect.x = snap_position.x
-                this.physics.target.rect.y = snap_position.y
+            if (snap_position !== null && snap_position.frameIndex == dirty_index) {
+                this.physics.target.rect.x = snap_position.state.x
+                this.physics.target.rect.y = snap_position.state.y
             }
 
             for (let clock = dirty_index; clock < this.input_clock - this.input_delay + 1; clock += 1) {
@@ -786,7 +802,6 @@ class RemoteController2 {
         }
         ctx.restore()
     }
-
 }
 
 class Physics2d {
@@ -1345,6 +1360,52 @@ class Character extends Entity {
     }
 }
 
+class Shuriken extends Entity {
+
+    constructor() {
+        super()
+
+        this.rect.w = 16
+        this.rect.h = 16
+
+        this.physics = new Physics2d(this)
+        this.xspeed = 128
+    }
+
+    update(dt) {
+
+
+        this.physics.update(dt)
+
+
+
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = this.physics.standing?"#00bb00":this.physics.pressing?"#665533":"#009933";
+        ctx.beginPath()
+        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
+        ctx.fill()
+
+    }
+}
+
+class World {
+
+    constructor() {
+
+    }
+
+    update(dt) {
+
+    }
+
+    paint(ctx) {
+
+    }
+}
+
 class DemoScene extends GameScene {
 
     constructor() {
@@ -1687,11 +1748,16 @@ class DemoScene extends GameScene {
 
         this.controller = new Controller(this, this.player)
         this.touch = new TouchInput(this.controller)
-
         this.touch.addWheel(72, -72, 72)
-        this.touch.addButton(-60, -60, 40)
+        //this.touch.addButton(-60, -60, 40)
+        this.touch.addButton(-40, -120, 40)
+        this.touch.addButton(-120, -40, 40)
 
         this.keyboard = new KeyboardInput(this.controller);
+        this.keyboard.addWheel_ArrowKeys()
+        this.keyboard.addButton(KeyboardInput.Keys.SPACE)
+        this.keyboard.addButton(KeyboardInput.Keys.CTRL)
+
         this.camera = new Camera(this.map, this.player)
     }
 
