@@ -366,9 +366,9 @@ export class CanvasEngine extends DomElement {
         if (kc == Keys.PAUSE) {
             this.paused = ! this.paused
             this.scene.pause(this.paused)
+            this.ctx.resetTransform()
             this.ctx.fillStyle="yellow"
             this.ctx.font = '12px sans-serif';
-            this.ctx.resetTransform()
             this.ctx.fillText("paused", 32, 32)
             let canvas = this.getDomNode()
             this.ctx.fillStyle = "#00000044"
@@ -393,7 +393,7 @@ export class CanvasEngine extends DomElement {
             }
 
         } else {
-            console.log(kc)
+            console.log("unexpected key", event)
         }
     }
 

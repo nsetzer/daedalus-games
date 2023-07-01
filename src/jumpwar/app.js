@@ -192,7 +192,7 @@ class Camera extends CameraBase {
     }
 }
 
-function apply_input(input, physics) {
+function apply_character_input(map, input, physics) {
 
     if (input.btnid !== undefined) {
         if (input.pressed) {
@@ -242,11 +242,14 @@ function apply_input(input, physics) {
             physics.facing = physics.direction
         }
     }
+    else if (input.type === "create") {
+        console.log("create projectile")
+    }
 }
 
 class Controller {
-    constructor(scene, target) {
-        this.scene = scene
+    constructor(client, target) {
+        this.client = client
         this.target = target
         this.remotedelay = 6
 
@@ -276,12 +279,15 @@ class Controller {
         let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
         if (direction != this.last_direction) {
             let message = {
+                type: "input",
+                entid: this.target.entid,
+                frame: this.frame_id + this.remotedelay,
+                uid: this.input_id,
+                // ---
                 x: this.target.rect.x,
                 y: this.target.rect.y,
                 whlid: whlid,
                 direction: direction,
-                frame: this.frame_id + this.remotedelay,
-                uid: this.input_id
             }
             this.input_id += 1
 
@@ -296,12 +302,15 @@ class Controller {
     handleButtonPress(btnid) {
         if (btnid === 0) {
             let message = {
+                type: "input",
+                entid: this.target.entid,
+                frame: this.frame_id + this.remotedelay,
+                uid: this.input_id,
+                // ---
                 x: this.target.rect.x,
                 y: this.target.rect.y,
                 btnid: btnid,
                 pressed: true,
-                frame: this.frame_id + this.remotedelay,
-                uid: this.input_id
             }
             this.input_id += 1
 
@@ -310,6 +319,17 @@ class Controller {
             this.inputqueue[idx].push(message)
         } else if  (btnid === 1) {
 
+            let message = {
+                type: "create",
+                entid: this.target.entid,
+                frame: this.frame_id + this.remotedelay,
+                uid: this.input_id,
+                // ---
+                dummy: 1
+            }
+            this.input_id += 1
+            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            this.inputqueue[idx].push(message)
         }
 
     }
@@ -317,12 +337,15 @@ class Controller {
     handleButtonRelease(btnid) {
         if (btnid === 0) {
             let message = {
+                type: "input",
+                entid: this.target.entid,
+                frame: this.frame_id + this.remotedelay,
+                uid: this.input_id,
+                // ---
                 x: this.target.rect.x,
                 y: this.target.rect.y,
                 btnid: btnid,
                 pressed: false,
-                frame: this.frame_id + this.remotedelay,
-                uid: this.input_id
             }
             this.input_id += 1
 
@@ -345,10 +368,11 @@ class Controller {
 
         if (inputs.length > 0) {
             const message = {
-                type: "input",
+                type: "inputs",
+                entid: this.target.entid,
                 inputs: inputs
             }
-            this.scene.client.send(message)
+            this.client.send(message)
         }
     }
 
@@ -364,13 +388,13 @@ class Controller {
 
             // TODO: counter to send N updates after last input?
             //if (!this.update_sent) {
-                let message = {
-                    type: "update",
-                    x: this.target.rect.x,
-                    y: this.target.rect.y,
-                    frame: this.frame_id,
-                }
-                this.scene.client.send(message)
+                //let message = {
+                //    type: "update",
+                //    x: this.target.rect.x,
+                //    y: this.target.rect.y,
+                //    frame: this.frame_id,
+                //}
+                //this.client.send(message)
 
                 this.update_sent = true
             //}
@@ -383,7 +407,7 @@ class Controller {
                 "type": "keepalive",
                 t0: performance.now(),
             }
-            this.scene.client.send(message)
+            this.client.send(message)
         }
 
         let msgcnt = 0
@@ -395,100 +419,11 @@ class Controller {
         let idx = (this.frame_id)%this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0){
             for (let input of this.inputqueue[idx]) {
-                apply_input(input, this.target.physics)
+                apply_character_input(this.map, input, this.target.physics)
             }
             this.inputqueue[idx] = []
         }
 
-    }
-}
-
-class RemoteController1 {
-    // interpolate between two received states
-    constructor() {
-
-        this.queue = []
-
-        this.first_received = false
-        this.previous_state = null
-        this.previous_clock = 0
-
-        this.position = {x:0, y:0}
-        this.input_clock = 0
-        this.input_delay = 0.1
-    }
-
-    receiveState(state) {
-        //
-        //this.position.x = state.x
-        //this.position.y = state.y
-
-        // state.t0 /= 1000
-
-        if (!this.first_received) {
-            this.input_clock = state.t0
-            this.first_received =  true
-        }
-
-        let t =  this.input_clock - this.input_delay
-
-        if (state.t0 >= t) {
-            this.queue.push(state)
-            this.queue.sort((a,b) => {
-                a.t0 - b.t0
-            })
-        } else {
-            console.log("drop", state)
-            self.input_clock += (t - state.t0)/4
-        }
-
-    }
-
-    update(dt) {
-
-        this.input_clock += dt
-
-        if (this.queue.length > 0) {
-
-            let t = this.queue[0].t0
-            let c = this.input_clock - this.input_delay
-            if (t < c) {
-
-                let state = this.queue.shift()
-
-                this.position.x = state.x
-                this.position.y = state.y
-
-                this.previous_state = state
-                this.previous_clock = state.t0
-                //console.log(1, t, c, this.position, state)
-
-            } else if (this.previous_state != null) {
-                let t0 = this.previous_clock
-                let p = (c - t0) / (t - t0)
-
-                let x1 = this.previous_state.x
-                let y1 = this.previous_state.y
-                let x2 = this.queue[0].x
-                let y2 = this.queue[0].y
-
-                this.position.x = x1 + p * (x2 - x1)
-                this.position.y = y1 + p * (y2 - y1)
-                //console.log(2, p, this.position)
-
-            }
-        }
-
-
-
-    }
-
-    paint(ctx) {
-
-        ctx.beginPath();
-        ctx.fillStyle = "#FFFF007f"
-        ctx.rect(this.position.x, this.position.y, 16, 16)
-        ctx.fill()
     }
 }
 
@@ -500,6 +435,7 @@ class RemoteController2 {
         //this.queue = []
 
         // capacity allows for +/- 2 seconds of inputs to be queued or cached
+        // queue is [entity.entid][seqid]
         this.inputqueue_capacity = 120
         this.inputqueue = []
         for (let i=0; i < this.inputqueue_capacity; i++) {
@@ -512,12 +448,8 @@ class RemoteController2 {
             this.statequeue.push(null)
         }
 
-        this.ent = new Character()
-        this.rect = this.ent.rect
 
-        this.position = {x:0, y:0}
         this.error = {x:0, y:0}
-        this.physics = this.ent.physics // new Physics2d(this)
 
         this.first_received = false
         this.previous_state = null
@@ -527,38 +459,74 @@ class RemoteController2 {
         this.input_delay = 6
 
         this.received_offset = 0
+
+        this.dirty_index = null
+        //this.snap_position = null
+
     }
 
-    receiveState(message) {
+    _frameIndex(k) {
+        let idx = (k) % this.inputqueue_capacity
+        if (idx < 0) {
+            idx += this.inputqueue_capacity
+        }
+        return idx
+    }
+
+    _hasinput(idx, entid, uid) {
+
+        return this.inputqueue[idx][entid] !== undefined && this.inputqueue[idx][uid] !== undefined
+    }
+
+    _getinput(idx, entid, uid) {
+        if (this.inputqueue[idx][entid] === undefined) {
+            throw {message: "illegal access", idx, entid, uid}
+        }
+        return this.inputqueue[idx][entid][uid]
+    }
+
+    _setinput(idx, entid, uid, input) {
+        if (this.inputqueue[idx][entid] === undefined) {
+            this.inputqueue[idx][entid] = {}
+        }
+        this.inputqueue[idx][entid][uid] = input
+    }
+
+    _getEntity(entid) {
+        return this.map.ghost
+    }
+
+    _getstate() {
+        return this.map.ghost.physics.getState()
+    }
+
+    _updatestate() {
+        this.map.ghost.update(1/60)
+    }
+
+    _setstate(state) {
+        this.map.ghost.physics.setState(state)
+    }
+
+    _receive(message) {
 
         let inputs;
-        if (message.type == "update") {
-            //inputs = [message]
-            return
-        } else {
+        if (message.type == "inputs") {
             inputs = message.inputs
+        } else {
+            inputs = [message]
         }
 
-        let dirty_index = this.input_clock
-
-        const getindex = (k) => {
-            let idx = (k) % this.inputqueue_capacity
-            if (idx < 0) {
-                idx += this.inputqueue_capacity
-            }
-            return idx
-        }
-
-        let snap_position = null
         for (const state of inputs) {
 
             if (!this.first_received) {
                 // TODO: should this be index - delay?
                 this.input_clock = state.frame
+                this.dirty_index = state.frame
                 this.first_received =  true
             }
 
-            // TODO: check for rounding errors and modulous index
+            // TODO: check for rounding errors and modulus index
             let delta = this.inputqueue_capacity/2
             if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
                 console.log("drop stale state", this.input_clock - state.frame, this.input_clock, state.frame, state)
@@ -566,174 +534,144 @@ class RemoteController2 {
                 return
             }
 
-            // console.log("offset", )
+            let idx = this._frameIndex(state.frame)
 
+            if (!this._hasinput(idx, state.entid, state.uid)) {
 
-            //        snap_position = state
-            //        dirty_index -= this.input_delay
-            //
-            //    }
-            //    //this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
-            //}
+                this._setinput(idx, state.entid, state.uid, state)
 
-            let idx = (state.frame) % this.inputqueue_capacity
-            if (this.inputqueue[idx][state.uid] === undefined) {
-                this.inputqueue[idx][state.uid] = state
-
-                const old_state = this.statequeue[getindex(state.frame - this.input_delay)]
-                let error = false
-                if (!!old_state) {
-                    this.error.x = Math.sqrt(Math.pow(old_state.x - state.x,2))
-                    this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
-                    error =  (this.error.x > 0) || (this.error.y > 0)
-                }
-
-                //  && state.type !== "update"
-                if ((error || state.frame <= this.input_clock - this.input_delay)) {
-
-                    // TODO: there are a few ways to resync:
-                    //       send an update message with the full state
-                    //            - send it after a delay of no input (.5 seconds)?
-                    //       snap on position
-                    //       expand into an error api
-                    //         entity target can have a function to compute error between two states
-                    //         snap position can then be set.
-                    //         second api for applying a snap position
-                    //         some entities may require more than just position updates
-                    let tmp = state.frame - this.input_delay + 1
-                    if (error && tmp < dirty_index) {
-                        dirty_index = tmp
-                        snap_position = {frameIndex: tmp, state: state}
-                    } else if (state.frame < dirty_index) {
-                        dirty_index = state.frame
-                        snap_position = null
+                if (state.type == "input") {
+                    const snap = {
+                        type: "snap",
+                        entid: state.entid,
+                        frame: state.frame,
+                        uid: state.uid,
+                        x: state.x,
+                        y: state.y
                     }
-
+                    const snap_index = this._frameIndex(state.frame - this.input_delay)
+                    this._setinput(snap_index, snap.entid, snap.uid, snap)
                 }
-            }
 
-            // received offset is how far in the future there are updates from now
-            this.received_offset = -1
-            for (let i = 0; i < 60; i++) {
-                let j = getindex(this.input_clock - this.input_delay + i)
-                if (Object.keys(this.inputqueue[j]).length > 0) {
-                    this.received_offset = i
+                // check if character is out of sync
+
+                let tmp = state.frame
+                //const old_state = this.statequeue[this._frameIndex(state.frame - this.input_delay)]
+                //if (!!old_state) {
+                //     this.error.x = Math.sqrt(Math.pow(old_state.x - state.x,2))
+                //     this.error.y = Math.sqrt(Math.pow(old_state.y - state.y,2))
+                //     if ((this.error.x > 0) || (this.error.y > 0)) {
+                //         tmp = old_state.frame
+                //     }
+                //}
+
+                if (tmp <= this.input_clock - this.input_delay) {
+                    console.log("dirty", this.error, tmp)
+                    if (this.dirty_index == null || tmp < this.dirty_index) {
+                        this.dirty_index = tmp
+                    }
                 }
+                //console.log("state at frame", state.frame, "now is", this.input_clock - this.input_delay, "dirty is",  this.dirty_index)
+
+                // console.log("received state", state.type, state.entid , state)
+
             }
         }
 
-        // TODO: there seems to be a receiver bug, perhaps duplicate processing not working
-        //console.log(dirty_index, this.input_clock, dirty_index < this.input_clock, dirty_index - (this.input_clock - this.input_delay))
+        return
+    }
 
-        if (dirty_index < this.input_clock) {
-            //console.log("found dirty index at", dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
+    _reconcile() {
 
-            const last_known_state = this.statequeue[getindex(dirty_index - 1)]
+        if (this.dirty_index !== null && this.dirty_index <= this.input_clock - this.input_delay) {
+            //console.log("found dirty index at", this.dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
+
+            const last_index = this._frameIndex(this.dirty_index - 1)
+            const last_known_state = this.statequeue[last_index]
             //console.log("restore state", dirty_index-1, idx, last_known_state)
             if (last_known_state === null) {
                 // TODO: null last state could be a non issue
                 // or instead we need to get the 'first' state
                 console.error("last known state is null")
             } else {
-                this.physics.setState(last_known_state)
+                this._setstate(last_known_state)
             }
 
-            if (snap_position !== null && snap_position.frameIndex == dirty_index) {
-                this.physics.target.rect.x = snap_position.state.x
-                this.physics.target.rect.y = snap_position.state.y
-            }
+            //if (snap_position !== null && snap_position.frameIndex == this.dirty_index) {
+            //    this.physics.target.rect.x = snap_position.state.x
+            //    this.physics.target.rect.y = snap_position.state.y
+            //}
 
-            for (let clock = dirty_index; clock < this.input_clock - this.input_delay + 1; clock += 1) {
-                //console.log("recalculate physics at time", clock, this.input_clock - this.input_delay)
-
-                let idx = (clock) % this.inputqueue_capacity
-                if (idx < 0) {
-                    idx += this.inputqueue_capacity
-                }
-
-                for (const uid in this.inputqueue[idx]) {
-                    const state = this.inputqueue[idx][uid]
-                    if (state.type !== "update") {
-                        apply_input(state, this.physics)
-                        state.applied = true
-                    }
-                }
-
-                this.ent.update(1/60)
-                this.statequeue[idx] = this.physics.getState()
+            // process up to the current time (+1), an update after this will take care of advancing to the next frame
+            const start = this.dirty_index
+            const end = this.input_clock - this.input_delay
+            for (let clock = start; clock <= end; clock += 1) {
+                let idx = this._frameIndex(clock)
+                this._apply(idx)
+                // todo: move this out of here?
+                this._updatestate()
+                this.statequeue[idx] = this._getstate()
 
             }
         }
+
+        this.dirty_index = null
+    }
+
+
+
+    _apply(idx) {
+        for (const entid in this.inputqueue[idx]) {
+            for (const uid in this.inputqueue[idx][entid]) {
+                const state = this.inputqueue[idx][entid][uid]
+                console.log("apply", state.entid, state.type)
+                if (state.type === "input") {
+                    const ent = this._getEntity(state.entid)
+                    apply_character_input(this.map, state, ent.physics)
+                    state.applied = true
+                }
+                else if (state.type == "snap") {
+                    // TODO: I think there is a bug here
+                    // snap at the beginning of an update
+                    // but state is saved at the end
+                    let a = {x: this.physics.target.rect.x, y: this.physics.target.rect.y}
+                    let b = {x: state.x, y: state.y}
+                    console.log("snap", a, b)
+                }
+            }
+        }
+
 
     }
 
-    update(dt) {
+    update_before() {
 
         this.input_clock += 1
 
-        let idx;
-        idx = (this.input_clock - 60) % this.inputqueue_capacity
-        if (idx < 0) {
-            idx += this.inputqueue_capacity
-        }
-        this.inputqueue[idx] = {}
-
-        /*
-        idx = (this.input_clock - 6) % this.inputqueue_capacity
-        if (idx < 0) {
-            idx += this.inputqueue_capacity
-        }
-        if (Object.keys(this.inputqueue[idx]).length > 0) {
-            for (const key in this.inputqueue[idx]) {
-                const state = this.inputqueue[idx][key]
-                if (state.type === "update") {
-
-                    this.position.x = state.x
-                    this.position.y = state.y
-
-                    this.error.x = this.rect.x - this.position.x
-                    this.error.y = this.rect.y - this.position.y
-
-                    // todo: smooth this out somehow
-                    this.rect.x = this.position.x
-                    this.rect.y = this.position.y
-
-
+        // clear events from 1 second ago
+        const delete_idx = this._frameIndex(this.input_clock - 60)
+        for (const entid in this.inputqueue[delete_idx]) {
+            for (const uid in this.inputqueue[delete_idx][entid]) {
+                const state = this.inputqueue[delete_idx][entid][uid]
+                if (state.type == "input") {
+                    if (!state.applied) {
+                        // Crash the game whenever an input is not applied cleanly
+                        throw state
+                    }
                 }
             }
         }
-        */
+        this.inputqueue[delete_idx] = {}
 
-        idx = (this.input_clock - this.input_delay) % this.inputqueue_capacity
-        if (idx < 0) {
-            idx += this.inputqueue_capacity
-        }
+        // process next frame
+        const idx = this._frameIndex(this.input_clock - this.input_delay)
+        //console.log("apply", this.input_clock - this.input_delay, this.inputqueue[idx])
+        this._apply(idx)
+    }
 
-        if (Object.keys(this.inputqueue[idx]).length > 0) {
-
-            for (const uid in this.inputqueue[idx]) {
-                const state = this.inputqueue[idx][uid]
-                //if (state.type !== "update") {
-                    //let p1 = {x: Math.floor(state.x), y: Math.floor(state.y)}
-                    //console.log("receive", this.input_clock - this.input_delay, p1)
-                    // NOTE: the position at {state.x, state.y} corresponds to the player
-                    //       at time step state.frame - this.input_delay
-                    //this.rect.x = state.x
-                    //this.rect.y = state.y
-                apply_input(state, this.physics)
-                state.applied = true
-                    //let p3 = {x: Math.floor(this.rect.x), y: Math.floor(this.rect.y)}
-                    //console.log("apply", this.input_clock - this.input_delay, p3)
-                //}
-            }
-        }
-
-
-        this.ent.update(dt)
-        this.statequeue[idx] = this.physics.getState()
-        //let p3 = {x: Math.floor(this.rect.x), y: Math.floor(this.rect.y)}
-        //console.log("update", this.input_clock - this.input_delay, p3)
-        // this.physics.update(dt)
+    update_after() {
+        const idx = this._frameIndex(this.input_clock - this.input_delay)
+        this.statequeue[idx] = this._getstate()
     }
 
     paint(ctx) {
@@ -743,16 +681,6 @@ class RemoteController2 {
         ctx.globalAlpha = 0.5;
         this.ent.paint(ctx)
         ctx.restore()
-
-        //ctx.beginPath();
-        //ctx.fillStyle = "#00FF007f"
-        //ctx.rect(this.rect.x, this.rect.y, 16, 16)
-        //ctx.fill()
-
-        //ctx.beginPath();
-        //ctx.fillStyle = "#FF00007f"
-        //ctx.rect(this.position.x, this.position.y, 16, 16)
-        //ctx.fill()
 
     }
 
@@ -773,33 +701,32 @@ class RemoteController2 {
         ctx.fill()
 
         for (let i=-60; i<60; i++) {
-            let j = this.input_clock + i - this.input_delay
-            if (j < 0) {
-                j += this.inputqueue_capacity
-            }
-            j = j % this.inputqueue_capacity
+            let j = this._frameIndex(this.input_clock + i - this.input_delay)
 
             if (Object.keys(this.inputqueue[j]).length > 0) {
                 let x = i*bw + w/2
                 let y = 16
                 let k = 0;
-                for (const key in this.inputqueue[j]) {
-                    let state = this.inputqueue[j][key]
-                    ctx.beginPath()
-                    if (state.type == "update") {
-                        ctx.fillStyle = "#FFFF00"
-                        continue
-                    } else if (state.applied) {
-                        ctx.fillStyle = "#00FF00"
-                    } else {
-                        ctx.fillStyle = "#FF0000"
+                for (const entid in this.inputqueue[j]) {
+                    for (const uid in this.inputqueue[j][entid]) {
+                        const state = this.inputqueue[j][entid][uid]
+
+                        if (state.type == "input") {
+                            ctx.beginPath()
+                            if (state.applied) {
+                                ctx.fillStyle = "#00FF00"
+                            } else {
+                                ctx.fillStyle = "#FF0000"
+                            }
+                            ctx.rect(x, y, bw, h)
+                            ctx.fill()
+                        }
                     }
-                    ctx.rect(x, y, bw, h)
-                    ctx.fill()
                 }
 
             }
         }
+
         ctx.restore()
     }
 }
@@ -1219,6 +1146,7 @@ class Character extends Entity {
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
 
+        this.filter = null
 
         this.rect.w = 16
         this.rect.h = 16
@@ -1347,7 +1275,13 @@ class Character extends Entity {
         //ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
         //ctx.fill()
 
+        ctx.save()
+        if (!!this.filter) {
+            ctx.filter = this.filter
+        }
         this.animation.paint(ctx)
+
+        ctx.restore()
 
         if (this.physics.doublejump_timer > 0) {
             const p = this.physics.doublejump_position
@@ -1383,72 +1317,35 @@ class Shuriken extends Entity {
 
     paint(ctx) {
 
-        ctx.fillStyle = this.physics.standing?"#00bb00":this.physics.pressing?"#665533":"#009933";
+        ctx.fillStyle = "#665533";
         ctx.beginPath()
-        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
+        ctx.arc(this.rect.x,this.rect.y,this.rect.w,this.rect.h, 0, 2*Math.PI)
         ctx.fill()
 
     }
 }
 
 class World {
+    /*
+     TODO: the server will send a message indicating that the main character
+           should spawn on frame N, the controller should be initialized
+           with this for the clock
+           this will synchronize the client and server
 
-    constructor() {
+    */
 
-    }
-
-    update(dt) {
-
-    }
-
-    paint(ctx) {
-
-    }
-}
-
-class DemoScene extends GameScene {
-
-    constructor() {
-        super()
+    constructor(client) {
 
         let mapw = 640 * 2
         let maph = 360
 
-        this.game_ready = false
-
         this.messages = []
-        this.widgets = []
+        this.client = client
+
         this.map = {width: mapw, height: maph}
-        this.buildMap()
-
-        this.profiles = [
-            {name: "Excellent", mean: 25, stddev: 0, droprate: 0},
-            {name: "good", mean: 50, stddev: 10, droprate: 0},
-            {name: "bad", mean: 200, stddev: 100, droprate: 0},
-            {name: "poor", mean: 250, stddev: 150, droprate: 0},
-        ]
-
-        const query = daedalus.util.parseParameters()
-        this.profile_index = parseInt(query.quality)||0
-        if (this.profile_index < 0 || this.profile_index > this.profiles.length - 1) {
-            this.profile_index = 0
-        }
 
 
-        if (false && daedalus.env.debug) {
-            this.client = new DemoRealTimeClient(this.handleMessage.bind(this))
-            this.client.connect("/rtc/offer", {})
-            this.use_network = true
-
-        } else {
-            this.client = new RealTimeEchoClient(this.handleMessage.bind(this))
-            const profile = this.profiles[this.profile_index]
-            this.client.latency_mean = profile.mean
-            this.client.latency_stddev = profile.stddev
-            this.client.packet_lossrate = profile.droprate
-            this.buildWidgets()
-            this.use_network = false
-        }
+        this.game_ready = false
 
         // statistics on received information
         this.latencies = []
@@ -1457,6 +1354,269 @@ class DemoScene extends GameScene {
         this.latency_mean = 0
         this.latency_stddev = 0
         this.message_count = 0
+
+    }
+
+    buildMap() {
+
+        this.walls = []
+        this.entities = []
+
+
+        Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
+
+        console.log(gEngine.view, this.map)
+
+        let w;
+        w = new Wall()
+        w.rect.x = 0
+        w.rect.y = 320 - 32
+        w.rect.w = this.map.width
+        w.rect.h = 32
+        this.walls.push(w)
+
+        w = new Wall()
+        w.rect.x = this.map.width/4 - 32
+        w.rect.y = 320 - 64
+        w.rect.w = 64
+        w.rect.h = 32
+        this.walls.push(w)
+
+        w = new Wall()
+        w.rect.x = 128
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height - 128
+        this.walls.push(w)
+
+        w = new Wall()
+        w.rect.x = this.map.width/2 - 128 - 32
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height - 128
+        this.walls.push(w)
+
+        w = new Wall()
+        w.rect.x = this.map.width/2 - 128 - 32 + 96
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height - 128
+        this.walls.push(w)
+
+
+        let ent;
+        ent = new Character()
+        ent.rect.x = 304
+        ent.rect.y = 128
+        ent.physics.group = this.walls
+        ent.entid = 123
+        this.player = ent
+        this.entities.push(ent)
+
+        ent = new Character()
+        ent.filter = `hue-rotate(+180deg)`
+        ent.rect.x = 304
+        ent.rect.y = 128
+        ent.physics.group = this.walls
+        ent.entid = 223
+        this.ghost = ent
+        this.entities.push(ent)
+
+        this.controller = new Controller(this.client, this.player)
+        this.controller.map = this
+
+        this.receiver = new RemoteController2()
+        this.receiver.map = this
+
+        this.camera = new Camera(this.map, this.player)
+    }
+
+    handleMockMessage(message) {
+
+        // pretend to be the server
+
+        if (message.type == "inputs") {
+            for (const input of message.inputs) {
+                input.entid += 100
+            }
+        }
+        if (message.entid !== undefined) {
+            message.entid += 100
+        }
+
+        this.handleMessage(message)
+    }
+
+    handleMessage(message) {
+        this.messages.push(message)
+    }
+
+    update(dt) {
+
+        if (this.messages.length > 0) {
+            this.message_count = this.messages.length
+            for (let message of this.messages) {
+                if (message.type == "login") {
+                    console.log("login received")
+                }
+                else if (message.type == "keepalive") {
+                    this.latencies.push(Math.floor(performance.now() - message.t0))
+                    while (this.latencies.length > 15) {
+                        this.latencies.shift()
+                    }
+                    this.latency_min = Math.min(...this.latencies)
+                    this.latency_max = Math.max(...this.latencies)
+                    this.latency_mean = mean(this.latencies)
+                    this.latency_stddev = stddev(this.latencies)
+                }
+                else {
+                    this.receiver._receive(message)
+                }
+            }
+            this.messages = []
+
+            this.receiver._reconcile()
+
+        }
+
+        this.camera.update(dt)
+        this.controller.update(dt)
+        this.receiver.update_before()
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            let ent = this.entities[i]
+            ent.update(dt)
+        }
+        this.receiver.update_after()
+
+    }
+
+    paint(ctx) {
+
+
+        ctx.save()
+
+        ctx.beginPath();
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.clip();
+        ctx.translate(-this.camera.x, -this.camera.y)
+
+        ctx.fillStyle = "#69698c"
+        let buildings = [300, 100, 250, 300]
+        let bo = 200*5
+        for (let i = 0; i < buildings.length; i++) {
+            let bh = buildings[i]
+            let bw = 168
+            ctx.fillRect(  (this.camera.x + bo*(i+1))/5 , this.map.height - bh, bw, bh)
+        }
+
+        ctx.strokeStyle = "#FFFFFF1f"
+        ctx.beginPath()
+        ctx.rect(0,0,this.map.width,  this.map.height)
+        ctx.stroke()
+
+        for (let y=32; y < this.map.height; y+=32) {
+            ctx.beginPath()
+            ctx.moveTo(0, y)
+            ctx.lineTo(this.map.width, y)
+            ctx.stroke()
+        }
+
+        for (let i = this.walls.length - 1; i >= 0; i--) {
+            let ent = this.walls[i]
+            ent.paint(ctx)
+        }
+
+        if (!this.game_ready) {
+            return
+        }
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            let ent = this.entities[i]
+            ent.paint(ctx)
+        }
+
+        ctx.restore()
+
+        // boxes to make text easier to read
+        ctx.fillStyle = "#333344af"
+        if (!this.use_network) {
+            ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
+        }
+        ctx.fillRect(0, 0, 320, 100)
+
+        ctx.font = "bold 12pt Courier";
+        ctx.fillStyle = "yellow"
+        // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
+        ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
+        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
+        const stats = this.client.stats()
+        ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
+        ctx.fillStyle = "#00FF00"
+        //ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
+        ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
+
+        this.receiver.paintOverlay(ctx)
+
+    }
+
+
+
+}
+
+class DemoScene extends GameScene {
+
+    constructor() {
+        super()
+
+
+        this.widgets = []
+
+        this.profiles = [
+            {name: "Excellent", mean: 25, stddev: 0, droprate: 0},
+            {name: "good", mean: 50, stddev: 10, droprate: 0},
+            {name: "bad", mean: 200, stddev: 100, droprate: 0},
+            {name: "poor", mean: 250, stddev: 150, droprate: 0},
+        ]
+        const query = daedalus.util.parseParameters()
+        this.profile_index = parseInt(query.quality)||0
+        if (this.profile_index < 0 || this.profile_index > this.profiles.length - 1) {
+            this.profile_index = 0
+        }
+
+        this.map = new World()
+
+        if (false && daedalus.env.debug) {
+            this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
+            this.client.connect("/rtc/offer", {})
+            this.use_network = true
+
+        } else {
+            this.client = new RealTimeEchoClient(this.map.handleMockMessage.bind(this.map))
+            const profile = this.profiles[this.profile_index]
+            this.client.latency_mean = profile.mean
+            this.client.latency_stddev = profile.stddev
+            this.client.packet_lossrate = profile.droprate
+            this.buildWidgets()
+            this.use_network = false
+        }
+
+        this.map.client = this.client
+
+        this.map.buildMap()
+
+        this.touch = new TouchInput(this.map.controller)
+        this.touch.addWheel(72, -72, 72)
+        //this.touch.addButton(-60, -60, 40)
+        this.touch.addButton(-40, -120, 40)
+        this.touch.addButton(-120, -40, 40)
+
+        this.keyboard = new KeyboardInput(this.map.controller);
+        this.keyboard.addWheel_ArrowKeys()
+        this.keyboard.addButton(KeyboardInput.Keys.SPACE)
+        this.keyboard.addButton(KeyboardInput.Keys.CTRL)
+
+        this.client.send({"type": "login"})
 
     }
 
@@ -1681,90 +1841,6 @@ class DemoScene extends GameScene {
 
     }
 
-    buildMap() {
-                this.walls = []
-        this.entities = []
-
-
-        Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
-
-        console.log(gEngine.view, this.map)
-
-        let w;
-        w = new Wall()
-        w.rect.x = 0
-        w.rect.y = 320 - 32
-        w.rect.w = this.map.width
-        w.rect.h = 32
-        this.walls.push(w)
-
-        w = new Wall()
-        w.rect.x = this.map.width/4 - 32
-        w.rect.y = 320 - 64
-        w.rect.w = 64
-        w.rect.h = 32
-        this.walls.push(w)
-
-        w = new Wall()
-        w.rect.x = 128
-        w.rect.y = 0
-        w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
-
-        w = new Wall()
-        w.rect.x = this.map.width/2 - 128 - 32
-        w.rect.y = 0
-        w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
-
-        w = new Wall()
-        w.rect.x = this.map.width/2 - 128 - 32 + 96
-        w.rect.y = 0
-        w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
-
-
-        let ent;
-        ent = new Character()
-        ent.rect.x = 304
-        ent.rect.y = 128
-        ent.physics.group = this.walls
-
-        //this.ghost = new RemoteController1()
-        //this.ghost.position.x = 304
-        //this.ghost.position.y = 128
-        this.ghost2 = new RemoteController2()
-        this.ghost2.rect.x = 304
-        this.ghost2.rect.y = 128
-        this.ghost2.physics.group = this.walls
-
-
-        this.player = ent
-
-        this.entities.push(ent)
-
-        this.controller = new Controller(this, this.player)
-        this.touch = new TouchInput(this.controller)
-        this.touch.addWheel(72, -72, 72)
-        //this.touch.addButton(-60, -60, 40)
-        this.touch.addButton(-40, -120, 40)
-        this.touch.addButton(-120, -40, 40)
-
-        this.keyboard = new KeyboardInput(this.controller);
-        this.keyboard.addWheel_ArrowKeys()
-        this.keyboard.addButton(KeyboardInput.Keys.SPACE)
-        this.keyboard.addButton(KeyboardInput.Keys.CTRL)
-
-        this.camera = new Camera(this.map, this.player)
-    }
-
-    handleMessage(message) {
-        this.messages.push(message)
-    }
-
     handleTouches(touches) {
         this.touch.handleTouches(touches)
 
@@ -1790,50 +1866,16 @@ class DemoScene extends GameScene {
 
 
         this.client.update(dt)
-        this.camera.update(dt)
 
-        if (this.messages.length > 0) {
-            this.message_count = this.messages.length
-            for (let message of this.messages) {
-                //console.log("received", performance.now() - message.t0, message)
-                if (message.type == "keepalive") {
-                    this.latencies.push(Math.floor(performance.now() - message.t0))
-                    while (this.latencies.length > 15) {
-                        this.latencies.shift()
-                    }
-                    this.latency_min = Math.min(...this.latencies)
-                    this.latency_max = Math.max(...this.latencies)
-                    this.latency_mean = mean(this.latencies)
-                    this.latency_stddev = stddev(this.latencies)
-                }
-                //if (message.type == "update") {
-                //    this.ghost.receiveState(message)
-                //}
-                if (message.type === "input" || message.type === "update") {
-                    this.ghost2.receiveState(message)
-                }
-            }
-            this.messages = []
 
-        }
-
-        if (!this.game_ready) {
+        if (!this.map.game_ready) {
             if (this.client.connected()) {
-                this.game_ready = true
+                this.map.game_ready = true
             }
             return
         }
 
-        this.controller.update(dt)
-
-
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i]
-            ent.update(dt)
-        }
-
-        //this.ghost.update(dt)
-        this.ghost2.update(dt)
+        this.map.update(dt)
 
         for (const wgt of this.widgets) {
             wgt.update(dt)
@@ -1849,82 +1891,13 @@ class DemoScene extends GameScene {
         ctx.rect(0,0,gEngine.view.width, gEngine.view.height)
         ctx.stroke()
 
-        ctx.save()
-
-        ctx.beginPath();
-        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
-        ctx.clip();
-        ctx.translate(-this.camera.x, -this.camera.y)
-
-        ctx.fillStyle = "#69698c"
-        let buildings = [300, 100, 250, 300]
-        let bo = 200*5
-        for (let i = 0; i < buildings.length; i++) {
-            let bh = buildings[i]
-            let bw = 168
-            ctx.fillRect(  (this.camera.x + bo*(i+1))/5 , this.map.height - bh, bw, bh)
-        }
-
-        ctx.strokeStyle = "#FFFFFF1f"
-        ctx.beginPath()
-        ctx.rect(0,0,this.map.width,  this.map.height)
-        ctx.stroke()
-
-        for (let y=32; y < this.map.height; y+=32) {
-            ctx.beginPath()
-            ctx.moveTo(0, y)
-            ctx.lineTo(this.map.width, y)
-            ctx.stroke()
-        }
-
-        for (let i = this.walls.length - 1; i >= 0; i--) {
-            let ent = this.walls[i]
-            ent.paint(ctx)
-        }
-
-        if (!this.game_ready) {
-            return
-        }
-
-        //this.ghost.paint(ctx)
-        this.ghost2.paint(ctx)
-
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i]
-            ent.paint(ctx)
-        }
-
-        ctx.restore()
-
-        // boxes to make text easier to read
-        ctx.fillStyle = "#333344af"
-        if (!this.use_network) {
-            ctx.fillRect(gEngine.view.width - 165, 0, 165, 155)
-        }
-        ctx.fillRect(0, 0, 320, 100)
-
+        this.map.paint(ctx)
 
         this.touch.paint(ctx)
-        ctx.font = "bold 12pt Courier";
-        ctx.fillStyle = "yellow"
-        // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
-        ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
-        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
-        const stats = this.client.stats()
-        ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
-        ctx.fillStyle = "#00FF00"
-        ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
-        ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
-
-        this.ghost2.paintOverlay(ctx)
-
-
 
         for (const wgt of this.widgets) {
             wgt.paint(ctx)
         }
-
-
 
     }
 }

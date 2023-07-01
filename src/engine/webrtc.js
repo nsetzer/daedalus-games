@@ -95,7 +95,8 @@ export class RealTimeEchoClient {
 
     send(obj) {
 
-        let nbytes = byteSize(JSON.stringify(obj))
+        let msg = JSON.stringify(obj)
+        let nbytes = byteSize(msg)
         this.total_sent += nbytes
         this.rb_xmit.get(this.frame_index).sent += nbytes
 
@@ -110,7 +111,7 @@ export class RealTimeEchoClient {
         latency = Math.min(latmax, Math.max(latmin, latency))
         const offset = Math.round(framerate*latency/1000)
         const idx = (this.frame_index + offset) % this.inputqueue_capacity
-        this.inputqueue[idx].push(obj)
+        this.inputqueue[idx].push(msg)
     }
 
     update(dt) {
@@ -125,8 +126,8 @@ export class RealTimeEchoClient {
 
         const idx = (this.frame_index) % this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0) {
-            for (const obj of this.inputqueue[idx]) {
-                this.onMessage(obj)
+            for (const msg of this.inputqueue[idx]) {
+                this.onMessage(JSON.parse(msg))
             }
             this.inputqueue[idx] = []
         }
