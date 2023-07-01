@@ -2,8 +2,15 @@
 /**
  * jump war
  *
+ * - delay ghost by an additional 6 ms
+ * - login message
+ *    the login message indicates which frame to spawn on
+ *    which is also the first frame to start the simulation
+ *    login can return 40 and indicate to spawn on 70
+ *    giving half a second before the player is spawned and controllable
+ *
  * - color: green for accepted inputs
- *          run for non accepted inputs
+ *          red for non accepted inputs
  *          yellow for resynced inputs
  * - implement snap on error
  *      detect error from real position and simulated position
@@ -12,7 +19,7 @@
  * - speed up / slow down simulation
  *      detect when the simulation is falling behind real time
  *      process extra frames
- *      **  if an inout comes in more than 6 frames in the future of 'now'
+ *      **  if an input comes in more than 6 frames in the future of 'now'
  *          speed up the simulation
  *      ** if every input comes in in the past, slow down the simulation
  *
@@ -247,11 +254,13 @@ function apply_character_input(map, input, physics) {
     }
 }
 
-class Controller {
+class CspController {
     constructor(client, target) {
         this.client = client
         this.target = target
         this.remotedelay = 6
+
+        this.csp_local_update = false
 
         this.inputqueue_capacity = 7
         this.inputqueue = []
@@ -295,6 +304,7 @@ class Controller {
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
             this.last_direction = direction
+            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
         }
 
     }
@@ -317,6 +327,7 @@ class Controller {
             //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
         } else if  (btnid === 1) {
 
             let message = {
@@ -330,6 +341,7 @@ class Controller {
             this.input_id += 1
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
         }
 
     }
@@ -352,6 +364,7 @@ class Controller {
             //this.update_sent = false
             let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
+            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
         } else if  (btnid === 1) {
 
         }
@@ -401,6 +414,7 @@ class Controller {
         }
 
         this.keepalivetimer += dt
+        this.keepalivetimer += dt
         if (this.keepalivetimer > this.keepalivetimeout) {
             this.keepalivetimer -= this.keepalivetimeout
             let message = {
@@ -410,16 +424,19 @@ class Controller {
             this.client.send(message)
         }
 
-        let msgcnt = 0
-        for (let k = 0; k < this.inputqueue_capacity; k++) {
-            msgcnt += this.inputqueue[k].length
-        }
+        //let msgcnt = 0
+        //for (let k = 0; k < this.inputqueue_capacity; k++) {
+        //    msgcnt += this.inputqueue[k].length
+        //}
         //console.log(msgcnt)
 
         let idx = (this.frame_id)%this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0){
-            for (let input of this.inputqueue[idx]) {
-                apply_character_input(this.map, input, this.target.physics)
+            if (!!this.csp_local_update) {
+                for (let input of this.inputqueue[idx]) {
+                    console.log("csp apply idx=", this.receiver.input_clock, input)
+                    apply_character_input(this.map, input, this.target.physics)
+                }
             }
             this.inputqueue[idx] = []
         }
@@ -427,7 +444,7 @@ class Controller {
     }
 }
 
-class RemoteController2 {
+class CspReceiver {
     // run simulation on user input
     // synchronize periodically
     constructor() {
@@ -475,7 +492,7 @@ class RemoteController2 {
 
     _hasinput(idx, entid, uid) {
 
-        return this.inputqueue[idx][entid] !== undefined && this.inputqueue[idx][uid] !== undefined
+        return (entid in this.inputqueue[idx]) && (uid in this.inputqueue[idx][entid])
     }
 
     _getinput(idx, entid, uid) {
@@ -493,19 +510,69 @@ class RemoteController2 {
     }
 
     _getEntity(entid) {
-        return this.map.ghost
+
+        if (entid == 123) {
+            return this.map.player
+        } else if (entid == 223) {
+            return this.map.ghost
+        } else {
+            throw {"message": "bad entid", entid}
+        }
     }
 
     _getstate() {
-        return this.map.ghost.physics.getState()
+        const state = {}
+        for (const entid in this.map.entities) {
+            state[entid] = this.map.entities[entid].getState()
+        }
+        //const state = {
+        //    [this.map.player.entid]: this.map.player.physics.getState(),
+        //    [this.map.ghost.entid]: this.map.ghost.physics.getState(),
+        //    ...this.map.projectiles
+        //}
+        return state
     }
 
     _updatestate() {
-        this.map.ghost.update(1/60)
+
+        // TODO: this is always 1/60, but could be part of the state
+        // its a constant
+        // it  could be variable?
+        //
+        this.map.update_entities(1/60)
     }
 
     _setstate(state) {
-        this.map.ghost.physics.setState(state)
+
+        for (const entid in this.map.entities) {
+            this.map.entities[entid].setState(state[entid])
+        }
+
+        //this.map.player.physics.setState(state[this.map.player.entid])
+        //this.map.ghost.physics.setState(state[this.map.ghost.entid])
+
+
+    }
+
+    _local_receive(local_update, frameIndex, state) {
+        //if (!this.first_received) {
+        //    // TODO: should this be index - delay?
+        //    this.input_clock = frameIndex
+        //    this.dirty_index = null
+        //    this.first_received =  true
+        //}
+        const idx = this._frameIndex(state.frame)
+        if (!local_update) {
+            this._setinput(idx, state.entid, state.uid, state)
+        } else {
+
+            this._setinput(idx, state.entid, state.uid, {
+                type: "fake",
+                entid: state.entid,
+                uid: state.uid,
+                frame: state.frame
+            })
+        }
     }
 
     _receive(message) {
@@ -522,22 +589,31 @@ class RemoteController2 {
             if (!this.first_received) {
                 // TODO: should this be index - delay?
                 this.input_clock = state.frame
-                this.dirty_index = state.frame
+                this.dirty_index = null
                 this.first_received =  true
             }
 
             // TODO: check for rounding errors and modulus index
             let delta = this.inputqueue_capacity/2
             if (state.frame < (this.input_clock - delta) || state.frame > (this.input_clock + delta)) {
-                console.log("drop stale state", this.input_clock - state.frame, this.input_clock, state.frame, state)
+                console.log("drop stale state", "clock", this.input_clock, "frame", state.frame, state)
+                throw state
                 //this.input_clock -= Math.round((this.input_clock - state.frame)/4)
-                return
+                continue
             }
 
-            let idx = this._frameIndex(state.frame)
+            // TODO: hack to delay the ghost by 100 ms
+            // so if everybody is delayed by 6, nobody is.
+            // delay the local player by 100 ms and the remote players 100ms in different ways
+            let offset = 0
+            if (state.entid == 223) {
+                offset = 6
+            }
+
+            let idx = this._frameIndex(state.frame + offset)
 
             if (!this._hasinput(idx, state.entid, state.uid)) {
-
+                console.log("set", this.input_clock, state.frame, idx, state.entid, state.uid)
                 this._setinput(idx, state.entid, state.uid, state)
 
                 if (state.type == "input") {
@@ -583,8 +659,10 @@ class RemoteController2 {
 
     _reconcile() {
 
+        let x1 = this.map.player.rect.x
+        let y1 = this.map.player.rect.y
         if (this.dirty_index !== null && this.dirty_index <= this.input_clock - this.input_delay) {
-            //console.log("found dirty index at", this.dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
+            console.log("found dirty index at", this.dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
 
             const last_index = this._frameIndex(this.dirty_index - 1)
             const last_known_state = this.statequeue[last_index]
@@ -605,43 +683,71 @@ class RemoteController2 {
             // process up to the current time (+1), an update after this will take care of advancing to the next frame
             const start = this.dirty_index
             const end = this.input_clock - this.input_delay
+            let result = {}
+            let error = false
             for (let clock = start; clock <= end; clock += 1) {
                 let idx = this._frameIndex(clock)
-                this._apply(idx)
-                // todo: move this out of here?
+                this._apply(clock, true)
                 this._updatestate()
-                this.statequeue[idx] = this._getstate()
-
+                let old_state = this.statequeue[idx][123]
+                let new_state = this._getstate()
+                if (!!old_state && (old_state.x != new_state[123].x || old_state.y != new_state[123].y)) {
+                    error = true
+                    result[clock] = {new_state: new_state[123], old_state}
+                } else {
+                    result[clock] = null
+                }
+                this.statequeue[idx] = new_state
             }
+
+            if (error) {
+                console.error("reconcile end", result)
+                throw "error"
+            }
+
+            let x2 = this.map.player.rect.x
+            let y2 = this.map.player.rect.y
+            //console.log(this.input_clock, end, {x: x2-x1, y:y2-y1})
         }
 
         this.dirty_index = null
     }
 
-
-
-    _apply(idx) {
+    _apply(clock, reconcile) {
+        const idx = this._frameIndex(clock)
         for (const entid in this.inputqueue[idx]) {
             for (const uid in this.inputqueue[idx][entid]) {
-                const state = this.inputqueue[idx][entid][uid]
-                console.log("apply", state.entid, state.type)
-                if (state.type === "input") {
-                    const ent = this._getEntity(state.entid)
-                    apply_character_input(this.map, state, ent.physics)
-                    state.applied = true
-                }
-                else if (state.type == "snap") {
-                    // TODO: I think there is a bug here
-                    // snap at the beginning of an update
-                    // but state is saved at the end
-                    let a = {x: this.physics.target.rect.x, y: this.physics.target.rect.y}
-                    let b = {x: state.x, y: state.y}
-                    console.log("snap", a, b)
-                }
+                const message = this.inputqueue[idx][entid][uid]
+                this._apply_one(entid, message, reconcile)
             }
         }
+    }
 
+    _apply_one(entid, message, reconcile) {
+        console.log("apply input idx=", "message=", message)
+        if (message.type === "input") {
+            const ent = this._getEntity(message.entid)
+            apply_character_input(this.map, message, ent.physics)
+            message.applied = true
+            //
+        } else if (message.type === "create") {
 
+            const src = this._getEntity(message.entid)
+
+            const ent = new Shuriken()
+            ent.physics.group = this.map.walls
+            ent.rect.x = src.rect.x
+            ent.rect.y = src.rect.y
+            this.map.addEntity(ent)
+
+        } else if (message.type == "snap") {
+            // TODO: I think there is a bug here
+            // snap at the beginning of an update
+            // but message is saved at the end
+            //let a = {x: this.physics.target.rect.x, y: this.physics.target.rect.y}
+            //let b = {x: message.x, y: message.y}
+            //console.log("snap", a, b)
+        }
     }
 
     update_before() {
@@ -664,9 +770,9 @@ class RemoteController2 {
         this.inputqueue[delete_idx] = {}
 
         // process next frame
-        const idx = this._frameIndex(this.input_clock - this.input_delay)
+        //const idx = this._frameIndex(this.input_clock - this.input_delay)
         //console.log("apply", this.input_clock - this.input_delay, this.inputqueue[idx])
-        this._apply(idx)
+        this._apply(this.input_clock - this.input_delay, false)
     }
 
     update_after() {
@@ -839,6 +945,7 @@ class Physics2d {
                     this.xspeed += this.xacceleration * dt
                 }
             } else if (this.standing) {
+                // apply friction while standing
                 if (Math.abs(this.xspeed) < this.xfriction * dt) {
                     this.xspeed = 0
                 } else {
@@ -1088,11 +1195,17 @@ class Physics2d {
             doublejump: this.doublejump,
             doublejump_position: this.doublejump_position,
             doublejump_timer: this.doublejump_timer,
+            pressing: this.pressing,
+            standing: this.standing,
+            facing: this.facing,
         }
         return state
     }
 
     setState(state) {
+        if (state.facing === undefined) {
+            throw state
+        }
         this.target.rect.x = state.x
         this.target.rect.y = state.y
         this.frame_index = state.frame_index
@@ -1105,6 +1218,9 @@ class Physics2d {
         this.doublejump = state.doublejump
         this.doublejump_position = state.doublejump_position
         this.doublejump_timer = state.doublejump_timer
+        this.pressing = state.pressing
+        this.standing = state.standing
+        this.facing = state.facing
     }
 }
 
@@ -1240,6 +1356,9 @@ class Character extends Entity {
 
     onSpawnAnimationEnd() {
         let aid = this.animations[this.current_action][this.current_facing]
+        if (!aid) {
+            throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
+        }
         this.animation.setAnimationById(aid)
         this.spawning = false
     }
@@ -1253,12 +1372,20 @@ class Character extends Entity {
             if (this.physics.facing != this.current_facing) {
                 this.current_facing = this.physics.facing
                 let aid = this.animations[this.current_action][this.current_facing]
+                if (!aid) {
+                    console.error(this.physics)
+                    throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
+                }
                 this.animation.setAnimationById(aid)
             }
 
             if (this.physics.action != this.current_action) {
                 this.current_action = this.physics.action
                 let aid = this.animations[this.current_action][this.current_facing]
+                if (!aid) {
+                    console.error(this.physics)
+                    throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
+                }
                 this.animation.setAnimationById(aid)
             }
         }
@@ -1278,6 +1405,17 @@ class Character extends Entity {
         ctx.save()
         if (!!this.filter) {
             ctx.filter = this.filter
+
+            ctx.fillStyle = "#FF00FF3f"
+            ctx.beginPath()
+            ctx.rect(this.rect.x-8,this.rect.y,this.rect.w+16,this.rect.h)
+            ctx.fill()
+
+        } else {
+            ctx.fillStyle = "#FF00003f"
+            ctx.beginPath()
+            ctx.rect(this.rect.x-8,this.rect.y-16,this.rect.w+16,this.rect.h+16)
+            ctx.fill()
         }
         this.animation.paint(ctx)
 
@@ -1292,6 +1430,14 @@ class Character extends Entity {
             ctx.stroke()
         }
     }
+
+    getState() {
+        return this.physics.getState()
+    }
+
+    setState(state) {
+        this.physics.setState(state)
+    }
 }
 
 class Shuriken extends Entity {
@@ -1303,7 +1449,8 @@ class Shuriken extends Entity {
         this.rect.h = 16
 
         this.physics = new Physics2d(this)
-        this.xspeed = 128
+        this.physics.xspeed = 128
+        this.physics.gravity = 0
     }
 
     update(dt) {
@@ -1323,6 +1470,15 @@ class Shuriken extends Entity {
         ctx.fill()
 
     }
+
+    getState() {
+        return this.physics.getState()
+    }
+
+    setState(state) {
+        this.physics.setState(state)
+    }
+
 }
 
 class World {
@@ -1355,12 +1511,14 @@ class World {
         this.latency_stddev = 0
         this.message_count = 0
 
+        this.entities = {}
+
     }
 
     buildMap() {
 
         this.walls = []
-        this.entities = []
+        //this.entities = []
 
 
         Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
@@ -1411,7 +1569,7 @@ class World {
         ent.physics.group = this.walls
         ent.entid = 123
         this.player = ent
-        this.entities.push(ent)
+        //this.entities.push(ent)
 
         ent = new Character()
         ent.filter = `hue-rotate(+180deg)`
@@ -1420,21 +1578,35 @@ class World {
         ent.physics.group = this.walls
         ent.entid = 223
         this.ghost = ent
-        this.entities.push(ent)
+        //this.entities.push(ent)
 
-        this.controller = new Controller(this.client, this.player)
+        this.controller = new CspController(this.client, this.player)
         this.controller.map = this
 
-        this.receiver = new RemoteController2()
+        this.receiver = new CspReceiver()
+        this.receiver.input_clock = 0
+        this.receiver.first_received = true
         this.receiver.map = this
+        this.controller.receiver = this.receiver
 
         this.camera = new Camera(this.map, this.player)
+
+        this.entities = {
+            [this.player.entid]: this.player,
+            [this.ghost.entid]: this.ghost,
+        }
+
+        this.next_entid = 1024
     }
 
     handleMockMessage(message) {
 
         // pretend to be the server
 
+        if (message.type == "create"){
+            console.log("server create")
+            return
+        }
         if (message.type == "inputs") {
             for (const input of message.inputs) {
                 input.entid += 100
@@ -1482,13 +1654,20 @@ class World {
         this.camera.update(dt)
         this.controller.update(dt)
         this.receiver.update_before()
-
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i]
-            ent.update(dt)
-        }
+        this.update_entities(dt)
         this.receiver.update_after()
 
+    }
+
+    update_entities(dt) {
+
+        for (const entid in this.entities) {
+            this.entities[entid].update(dt)
+        }
+        //for (let i = this.entities.length - 1; i >= 0; i--) {
+        //    let ent = this.entities[i]
+        //    ent.update(dt)
+        //}
     }
 
     paint(ctx) {
@@ -1531,10 +1710,14 @@ class World {
             return
         }
 
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            let ent = this.entities[i]
-            ent.paint(ctx)
+        for (const entid in this.entities) {
+            this.entities[entid].paint(ctx)
         }
+
+        //for (let i = this.entities.length - 1; i >= 0; i--) {
+        //    let ent = this.entities[i]
+        //    ent.paint(ctx)
+        //}
 
         ctx.restore()
 
@@ -1560,8 +1743,12 @@ class World {
 
     }
 
-
-
+    addEntity(ent) {
+        console.log("adding ent")
+        ent.entid = this.next_entid
+        this.entities[this.next_entid] = ent
+        this.next_entid += 1
+    }
 }
 
 class DemoScene extends GameScene {

@@ -147,7 +147,7 @@ export class AnimationComponent {
 
     constructor(target) {
         this.target = target
-        this.next_id = 0
+        this.next_id = 1 // aid of zero is invalid
         this.animations = {}
         this.animation = null
         this.timer = 0
