@@ -628,12 +628,12 @@ class CspReceiver {
                     const snap = {
                         type: "snap",
                         entid: msg.entid,
-                        frame: msg.frame,
+                        frame: msg.frame + offset - this.input_delay,
                         uid: msg.uid,
                         x: msg.x,
                         y: msg.y
                     }
-                    const snap_index = this._frameIndex(msg.frame + offset - this.input_delay + 1)
+                    const snap_index = this._frameIndex(msg.snap)
                     this._setinput(snap_index, snap.entid, snap.uid, snap)
                 }
 
@@ -729,12 +729,12 @@ class CspReceiver {
         for (const entid in this.inputqueue[idx]) {
             for (const uid in this.inputqueue[idx][entid]) {
                 const message = this.inputqueue[idx][entid][uid]
-                this._apply_one(entid, message, reconcile)
+                this._apply_one(clock, entid, message, reconcile)
             }
         }
     }
 
-    _apply_one(entid, message, reconcile) {
+    _apply_one(clock, entid, message, reconcile) {
         console.log("apply input idx=", "message=", message)
         if (message.type === "input") {
             const ent = this._getEntity(message.entid)
@@ -773,12 +773,23 @@ class CspReceiver {
             // TODO: I think there is a bug here
             // snap at the beginning of an update
             // but message is saved at the end
-            const ent = this._getEntity(message.entid)
-            let a = {x: ent.physics.target.rect.x, y: ent.physics.target.rect.y}
-            let b = {x: message.x, y: message.y}
-            ent.rect.x = message.x
-            ent.rect.y = message.y
-            // console.log("do snap", a, b)
+            // TODO: trying to brute force the offset to compare
+            //for (let o = -7; o <= 7; o++){
+            //    const st = this.statequeue[this._frameIndex(this.input_clock + o)]?.[message.entid]
+            //    if (!!st) {
+            //        const ent = this._getEntity(message.entid)
+            //        //let a = {x: ent.physics.target.rect.x, y: ent.physics.target.rect.y}
+            //        let a = {x: st.x, y: st.y}
+            //        let b = {x: message.x, y: message.y}
+            //        let e = ((a.x - b.x)**2 + (a.y - b.y) ** 2)**0.5
+            //        console.log("snap", o, e, a, b)
+            //    } else {
+            //        console.error("no state")
+            //    }
+            //}
+            //ent.rect.x = message.x
+            //ent.rect.y = message.y
+
         }
     }
 
@@ -1265,10 +1276,13 @@ class Physics2d {
 
 Physics2d.maprect = new Rect(0,0,0,0)
 
-export class CspEntity {
+class CspEntity {
 
     constructor() {
         this.entid = -1
+        // TODO: destroyed at could be a global cache in the world
+        //       that contains the initial state and destroyed at information
+        //       this way the object state would not need to be updated?
         this.$destroyed_at = 0  // ECS:
         this.layer = 0
 
