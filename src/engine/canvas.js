@@ -374,6 +374,7 @@ export class CanvasEngine extends DomElement {
             let canvas = this.getDomNode()
             this.ctx.fillStyle = "#00000044"
             this.ctx.fillRect(0,0, canvas.width, canvas.height)
+            this.lastTime = null
 
             if (!this.paused) {
                 // resume the game
@@ -474,41 +475,62 @@ export class CanvasEngine extends DomElement {
     }
 
     render() {
+
+
+        if (!this.paused) {
+            window.requestAnimationFrame(this.render.bind(this));
+        }
+
         let now = performance.now()
 
         let dt = 1/60;
 
         if (this.lastTime != null) {
 
+            const timings = []
             //if (this.touch_event) {
             //    this.scene.handleTouches(this.touch_event)
             //}
+            let n = 0;
+
+            const elapsed = now - this.lastTime
+
             if (!this.paused) {
                 this.delta_accum += (now - this.lastTime) / 1000.0;
 
-                let n = 0;
-
+                const p1 = performance.now()
                 while (this.delta_accum > dt) {
                     this.delta_accum -= dt
                     //const t0 = performance.now()
                     this.scene.update(dt)
                     //const t1 = performance.now()
                     //const elapsed = t1 - t0
-                    //this.spt += (0.02551203525869137) * (elapsed - this.spt)
+                    //
 
                     n += 1;
                 }
+                const p2 = performance.now()
+
+
                 if (n > 0) {
                     this.renderFrame();
                 }
+                const p3 = performance.now()
+
+                timings.push((p2 - p1)/1000)
+                timings.push((p3 - p2)/1000)
             }
 
-            this.fps = Math.floor(1.0/dt)
+            now = performance.now()
+            const e = (now - this.lastTime)/1000
+            this.spt += (0.02551203525869137) * (e - this.spt)
+            this.fps = Math.round(1.0/this.spt)
+            //if (this.fps < 59) {
+            //    console.warn("frame elapsed", elapsed, timings, n, this.fps)
+            //}
         }
         this.lastTime = now;
 
-        if (!this.paused) {
-            window.requestAnimationFrame(this.render.bind(this));
-        }
+
     }
 }

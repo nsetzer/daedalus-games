@@ -2,6 +2,9 @@
 /**
  * jump war
  *
+ * - pressing into a wall should require a button press
+ * -
+ * -
  * - what if player inputs only send the delta (in ticks) since the last input
  *   and not the raw frame number.
  *   for any ent id - that exists - the last input frame can be recorded
@@ -259,7 +262,7 @@ function apply_character_input(map, input, physics) {
                 console.log(`jump standing=${standing} pressing=${pressing}`)
             }
         } else {
-            //physics.gravityboost = true
+            physics.gravityboost = true
         }
     }
     else if (input.whlid !== undefined) {
@@ -673,6 +676,10 @@ class CspReceiver {
             //console.log("set", this.input_clock, msg.frame, idx, msg.entid, msg.uid)
             this._setinput(idx, msg.entid, msg.uid, msg)
 
+            if (msg.type == "input" && msg.entid != this.map.player.entid) {
+                console.log("msg input delta", msg.frame, this.input_clock, this.input_clock - msg.frame)
+            }
+
             if (frameIndex <= this.input_clock) {
                 if (this.dirty_index == null || frameIndex < this.dirty_index) {
                     this.dirty_index = frameIndex
@@ -714,7 +721,7 @@ class CspReceiver {
             const end = this.input_clock
             let result = {}
             let error = false
-            //console.log("reconcile start=", start, "end=", end)
+            console.log("reconcile start=", start, "end=", end)
 
             for (let clock = start; clock <= end; clock += 1) {
                 this.input_clock = clock
@@ -808,6 +815,9 @@ class CspReceiver {
                     this.map.camera.setTarget(ent)
                 } else {
 
+                    if (!this.map.ghost) {
+                        this.map.ghost = ent
+                    }
                     ent.filter = `hue-rotate(+180deg)`
                 }
 
@@ -1732,6 +1742,9 @@ class World {
 
         this.entities = {}
 
+        this.player = null
+        this.ghost = null
+
         this.ecs = new ECS(this)
 
     }
@@ -2042,14 +2055,14 @@ class World {
         ctx.font = "bold 12pt Courier";
         ctx.fillStyle = "yellow"
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
-        ctx.fillText(`${(gEngine.spt).toFixed(2)} : ${(1/gEngine.spt).toFixed(2)} latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
+        ctx.fillText(`${(gEngine.spt).toFixed(3)} : ${(gEngine.fps).toFixed(2)} latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
         //ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         const stats = this.client.stats()
         ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
         //ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
         //ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
-
+        ctx.fillText(`player = ${this.player?.physics?.ninputs} ghost=${this.ghost?.physics?.ninputs})`, 32, 104)
         this.receiver.paintOverlay(ctx)
 
     }
@@ -2089,7 +2102,7 @@ class DemoScene extends GameScene {
 
         this.map = new World()
 
-        if (false && daedalus.env.debug) {
+        if (daedalus.env.debug) {
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
             //this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
