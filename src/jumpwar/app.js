@@ -2,6 +2,10 @@
 /**
  * jump war
  *
+ * - what if player inputs only send the delta (in ticks) since the last input
+ *   and not the raw frame number.
+ *   for any ent id - that exists - the last input frame can be recorded
+ *
  * - create a counter per entity as part of the state
  *   count the number of inputs applied to the character
  *   ensure the same count for the ghost and player
@@ -95,10 +99,10 @@ jumpspeed = - sqrt(2*H*g)
 */
 
 class Camera extends CameraBase {
-    constructor(map, target) {
+    constructor(map) {
         super()
         this.map = map
-        this.target = target
+        this.target = null
 
         this.x = 0;
         this.y = 0;
@@ -115,12 +119,20 @@ class Camera extends CameraBase {
         //and 2 tiles in all other directions
     }
 
+    setTarget(target) {
+        this.target = target
+    }
+
     resize() {
         this.width = gEngine.view.width
         this.height = gEngine.view.height
     }
 
     update(dt) {
+
+        if (!this.target) {
+            return
+        }
 
         //let wnd = new Rect(
         //    Math.floor(this.target.rect.x-32-8),
@@ -204,7 +216,11 @@ class Camera extends CameraBase {
 
 function apply_character_input(map, input, physics) {
 
+
+
     if (input.btnid !== undefined) {
+        //console.log("apply_input clock=", CspReceiver.instance.input_clock, physics.target.entid, "button", input.btnid, input.pressed)
+        physics.ninputs += 1
         if (input.pressed) {
 
             // coyote time
@@ -238,19 +254,23 @@ function apply_character_input(map, input, physics) {
                 physics.doublejump = false
                 physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
                 physics.doublejump_timer = .4
-            } else {
+            }
+            else {
                 console.log(`jump standing=${standing} pressing=${pressing}`)
             }
         } else {
-            physics.gravityboost = true
+            //physics.gravityboost = true
         }
     }
     else if (input.whlid !== undefined) {
+        //console.log("apply_input clock=", CspReceiver.instance.input_clock, physics.target.entid, "wheel", input.whlid, input.direction)
+        physics.ninputs += 1
         physics.direction = input.direction
         // TODO: maybe facing should only change when physics.update is run?
         if (physics.direction != 0) {
             physics.facing = physics.direction
         }
+
     }
     else if (input.type === "create") {
         console.log("create projectile")
@@ -258,12 +278,9 @@ function apply_character_input(map, input, physics) {
 }
 
 class CspController {
-    constructor(client, target) {
+    constructor(client) {
         this.client = client
-        this.target = target
-        this.remotedelay = 6
-
-        this.csp_local_update = false
+        this.target = null
 
         this.inputqueue_capacity = 7
         this.inputqueue = []
@@ -277,23 +294,36 @@ class CspController {
         this.keepalivetimer = 0
         this.keepalivetimeout = 1.0
 
-        this.frame_id = 0
-        this.input_id = 0
+        this.input_id = 1
 
         this.last_direction = 0
+
+        this.frameIndex = 1
+
+        this.lastInputFrameIndex = -1
 
         //this.update_sent = false
     }
 
+    setTarget(target) {
+        this.target = target
+    }
+
     setInputDirection(whlid, vector) {
+        if (!this.target) {
+            return
+        }
 
         // de-bounce touch input
         let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
         if (direction != this.last_direction) {
+            // hack until sending deltas
+            this.frameIndex = CspReceiver.instance.input_clock
             let message = {
                 type: "input",
                 entid: this.target.entid,
-                frame: this.frame_id + this.remotedelay,
+                frame: this.frameIndex,
+                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
                 uid: this.input_id,
                 // ---
                 x: this.target.rect.x,
@@ -302,22 +332,30 @@ class CspController {
                 direction: direction,
             }
             this.input_id += 1
+            this.lastInputFrameIndex = this.frame_index
 
             //this.update_sent = false
-            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            let idx = (this.frameIndex)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
             this.last_direction = direction
-            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
+            this.receiver._local_receive(message)
         }
 
     }
 
     handleButtonPress(btnid) {
+        if (!this.target) {
+            return
+        }
+
         if (btnid === 0) {
+            // hack until sending deltas
+            this.frameIndex = CspReceiver.instance.input_clock
             let message = {
                 type: "input",
                 entid: this.target.entid,
-                frame: this.frame_id + this.remotedelay,
+                frame: this.frameIndex,
+                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
                 uid: this.input_id,
                 // ---
                 x: this.target.rect.x,
@@ -326,35 +364,45 @@ class CspController {
                 pressed: true,
             }
             this.input_id += 1
+            this.lastInputFrameIndex = this.frame_index
 
             //this.update_sent = false
-            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            let idx = (this.frameIndex)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
-            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
+            this.receiver._local_receive(message)
         } else if  (btnid === 1) {
-
+            // hack until sending deltas
+            this.frameIndex = CspReceiver.instance.input_clock
             let message = {
                 type: "create",
                 entid: this.target.entid,
-                frame: this.frame_id + this.remotedelay,
+                frame: this.frameIndex,
+                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
                 uid: this.input_id,
                 // ---
                 dummy: 1
             }
             this.input_id += 1
-            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            let idx = (this.frameIndex)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
-            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
+            this.receiver._local_receive(message)
         }
 
     }
 
     handleButtonRelease(btnid) {
+        if (!this.target) {
+            return
+        }
+
         if (btnid === 0) {
+            // hack until sending deltas
+            this.frameIndex = CspReceiver.instance.input_clock
             let message = {
                 type: "input",
                 entid: this.target.entid,
-                frame: this.frame_id + this.remotedelay,
+                frame: this.frameIndex,
+                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
                 uid: this.input_id,
                 // ---
                 x: this.target.rect.x,
@@ -363,17 +411,20 @@ class CspController {
                 pressed: false,
             }
             this.input_id += 1
+            this.lastInputFrameIndex = this.frame_index
 
             //this.update_sent = false
-            let idx = (this.frame_id+this.remotedelay)%this.inputqueue_capacity
+            let idx = (this.frameIndex)%this.inputqueue_capacity
             this.inputqueue[idx].push(message)
-            this.receiver._local_receive(this.csp_local_update, this.frame_id, message)
-        } else if  (btnid === 1) {
-
+            this.receiver._local_receive(message)
         }
     }
 
     sendInput() {
+
+        if (!this.target) {
+            return
+        }
 
         let inputs = []
         for (const messages of this.inputqueue) {
@@ -385,7 +436,7 @@ class CspController {
         if (inputs.length > 0) {
             const message = {
                 type: "inputs",
-                entid: this.target.entid,
+                // --
                 inputs: inputs
             }
             this.client.send(message)
@@ -393,8 +444,9 @@ class CspController {
     }
 
     update(dt) {
-
-        this.frame_id += 1
+        if (!this.target) {
+            return
+        }
 
         this.sendInput()
 
@@ -403,17 +455,19 @@ class CspController {
             this.remotetimer -= this.remotetimeout
 
             // TODO: counter to send N updates after last input?
-            //if (!this.update_sent) {
-                //let message = {
-                //    type: "update",
-                //    x: this.target.rect.x,
-                //    y: this.target.rect.y,
-                //    frame: this.frame_id,
-                //}
-                //this.client.send(message)
+            let message = {
+                type: "update",
+                entid: this.target.entid,
+                frame: CspReceiver.instance.input_clock,
+                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
+                state: this.target.getState(),
+                uid: this.input_id,
+            }
+            this.input_id += 1
+            this.lastInputFrameIndex = this.frame_index
 
-                this.update_sent = true
-            //}
+            this.client.send(message)
+
         }
 
         this.keepalivetimer += dt
@@ -433,14 +487,14 @@ class CspController {
         //}
         //console.log(msgcnt)
 
-        let idx = (this.frame_id)%this.inputqueue_capacity
+        let idx = (CspReceiver.instance.input_clock)%this.inputqueue_capacity
         if (this.inputqueue[idx].length > 0){
-            if (!!this.csp_local_update) {
-                for (let input of this.inputqueue[idx]) {
-                    console.log("csp apply idx=", this.receiver.input_clock, input)
-                    apply_character_input(this.map, input, this.target.physics)
-                }
-            }
+            //if (!!this.csp_local_update) {
+            //    for (let input of this.inputqueue[idx]) {
+            //        console.log("csp apply idx=", this.receiver.input_clock, input)
+            //        apply_character_input(this.map, input, this.target.physics)
+            //    }
+            //}
             this.inputqueue[idx] = []
         }
 
@@ -450,9 +504,10 @@ class CspController {
 class CspReceiver {
     // run simulation on user input
     // synchronize periodically
-    constructor() {
+    constructor(map) {
 
         //this.queue = []
+        this.map = map
 
         // capacity allows for +/- 2 seconds of inputs to be queued or cached
         // queue is [entity.entid][seqid]
@@ -468,12 +523,7 @@ class CspReceiver {
             this.statequeue.push(null)
         }
 
-
         this.error = {x:0, y:0}
-
-        this.first_received = false
-        this.previous_state = null
-        this.previous_clock = 0
 
         this.input_clock = 0
         this.input_delay = 6
@@ -515,9 +565,7 @@ class CspReceiver {
     _getEntity(entid) {
 
         const ent = this.map.entities[entid]
-        if (!ent) {
-            throw {"message": "bad entid", entid}
-        }
+
 
         return ent
     }
@@ -559,121 +607,91 @@ class CspReceiver {
         //this.map.player.physics.setState(state[this.map.player.entid])
         //this.map.ghost.physics.setState(state[this.map.ghost.entid])
 
-
     }
 
-    _local_receive(local_update, frameIndex, state) {
-        //if (!this.first_received) {
-        //    // TODO: should this be index - delay?
-        //    this.input_clock = frameIndex
-        //    this.dirty_index = null
-        //    this.first_received =  true
-        //}
-        const idx = this._frameIndex(state.frame)
-        if (!local_update) {
-            this._setinput(idx, state.entid, state.uid, state)
-        } else {
-
-            this._setinput(idx, state.entid, state.uid, {
-                type: "fake",
-                entid: state.entid,
-                uid: state.uid,
-                frame: state.frame
-            })
-        }
-    }
-
-    _receive(message) {
-
-        let inputs;
-        if (message.type == "inputs") {
-            inputs = message.inputs
-        } else {
-            inputs = [message]
-        }
-
-        for (const msg of inputs) {
-
-            if (!this.first_received) {
-                // TODO: should this be index - delay?
-                this.input_clock = msg.frame
-                this.dirty_index = null
-                this.first_received =  true
-            }
-
-            // TODO: check for rounding errors and modulus index
-            let delta = this.inputqueue_capacity/2
-            if (msg.frame < (this.input_clock - delta) || msg.frame > (this.input_clock + delta)) {
-                console.log("drop stale msg", "clock", this.input_clock, "frame", msg.frame, msg)
-                throw msg
-                //this.input_clock -= Math.round((this.input_clock - msg.frame)/4)
-                continue
-            }
-
-            // TODO: hack to delay the ghost by 100 ms
-            // so if everybody is delayed by 6, nobody is.
-            // delay the local player by 100 ms and the remote players 100ms in different ways
-            let offset = 0
-            if (msg.entid == 223) {
-                offset = 6
-            }
-
-            let idx = this._frameIndex(msg.frame + offset)
-
-            if (!this._hasinput(idx, msg.entid, msg.uid)) {
-                console.log("set", this.input_clock, msg.frame, idx, msg.entid, msg.uid)
-                this._setinput(idx, msg.entid, msg.uid, msg)
-
-                if (msg.type == "input") {
-                    const snap = {
-                        type: "snap",
-                        entid: msg.entid,
-                        frame: msg.frame + offset - this.input_delay,
-                        uid: msg.uid,
-                        x: msg.x,
-                        y: msg.y
-                    }
-                    const snap_index = this._frameIndex(msg.snap)
-                    this._setinput(snap_index, snap.entid, snap.uid, snap)
-                }
+                //if (msg.type == "input") {
+                //    const snap = {
+                //        type: "snap",
+                //        entid: msg.entid,
+                //        frame: msg.frame + offset,
+                //        uid: msg.uid,
+                //        x: msg.x,
+                //        y: msg.y
+                //    }
+                //    const snap_index = this._frameIndex(msg.snap)
+                //    this._setinput(snap_index, snap.entid, snap.uid, snap)
+                //}
 
                 // check if character is out of sync
 
-                let tmp = msg.frame
-                const old_state = this.statequeue[this._frameIndex(msg.frame + offset - this.input_delay)]
+                //const old_state = this.statequeue[this._frameIndex(msg.frame + offset)]
+                //if (!!old_state && !!old_state[msg.entid]) {
+                //    const old_ent_state = old_state[msg.entid]
+                //     this.error.x = Math.sqrt(Math.pow(old_ent_state.x - msg.x,2))
+                //     this.error.y = Math.sqrt(Math.pow(old_ent_state.y - msg.y,2))
+                //     if ((this.error.x > 0) || (this.error.y > 0)) {
+                //         tmp = msg.frame + offset - this.input_delay
+                //         console.log("dirty", this.error, tmp)
+                //     }
+                //}
 
-                if (!!old_state && !!old_state[msg.entid]) {
-                    const old_ent_state = old_state[msg.entid]
-                     this.error.x = Math.sqrt(Math.pow(old_ent_state.x - msg.x,2))
-                     this.error.y = Math.sqrt(Math.pow(old_ent_state.y - msg.y,2))
-                     if ((this.error.x > 0) || (this.error.y > 0)) {
-                         tmp = msg.frame + offset - this.input_delay
-                         console.log("dirty", this.error, tmp)
-                     }
-                }
-
-                if (tmp <= this.input_clock - this.input_delay) {
-
-                    if (this.dirty_index == null || tmp < this.dirty_index) {
-                        this.dirty_index = tmp
-                    }
-                }
-                //console.log("msg at frame", msg.frame, "now is", this.input_clock - this.input_delay, "dirty is",  this.dirty_index)
+                //console.log("msg at frame", msg.frame, "now is", this.input_clock, "dirty is",  this.dirty_index)
 
                 // console.log("received msg", msg.type, msg.entid , msg)
 
-            }
+
+
+    _local_receive(state) {
+
+        state.frame = this.input_clock
+        //console.log("receive local", "now=", state.frame, "delayed until=", state.frame + this.input_delay)
+
+        const idx = this._frameIndex(state.frame + this.input_delay)
+
+        this._setinput(idx, state.entid, state.uid, state)
+    }
+
+    _receive(msg) {
+
+        // TODO: check for rounding errors and modulus index
+        let delta = this.inputqueue_capacity/2
+        if (msg.frame < (this.input_clock - delta) || msg.frame > (this.input_clock + delta)) {
+            console.log("drop stale msg", "clock", this.input_clock, "frame", msg.frame, msg)
+            throw {message: "stale packet", msg}
+            //this.input_clock -= Math.round((this.input_clock - msg.frame)/4)
+            return
         }
 
+        const frameIndex = msg.frame + this.input_delay
+        let idx = this._frameIndex(frameIndex)
+
+        if (!msg.entid || !msg.uid) {
+            throw {"message": "invalid entid or uid", type: msg.type, entid: msg.entid, uid: msg.uid}
+        }
+
+        if (!this._hasinput(idx, msg.entid, msg.uid)) {
+            //console.log("set", this.input_clock, msg.frame, idx, msg.entid, msg.uid)
+            this._setinput(idx, msg.entid, msg.uid, msg)
+
+            if (frameIndex <= this.input_clock) {
+                if (this.dirty_index == null || frameIndex < this.dirty_index) {
+                    this.dirty_index = frameIndex
+                }
+            }
+
+            //if (!!this.dirty_index) {
+            //    console.log("found dirty index", this.input_clock, msg.frame)
+            //}
+        }
         return
     }
 
     _reconcile() {
 
-        let x1 = this.map.player.rect.x
-        let y1 = this.map.player.rect.y
-        if (this.dirty_index !== null && this.dirty_index <= this.input_clock - this.input_delay) {
-            console.log("found dirty index at", this.dirty_index, this.input_clock - this.input_delay, "offset", this.received_offset)
+        //let x1 = this.map.player.rect.x
+        //let y1 = this.map.player.rect.y
+        if (this.dirty_index !== null && this.dirty_index <= this.input_clock) {
+            //console.log("found dirty index at", this.dirty_index, this.input_clock, "offset", this.received_offset)
 
             const last_index = this._frameIndex(this.dirty_index - 1)
             const last_known_state = this.statequeue[last_index]
@@ -693,31 +711,54 @@ class CspReceiver {
 
             // process up to the current time (+1), an update after this will take care of advancing to the next frame
             const start = this.dirty_index
-            const end = this.input_clock - this.input_delay
+            const end = this.input_clock
             let result = {}
             let error = false
+            //console.log("reconcile start=", start, "end=", end)
+
             for (let clock = start; clock <= end; clock += 1) {
+                this.input_clock = clock
                 let idx = this._frameIndex(clock)
                 this._apply(clock, true)
                 this._updatestate()
-                let old_state = this.statequeue[idx][123]
-                let new_state = this._getstate()
-                if (!!old_state && (old_state.x != new_state[123].x || old_state.y != new_state[123].y)) {
-                    error = true
-                    result[clock] = {new_state: new_state[123], old_state}
-                } else {
-                    result[clock] = null
+                let new_global_state = this._getstate()
+                // TODO: error checking for synchronization
+                if (!!this.map.player) {
+                    const playerid = this.map.player.entid
+
+                    let old_state = this.statequeue[idx]?.[playerid]
+                    let new_state = new_global_state?.[playerid]
+                    if (!!old_state && !!new_state) {
+
+                        if (!!old_state && (old_state.x != new_state.x || old_state.y != new_state.y)) {
+                            error = true
+                        }
+
+                        const diff = {}
+                        for (const prop of Object.keys(new_state)) {
+                            if (prop === "doublejump_position") {
+                                continue
+                            }
+                            const d = new_state[prop] - old_state[prop]
+                            if (d != 0) {
+                                diff[prop] = d
+                            }
+                        }
+
+                        result[clock] = diff
+
+                    }
                 }
-                this.statequeue[idx] = new_state
+                this.statequeue[idx] = new_global_state
             }
 
             if (error) {
                 console.error("reconcile end", result)
-                throw "error"
+                //throw "error"
             }
 
-            let x2 = this.map.player.rect.x
-            let y2 = this.map.player.rect.y
+            //let x2 = this.map.player.rect.x
+            //let y2 = this.map.player.rect.y
             //console.log(this.input_clock, end, {x: x2-x1, y:y2-y1})
         }
 
@@ -735,10 +776,57 @@ class CspReceiver {
     }
 
     _apply_one(clock, entid, message, reconcile) {
-        console.log("apply input idx=", "message=", message)
-        if (message.type === "input") {
+
+        //console.log(reconcile?"reconcile":"update", "clock=", clock, message.type, "entid=",message.entid)
+
+        //console.log("apply input idx=", "message=", message)
+        if (message.type === "spawn_player") {
+            if (message.$state !== undefined) {
+                const ent = this._getEntity(message.$entid)
+                ent.setState(message.$state)
+            } else {
+
+
+
+                const ent = new Character()
+                ent.rect.x = 304
+                ent.rect.y = 128
+                ent.physics.group = this.map.walls
+                ent.entid = message.entid
+
+
+                this.map.addEntity(message.entid, ent)
+
+                if (!message.remote) {
+                    ent.layer = 10
+                    if (this.map.player !== null) {
+                        throw "player already exists"
+                    }
+
+                    this.map.player = ent
+                    this.map.controller.setTarget(ent)
+                    this.map.camera.setTarget(ent)
+                } else {
+
+                    ent.filter = `hue-rotate(+180deg)`
+                }
+
+                message.$state = ent.getState()
+                message.$entid = ent.entid
+            }
+
+        } else if (message.type === "input") {
             const ent = this._getEntity(message.entid)
-            apply_character_input(this.map, message, ent.physics)
+            if (!ent) {
+                console.log("no ent ", message.entid, message)
+            } else {
+                apply_character_input(this.map, message, ent.physics)
+            }
+
+            if (reconcile && !message.applied) {
+                console.log("!! applying input for the first time", message.entid, message)
+            }
+
             //if (entid == 223) {
             //    ent.rect.x += 4 // TODO: FIXME for testing snap
             //}
@@ -746,25 +834,22 @@ class CspReceiver {
             //
         } else if (message.type === "create") {
 
-            if (message.$state !== undefined) {
+            console.log("do make Shuriken")
 
-                const ent = this._getEntity(message.$entid)
-                ent.setState(message.$state)
-
-            } else {
-                const src = this._getEntity(message.entid)
-
-                const ent = new Shuriken()
-
-                ent.physics.group = this.map.walls
-                ent.physics.xspeed *= (src.physics.facing == Direction.LEFT)?-1:1
-                ent.rect.x = src.rect.cx() - 8
-                ent.rect.y = src.rect.cy() - 24
-                this.map.addEntity(ent)
-
-                message.$state = ent.getState()
-                message.$entid = ent.entid
-            }
+            //if (message.$state !== undefined) {
+            //    const ent = this._getEntity(message.$entid)
+            //    ent.setState(message.$state)
+            //} else {
+            //    //const src = this._getEntity(message.entid)
+            //    //const ent = new Shuriken()
+            //    //ent.physics.group = this.map.walls
+            //    //ent.physics.xspeed *= (src.physics.facing == Direction.LEFT)?-1:1
+            //    //ent.rect.x = src.rect.cx() - 8
+            //    //ent.rect.y = src.rect.cy() - 24
+            //    //this.map.addEntity(ent)
+            //    //message.$state = ent.getState()
+            //    //message.$entid = ent.entid
+            //}
 
 
 
@@ -813,13 +898,13 @@ class CspReceiver {
         this.inputqueue[delete_idx] = {}
 
         // process next frame
-        //const idx = this._frameIndex(this.input_clock - this.input_delay)
-        //console.log("apply", this.input_clock - this.input_delay, this.inputqueue[idx])
-        this._apply(this.input_clock - this.input_delay, false)
+        //const idx = this._frameIndex(this.input_clock)
+        //console.log("apply", this.input_clock, this.inputqueue[idx])
+        this._apply(this.input_clock, false)
     }
 
     update_after() {
-        const idx = this._frameIndex(this.input_clock - this.input_delay)
+        const idx = this._frameIndex(this.input_clock)
         this.statequeue[idx] = this._getstate()
     }
 
@@ -857,9 +942,9 @@ class CspReceiver {
                 let y = 16
                 let k = 0;
                 for (const entid in this.inputqueue[j]) {
-                    if (entid != this.map.ghost.entid) {
-                        continue
-                    }
+                    //if (entid != this.map.ghost.entid) {
+                    //    continue
+                    //}
                     for (const uid in this.inputqueue[j][entid]) {
                         const state = this.inputqueue[j][entid][uid]
 
@@ -882,6 +967,7 @@ class CspReceiver {
         ctx.restore()
     }
 }
+
 CspReceiver.instance = null
 
 class Physics2d {
@@ -891,6 +977,7 @@ class Physics2d {
         this.group = []
 
         // state
+        this.ninputs = 0
         this.frame_index = 0 // candidate for 'world state'
         this.direction = 0
         this.xspeed = 0
@@ -1013,6 +1100,7 @@ class Physics2d {
 
             /////////////////////////////////////////////////////////////
             // apply y acceleration
+            //console.log(this.gravity, this.yspeed, dt, this.gravityboost)
 
             this.yspeed += this.gravity * dt
 
@@ -1037,6 +1125,7 @@ class Physics2d {
         /////////////////////////////////////////////////////////////
         // move x
         this.xaccum += dt*this.xspeed
+        //sconsole.log(CspReceiver.instance.input_clock, dt, this.xspeed, this.xaccum)
         let dx = Math.trunc(this.xaccum)
         let xstep = dx
         if (xstep == 0) {
@@ -1248,6 +1337,7 @@ class Physics2d {
             pressing: this.pressing,
             standing: this.standing,
             facing: this.facing,
+            ninputs: this.ninputs,
         }
         return state
     }
@@ -1271,6 +1361,7 @@ class Physics2d {
         this.pressing = state.pressing
         this.standing = state.standing
         this.facing = state.facing
+        this.ninputs = state.ninputs
     }
 }
 
@@ -1608,6 +1699,7 @@ class ECS {
 
 class World {
     /*
+
      TODO: the server will send a message indicating that the main character
            should spawn on frame N, the controller should be initialized
            with this for the clock
@@ -1625,6 +1717,8 @@ class World {
 
         this.map = {width: mapw, height: maph}
 
+        this.login_sent = false
+        this.login_received = false
 
         this.game_ready = false
 
@@ -1638,7 +1732,6 @@ class World {
 
         this.entities = {}
 
-
         this.ecs = new ECS(this)
 
     }
@@ -1647,7 +1740,6 @@ class World {
 
         this.walls = []
         //this.entities = []
-
 
         Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
 
@@ -1690,41 +1782,39 @@ class World {
         this.walls.push(w)
 
 
-        let ent;
-        ent = new Character()
-        ent.rect.x = 304
-        ent.rect.y = 128
-        ent.physics.group = this.walls
-        ent.entid = 123
-        ent.layer = 10
-        this.player = ent
+        //let ent;
+        //ent = new Character()
+        //ent.rect.x = 304
+        //ent.rect.y = 128
+        //ent.physics.group = this.walls
+        //ent.entid = 123
+        //ent.layer = 10
+        this.player = null
         //this.entities.push(ent)
 
-        ent = new Character()
-        ent.filter = `hue-rotate(+180deg)`
-        ent.rect.x = 304
-        ent.rect.y = 128
-        ent.physics.group = this.walls
-        ent.entid = 223
-        this.ghost = ent
+        //ent = new Character()
+        //ent.filter = `hue-rotate(+180deg)`
+        //ent.rect.x = 304
+        //ent.rect.y = 128
+        //ent.physics.group = this.walls
+        //ent.entid = 223
+        //this.ghost = ent
         //this.entities.push(ent)
 
-        this.controller = new CspController(this.client, this.player)
+        this.controller = new CspController(this.client)
         this.controller.map = this
 
-        this.receiver = new CspReceiver()
+        this.receiver = new CspReceiver(this)
         this.receiver.input_clock = 0
-        this.receiver.first_received = true
-        this.receiver.map = this
 
         this.controller.receiver = this.receiver
         CspReceiver.instance = this.receiver
 
-        this.camera = new Camera(this.map, this.player)
+        this.camera = new Camera(this.map)
 
         this.entities = {
-            [this.ghost.entid]: this.ghost,
-            [this.player.entid]: this.player,
+            //[this.ghost.entid]: this.ghost,
+            //[this.player.entid]: this.player,
         }
 
         this.next_entid = 1024
@@ -1734,10 +1824,32 @@ class World {
 
         // pretend to be the server
 
-        if (message.type == "create"){
+        if (message.type == "login"){
+            this.handleMessage({
+                type: "login",
+                "clock": 123456,
+                "entid": 123,
+                "uid": 1
+            })
+
+            this.handleMessage({
+                type: "player_join",
+                "clock": 123456,
+                "entid": 223,
+                "uid": 2
+            })
+
+            return
+        }
+
+        else if (message.type == "keepalive"){
+            message.clock = CspReceiver.instance.input_clock
+        }
+        else if (message.type == "create"){
             console.log("server create")
             return
         }
+
         if (message.type == "inputs") {
             for (const input of message.inputs) {
                 input.entid += 100
@@ -1760,7 +1872,19 @@ class World {
             this.message_count = this.messages.length
             for (let message of this.messages) {
                 if (message.type == "login") {
-                    console.log("login received")
+                    console.log("login received", message)
+
+                    this.receiver.input_clock = message.clock
+                    this.receiver._receive({
+                        type: "spawn_player",
+                        remote: false,
+                        frame: message.clock,
+                        entid: message.entid,
+                        uid: message.uid
+
+                    })
+                    this.login_received = true
+
                 }
                 else if (message.type == "keepalive") {
                     this.latencies.push(Math.floor(performance.now() - message.t0))
@@ -1771,9 +1895,31 @@ class World {
                     this.latency_max = Math.max(...this.latencies)
                     this.latency_mean = mean(this.latencies)
                     this.latency_stddev = stddev(this.latencies)
+
+                    //console.log("frame delta", message.clock, CspReceiver.instance.input_clock, message.clock - CspReceiver.instance.input_clock)
+                }
+                else if (message.type == "inputs") {
+                    for (const msg of message.inputs) {
+                        this.receiver._receive(msg)
+                    }
+                }
+                else if (message.type == "input") {
+                    this.receiver._receive(message)
+                }
+                else if (message.type == "update") {
+                    this.receiver._receive(message)
+                }
+                else if (message.type == "player_join") {
+                    this.receiver._receive({
+                        type: "spawn_player",
+                        remote: true,
+                        frame: message.clock,
+                        entid: message.entid,
+                        uid: message.uid
+                    })
                 }
                 else {
-                    this.receiver._receive(message)
+                    console.log("unexpected message type", message)
                 }
             }
             this.messages = []
@@ -1781,6 +1927,19 @@ class World {
             this.receiver._reconcile()
 
         }
+
+
+        if (!this.login_sent) {
+            console.log("sending login")
+            this.client.send({"type": "login"})
+            this.login_sent = true
+            return
+        }
+
+        if (!this.login_received) {
+            return
+        }
+
 
         this.camera.update(dt)
         this.controller.update(dt)
@@ -1883,19 +2042,24 @@ class World {
         ctx.font = "bold 12pt Courier";
         ctx.fillStyle = "yellow"
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
-        ctx.fillText(`latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
-        ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
+        ctx.fillText(`${(gEngine.spt).toFixed(2)} : ${(1/gEngine.spt).toFixed(2)} latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
+        //ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         const stats = this.client.stats()
         ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
         //ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
-        ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
+        //ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
 
         this.receiver.paintOverlay(ctx)
 
     }
 
-    addEntity(ent) {
+    addEntity(entid, ent) {
+        ent.entid = entid
+        this.entities[entid] = ent
+    }
+
+    addEntityOld(ent) {
         console.log("adding ent")
         ent.entid = this.next_entid
         this.entities[this.next_entid] = ent
@@ -1926,7 +2090,8 @@ class DemoScene extends GameScene {
         this.map = new World()
 
         if (false && daedalus.env.debug) {
-            this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
+            this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
+            //this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
             this.use_network = true
 
@@ -1955,7 +2120,7 @@ class DemoScene extends GameScene {
         this.keyboard.addButton(KeyboardInput.Keys.SPACE)
         this.keyboard.addButton(KeyboardInput.Keys.CTRL)
 
-        this.client.send({"type": "login"})
+
 
     }
 
@@ -2203,12 +2368,11 @@ class DemoScene extends GameScene {
 
     update(dt) {
 
-
         this.client.update(dt)
-
 
         if (!this.map.game_ready) {
             if (this.client.connected()) {
+
                 this.map.game_ready = true
             }
             return

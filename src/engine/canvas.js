@@ -147,6 +147,7 @@ export class CanvasEngine extends DomElement {
 
         this.paused = false
 
+        this.spt = 1/60
     }
 
     elementMounted() {
@@ -374,6 +375,11 @@ export class CanvasEngine extends DomElement {
             this.ctx.fillStyle = "#00000044"
             this.ctx.fillRect(0,0, canvas.width, canvas.height)
 
+            if (!this.paused) {
+                // resume the game
+                window.requestAnimationFrame(this.render.bind(this));
+            }
+
             event.preventDefault();
         } else if (kc == Keys.SCROLL_LOCK) {
             // todo single step frame
@@ -484,7 +490,12 @@ export class CanvasEngine extends DomElement {
 
                 while (this.delta_accum > dt) {
                     this.delta_accum -= dt
+                    //const t0 = performance.now()
                     this.scene.update(dt)
+                    //const t1 = performance.now()
+                    //const elapsed = t1 - t0
+                    //this.spt += (0.02551203525869137) * (elapsed - this.spt)
+
                     n += 1;
                 }
                 if (n > 0) {
@@ -492,11 +503,12 @@ export class CanvasEngine extends DomElement {
                 }
             }
 
-
             this.fps = Math.floor(1.0/dt)
         }
         this.lastTime = now;
 
-        window.requestAnimationFrame(this.render.bind(this));
+        if (!this.paused) {
+            window.requestAnimationFrame(this.render.bind(this));
+        }
     }
 }
