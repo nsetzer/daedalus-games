@@ -483,7 +483,7 @@ export class CanvasEngine extends DomElement {
 
         let now = performance.now()
 
-        let dt = 1/60;
+        let dt = 0.016;
 
         if (this.lastTime != null) {
 
@@ -514,22 +514,32 @@ export class CanvasEngine extends DomElement {
 
                 if (n > 0) {
                     this.renderFrame();
-                }
-                const p3 = performance.now()
 
-                timings.push((p2 - p1)/1000)
-                timings.push((p3 - p2)/1000)
+                    const p3 = performance.now()
+
+                    timings.push((p2 - p1)/1000)
+                    timings.push((p3 - p2)/1000)
+
+                    now = performance.now()
+                    const e = (now - this.lastTime)/1000
+                    this.spt += (0.02551203525869137) * (e - this.spt)
+                    this.fps = Math.round(1.0/this.spt)
+                    this.lastTime = now;
+
+                    //if (this.fps < 59) {
+                    //    console.warn("frame elapsed", elapsed, timings, n, this.fps)
+                    //}
+
+                }
+
             }
 
-            now = performance.now()
-            const e = (now - this.lastTime)/1000
-            this.spt += (0.02551203525869137) * (e - this.spt)
-            this.fps = Math.round(1.0/this.spt)
-            //if (this.fps < 59) {
-            //    console.warn("frame elapsed", elapsed, timings, n, this.fps)
-            //}
+
+
+        } else {
+            this.lastTime = now;
         }
-        this.lastTime = now;
+
 
 
     }

@@ -4,7 +4,11 @@
  *
  * - pressing into a wall should require a button press
  * -
- * -
+ * - send periodic update
+ *    - send delta relative to last update
+ *    - place updates at input_clock + 6 frames
+ *      -
+ *
  * - what if player inputs only send the delta (in ticks) since the last input
  *   and not the raw frame number.
  *   for any ent id - that exists - the last input frame can be recorded
@@ -306,13 +310,28 @@ class CspController {
         this.lastInputFrameIndex = -1
 
         //this.update_sent = false
+
+        this.inputqueue2 = []
     }
 
     setTarget(target) {
         this.target = target
     }
 
-    setInputDirection(whlid, vector) {
+    setInputDirection(whlid, vector){
+        this.inputqueue2.push({type: "wheel", whlid, vector})
+    }
+
+    // TODO: single button with pressed/released argument
+    handleButtonPress(btnid){
+        this.inputqueue2.push({type: "button", btnid, pressed: true})
+    }
+
+    handleButtonRelease(btnid){
+        this.inputqueue2.push({type: "button", btnid, pressed: false})
+    }
+
+    _setInputDirection(whlid, vector) {
         if (!this.target) {
             return
         }
@@ -346,7 +365,7 @@ class CspController {
 
     }
 
-    handleButtonPress(btnid) {
+    _handleButtonPress(btnid) {
         if (!this.target) {
             return
         }
@@ -393,7 +412,7 @@ class CspController {
 
     }
 
-    handleButtonRelease(btnid) {
+    _handleButtonRelease(btnid) {
         if (!this.target) {
             return
         }
@@ -451,6 +470,21 @@ class CspController {
             return
         }
 
+        for (const input of this.inputqueue2) {
+            if (input.type == "wheel") {
+                this._setInputDirection(input.whlid, input.vector)
+            }
+            if (input.type == "button") {
+                if (input.pressed) {
+                    this._handleButtonPress(input.btnid)
+                } else {
+                    this._handleButtonRelease(input.btnid)
+
+                }
+            }
+        }
+        this.inputqueue2 = []
+
         this.sendInput()
 
         this.remotetimer += dt
@@ -458,6 +492,8 @@ class CspController {
             this.remotetimer -= this.remotetimeout
 
             // TODO: counter to send N updates after last input?
+            // send clock + 1 when the controller is updated prior to the receiver
+            // otherwise just send the clock value
             let message = {
                 type: "update",
                 entid: this.target.entid,
@@ -535,6 +571,9 @@ class CspReceiver {
 
         this.dirty_index = null
         //this.snap_position = null
+
+
+        this.offsets = {}
 
     }
 
@@ -649,7 +688,7 @@ class CspReceiver {
         state.frame = this.input_clock
         //console.log("receive local", "now=", state.frame, "delayed until=", state.frame + this.input_delay)
 
-        const idx = this._frameIndex(state.frame + this.input_delay)
+        const idx = this._frameIndex(state.frame + 6 ) // + this.input_delay
 
         this._setinput(idx, state.entid, state.uid, state)
     }
@@ -657,15 +696,29 @@ class CspReceiver {
     _receive(msg) {
 
         // TODO: check for rounding errors and modulus index
-        let delta = this.inputqueue_capacity/2
-        if (msg.frame < (this.input_clock - delta) || msg.frame > (this.input_clock + delta)) {
-            console.log("drop stale msg", "clock", this.input_clock, "frame", msg.frame, msg)
-            throw {message: "stale packet", msg}
-            //this.input_clock -= Math.round((this.input_clock - msg.frame)/4)
+        //let delta = this.inputqueue_capacity/2
+        //if (msg.frame < (this.input_clock - delta) || msg.frame > (this.input_clock + delta)) {
+        //    console.log("drop stale msg", "clock", this.input_clock, "frame", msg.frame, msg)
+        //    throw {message: "stale packet", msg}
+        //    //this.input_clock -= Math.round((this.input_clock - msg.frame)/4)
+        //    return
+        //}
+
+        //if (this.offsets[msg.entid] === undefined) {
+        //    this.offsets[msg.entid] = this.input_clock - msg.frame
+        //}
+        //console.log("offset", this.input_clock - msg.frame)
+
+        const frameIndex = msg.frame + this.input_delay + (this.input_clock - msg.frame)
+        if ((frameIndex < this.input_clock - 60) || (frameIndex > this.input_clock + 60)) {
+            console.warn("drop stale msg", "clock",
+                msg.frame, this.input_delay,
+                "clock=", this.input_clock,
+                "frame=", frameIndex,
+                msg)
             return
         }
 
-        const frameIndex = msg.frame + this.input_delay
         let idx = this._frameIndex(frameIndex)
 
         if (!msg.entid || !msg.uid) {
@@ -793,14 +846,11 @@ class CspReceiver {
                 ent.setState(message.$state)
             } else {
 
-
-
                 const ent = new Character()
                 ent.rect.x = 304
                 ent.rect.y = 128
                 ent.physics.group = this.map.walls
                 ent.entid = message.entid
-
 
                 this.map.addEntity(message.entid, ent)
 
@@ -831,17 +881,79 @@ class CspReceiver {
                 console.log("no ent ", message.entid, message)
             } else {
                 apply_character_input(this.map, message, ent.physics)
+
+                console.log("input delta", message.entid, message.frame - this.input_clock)
             }
 
             if (reconcile && !message.applied) {
                 console.log("!! applying input for the first time", message.entid, message)
             }
 
+
+
             //if (entid == 223) {
             //    ent.rect.x += 4 // TODO: FIXME for testing snap
             //}
             message.applied = true
             //
+        } else if (message.type === "update") {
+
+            //console.log("update delta", message.entid, message.frame - this.input_clock)
+
+            const ent = this._getEntity(message.entid)
+            if (!ent) {
+                console.log("no ent ", message.entid, message)
+            } else {
+                const gendiff = (state1, state2) => {
+                    const diff = {}
+                    for (const prop of Object.keys(state1)) {
+                        if (prop === "doublejump_position") {
+                            continue
+                        }
+                        const d = state1[prop] - state2[prop]
+                        if (d != 0) {
+                            diff[prop] = d
+                        }
+                    }
+                    return diff
+                }
+
+                const current_state = ent.getState()
+                const cached1_state = this.statequeue[this._frameIndex(this.input_clock-this.input_delay)]?.[message.entid]
+                const cached2_state = this.statequeue[this._frameIndex(this.input_clock)]?.[this.map.player.entid]
+                const player_state = this.map.player.getState()
+                const message_state = message.state
+
+
+                if (!cached1_state) {
+                    console.log("no state")
+
+                } else {
+                    //console.log("delta cache", gendiff(player_state, current_state))
+
+                    // TODO: the received message state matches with the cached state from 7 frames prior
+                    //       it should match the current frame
+                    //console.log("delta cache", gendiff(cached1_state, message_state))
+                }
+
+
+
+                // console.log("update delta", this.input_clock, message.frame, current_state.yaccum, message.state.yaccum, diff)
+
+                //const
+                //const diff2 = {}
+                //for (const prop of Object.keys(current_state)) {
+                //    if (prop === "doublejump_position") {
+                //        continue
+                //    }
+                //    const d = current_state[prop] - player_state[prop]
+                //    if (d != 0) {
+                //        diff2[prop] = d
+                //    }
+                //}
+                //console.log("player delta", diff2)
+            }
+
         } else if (message.type === "create") {
 
             console.log("do make Shuriken")
@@ -1182,6 +1294,7 @@ class Physics2d {
                 // TODO: can this be removed if instead check the facing direction?
                 this.pressing_direction = (this.facing == Direction.LEFT)?1:-1;
                 this.xspeed = 0
+                this.xaccum = 0
             } else {
                 this.pressing = false
             }
@@ -1209,6 +1322,7 @@ class Physics2d {
         /////////////////////////////////////////////////////////////
         // move y
         this.yaccum += dt*this.yspeed
+        //console.log(this.target.entid, dt, this.yspeed, this.yaccum)
         let dy = Math.trunc(this.yaccum)
         let ystep = dy
         if (ystep == 0) {
@@ -1248,9 +1362,11 @@ class Physics2d {
             if (this.yspeed > 0 && this.ycollide) {
                 this.standing = true
                 this.yspeed = 0
+                this.yaccum = 0
             } else {
                 if (this.yspeed < 0 && this.ycollide) {
                     this.yspeed = 0
+                    this.yaccum = 0
                 }
                 this.standing = false
             }
@@ -1335,6 +1451,7 @@ class Physics2d {
             xaccum: this.xaccum,
             yaccum: this.yaccum,
             frame_index: this.frame_index,
+            clock: CspReceiver.instance.input_clock,
             direction: this.direction,
             xspeed: this.xspeed,
             yspeed: this.yspeed,
@@ -1372,6 +1489,10 @@ class Physics2d {
         this.standing = state.standing
         this.facing = state.facing
         this.ninputs = state.ninputs
+
+        if (state.clock != CspReceiver.instance.clock) {
+            throw {message: "clock error", clock1: state.clock, clock2: CspReceiver.instance.clock}
+        }
     }
 }
 
@@ -1818,7 +1939,7 @@ class World {
         this.controller.map = this
 
         this.receiver = new CspReceiver(this)
-        this.receiver.input_clock = 0
+        this.receiver.input_clock = 100
 
         this.controller.receiver = this.receiver
         CspReceiver.instance = this.receiver
@@ -1840,14 +1961,14 @@ class World {
         if (message.type == "login"){
             this.handleMessage({
                 type: "login",
-                "clock": 123456,
+                //"clock": 123456,
                 "entid": 123,
                 "uid": 1
             })
 
             this.handleMessage({
                 type: "player_join",
-                "clock": 123456,
+                //"clock": 123456,
                 "entid": 223,
                 "uid": 2
             })
@@ -1887,11 +2008,11 @@ class World {
                 if (message.type == "login") {
                     console.log("login received", message)
 
-                    this.receiver.input_clock = message.clock
+                    //this.receiver.input_clock = message.clock
                     this.receiver._receive({
                         type: "spawn_player",
                         remote: false,
-                        frame: message.clock,
+                        frame: this.receiver.input_clock,
                         entid: message.entid,
                         uid: message.uid
 
@@ -1926,7 +2047,7 @@ class World {
                     this.receiver._receive({
                         type: "spawn_player",
                         remote: true,
-                        frame: message.clock,
+                        frame: this.receiver.input_clock,
                         entid: message.entid,
                         uid: message.uid
                     })
@@ -1956,6 +2077,7 @@ class World {
 
         this.camera.update(dt)
         this.controller.update(dt)
+        // receiver update before controller?
         this.receiver.update_before()
         this.update_entities(dt)
         this.receiver.update_after()
@@ -2102,7 +2224,7 @@ class DemoScene extends GameScene {
 
         this.map = new World()
 
-        if (daedalus.env.debug) {
+        if (false && daedalus.env.debug) {
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
             //this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
