@@ -483,7 +483,8 @@ export class CanvasEngine extends DomElement {
 
         let now = performance.now()
 
-        let dt = 0.016;
+        let dt = 1/60;
+
 
         if (this.lastTime != null) {
 
@@ -497,8 +498,18 @@ export class CanvasEngine extends DomElement {
 
             if (!this.paused) {
                 this.delta_accum += (now - this.lastTime) / 1000.0;
+                //console.log(((now - this.lastTime) / 1000.0))
+
+                n = 1
 
                 const p1 = performance.now()
+
+                // if the frame delta were recorded for every CSP step:
+                //
+                //let e = Math.max(dt, this.delta_accum)
+                //this.delta_accum -= e
+                //this.scene.update(e)
+
                 while (this.delta_accum > dt) {
                     this.delta_accum -= dt
                     //const t0 = performance.now()
@@ -506,7 +517,6 @@ export class CanvasEngine extends DomElement {
                     //const t1 = performance.now()
                     //const elapsed = t1 - t0
                     //
-
                     n += 1;
                 }
                 const p2 = performance.now()
@@ -517,14 +527,15 @@ export class CanvasEngine extends DomElement {
 
                     const p3 = performance.now()
 
-                    timings.push((p2 - p1)/1000)
-                    timings.push((p3 - p2)/1000)
+                    timings.push((p2 - p1))
+                    timings.push((p3 - p2))
 
                     now = performance.now()
                     const e = (now - this.lastTime)/1000
                     this.spt += (0.02551203525869137) * (e - this.spt)
                     this.fps = Math.round(1.0/this.spt)
                     this.lastTime = now;
+                    this.timings = timings
 
                     //if (this.fps < 59) {
                     //    console.warn("frame elapsed", elapsed, timings, n, this.fps)

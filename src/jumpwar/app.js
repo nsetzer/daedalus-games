@@ -2,6 +2,11 @@
 /**
  * jump war
  *
+ * - csp: consitent frame rate
+ *        send frame deltas along with inputs?
+ *        separate tick rate and frame rate? this would allow a constant tick
+ * - webrtc: disconnect events from page refresh
+ *           disconnect from missing keep alives
  * - pressing into a wall should require a button press
  * -
  * - send periodic update
@@ -83,8 +88,8 @@ class DemoRealTimeClient extends RealTimeClient {
         console.log("rtc opened")
     }
 
-    onMessage(evt) {
-        const obj = JSON.parse(evt.data)
+    onMessage(obj) {
+
         this.callback(obj)
     }
 }
@@ -223,8 +228,6 @@ class Camera extends CameraBase {
 
 function apply_character_input(map, input, physics) {
 
-
-
     if (input.btnid !== undefined) {
         //console.log("apply_input clock=", CspReceiver.instance.input_clock, physics.target.entid, "button", input.btnid, input.pressed)
         physics.ninputs += 1
@@ -289,7 +292,7 @@ class CspController {
         this.client = client
         this.target = null
 
-        this.inputqueue_capacity = 7
+        this.inputqueue_capacity = 4
         this.inputqueue = []
         for (let i=0; i < this.inputqueue_capacity; i++) {
             this.inputqueue.push([])
@@ -311,7 +314,7 @@ class CspController {
 
         //this.update_sent = false
 
-        this.inputqueue2 = []
+        this.inputqueue2 = [] // FIXME: rename
     }
 
     setTarget(target) {
@@ -644,16 +647,36 @@ class CspReceiver {
     }
 
     _receive(msg) {
+        const alpha = 0.8
 
-        if (this.offsets[msg.entid] === undefined) {
-            this.offsets[msg.entid] = this.input_clock - msg.frame
+        let frameIndex;
+        if (msg.type == "spawn_player") {
+            frameIndex = msg.frame + this.input_delay
+        } else {
+
+            if (this.offsets[msg.entid] === undefined) {
+                this.offsets[msg.entid] = this.input_clock - msg.frame
+            }
+
+            frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
+            msg.$offset = this.input_clock - msg.frame
+
+            if (frameIndex > this.input_clock + 12) {
+                console.log("update offset (delay)", this.offsets[msg.entid], msg.$offset)
+                this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
+                frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
+            }
         }
 
-        const frameIndex = msg.frame + this.input_delay + this.offsets[msg.entid]
+
         if ((frameIndex < this.input_clock - 60) || (frameIndex > this.input_clock + 60)) {
-            console.warn("drop stale msg", "clock",
-                msg.frame, this.input_delay,
-                "clock=", this.input_clock,
+            console.log(this.offsets)
+            console.warn("drop stale msg",
+                msg.entid!=this.map?.player?.entid,
+                "remote clock=", msg.frame,
+                "local clock=", this.input_clock,
+                this.input_delay,
+                "offset=", this.offsets[msg.entid],
                 "frame=", frameIndex,
                 msg)
             return
@@ -672,6 +695,16 @@ class CspReceiver {
                 if (this.dirty_index == null || frameIndex < this.dirty_index) {
                     this.dirty_index = frameIndex
                 }
+            }
+
+            if (frameIndex <= this.input_clock) {
+                msg.$offset += 6
+                console.log("update offset (dirty)",
+                    "index=", frameIndex,
+                    "clock=", this.input_clock,
+                    "offset=", this.offsets[msg.entid],
+                    "offset=", msg.$offset)
+                this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
             }
 
         }
@@ -810,7 +843,7 @@ class CspReceiver {
         } else if (message.type === "input") {
             const ent = this._getEntity(message.entid)
             if (!ent) {
-                console.log("no ent ", message.entid, message)
+                //console.log("no ent ", message.entid, message)
             } else {
                 apply_character_input(this.map, message, ent.physics)
 
@@ -834,56 +867,49 @@ class CspReceiver {
 
             const ent = this._getEntity(message.entid)
             if (!ent) {
-                console.log("no ent ", message.entid, message)
-            } else {
-                const gendiff = (state1, state2) => {
-                    const diff = {}
-                    for (const prop of Object.keys(state1)) {
-                        if (prop === "doublejump_position") {
-                            continue
-                        }
-                        const d = state1[prop] - state2[prop]
-                        if (d != 0) {
-                            diff[prop] = d
-                        }
-                    }
-                    return diff
-                }
 
-                const current_state = ent.getState()
-                const cached1_state = this.statequeue[this._frameIndex(this.input_clock-this.input_delay)]?.[message.entid]
-                const cached2_state = this.statequeue[this._frameIndex(this.input_clock)]?.[this.map.player.entid]
-                const player_state = this.map.player.getState()
-                const message_state = message.state
-
-
-                if (!cached1_state) {
-                    console.log("no state")
-
+                if (message.$state !== undefined) {
+                    const ent = this._getEntity(message.entid)
+                    ent.setState(message.state)
                 } else {
-                    //console.log("delta cache", gendiff(player_state, current_state))
 
-                    // TODO: the received message state matches with the cached state from 7 frames prior
-                    //       it should match the current frame
-                    //console.log("delta cache", gendiff(cached1_state, message_state))
+                    const ent = new Character()
+                    ent.physics.group = this.map.walls
+                    ent.entid = message.entid
+
+                    this.map.addEntity(message.entid, ent)
+
+                    if (!this.map.ghost) {
+                        this.map.ghost = ent
+                    }
+                    ent.filter = `hue-rotate(+180deg)`
+
                 }
 
 
+            } else {
+                // const gendiff = (state1, state2) => {
+                //     const diff = {}
+                //     for (const prop of Object.keys(state1)) {
+                //         if (prop === "doublejump_position") {
+                //             continue
+                //         }
+                //         const d = state1[prop] - state2[prop]
+                //         if (d != 0) {
+                //             diff[prop] = d
+                //         }
+                //     }
+                //     return diff
+                // }
 
-                // console.log("update delta", this.input_clock, message.frame, current_state.yaccum, message.state.yaccum, diff)
+                //const current_state = ent.getState()
+                //const cached1_state = this.statequeue[this._frameIndex(this.input_clock-1)]?.[message.entid]
+                //const cached2_state = this.statequeue[this._frameIndex(this.input_clock)]?.[this.map.player.entid]
+                //const player_state = this.map.player.getState()
+                //const message_state = message.state
+                //console.log("update offset", message.$offset)
 
-                //const
-                //const diff2 = {}
-                //for (const prop of Object.keys(current_state)) {
-                //    if (prop === "doublejump_position") {
-                //        continue
-                //    }
-                //    const d = current_state[prop] - player_state[prop]
-                //    if (d != 0) {
-                //        diff2[prop] = d
-                //    }
-                //}
-                //console.log("player delta", diff2)
+                ent.setState(message.state)
             }
 
         } else if (message.type === "create") {
@@ -1377,54 +1403,77 @@ class Physics2d {
     }
 
     getState() {
-        const state = {
-            x: this.target.rect.x,
-            y: this.target.rect.y,
-            xaccum: this.xaccum,
-            yaccum: this.yaccum,
-            frame_index: this.frame_index,
-            clock: CspReceiver.instance.input_clock,
-            direction: this.direction,
-            xspeed: this.xspeed,
-            yspeed: this.yspeed,
-            xaccum: this.xaccum,
-            yaccum: this.yaccum,
-            gravityboost: this.gravityboost,
-            doublejump: this.doublejump,
-            doublejump_position: this.doublejump_position,
-            doublejump_timer: this.doublejump_timer,
-            pressing: this.pressing,
-            standing: this.standing,
-            facing: this.facing,
-            ninputs: this.ninputs,
-        }
+        const state = [
+            this.target.rect.x,
+            this.target.rect.y,
+            this.direction,
+            this.xspeed,
+            this.yspeed,
+            this.xaccum,
+            this.yaccum,
+            this.gravityboost,
+            this.doublejump,
+            this.doublejump_position,
+            this.doublejump_timer,
+            this.pressing,
+            this.standing,
+            this.facing,
+        ]
+
+        //const state = {
+        //    x: this.target.rect.x,
+        //    y: this.target.rect.y,
+        //    //frame_index: this.frame_index,
+        //    //clock: CspReceiver.instance.input_clock,
+        //    direction: this.direction,
+        //    xspeed: this.xspeed,
+        //    yspeed: this.yspeed,
+        //    xaccum: this.xaccum,
+        //    yaccum: this.yaccum,
+        //    gravityboost: this.gravityboost,
+        //    doublejump: this.doublejump,
+        //    doublejump_position: this.doublejump_position,
+        //    doublejump_timer: this.doublejump_timer,
+        //    pressing: this.pressing,
+        //    standing: this.standing,
+        //    facing: this.facing,
+        //    //ninputs: this.ninputs,
+        //}
         return state
     }
 
     setState(state) {
-        if (state.facing === undefined) {
-            throw state
-        }
-        this.target.rect.x = state.x
-        this.target.rect.y = state.y
-        this.frame_index = state.frame_index
-        this.direction = state.direction
-        this.xspeed = state.xspeed
-        this.yspeed = state.yspeed
-        this.xaccum = state.xaccum
-        this.yaccum = state.yaccum
-        this.gravityboost = state.gravityboost
-        this.doublejump = state.doublejump
-        this.doublejump_position = state.doublejump_position
-        this.doublejump_timer = state.doublejump_timer
-        this.pressing = state.pressing
-        this.standing = state.standing
-        this.facing = state.facing
-        this.ninputs = state.ninputs
 
-        if (state.clock != CspReceiver.instance.clock) {
-            throw {message: "clock error", clock1: state.clock, clock2: CspReceiver.instance.clock}
-        }
+        //this.target.rect.x = state.x
+        //this.target.rect.y = state.y
+        //this.direction = state.direction
+        //this.xspeed = state.xspeed
+        //this.yspeed = state.yspeed
+        //this.xaccum = state.xaccum
+        //this.yaccum = state.yaccum
+        //this.gravityboost = state.gravityboost
+        //this.doublejump = state.doublejump
+        //this.doublejump_position = state.doublejump_position
+        //this.doublejump_timer = state.doublejump_timer
+        //this.pressing = state.pressing
+        //this.standing = state.standing
+        //this.facing = state.facing
+        [
+            this.target.rect.x,
+            this.target.rect.y,
+            this.direction,
+            this.xspeed,
+            this.yspeed,
+            this.xaccum,
+            this.yaccum,
+            this.gravityboost,
+            this.doublejump,
+            this.doublejump_position,
+            this.doublejump_timer,
+            this.pressing,
+            this.standing,
+            this.facing,
+        ] = state
     }
 }
 
@@ -1725,7 +1774,6 @@ class Shuriken extends CspEntity {
     setState(state) {
         this.physics.setState(state)
     }
-
 }
 
 class ECS {
@@ -1756,7 +1804,6 @@ class ECS {
             return this.cache[groupname]
         }
     }
-
 }
 
 
@@ -1973,6 +2020,17 @@ class World {
                     this.receiver._receive(message)
                 }
                 else if (message.type == "update") {
+
+                    //if (!!this.entities[message.entid]) {
+                    //    this.receiver._receive({
+                    //        type: "spawn_player",
+                    //        remote: true,
+                    //        frame: message.frame,
+                    //        entid: message.entid,
+                    //        uid: message.uid
+                    //    })
+                    //}
+
                     this.receiver._receive(message)
                 }
                 else if (message.type == "player_join") {
@@ -2110,13 +2168,16 @@ class World {
         ctx.fillStyle = "yellow"
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
         ctx.fillText(`${(gEngine.spt).toFixed(3)} : ${(gEngine.fps).toFixed(2)} latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
+        ctx.fillText(`${gEngine.timings}`, 32, 56)
         //ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         const stats = this.client.stats()
         ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
         //ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
         //ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
-        ctx.fillText(`player = ${this.player?.physics?.ninputs} ghost=${this.ghost?.physics?.ninputs}`, 32, 104)
+        if (!!this.player && !!this.ghost) {
+            ctx.fillText(`player=${this.player.physics.ninputs} ghost=${this.ghost.physics.ninputs} offset=${CspReceiver.instance.offsets[this.ghost.entid]}`, 32, 104)
+        }
         this.receiver.paintOverlay(ctx)
 
     }
@@ -2156,9 +2217,13 @@ class DemoScene extends GameScene {
 
         this.map = new World()
 
-        if (false && daedalus.env.debug) {
+        if (daedalus.env.backend == "echo") {
+            this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
+            this.client.connect("/rtc/offer", {})
+            this.use_network = true
+
+        } else if (daedalus.env.backend=="webrtc") {
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
-            //this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
             this.use_network = true
 

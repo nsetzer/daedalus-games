@@ -1,6 +1,6 @@
 
 
-.PHONY: breakout maze build widgets chat ntjumpwar mpjumpwar
+.PHONY: breakout maze build widgets chat netdebug nettest echotest jumpwar
 
 breakout:
 	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
@@ -14,11 +14,17 @@ widgets:
 chat:
 	python -m src.chat.server --paths=./src --env debug=true ./src/chat/chat.js
 
-ntjumpwar:
-	python -m src.jumpwar.rtserver
+netdebug:
+	python -m src.jumpwar.echoserver --backend=mock
 
-mpjumpwar:
-	python -m src.jumpwar.rtserver2
+echotest:
+	python -m src.jumpwar.echoserver --backend=echo
+
+nettest:
+	python -m src.jumpwar.rtcserver --backend=webrtc
+
+jumpwar:
+	python -m src.jumpwar.rtcserver
 
 	#--paths=./src --static src/maze/static --env debug=true ./src/jumpwar/app.js
 

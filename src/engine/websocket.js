@@ -7,7 +7,6 @@ const wsenv = {}
 wsenv.websocket_protocol = (window.location.protocol==='http:')?'ws:':'wss:'
 wsenv.websocket_base_url = window.location.origin.replace(window.location.protocol, wsenv.websocket_protocol)
 
-
 export class SocketClient {
 
     constructor() {

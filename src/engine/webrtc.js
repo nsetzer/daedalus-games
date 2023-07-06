@@ -269,7 +269,15 @@ export class RealTimeClient {
 
         this.dc.onclose = () => {this._open = false; this.onClose.bind(this)}
         this.dc.onopen = () => {this._open = true; this.onOpen.bind(this)}
-        this.dc.onmessage = this.onMessage.bind(this)
+        this.dc.onmessage = (evt) => {
+
+            let nbytes = byteSize(evt.data)
+            this.total_received += nbytes
+            this.rb_xmit.get(this.frame_index).received += nbytes
+
+            const obj = JSON.parse(evt.data)
+            this.onMessage(obj)
+        }
 
         this.negotiate(url, headers);
 
