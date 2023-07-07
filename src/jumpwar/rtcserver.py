@@ -24,7 +24,13 @@ class Context(WebContext):
     def __init__(self):
         super().__init__()
 
-        self.mapinfo = {'clock': 0, 'next_entid': 1}
+        self.mapinfo = {'next_entid': 1}
+
+    def onConnect(self, peer_id):
+        logging.info("peer connected: %s", peer_id)
+
+    def onDisconnect(self, peer_id):
+        logging.info("peer disconnected: %s", peer_id)
 
     def onMessage(self, peer_id, message):
 
@@ -35,16 +41,14 @@ class Context(WebContext):
 
             reply1 = {
                 "type": "login",
-                #"clock": self.mapinfo['clock'],
                 "entid": self.mapinfo['next_entid'],
-                "uid": self.mapinfo['clock']&0xFF
+                "uid": self.frameIndex&0xFF
             }
 
             reply2 = {
                 "type": "player_join",
-                #"clock": self.mapinfo['clock'],
                 "entid": self.mapinfo['next_entid'],
-                "uid": self.mapinfo['clock']&0xFF
+                "uid": self.frameIndex&0xFF
             }
 
             self.mapinfo['next_entid'] += 1
@@ -59,8 +63,6 @@ class Context(WebContext):
             reply = {
                 "type": "keepalive",
                 "t0": message["t0"],
-                "clock": self.mapinfo['clock'],
-
             }
             self.peers[peer_id].send(json.dumps(reply))
             # print("send reply", peer_id, message)

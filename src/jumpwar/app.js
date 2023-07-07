@@ -62,7 +62,7 @@ $import("engine", {
     TouchInput, KeyboardInput,
     RealTimeClient, RealTimeEchoClient
     CspRingBuffer, mean, stddev,
-    ArrowButtonWidget
+    ArrowButtonWidget, ButtonWidget
 })
 
 $import("scenes", {global, ResourceLoaderScene})
@@ -2218,13 +2218,16 @@ class DemoScene extends GameScene {
         this.map = new World()
 
         if (daedalus.env.backend == "echo") {
+            // backend is an echo server
             this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
             this.use_network = true
 
         } else if (daedalus.env.backend=="webrtc") {
+            // backend is a multi player webrtc server
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
+            this.buildRtcWidgets()
             this.use_network = true
 
         } else {
@@ -2233,7 +2236,7 @@ class DemoScene extends GameScene {
             this.client.latency_mean = profile.mean
             this.client.latency_stddev = profile.stddev
             this.client.packet_lossrate = profile.droprate
-            this.buildWidgets()
+            this.buildLatencyWidgets()
             this.use_network = false
         }
 
@@ -2256,7 +2259,27 @@ class DemoScene extends GameScene {
 
     }
 
-    buildWidgets() {
+    buildRtcWidgets() {
+
+        let wgtx = gEngine.view.width - 32
+        let wgto = 128
+        let wgty = 8
+        let wgth = 24
+
+        let wgt1, wgt2, txt1, txt2;
+        wgt1 = new ButtonWidget(Direction.LEFT)
+        wgt1.rect = new Rect(wgtx - wgto,wgty,96+16,24)
+        wgt1.setText("Disconnect")
+        this.widgets.push(wgt1)
+
+        wgt1.clicked = () => {
+            this.client.disconnect()
+        }
+
+
+    }
+
+    buildLatencyWidgets() {
 
         let wgtx = gEngine.view.width - 32
         let wgto = 128

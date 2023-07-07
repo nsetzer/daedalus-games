@@ -32,5 +32,5 @@ build:
 	mkdir -p build
 	daedalus build --minify --htmlname maze.html --onefile --paths=./src --static src/maze/resource src/maze/app.js ./build
 	daedalus build --minify --htmlname breakout.html --onefile --paths=./src src/breakout/breakout2.js ./build
-	daedalus build --minify --htmlname jumpwar.html --onefile --paths=./src --static src/jumpwar/static src/jumpwar/app.js ./build
+	daedalus build --minify --htmlname jumpwar.html --onefile --paths=./src --env backend=mock --static src/jumpwar/static src/jumpwar/app.js ./build
 	cp src/site/index.html build/index.html

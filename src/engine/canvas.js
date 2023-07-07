@@ -98,6 +98,25 @@ const ModifierKeys {
     SymbolLock:1,
 }
 */
+
+function tickTimer(initial=1/60) {
+    // returns a function which estimates the seconds-per-tick
+    // the estimate is updated each time the function is called
+    // returning the new estimate
+    // uses a moving average filter tuned for 60fps
+    let t0 = null
+    let spt = initial
+    return () => {
+        const t1 = performance.now()
+        if (t0 !== null) {
+            spt += (0.02551203525869137) * ((t1 - t0)/1000.0 - spt)
+        }
+        t0 = t1
+        return spt
+    }
+
+}
+
 export class CanvasEngine extends DomElement {
     constructor(width, height, settings=null) {
         super("canvas", {
@@ -110,6 +129,19 @@ export class CanvasEngine extends DomElement {
 
         this.ctx = null
         this.lastTime = null
+
+        this.fps = 60
+        this.spt_a = 1/60
+        this.spt_b = 1/60
+        this.spt_c = 1/60
+
+        this.frameTimer = tickTimer()
+        this.updateTimer = tickTimer()
+        this.renderTimer = tickTimer()
+
+
+        this.lastRender = null
+
         this.settings = settings??{}
 
         // portrait: (true) preferred orientation is 0 degrees
@@ -376,6 +408,7 @@ export class CanvasEngine extends DomElement {
             this.ctx.fillRect(0,0, canvas.width, canvas.height)
             this.lastTime = null
 
+
             if (!this.paused) {
                 // resume the game
                 window.requestAnimationFrame(this.render.bind(this));
@@ -432,7 +465,11 @@ export class CanvasEngine extends DomElement {
         // screen.orientation.lock('landscape');
         const body = document.getElementsByTagName("BODY")[0];
         if (enable) {
-            body.requestFullscreen()
+            try {
+                body.requestFullscreen()
+            } catch (e) {
+                console.warn("error requesting full scren", e)
+            }
         }
     }
 
@@ -474,8 +511,58 @@ export class CanvasEngine extends DomElement {
 
     }
 
-    render() {
+    /*
 
+    */
+
+    render() {
+        let now = performance.now()
+
+        let dt = 1/60;
+
+        if (this.lastTime != null) {
+
+            const elapsed = (now - this.lastTime) / 1000.0
+            this.spt_a = this.renderTimer()
+
+            //if (this.touch_event) {
+            //    this.scene.handleTouches(this.touch_event)
+            //}
+            if (!this.paused) {
+                this.delta_accum += elapsed;
+
+                const p1 = performance.now()
+                let n = 0;
+                while (this.delta_accum > dt) {
+                    this.delta_accum -= dt
+                    this.spt_b = this.updateTimer()
+                    this.scene.update(dt)
+                    n += 1;
+                }
+                const p2 = performance.now()
+                if (n > 0) {
+                    this.spt_c = this.frameTimer()
+                    this.renderFrame();
+
+                }
+                const p3 = performance.now()
+                //this.timings = [p2-p1,p3-p2]
+            }
+
+            this.timings = [Math.floor(1.0/this.spt_a), Math.floor(1.0/this.spt_b), Math.floor(1.0/this.spt_c)]
+            this.fps = Math.floor(1.0/this.spt_b)
+
+        }
+        this.lastTime = now;
+
+        now = performance.now()
+
+
+
+        window.requestAnimationFrame(this.render.bind(this));
+    }
+
+    render2() {
 
         if (!this.paused) {
             window.requestAnimationFrame(this.render.bind(this));
@@ -484,7 +571,6 @@ export class CanvasEngine extends DomElement {
         let now = performance.now()
 
         let dt = 1/60;
-
 
         if (this.lastTime != null) {
 
@@ -500,7 +586,7 @@ export class CanvasEngine extends DomElement {
                 this.delta_accum += (now - this.lastTime) / 1000.0;
                 //console.log(((now - this.lastTime) / 1000.0))
 
-                n = 1
+                n = 0
 
                 const p1 = performance.now()
 

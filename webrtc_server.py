@@ -6,7 +6,7 @@ import os
 import ssl
 import uuid
 import time
-
+from enum import Enum
 import cv2
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
@@ -19,6 +19,7 @@ site = None
 peers = {}
 messages = []
 
+logging.getLogger("aioice.ice").setLevel(logging.WARNING)
 logger = logging.getLogger("pc")
 
 def path_join_safe(root_directory: str, filename: str):
@@ -47,8 +48,46 @@ def path_join_safe(root_directory: str, filename: str):
 
     return path
 
+class ConnectionState(Enum):
+    CONNECTING = 1
+    CONNECTED = 2
+    DISCONNECTING = 3
+    DISCONNECTED = 4
+
+class Peer(object):
+    def __init__(self, uid, pc):
+        super(Peer, self).__init__()
+        self.uid = uid
+        self.pc = pc
+        self.dc = None
+        self.error = False
+        self.state = ConnectionState.CONNECTING
+
+    def connected(self):
+        return self.pc is not None and self.dc is not None
+
+    def send(self, msg):
+        if not self.error and self.dc is not None and self.state == ConnectionState.CONNECTED:
+            try:
+                self.dc.send(msg)
+            except InvalidStateError as e:
+                logging.error(self.uid + ": send error : %s : %s : %s", self.dc.readyState, type(e), str(e))
+
+                # according to: aiortc/src/aiortc/rtcdatachannel.py
+                # the readyState must be 'open' in order to send
+
+                # connecting -> open -> closing -> closed
+                if self.dc.readyState == "closing":
+                    # it will take another ~30 seconds to completely close the peer connection
+                    # the peer connection will be set to failed
+                    self.state = ConnectionState.DISCONNECTING
+                self.error = True
+
+        #else:
+        #    logging.error("unable to send, data channel not open")
+
 async def route_rtc_offer(request):
-    print("offer headers", request.headers)
+    #print("offer headers", request.headers)
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
@@ -56,7 +95,9 @@ async def route_rtc_offer(request):
     pc_id = str(uuid.uuid4())
     pc_sid = "PeerConnection(%s)" % pc_id
 
-    peers[pc_id] = Peer(pc_id, pc)
+    current_peer = Peer(pc_id, pc)
+
+    peers[pc_id] = current_peer
 
     def log_info(msg, *args):
         logger.info(pc_sid + " " + msg, *args)
@@ -68,7 +109,7 @@ async def route_rtc_offer(request):
     @pc.on("datachannel")
     def on_datachannel(channel):
         log_info("Data connection opened")
-        peers[pc_id].dc = channel
+        current_peer.dc = channel
 
         # TODO: open not called
         # @channel.on("open")
@@ -79,7 +120,8 @@ async def route_rtc_offer(request):
         def on_close():
             log_info("Data connection closed")
 
-            peers[pc_id].dc = None
+            current_peer.state = ConnectionState.DISCONNECTING
+            current_peer.dc = None
 
         @channel.on("message")
         def on_message(message):
@@ -91,10 +133,11 @@ async def route_rtc_offer(request):
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
-        log_info("Connection state is %s (%d)", pc.connectionState, len(peers))
-        if pc.connectionState == "failed":
+        log_info("Connection state is %s", pc.connectionState)
+        if pc.connectionState == "failed" and pc.connectionState == "closed":
             await pc.close()
-            del peers[pc_id]
+            current_peer.state = ConnectionState.DISCONNECTING
+            current_peer.dc = None
 
     # handle offer
     await pc.setRemoteDescription(offer)
@@ -139,25 +182,6 @@ class DevSite(object):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
         print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
 
-class Peer(object):
-    def __init__(self, uid, pc):
-        super(Peer, self).__init__()
-        self.uid = uid
-        self.pc = pc
-        self.dc = None
-
-    def connected(self):
-        return self.pc is not None and self.dc is not None
-
-    def send(self, msg):
-        if self.dc is not None:
-            try:
-                self.dc.send(msg)
-            except InvalidStateError as e:
-                logging.error(self.uid + ": send error : " + str(e))
-        else:
-            logging.error("unable to send, data channel not open")
-
 async def route_index(request):
     global site
     site.build()
@@ -195,24 +219,29 @@ async def async_sleep(duration):
 
 async def main_loop(ctxt):
 
-    #queue = [[] for i in range(12)]
-    #idx = 0
-    #while True:
-    #    for peer_id, message in queue[idx%len(queue)]:
-    #        ctxt.onMessage(peer_id, message)
-    #    queue[idx%len(queue)] = messages[:]
-    #    messages.clear()
-    #    idx += 1
-    #    await asyncio.sleep(1/60)
-
     t0 = time.monotonic()
     spt = 1/60
     while True:
 
+        ctxt.frameIndex += 1
+
+        disconnected = []
+        for peer_id, peer in peers.items():
+
+            if peer.state == ConnectionState.CONNECTING and peer.dc is not None:
+                peer.state = ConnectionState.CONNECTED
+                ctxt.onConnect(peer_id)
+
+            if peer.state == ConnectionState.DISCONNECTING:
+                peer.state = ConnectionState.DISCONNECTED
+                ctxt.onDisconnect(peer_id)
+                disconnected.append(peer_id)
+
+        for peer_id in disconnected:
+            del peers[peer_id]
+
         for peer_id, message in messages:
             ctxt.onMessage(peer_id, message)
-
-        ctxt.mapinfo['clock'] += 1
 
         messages.clear()
 
@@ -230,9 +259,16 @@ class WebContext():
         super().__init__()
 
         self.interval = 1/60
+        self.frameIndex = 0
 
         global peers
         self.peers = peers
+
+    def onConnect(self, peer_id):
+        pass
+
+    def onDisconnect(self, peer_id):
+        pass
 
     def onMessage(self, peer_id, message):
         pass

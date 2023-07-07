@@ -155,8 +155,6 @@ export class TouchInput {
         this.wheels = []
         this.buttons = []
 
-        this.button_icons = []
-
         this.resize()
     }
 
@@ -174,7 +172,7 @@ export class TouchInput {
         })
     }
 
-    addButton(x, y, radius, options) {
+    addButton(x, y, radius, options, icon=null) {
 
         let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
 
@@ -183,7 +181,8 @@ export class TouchInput {
             cx: gEngine.view.width + x,
             cy: gEngine.view.height + y,
             alignment: alignment,
-            pressed: false
+            pressed: false,
+            icon: icon,
         })
     }
 
@@ -311,8 +310,8 @@ export class TouchInput {
         //    },
         //]
         for (let wheel of this.wheels) {
-            wheel.cx = gEngine.view.width + button.x
-            wheel.cy = gEngine.view.height + button.y
+            wheel.cx = gEngine.view.width + wheel.x
+            wheel.cy = gEngine.view.height + wheel.y
         }
 
         //radius = 40
@@ -439,8 +438,8 @@ export class TouchInput {
 
             ctx.save()
             ctx.globalAlpha = .5
-            if (this.button_icons[i]) {
-                this.button_icons[i].sheet.drawTileScaled(ctx, this.button_icons[i].tid, btn.cx-16,btn.cy-16, 32, 32)
+            if (btn.icon !== null) {
+                btn.icon.sheet.drawTileScaled(ctx, btn.icon.tid, btn.cx-16,btn.cy-16, 32, 32)
             }
             ctx.restore()
         }

@@ -1027,15 +1027,14 @@ export class MainScene extends GameScene {
         this.controller = new Controller(this, this.ent_hero)
         this.touch = new TouchInput(this.controller)
         this.touch.addWheel(72, -72, 72)
-        this.touch.addButton(-40, -120, 40)
-        this.touch.addButton(-120, -40, 40)
-
-        this.touch.button_icons = [
-            this.loader.sheets.bomb.tile(0),
-            this.loader.sheets.bomb.tile(1)
-        ]
+        this.touch.addButton(-40, -120, 40, {}, this.loader.sheets.bomb.tile(0))
+        this.touch.addButton(-120, -40, 40, {}, this.loader.sheets.bomb.tile(1))
 
         this.keyboard = new KeyboardInput(this.controller);
+        this.keyboard.addWheel_ArrowKeys()
+        this.keyboard.addButton(KeyboardInput.Keys.CTRL)
+        this.keyboard.addButton(KeyboardInput.Keys.SPACE)
+
         this.camera = new Camera(this.map, this.ent_hero)
 
         this.ent_hero.physics.group = this.walls
@@ -1226,7 +1225,6 @@ export class MainScene extends GameScene {
     }
 
     paint_status(ctx) {
-
         let x = this.camera.x
         let y = this.camera.y
         ctx.beginPath()
@@ -1264,6 +1262,11 @@ export class MainScene extends GameScene {
         if (this.inventory.boss_key > 0) {
             this.loader.sheets.bg.drawTile(ctx, 9,x + 64 + 7*32 + 16,  Math.floor(y))
         }
+
+        //ctx.font = "bold 14pt Courier";
+        //ctx.fillStyle = "yellow"
+        //// ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
+        //ctx.fillText(`${(gEngine.fps).toFixed(0)} ${gEngine.timings}`, x + 4, y + 24)
 
     }
 
