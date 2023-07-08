@@ -233,15 +233,18 @@ async def main_loop(ctxt):
                 ctxt.onConnect(peer_id)
 
             if peer.state == ConnectionState.DISCONNECTING:
-                peer.state = ConnectionState.DISCONNECTED
-                ctxt.onDisconnect(peer_id)
                 disconnected.append(peer_id)
 
         for peer_id in disconnected:
+            peer = peers[peer_id]
+            peer.state = ConnectionState.DISCONNECTED
             del peers[peer_id]
+            ctxt.onDisconnect(peer_id)
 
         for peer_id, message in messages:
             ctxt.onMessage(peer_id, message)
+
+        ctxt.onUpdate(1/60) # TODO: delta t?
 
         messages.clear()
 
@@ -271,6 +274,9 @@ class WebContext():
         pass
 
     def onMessage(self, peer_id, message):
+        pass
+
+    def onUpdate(self, dt):
         pass
 
 

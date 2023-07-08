@@ -1,7 +1,16 @@
 
 /**
  * jump war
- *
+ * - client send:
+ *   uid should be set by the webrtc client class
+ *   client should keep track of acked messages
+ *   client should resend messages that have not been acked
+ *   - maybe every other update
+ *   - maybe look at latency, 1/2 rtt send again
+ * - server receive:
+ *   - for each peer, keep track of received uids
+ * - server send:
+ *   - same idea as client send
  * - csp: consitent frame rate
  *        send frame deltas along with inputs?
  *        separate tick rate and frame rate? this would allow a constant tick
@@ -227,6 +236,10 @@ class Camera extends CameraBase {
 }
 
 function apply_character_input(map, input, physics) {
+
+    if (physics.target.iskill) {
+        return
+    }
 
     if (input.btnid !== undefined) {
         //console.log("apply_input clock=", CspReceiver.instance.input_clock, physics.target.entid, "button", input.btnid, input.pressed)
@@ -567,7 +580,7 @@ class CspReceiver {
         this.dirty_index = null
         //this.snap_position = null
 
-
+        // TODO: memory leak if not cleared when an entity is deleted
         this.offsets = {}
 
     }
@@ -581,8 +594,12 @@ class CspReceiver {
     }
 
     _hasinput(idx, entid, uid) {
-
-        return (entid in this.inputqueue[idx]) && (uid in this.inputqueue[idx][entid])
+        try {
+            return (!!this.inputqueue[idx]) && (entid in this.inputqueue[idx]) && (uid in this.inputqueue[idx][entid])
+        } catch (e) {
+            console.warn(idx, entid, uid)
+            console.error(e)
+        }
     }
 
     _getinput(idx, entid, uid) {
@@ -654,6 +671,10 @@ class CspReceiver {
             frameIndex = msg.frame + this.input_delay
         } else {
 
+            // TODO: deduplicate messages before updating offsets
+            // TODO: continuosly update the offset for every message that is receivef
+            //       only set a new offset when an update is received?
+            // TODO: design a low pass filter for offsets (choose a better alpha)
             if (this.offsets[msg.entid] === undefined) {
                 this.offsets[msg.entid] = this.input_clock - msg.frame
             }
@@ -805,17 +826,27 @@ class CspReceiver {
         //console.log(reconcile?"reconcile":"update", "clock=", clock, message.type, "entid=",message.entid)
 
         //console.log("apply input idx=", "message=", message)
-        if (message.type === "spawn_player") {
+        if (message.type === "respawn") {
+            const ent = this._getEntity(message.entid)
+
+            ent.spawn(304, 128)
+
+            console.log(message)
+        } else if (message.type === "spawn_player") {
             if (message.$state !== undefined) {
                 const ent = this._getEntity(message.$entid)
                 ent.setState(message.$state)
             } else {
 
                 const ent = new Character()
-                ent.rect.x = 304
-                ent.rect.y = 128
                 ent.physics.group = this.map.walls
                 ent.entid = message.entid
+                ent.sendEvent = (event) => {
+                    this.map.sendEvent(event)
+                }
+
+                ent.group_charas = this.map.ecs.players
+                ent.spawn(304, 128)
 
                 this.map.addEntity(message.entid, ent)
 
@@ -875,6 +906,10 @@ class CspReceiver {
 
                     const ent = new Character()
                     ent.physics.group = this.map.walls
+                    ent.group_charas = this.map.ecs.players
+                    ent.sendEvent = (event) => {
+                        this.map.sendEvent(event)
+                    }
                     ent.entid = message.entid
 
                     this.map.addEntity(message.entid, ent)
@@ -910,6 +945,13 @@ class CspReceiver {
                 //console.log("update offset", message.$offset)
 
                 ent.setState(message.state)
+            }
+
+        } else if (message.type === "hit") {
+
+            const ent = this._getEntity(message.entid)
+            if (!!ent) {
+                ent.kill()
             }
 
         } else if (message.type === "create") {
@@ -1120,6 +1162,7 @@ class Physics2d {
         this.jumpduration = .22 // total duration divided by 4?
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
+
         this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
@@ -1566,6 +1609,11 @@ class Character extends CspEntity {
 
         this.spawning = true
 
+        this.kill_timer_1 = 0
+        this.iskill = false
+
+        this.group_charas = ()=>[]
+
     }
 
     buildAnimations() {
@@ -1605,12 +1653,7 @@ class Character extends CspEntity {
             ["wall_slide", Direction.RIGHT, `${chara}_${idx}_r_wall_slide`],
         ]
 
-        let defines2 = [
-            ["appear",    Direction.LEFT,  `default_l_appear`],
-            ["disappear", Direction.LEFT,  `default_l_disappear`],
-            ["appear",    Direction.RIGHT, `default_r_appear`],
-            ["disappear", Direction.RIGHT, `default_r_disappear`],
-        ]
+
 
         for (const info of defines1) {
             let [animation_name, direction, sheet_name] = info;
@@ -1619,11 +1662,38 @@ class Character extends CspEntity {
             this.animations[animation_name][direction] = aid
         }
 
+
+        // appearing / disappearing
+
         spf = 1/14
         xoffset = -40
         yoffset = -48
-        let onend = this.onSpawnAnimationEnd.bind(this)
+        let onend;
+
+        let defines2 = [
+            ["appear",    Direction.LEFT,  `default_l_appear`],
+            ["appear",    Direction.RIGHT, `default_r_appear`],
+        ]
+
+        onend = this.onSpawnAnimationEnd.bind(this)
+
         for (const info of defines2) {
+            let [animation_name, direction, sheet_name] = info;
+            let sheet = global.loader.sheets[sheet_name]
+            let aid = this.animation.register(
+                sheet, sheet.tiles(), spf, {xoffset, yoffset, loop: false, onend}
+            )
+            this.animations[animation_name][direction] = aid
+        }
+
+        let defines3 = [
+            ["disappear",    Direction.LEFT,  `default_l_disappear`],
+            ["disappear",    Direction.RIGHT, `default_r_disappear`],
+        ]
+
+        onend = this.onDeathAnimationEnd.bind(this)
+
+        for (const info of defines3) {
             let [animation_name, direction, sheet_name] = info;
             let sheet = global.loader.sheets[sheet_name]
             let aid = this.animation.register(
@@ -1654,12 +1724,15 @@ class Character extends CspEntity {
         this.spawning = false
     }
 
-    update(dt) {
+    onDeathAnimationEnd() {
+        this.visible = false
+    }
 
+    update(dt) {
 
         this.physics.update(dt)
 
-        if (!this.spawning) {
+        if (!this.spawning && !this.iskill) {
             if (this.physics.facing != this.current_facing) {
                 this.current_facing = this.physics.facing
                 let aid = this.animations[this.current_action][this.current_facing]
@@ -1681,6 +1754,47 @@ class Character extends CspEntity {
             }
         }
 
+        if (this.iskill) {
+            if (this.kill_timer_1 > 0) {
+
+                if (this.physics.facing != this.current_facing) {
+                    this.current_facing = this.physics.facing
+                    let aid = this.animations[this.current_action][this.current_facing]
+                    this.animation.setAnimationById(aid)
+                }
+
+                if (this.physics.action != this.current_action) {
+                    this.current_action = this.physics.action
+                    let aid = this.animations[this.current_action][this.current_facing]
+                    this.animation.setAnimationById(aid)
+                }
+
+                this.kill_timer_1 -= dt
+
+                if (this.kill_timer_1 <= 0) {
+                    this.animation.setAnimationById(this.animations.disappear[this.physics.facing])
+                    this.kill_timer_1 = 0
+                }
+            }
+        }
+
+        if (this.physics.yspeed > 0) {
+            for (const other of this.group_charas()) {
+                if (other.entid != this.entid) {
+                    if (this.rect.collideRect(other.rect)) {
+                        if (this.rect.cy() < other.rect.cy()) {
+                            this.sendEvent?.({
+                                type: "hit",
+                                frame: CspReceiver.instance.input_clock,
+                                entid: this.entid,
+                                target: other.entid
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
         this.animation.update(dt)
         this.character.update(dt)
 
@@ -1694,22 +1808,25 @@ class Character extends CspEntity {
         //ctx.fill()
 
         ctx.save()
+        //if (!!this.filter) {
+        //    ctx.filter = this.filter + "  blur(5px)"
+        //} else {
+        //    ctx.filter = "hue-rotate(180deg) brightness(2)"
+        //}
+
         if (!!this.filter) {
-            ctx.filter = this.filter
-
-            ctx.fillStyle = "#FF00FF3f"
-            ctx.beginPath()
-            ctx.rect(this.rect.x-8,this.rect.y,this.rect.w+16,this.rect.h)
-            ctx.fill()
-
+            if (this.iskill) {
+                ctx.filter = this.filter + ` brightness(${1 + (1-this.kill_timer_1/.6)})`
+            } else {
+                ctx.filter = this.filter
+            }
         } else {
-            ctx.fillStyle = "#FF00003f"
-            ctx.beginPath()
-            ctx.rect(this.rect.x-8,this.rect.y-16,this.rect.w+16,this.rect.h+16)
-            ctx.fill()
+            if (this.iskill) {
+                ctx.filter = `brightness(${1 + (1-this.kill_timer_1)})`
+            }
         }
-        this.animation.paint(ctx)
 
+        this.animation.paint(ctx)
         ctx.restore()
 
         if (this.physics.doublejump_timer > 0) {
@@ -1723,11 +1840,42 @@ class Character extends CspEntity {
     }
 
     getState() {
-        return this.physics.getState()
+        let state = [this.visible, this.spawning, this.iskill, this.kill_timer_1]
+        return [state, this.physics.getState(), this.animation.getState()]
     }
 
     setState(state) {
-        this.physics.setState(state)
+        try {
+            const [state1, state2, state3] = state
+            [this.visible, this.spawning, this.iskill, this.kill_timer_1] = state1
+            this.physics.setState(state2)
+            this.animation.setState(state3)
+        } catch (e) {
+            console.log(state)
+            console.log(e)
+            console.error(e)
+        }
+    }
+
+    spawn(x, y) {
+        this.rect.x = x
+        this.rect.y = y
+        this.spawning = true
+        this.physics.facing = Direction.RIGHT
+        this.animation.setAnimationById(this.animations.appear[this.physics.facing])
+        this.iskill = false
+        this.visible = true
+    }
+
+    kill() {
+
+        this.kill_timer_1 = 0.6
+        this.iskill = true
+
+        let d = this.physics.facing==Direction.LEFT?1:-1
+        this.physics.xspeed = d * Math.sqrt( 32*this.physics.xacceleration)
+        this.physics.yspeed = - Math.sqrt(2*48*this.physics.gravity)
+        this.physics.doublejump = false
     }
 }
 
@@ -1787,7 +1935,7 @@ class ECS {
         this.addGroup('solid', (ent) => ent.solid)
     }
 
-    addGroup(groupname, rule1) {
+    addGroup(groupname, rule) {
         this[groupname] = () => {
             const now = CspReceiver.instance.input_clock
 
@@ -1798,7 +1946,7 @@ class ECS {
 
             if (!(groupname in this.cache)) {
                 const rule2 = (ent) => ((!ent.$destroyed_at || now <= ent.$destroyed_at) && rule(ent))
-                this.cache[groupname] = this.parent.entities.filter(rule2)
+                this.cache[groupname] = Object.values(this.parent.entities).filter(rule2)
             }
 
             return this.cache[groupname]
@@ -1847,6 +1995,8 @@ class World {
 
         this.ecs = new ECS(this)
 
+        this.ecs.addGroup("players", (ent) => {return ent instanceof Character})
+
     }
 
     buildMap() {
@@ -1894,25 +2044,8 @@ class World {
         w.rect.h = this.map.height - 128
         this.walls.push(w)
 
-
-        //let ent;
-        //ent = new Character()
-        //ent.rect.x = 304
-        //ent.rect.y = 128
-        //ent.physics.group = this.walls
-        //ent.entid = 123
-        //ent.layer = 10
         this.player = null
-        //this.entities.push(ent)
-
-        //ent = new Character()
-        //ent.filter = `hue-rotate(+180deg)`
-        //ent.rect.x = 304
-        //ent.rect.y = 128
-        //ent.physics.group = this.walls
-        //ent.entid = 223
-        //this.ghost = ent
-        //this.entities.push(ent)
+        this.ghost = null
 
         this.controller = new CspController(this.client)
         this.controller.map = this
@@ -1936,6 +2069,10 @@ class World {
     handleMockMessage(message) {
 
         // pretend to be the server
+
+        if (message.type == "hit"){
+            return
+        }
 
         if (message.type == "login"){
             this.handleMessage({
@@ -1984,7 +2121,13 @@ class World {
         if (this.messages.length > 0) {
             this.message_count = this.messages.length
             for (let message of this.messages) {
-                if (message.type == "login") {
+                if (message.type == "logout") {
+                    console.log(message)
+                    if (message.entid in this.entities) {
+                        this.entities[message.entid].destroy()
+                    }
+                    //this.receiver._receive(message)
+                } else if (message.type == "login") {
                     console.log("login received", message)
 
                     //this.receiver.input_clock = message.clock
@@ -2041,6 +2184,17 @@ class World {
                         entid: message.entid,
                         uid: message.uid
                     })
+                }
+                else if (message.type == "respawn") {
+                    this.receiver._receive({
+                        type: "respawn",
+                        frame: this.receiver.input_clock,
+                        entid: message.entid,
+                        uid: message.uid
+                    })
+                }
+                else if (message.type == "hit") {
+                    this.receiver._receive(message)
                 }
                 else {
                     console.log("unexpected message type", message)
@@ -2193,6 +2347,12 @@ class World {
         this.entities[this.next_entid] = ent
         this.next_entid += 1
     }
+
+    sendEvent(event) {
+
+        this.client.send(event)
+        console.log(event)
+    }
 }
 
 class DemoScene extends GameScene {
@@ -2221,14 +2381,14 @@ class DemoScene extends GameScene {
             // backend is an echo server
             this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
-            this.use_network = true
+            this.map.use_network = true
 
         } else if (daedalus.env.backend=="webrtc") {
             // backend is a multi player webrtc server
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
             this.buildRtcWidgets()
-            this.use_network = true
+            this.map.use_network = true
 
         } else {
             this.client = new RealTimeEchoClient(this.map.handleMockMessage.bind(this.map))
@@ -2237,7 +2397,7 @@ class DemoScene extends GameScene {
             this.client.latency_stddev = profile.stddev
             this.client.packet_lossrate = profile.droprate
             this.buildLatencyWidgets()
-            this.use_network = false
+            this.map.use_network = false
         }
 
         this.map.client = this.client
@@ -2506,6 +2666,7 @@ class DemoScene extends GameScene {
         for (const wgt of this.widgets) {
             wgt.handleTouches(touches)
         }
+
     }
 
     handleKeyPress(keyevent) {

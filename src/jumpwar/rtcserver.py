@@ -19,6 +19,20 @@ from webrtc_server import add_dev_routes, main_loop, WebContext
 
 # https://stackoverflow.com/questions/37512182/how-can-i-periodically-execute-a-function-with-asyncio
 
+class Entity(object):
+    def __init__(self, peer_id, entid):
+        super(Entity, self).__init__()
+        self.peer_id = peer_id
+        self.entid = entid
+
+        self.updates = []
+
+    def push(self, update):
+        self.updates.append(update)
+        if len(self.updates) > 10:
+            self.updates.pop(0)
+
+
 class Context(WebContext):
 
     def __init__(self):
@@ -26,11 +40,33 @@ class Context(WebContext):
 
         self.mapinfo = {'next_entid': 1}
 
+        self.peer2ent = {}
+        self.entid2ent = {}
+
+        self.spawntimer = {} # entid -> timer
+
     def onConnect(self, peer_id):
         logging.info("peer connected: %s", peer_id)
 
     def onDisconnect(self, peer_id):
         logging.info("peer disconnected: %s", peer_id)
+
+        if peer_id in self.peer2ent:
+
+            reply = {
+                "type": "logout",
+                "entid": self.peer2ent[peer_id].entid,
+                "uid": 1024 + self.frameIndex&0xFFF
+            }
+
+            ent = self.peer2ent[peer_id]
+
+            del self.peer2ent[peer_id]
+            del self.entid2ent[ent.entid]
+
+            for other_id, peer in self.peers.items():
+                if other_id != peer_id:
+                    peer.send(json.dumps(reply))
 
     def onMessage(self, peer_id, message):
 
@@ -39,25 +75,36 @@ class Context(WebContext):
 
         if message['type'] == "login":
 
-            reply1 = {
-                "type": "login",
-                "entid": self.mapinfo['next_entid'],
-                "uid": self.frameIndex&0xFF
-            }
+            if peer_id in self.peer2ent:
+                pass
 
-            reply2 = {
-                "type": "player_join",
-                "entid": self.mapinfo['next_entid'],
-                "uid": self.frameIndex&0xFF
-            }
+            else:
 
-            self.mapinfo['next_entid'] += 1
+                entid = self.mapinfo['next_entid']
+                uid = 1024 + self.frameIndex&0xFFF
+                reply1 = {
+                    "type": "login",
+                    "entid": entid,
+                    "uid": uid
+                }
 
-            self.peers[peer_id].send(json.dumps(reply1))
+                reply2 = {
+                    "type": "player_join",
+                    "entid": entid,
+                    "uid": uid
+                }
 
-            for other_id, peer in self.peers.items():
-                if other_id != peer_id:
-                    peer.send(json.dumps(reply2))
+                ent = Entity(peer_id, entid)
+                self.peer2ent[peer_id] = ent
+                self.entid2ent[entid] = ent
+
+                self.mapinfo['next_entid'] += 1
+
+                self.peers[peer_id].send(json.dumps(reply1))
+
+                for other_id, peer in self.peers.items():
+                    if other_id != peer_id:
+                        peer.send(json.dumps(reply2))
 
         elif message['type'] == "keepalive":
             reply = {
@@ -68,6 +115,9 @@ class Context(WebContext):
             # print("send reply", peer_id, message)
 
         elif message['type'] == "update":
+
+            if peer_id in self.peer2ent:
+                self.peer2ent[peer_id].push(message)
 
             for other_id, peer in self.peers.items():
                 if other_id != peer_id:
@@ -82,6 +132,45 @@ class Context(WebContext):
             for other_id, peer in self.peers.items():
                 if other_id != peer_id:
                     peer.send(json.dumps(message))
+        elif message['type'] == "hit":
+
+            if peer_id in self.peer2ent:
+                ent0 = self.peer2ent[peer_id]
+
+            if message['target'] in self.entid2ent:
+                ent2 = self.entid2ent[message['target']]
+
+            if message['entid'] in self.entid2ent:
+                ent1 = self.entid2ent[message['entid']]
+
+            if ent0 and ent1 and ent2 and ent2.entid not in self.spawntimer:
+                if ent1.updates and ent2.updates:
+                    frame1 = ent1.updates[-1]['frame']
+                    frame2 = ent2.updates[-1]['frame']
+                    print(frame1, frame2, ent0.entid, message)
+
+                    # if the source peer generated the event
+                    if ent0.entid == ent1.entid:
+                        delta = message['frame'] - frame1
+
+                        frame = frame2 + delta
+                        uid = 1024 + self.frameIndex&0xFFF
+
+                        reply = {
+                            "type": "hit",
+                            "entid": ent2.entid,
+                            "frame": frame,
+                            "uid": uid,
+                        }
+
+                        self.spawntimer[ent2.entid] = 5
+
+                        for _, peer in self.peers.items():
+                             peer.send(json.dumps(reply))
+
+
+
+
         else:
             print("error on message", message)
 
@@ -89,6 +178,26 @@ class Context(WebContext):
         #for peer in peers.values():
         #    if peer.connected():
         #        peer.send(json.dumps(message))
+
+    def onUpdate(self, dt):
+
+        for entid in list(self.spawntimer.keys()):
+            self.spawntimer[entid] -= dt
+            if self.spawntimer[entid] < 0:
+
+                if entid in self.entid2ent:
+                    ent = self.entid2ent[entid]
+                    peer_id = ent.peer_id
+                    reply = {
+                            "type": "respawn",
+                            "entid": entid,
+                            "uid": 1024 + self.frameIndex&0xFFF,
+                        }
+
+                    if peer_id in self.peers:
+                        self.peers[peer_id].send(json.dumps(reply))
+
+                del self.spawntimer[entid]
 
 
 

@@ -155,7 +155,7 @@ export class AnimationComponent {
         this.aid = -1
         this.paused = 0
 
-        this.effect = null
+        this.effect = null // deprecated?
     }
 
     register(sheet, tids, frame_duration, params) {
@@ -219,7 +219,7 @@ export class AnimationComponent {
     }
 
     paint(ctx) {
-        if (this.animation) {
+        if (this.animation && this.target.visible) {
             let tid = this.animation.tids[this.frame_index]
             let x = this.target.rect.x + this.animation.xoffset
             let y = this.target.rect.y + this.animation.yoffset
@@ -230,6 +230,15 @@ export class AnimationComponent {
             ctx.restore()
         }
 
+    }
+
+    getState() {
+        return [this.aid, this.timer, this.frame_index, this.paused]
+    }
+
+    setState(state) {
+        [this.aid, this.timer, this.frame_index, this.paused] = state
+        this.animation = this.animations[this.aid]
     }
 }
 
