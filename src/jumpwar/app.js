@@ -71,7 +71,7 @@ $import("engine", {
     TouchInput, KeyboardInput,
     RealTimeClient, RealTimeEchoClient
     CspRingBuffer, mean, stddev,
-    ArrowButtonWidget, ButtonWidget
+    ArrowButtonWidget, ButtonWidget, SoundEffect
 })
 
 $import("scenes", {global, ResourceLoaderScene})
@@ -237,7 +237,7 @@ class Camera extends CameraBase {
 
 function apply_character_input(map, input, physics) {
 
-    if (physics.target.iskill) {
+    if (physics.target.iskill || physics.target.spawning) {
         return
     }
 
@@ -255,6 +255,7 @@ function apply_character_input(map, input, physics) {
                 physics.yspeed = physics.jumpspeed
                 physics.gravityboost = false
                 physics.doublejump = true
+                global.loader.sounds.jump.play(.3)
 
             } else if (pressing && !standing) {
                 //let v = Direction.vector(physics.direction)
@@ -268,6 +269,7 @@ function apply_character_input(map, input, physics) {
                 //       if the direction of travel is the same as the current direction button
                 //       the facing direction will need to be fixed, without a new input
                 physics.facing = (physics.facing == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+                global.loader.sounds.jump.play(.3)
 
             } else if (!standing && physics.doublejump && physics.yspeed > 0) {
                 //console.log("double jump")
@@ -277,6 +279,7 @@ function apply_character_input(map, input, physics) {
                 physics.doublejump = false
                 physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
                 physics.doublejump_timer = .4
+                global.loader.sounds.jump.play(.3)
             }
             else {
                 console.log(`jump standing=${standing} pressing=${pressing}`)
@@ -672,7 +675,7 @@ class CspReceiver {
         } else {
 
             // TODO: deduplicate messages before updating offsets
-            // TODO: continuosly update the offset for every message that is receivef
+            // TODO: continuosly update the offset for every message that is receiving
             //       only set a new offset when an update is received?
             // TODO: design a low pass filter for offsets (choose a better alpha)
             if (this.offsets[msg.entid] === undefined) {
@@ -682,7 +685,7 @@ class CspReceiver {
             frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
             msg.$offset = this.input_clock - msg.frame
 
-            if (frameIndex > this.input_clock + 12) {
+            if (frameIndex > this.input_clock + 6) {
                 console.log("update offset (delay)", this.offsets[msg.entid], msg.$offset)
                 this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
                 frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
@@ -703,9 +706,14 @@ class CspReceiver {
             return
         }
 
+        if (frameIndex >= this.input_clock && msg.type == "input") {
+            console.log("delta input", frameIndex - this.input_clock)
+        }
+
         let idx = this._frameIndex(frameIndex)
 
         if (!msg.entid || !msg.uid) {
+            console.log(msg)
             throw {"message": "invalid entid or uid", type: msg.type, entid: msg.entid, uid: msg.uid}
         }
 
@@ -838,7 +846,7 @@ class CspReceiver {
                 ent.setState(message.$state)
             } else {
 
-                const ent = new Character()
+                const ent = new Character(message.chara)
                 ent.physics.group = this.map.walls
                 ent.entid = message.entid
                 ent.sendEvent = (event) => {
@@ -904,7 +912,8 @@ class CspReceiver {
                     ent.setState(message.state)
                 } else {
 
-                    const ent = new Character()
+
+                    const ent = new Character(message.state.chara)
                     ent.physics.group = this.map.walls
                     ent.group_charas = this.map.ecs.players
                     ent.sendEvent = (event) => {
@@ -918,6 +927,7 @@ class CspReceiver {
                         this.map.ghost = ent
                     }
                     ent.filter = `hue-rotate(+180deg)`
+                    ent.setState(message.state)
 
                 }
 
@@ -951,6 +961,9 @@ class CspReceiver {
 
             const ent = this._getEntity(message.entid)
             if (!!ent) {
+
+                gEngine.paused = true
+
                 ent.kill()
             }
 
@@ -1155,7 +1168,7 @@ class Physics2d {
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
-        console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
+         // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
 
         this.jumpheight = 96
         //this.jumpduration = .1875 // total duration divided by 4?
@@ -1591,8 +1604,9 @@ class Wall extends CspEntity {
 
 class Character extends CspEntity {
 
-    constructor() {
+    constructor(chara) {
         super()
+        this.chara = chara
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
 
@@ -1630,7 +1644,7 @@ class Character extends CspEntity {
             "disappear": {},
         }
 
-        let chara = "frog"
+        let chara = this.chara ?? "frog"
         let idx = "0"
         let spf = 0.06
         let xoffset = - 8
@@ -1773,12 +1787,16 @@ class Character extends CspEntity {
 
                 if (this.kill_timer_1 <= 0) {
                     this.animation.setAnimationById(this.animations.disappear[this.physics.facing])
+
+                    this.physics.xspeed = 0
+                    this.physics.yspeed = 0
+                    this.physics.xaccum = 0
+                    this.physics.yaccum = 0
+
                     this.kill_timer_1 = 0
                 }
             }
-        }
-
-        if (this.physics.yspeed > 0) {
+        } else if (this.physics.yspeed > 0) {
             for (const other of this.group_charas()) {
                 if (other.entid != this.entid) {
                     if (this.rect.collideRect(other.rect)) {
@@ -1841,12 +1859,12 @@ class Character extends CspEntity {
 
     getState() {
         let state = [this.visible, this.spawning, this.iskill, this.kill_timer_1]
-        return [state, this.physics.getState(), this.animation.getState()]
+        return {chara: this.chara, rest:[state, this.physics.getState(), this.animation.getState()]}
     }
 
     setState(state) {
         try {
-            const [state1, state2, state3] = state
+            const [state1, state2, state3] = state.rest
             [this.visible, this.spawning, this.iskill, this.kill_timer_1] = state1
             this.physics.setState(state2)
             this.animation.setState(state3)
@@ -1865,6 +1883,7 @@ class Character extends CspEntity {
         this.animation.setAnimationById(this.animations.appear[this.physics.facing])
         this.iskill = false
         this.visible = true
+        global.loader.sounds.spawn.play()
     }
 
     kill() {
@@ -1872,10 +1891,17 @@ class Character extends CspEntity {
         this.kill_timer_1 = 0.6
         this.iskill = true
 
+        this.physics.xspeed = 0
+        this.physics.yspeed = 0
+        this.physics.xaccum = 0
+        this.physics.yaccum = 0
+        this.physics.direction = 0
+
         let d = this.physics.facing==Direction.LEFT?1:-1
         this.physics.xspeed = d * Math.sqrt( 32*this.physics.xacceleration)
         this.physics.yspeed = - Math.sqrt(2*48*this.physics.gravity)
         this.physics.doublejump = false
+        global.loader.sounds.dead.play()
     }
 }
 
@@ -2113,6 +2139,7 @@ class World {
     }
 
     handleMessage(message) {
+        // TODO: handle Messages should be part of the client
         this.messages.push(message)
     }
 
@@ -2134,6 +2161,7 @@ class World {
                     this.receiver._receive({
                         type: "spawn_player",
                         remote: false,
+                        chara: message.chara,
                         frame: this.receiver.input_clock,
                         entid: message.entid,
                         uid: message.uid
@@ -2180,6 +2208,7 @@ class World {
                     this.receiver._receive({
                         type: "spawn_player",
                         remote: true,
+                        chara: message.chara,
                         frame: this.receiver.input_clock,
                         entid: message.entid,
                         uid: message.uid
@@ -2195,6 +2224,8 @@ class World {
                 }
                 else if (message.type == "hit") {
                     this.receiver._receive(message)
+
+
                 }
                 else {
                     console.log("unexpected message type", message)
@@ -2209,7 +2240,7 @@ class World {
 
         if (!this.login_sent) {
             console.log("sending login")
-            this.client.send({"type": "login"})
+            this.client.send({type: "login", chara: global.chara})
             this.login_sent = true
             return
         }
@@ -2349,9 +2380,7 @@ class World {
     }
 
     sendEvent(event) {
-
         this.client.send(event)
-        console.log(event)
     }
 }
 
@@ -2375,20 +2404,23 @@ class DemoScene extends GameScene {
             this.profile_index = 0
         }
 
+        global.chara = (query?.chara??["frog"])[0]
+
         this.map = new World()
 
-        if (daedalus.env.backend == "echo") {
-            // backend is an echo server
-            this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
-            this.client.connect("/rtc/offer", {})
-            this.map.use_network = true
-
-        } else if (daedalus.env.backend=="webrtc") {
+         if (daedalus.env.backend=="webrtc") {
             // backend is a multi player webrtc server
             this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
             this.client.connect("/rtc/offer", {})
             this.buildRtcWidgets()
             this.map.use_network = true
+
+        } else if (daedalus.env.backend == "echo") {
+            // backend is an echo server
+            this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
+            this.client.connect("/rtc/offer", {})
+            this.map.use_network = true
+            SoundEffect.global_volume = 0
 
         } else {
             this.client = new RealTimeEchoClient(this.map.handleMockMessage.bind(this.map))
@@ -2398,6 +2430,7 @@ class DemoScene extends GameScene {
             this.client.packet_lossrate = profile.droprate
             this.buildLatencyWidgets()
             this.map.use_network = false
+            SoundEffect.global_volume = 0
         }
 
         this.map.client = this.client
@@ -2426,8 +2459,7 @@ class DemoScene extends GameScene {
         let wgty = 8
         let wgth = 24
 
-        let wgt1, wgt2, txt1, txt2;
-        wgt1 = new ButtonWidget(Direction.LEFT)
+        let wgt1 = new ButtonWidget(Direction.LEFT)
         wgt1.rect = new Rect(wgtx - wgto,wgty,96+16,24)
         wgt1.setText("Disconnect")
         this.widgets.push(wgt1)
@@ -2435,6 +2467,34 @@ class DemoScene extends GameScene {
         wgt1.clicked = () => {
             this.client.disconnect()
         }
+
+        let wgt2 = new ButtonWidget(Direction.LEFT)
+        wgt2.rect = new Rect(wgtx - wgto,wgty + 32,96+16,24)
+        wgt2.setText("Bot")
+        this.widgets.push(wgt2)
+
+        wgt2.clicked = (() => {
+
+            let timer = null
+            let direction = Direction.RIGHT
+
+            return () => {
+
+                if (timer == null) {
+
+                    timer = setInterval(()=>{
+                        this.map.controller.setInputDirection(0, Direction.vector(direction))
+                        direction = Direction.flip[direction]
+                    }, 1500)
+                } else {
+                    clearInterval(timer)
+                    timer = null
+                }
+
+
+            }
+
+        })()
 
 
     }

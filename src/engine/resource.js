@@ -44,13 +44,19 @@ export class SoundEffect {
 
     }
 
-    play() {
-        this.sounds[this.playindex].play().catch(error => {
-          console.log(error)
-        })
-        this.playindex = (this.playindex+1) % this.sounds.length
+    play(volume=1) {
+        if (SoundEffect.global_volume > 0) {
+            const snd = this.sounds[this.playindex]
+            snd.volume = volume * SoundEffect.global_volume
+            snd.play().catch(error => {
+              console.log(error)
+            })
+            this.playindex = (this.playindex+1) % this.sounds.length
+        }
     }
 }
+
+SoundEffect.global_volume = 1
 
 export class SoundEffectBuilder {
 

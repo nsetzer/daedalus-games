@@ -28,8 +28,17 @@ class Entity(object):
         self.updates = []
 
     def push(self, update):
-        self.updates.append(update)
-        if len(self.updates) > 10:
+
+        if len(self.updates) == 0:
+            self.updates.append(update)
+
+        else:
+            # TODO: fix ordering of events
+            if update['frame'] > self.updates[-1]['frame']:
+                self.updates.append(update)
+
+        # TODO: how many events to keep
+        if len(self.updates) > 20:
             self.updates.pop(0)
 
 
@@ -85,12 +94,14 @@ class Context(WebContext):
                 reply1 = {
                     "type": "login",
                     "entid": entid,
+                    "chara": message['chara'],
                     "uid": uid
                 }
 
                 reply2 = {
                     "type": "player_join",
                     "entid": entid,
+                    "chara": message['chara'],
                     "uid": uid
                 }
 
@@ -154,7 +165,7 @@ class Context(WebContext):
                         delta = message['frame'] - frame1
 
                         frame = frame2 + delta
-                        uid = 1024 + self.frameIndex&0xFFF
+                        uid = max(1, 1024 + (self.frameIndex&0xFFF))
 
                         reply = {
                             "type": "hit",

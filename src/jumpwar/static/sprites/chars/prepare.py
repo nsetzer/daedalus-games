@@ -288,7 +288,12 @@ def flip_one(path, outpath):
 
 def flip_sprites():
 
-    characters = ["Ninja Frog"]
+    characters = [
+        # "Ninja Frog"
+        "Mask Dude",
+        "Pink Man",
+        "Virtual Guy",
+    ]
 
     sheets = [
         "Appearing (96x96).png",
