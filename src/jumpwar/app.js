@@ -754,6 +754,11 @@ class Slope extends CspEntity {
 
     collidePoint(x, y) {
         let yp = this._fx(x, y)
+
+        if (!super.collidePoint(x, y)) {
+            return false
+        }
+
         if (yp == null) {
             return false
         }
@@ -784,6 +789,98 @@ class Slope extends CspEntity {
 
 }
 
+class OneWayPlatform extends CspEntity {
+
+    constructor(rect) {
+        super()
+
+        this.rect = rect
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+    }
+
+    collide(rect, dx, dy) {
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            // return a rectangle that does not collide
+            let update = rect.copy()
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        return null
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = "#c05f10";
+        ctx.beginPath();
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.fill();
+
+    }
+
+
+
+}
+
+class Brick extends CspEntity {
+
+    constructor(x, y) {
+        super()
+
+        this.rect.x = x
+        this.rect.y = y
+        this.rect.w = 32
+        this.rect.h = 32
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+    }
+
+    collide(rect, dx, dy) {
+
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            this.destroy()
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = "#c05f10";
+        ctx.beginPath();
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.fill();
+
+    }
+
+
+
+}
 
 class Character extends CspEntity {
 
@@ -851,8 +948,6 @@ class Character extends CspEntity {
             ["run",        Direction.RIGHT, `${chara}_${idx}_r_run`],
             ["wall_slide", Direction.RIGHT, `${chara}_${idx}_r_wall_slide`],
         ]
-
-
 
         for (const info of defines1) {
             let [animation_name, direction, sheet_name] = info;
@@ -1114,7 +1209,6 @@ class Shuriken extends CspEntity {
 
         if (this.physics.xcollide) {
             this.destroy()
-            console.log("kill", this.$destroyed_at)
         }
 
 
@@ -1250,6 +1344,11 @@ class World extends CspWorld {
         w = new Slope(192, this.map.height - 160, Direction.DOWNRIGHT)
         this.addEntity(w)
 
+        w = new OneWayPlatform(new Rect(256, this.map.height - 128, 48, 12))
+        this.addEntity(w)
+
+        w = new Brick(256+128, this.map.height - 96)
+        this.addEntity(w)
 
         w = new Wall()
         w.rect.x = this.map.width/2 - 128 - 32
@@ -1466,9 +1565,9 @@ class World extends CspWorld {
         const todelete = []
         for (const entid in this.entities) {
             const ent = this.entities[entid]
-            if (!ent.$csp_destroyed_at || now <= ent.$csp_destroyed_at) {
+            if (ent.$csp_destroyed_at < 0 || now <= ent.$csp_destroyed_at) {
                 this.entities[entid].update(dt)
-            } else if (!!ent.$csp_destroyed_at && now > (ent.$csp_destroyed_at + delete_delay)) {
+            } else if (ent.$csp_destroyed_at>=0 && now > (ent.$csp_destroyed_at + delete_delay)) {
                 todelete.push(ent)
             }
         }
@@ -1523,13 +1622,10 @@ class World extends CspWorld {
             return
         }
 
-        const cmp = (a, b) => (a.layer - b.layer) || (a.rect.y - b.rect.y) || (a.rect.x - b.rect.x)
-        this.entities_sorted = Object.values(this.entities).sort(cmp)
-
         const now = CspReceiver.instance.input_clock
 
-        for (const ent of this.entities_sorted) {
-            if (!ent.$destroyed_at || now <= ent.$destroyed_at) {
+        for (const ent of this.ecs.visible()) {
+            if (ent.$csp_destroyed_at < 0 || now <= ent.$csp_destroyed_at) {
                 ent.paint(ctx)
             }
         }
