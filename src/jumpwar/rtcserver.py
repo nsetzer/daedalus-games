@@ -77,6 +77,19 @@ class Context(WebContext):
                 if other_id != peer_id:
                     peer.send(json.dumps(reply))
 
+    def _getEntityId(self):
+
+            entid = self.mapinfo['next_entid']
+
+            # TODO: verify entid not in the set of active entities
+
+            self.mapinfo['next_entid'] = (1 + self.mapinfo['next_entid']) & 0xFFFF
+
+            if self.mapinfo['next_entid'] <= 0:
+                self.mapinfo['next_entid'] = 1
+
+            return entid
+
     def onMessage(self, peer_id, message):
 
         #if message['type'] != "keepalive":
@@ -89,7 +102,7 @@ class Context(WebContext):
 
             else:
 
-                entid = self.mapinfo['next_entid']
+                entid = self._getEntityId()
                 uid = 1024 + self.frameIndex&0xFFF
                 reply1 = {
                     "type": "login",
@@ -108,8 +121,6 @@ class Context(WebContext):
                 ent = Entity(peer_id, entid)
                 self.peer2ent[peer_id] = ent
                 self.entid2ent[entid] = ent
-
-                self.mapinfo['next_entid'] += 1
 
                 self.peers[peer_id].send(json.dumps(reply1))
 

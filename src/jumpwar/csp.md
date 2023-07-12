@@ -1,6 +1,15 @@
 
 a multiplayer smash brothers clone may have multiple scenes
 
+
+
+- title scene
+- login
+- connect (to game server)
+- character select
+- main (the main game state)
+
+
 ```mermaid
 flowchart TD
 
@@ -51,6 +60,14 @@ flowchart TD
 
 ```
 
+
+Offset: make a few assumptions
+    - clients are sending updates as fast as possible
+    - the internet is a series of tubes
+    - the serve is actually validating the client messages before retransmission
+    - the client can easily deduplicate incoming messages
+
+
 ## Clock Synchronization
 
 In a multiplayer game you have two or more players sendings messages to a server.
@@ -87,12 +104,12 @@ The simplest low pass filter is an exponention moving average filter:
 
 $$V_0 = X_0$$
 
-$$Eq. 1: V_n = \alpha*X_n + (1-\alpha) * V_{n-1}$$
+$$\begin{equation}\tag{1}V_n = \alpha*X_n + (1-\alpha) * V_{n-1}\end{equation}$$
 
 Where $\alpha$ is a smoothing factor. $0 < \alpha < 1$.
 This can be rewritten into the form:
 
-$$Eq. 2: V_n = V_{n-1} + (1 - a) (X_n - V_{n-1})$$
+$$\begin{equation}\tag{2}V_n = V_{n-1} + (1 - a) (X_n - V_{n-1})\end{equation}$$
 
 This form can be useful for estimating a mean, $V_0$ can be initialized to the expected value.
 For example, when trying to track the seconds per frame, which should be 1/60.
@@ -110,6 +127,7 @@ Solving for alpha gives the following equation
 $$\alpha = \frac{F_s}{F_s + 2 \pi F_c}$$
 
 Alternative equation (not sure which book it came from)
+
 
 $$\alpha = 1 - e^{-\frac{1}{F_s}}$$
 
@@ -134,8 +152,8 @@ to that remote player, which is equivalent to the input delay applied to the loc
 ```python
 
     clock: int = ... # increments by one every frame
-    intput_delay = 6 # 100ms delay in frames-per-second (60 FPS)
-    alpha = 0.8
+    intput_delay: int = 6 # 100ms delay in frames-per-second (60 FPS)
+    alpha: float = 0.8
 
     class Message:
         type: str
@@ -157,7 +175,8 @@ to that remote player, which is equivalent to the input delay applied to the loc
     def handleMessage(message):
         updateOffset(message)
 
-        local_clock = message.clock + input_delay + math.round(message_offsets[message.origin])
+        clock_delta = round(message_offsets[message.origin])
+        local_clock = message.clock + input_delay + clock_delta
 
         # local_clock can now be used in comparisons with the current players clock.
 
@@ -170,19 +189,6 @@ to that remote player, which is equivalent to the input delay applied to the loc
 
 ```
 ```
-
-Offset: make a few assumptions
-    - clients are sending updates as fast as possible
-    - the internet is a series of tubes
-    - the serve is actually validating the client messages before retransmission
-    - the client can easily deduplicate incoming messages
-
-
-- title scene
-- login
-- connect (to game server)
-- character select
-- main (the main game state)
 
 The documentation on CSP below will assume for now that a stable connection has been made to a backend server.
 That udp packets can be sent and received.

@@ -315,10 +315,10 @@ export class Entity {
         this.visible = true
         this.layer = 0
 
-        this.rect = new Rect(0, 0, 0, 0)
+        this.rect = new Rect(0, 0, 0, 0);
 
-        this.physics = new Physics2d(this)
-        this.animation = new AnimationComponent(this)
+        this.physics = null //new Physics2d(this)
+        this.animation = null //new AnimationComponent(this)
     }
 
     update(dt) {

@@ -165,6 +165,48 @@ export class Rect {
         return this.x
     }
 
+    set_top(y) {
+        this.y = y
+    }
+
+    set_right(x) {
+        this.x = x - this.w
+    }
+
+    set_bottom(y) {
+        this.y = y - this.h
+    }
+
+    set_left(x) {
+        this.x = x
+    }
+
+    copy() {
+        return new Rect(this.x, this.y, this.w, this.h)
+    }
+
+    translate(dx, dy) {
+        this.x += dx
+        this.y += dy
+    }
+
+    xintersect(other) {
+        let l1 = this.x
+        let l2 = other.x
+        let r1 = this.x + this.w
+        let r2 = other.x + other.w
+
+        let l3 = Math.max(l1, l2)
+        let r3 = Math.min(r1, r2)
+
+        if (r3 > l3) {
+            return [l3, r3]
+        } else {
+            return null
+        }
+
+    }
+
     intersect(other) {
         let l1 = this.x
         let l2 = other.x
@@ -200,6 +242,8 @@ export class Rect {
         let t2 = other.y
         let b1 = this.y + this.h
         let b2 = other.y + other.h
+
+        //console.log(Math.max(l1, l2), Math.min(r1, r2), Math.max(t1, t2), Math.min(b1, b2));
 
         return Math.max(l1, l2) < Math.min(r1, r2) &&
           Math.max(t1, t2) < Math.min(b1, b2);

@@ -105,8 +105,8 @@ export class RealTimeEchoClient {
         }
 
         const framerate = 60
-        const latmin = this.latency_mean - this.latency_stddev
-        const latmax = this.latency_mean + this.latency_stddev
+        const latmin = Math.max(0, this.latency_mean - 2*this.latency_stddev)
+        const latmax = Math.min(1000, this.latency_mean + 2*this.latency_stddev)
         let latency = normalBoxMuller(this.latency_mean, this.latency_stddev)
         latency = Math.min(latmax, Math.max(latmin, latency))
         const offset = Math.round(framerate*latency/1000)

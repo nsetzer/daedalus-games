@@ -1,6 +1,17 @@
 
 /**
  * jump war
+ *
+ * - one way platforms are an extension of slopes
+ *   https://www.emanueleferonato.com/2012/05/24/the-guide-to-implementing-2d-platformers/
+ *
+ * - update offset on every "update"
+ *   update offset on every message received with an origin / map tag?
+ *
+ * - input should be somehow queued until if can be applied
+ *   if I press right while the player is spawning, the player
+ *   should begin moving as soon as spawning ends
+ *
  * - client send:
  *   uid should be set by the webrtc client class
  *   client should keep track of acked messages
@@ -76,9 +87,7 @@ $import("engine", {
 
 $import("scenes", {global, ResourceLoaderScene})
 
-/**
- * jump war
- */
+$import("entity", {CspController, CspReceiver, CspEntity, CspWorld, Physics2d})
 
 
 class DemoRealTimeClient extends RealTimeClient {
@@ -103,21 +112,203 @@ class DemoRealTimeClient extends RealTimeClient {
     }
 }
 
-/*
+class DemoReceiver extends CspReceiver {
 
-https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
+    _create(message, cbk) {
 
-g = negative
-position = 0.5*g*t*t + v'*t
-speed = g*t + v'
+        if (message.$state !== undefined) {
+            const ent = this._getEntity(message.$entid)
+            ent.setState(message.$state)
+        } else {
+            const ent = cbk()
+            this.map.addEntity(ent)
+            message.$state = ent.getState()
+            message.$entid = ent.entid
+        }
+    }
 
-initial velocity = sqrt(2*H*g)
-283.3400783510868
+    handleMessage(clock, entid, message, reconcile) {
 
-gravity = H/(2t*t)
-jumpspeed = - sqrt(2*H*g)
+        //console.log(reconcile?"reconcile":"update", "clock=", clock, message.type, "entid=",message.entid)
 
-*/
+        //console.log("apply input idx=", "message=", message)
+        if (message.type === "respawn") {
+            const ent = this._getEntity(message.entid)
+
+            ent.spawn(304, 128)
+
+            console.log(message)
+        }
+        else if (message.type === "spawn_player") {
+            if (message.$state !== undefined) {
+                const ent = this._getEntity(message.$entid)
+                ent.setState(message.$state)
+            } else {
+
+                const ent = new Character(message.chara)
+                ent.physics.group = this.map.ecs.solid
+                ent.entid = message.entid
+                ent.sendEvent = (event) => {
+                    this.map.sendEvent(event)
+                }
+
+                ent.group_charas = this.map.ecs.players
+                ent.spawn(304, 128)
+
+                this.map.addNetworkEntity(ent, message.entid)
+
+                if (!message.remote) {
+                    ent.layer = 10
+                    if (this.map.player !== null) {
+                        throw "player already exists"
+                    }
+
+                    this.map.player = ent
+                    this.map.controller.setTarget(ent)
+                    this.map.camera.setTarget(ent)
+                } else {
+
+                    if (!this.map.ghost) {
+                        this.map.ghost = ent
+                    }
+                    ent.filter = `hue-rotate(+180deg)`
+                }
+
+                message.$state = ent.getState()
+                message.$entid = ent.entid
+            }
+
+        }
+        else if (message.type === "input") {
+            const ent = this._getEntity(message.entid)
+            if (!ent) {
+                //console.log("no ent ", message.entid, message)
+            } else {
+                apply_character_input(this.map, message, ent.physics)
+
+                //console.log("input delta", message.entid, message.frame)
+            }
+
+            if (reconcile && !message.applied) {
+                console.log("!! applying input for the first time", message.entid, message)
+            }
+
+
+
+            //if (entid == 223) {
+            //    ent.rect.x += 4 // TODO: FIXME for testing snap
+            //}
+            message.applied = true
+            //
+        }
+        else if (message.type === "update") {
+
+            //console.log("update delta", message.entid, message.frame - this.input_clock)
+
+            const ent = this._getEntity(message.entid)
+            if (!ent) {
+
+                if (message.$state !== undefined) {
+                    const ent = this._getEntity(message.entid)
+                    ent.setState(message.state)
+                } else {
+
+
+                    const ent = new Character(message.state.chara)
+                    ent.physics.group = this.map.ecs.solid
+                    ent.group_charas = this.map.ecs.players
+                    ent.sendEvent = (event) => {
+                        this.map.sendEvent(event)
+                    }
+                    ent.entid = message.entid
+
+                    this.map.addNetworkEntity(ent, message.entid)
+
+                    if (!this.map.ghost) {
+                        this.map.ghost = ent
+                    }
+                    ent.filter = `hue-rotate(+180deg)`
+                    ent.setState(message.state)
+
+                }
+
+
+            } else {
+                // const gendiff = (state1, state2) => {
+                //     const diff = {}
+                //     for (const prop of Object.keys(state1)) {
+                //         if (prop === "doublejump_position") {
+                //             continue
+                //         }
+                //         const d = state1[prop] - state2[prop]
+                //         if (d != 0) {
+                //             diff[prop] = d
+                //         }
+                //     }
+                //     return diff
+                // }
+
+                //const current_state = ent.getState()
+                //const cached1_state = this.statequeue[this._frameIndex(this.input_clock-1)]?.[message.entid]
+                //const cached2_state = this.statequeue[this._frameIndex(this.input_clock)]?.[this.map.player.entid]
+                //const player_state = this.map.player.getState()
+                //const message_state = message.state
+                //console.log("update offset", message.$offset)
+
+                ent.setState(message.state)
+            }
+
+        }
+        else if (message.type === "hit") {
+
+            const ent = this._getEntity(message.entid)
+            if (!!ent) {
+
+                // gEngine.paused = true
+
+                ent.kill()
+            }
+
+        }
+        else if (message.type === "create") {
+
+            this._create(message, () => {
+                const src = this._getEntity(message.entid)
+                const ent = new Shuriken()
+                ent.physics.group = this.map.ecs.solid
+                ent.physics.xspeed *= (src.physics.facing == Direction.LEFT)?-1:1
+                ent.rect.x = src.rect.cx() - ent.rect.w/2
+                ent.rect.y = src.rect.y - ent.rect.h/2
+                console.log(ent.rect)
+                return ent
+            })
+
+         }
+        else if (message.type == "snap") {
+            // TODO: I think there is a bug here
+            // snap at the beginning of an update
+            // but message is saved at the end
+            // TODO: trying to brute force the offset to compare
+            //for (let o = -7; o <= 7; o++){
+            //    const st = this.statequeue[this._frameIndex(this.input_clock + o)]?.[message.entid]
+            //    if (!!st) {
+            //        const ent = this._getEntity(message.entid)
+            //        //let a = {x: ent.physics.target.rect.x, y: ent.physics.target.rect.y}
+            //        let a = {x: st.x, y: st.y}
+            //        let b = {x: message.x, y: message.y}
+            //        let e = ((a.x - b.x)**2 + (a.y - b.y) ** 2)**0.5
+            //        console.log("snap", o, e, a, b)
+            //    } else {
+            //        console.error("no state")
+            //    }
+            //}
+            //ent.rect.x = message.x
+            //ent.rect.y = message.y
+
+        }
+    }
+}
+
 
 class Camera extends CameraBase {
     constructor(map) {
@@ -253,6 +444,7 @@ function apply_character_input(map, input, physics) {
             if (standing) {
 
                 physics.yspeed = physics.jumpspeed
+                physics.yaccum = 0
                 physics.gravityboost = false
                 physics.doublejump = true
                 global.loader.sounds.jump.play(.3)
@@ -261,7 +453,9 @@ function apply_character_input(map, input, physics) {
                 //let v = Direction.vector(physics.direction)
                 //physics.xspeed = - v.x * physics.xjumpspeed
                 physics.xspeed = physics.pressing_direction * physics.xjumpspeed
+                physics.xaccum = 0
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
+                physics.yaccum = 0
                 physics.gravityboost = false
                 //console.log("wall jump", physics.xspeed)
 
@@ -275,6 +469,7 @@ function apply_character_input(map, input, physics) {
                 //console.log("double jump")
                 // double jump at half the height of a normal jump
                 physics.yspeed = physics.jumpspeed / Math.sqrt(2)
+                physics.yaccum = 0
                 physics.gravityboost = false
                 physics.doublejump = false
                 physics.doublejump_position = {x:physics.target.rect.cx(), y: physics.target.rect.bottom()}
@@ -297,1279 +492,6 @@ function apply_character_input(map, input, physics) {
             physics.facing = physics.direction
         }
 
-    }
-    else if (input.type === "create") {
-        console.log("create projectile")
-    }
-}
-
-class CspController {
-    constructor(client) {
-        this.client = client
-        this.target = null
-
-        this.inputqueue_capacity = 4
-        this.inputqueue = []
-        for (let i=0; i < this.inputqueue_capacity; i++) {
-            this.inputqueue.push([])
-        }
-
-        this.remotetimer = 0
-        this.remotetimeout = 0.1
-
-        this.keepalivetimer = 0
-        this.keepalivetimeout = 1.0
-
-        this.input_id = 1
-
-        this.last_direction = 0
-
-        this.frameIndex = 0
-
-        this.lastInputFrameIndex = -1
-
-        //this.update_sent = false
-
-        this.inputqueue2 = [] // FIXME: rename
-    }
-
-    setTarget(target) {
-        this.target = target
-    }
-
-    setInputDirection(whlid, vector){
-        this.inputqueue2.push({type: "wheel", whlid, vector})
-    }
-
-    // TODO: single button with pressed/released argument
-    handleButtonPress(btnid){
-        this.inputqueue2.push({type: "button", btnid, pressed: true})
-    }
-
-    handleButtonRelease(btnid){
-        this.inputqueue2.push({type: "button", btnid, pressed: false})
-    }
-
-    _setInputDirection(whlid, vector) {
-        if (!this.target) {
-            return
-        }
-
-        // de-bounce touch input
-        let direction = Direction.fromVector(vector.x, vector.y)&Direction.LEFTRIGHT
-        if (direction != this.last_direction) {
-            // hack until sending deltas
-            let message = {
-                type: "input",
-                entid: this.target.entid,
-                frame: this.frameIndex,
-                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
-                uid: this.input_id,
-                // ---
-                x: this.target.rect.x,
-                y: this.target.rect.y,
-                whlid: whlid,
-                direction: direction,
-            }
-            this.input_id += 1
-            this.lastInputFrameIndex = this.frame_index
-
-            //this.update_sent = false
-            let idx = (this.frameIndex)%this.inputqueue_capacity
-            this.inputqueue[idx].push(message)
-            this.last_direction = direction
-            this.receiver._local_receive(message)
-        }
-
-    }
-
-    _handleButtonPress(btnid) {
-        if (!this.target) {
-            return
-        }
-
-        if (btnid === 0) {
-            // hack until sending deltas
-            let message = {
-                type: "input",
-                entid: this.target.entid,
-                frame: this.frameIndex,
-                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
-                uid: this.input_id,
-                // ---
-                x: this.target.rect.x,
-                y: this.target.rect.y,
-                btnid: btnid,
-                pressed: true,
-            }
-            this.input_id += 1
-            this.lastInputFrameIndex = this.frame_index
-
-            //this.update_sent = false
-            let idx = (this.frameIndex)%this.inputqueue_capacity
-            this.inputqueue[idx].push(message)
-            this.receiver._local_receive(message)
-        } else if  (btnid === 1) {
-            // hack until sending deltas
-            let message = {
-                type: "create",
-                entid: this.target.entid,
-                frame: this.frameIndex,
-                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
-                uid: this.input_id,
-                // ---
-                dummy: 1
-            }
-            this.input_id += 1
-            let idx = (this.frameIndex)%this.inputqueue_capacity
-            this.inputqueue[idx].push(message)
-            this.receiver._local_receive(message)
-        }
-
-    }
-
-    _handleButtonRelease(btnid) {
-        if (!this.target) {
-            return
-        }
-
-        if (btnid === 0) {
-            // hack until sending deltas
-
-            let message = {
-                type: "input",
-                entid: this.target.entid,
-                frame: this.frameIndex,
-                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
-                uid: this.input_id,
-                // ---
-                x: this.target.rect.x,
-                y: this.target.rect.y,
-                btnid: btnid,
-                pressed: false,
-            }
-            this.input_id += 1
-            this.lastInputFrameIndex = this.frame_index
-
-            //this.update_sent = false
-            let idx = (this.frameIndex)%this.inputqueue_capacity
-            this.inputqueue[idx].push(message)
-            this.receiver._local_receive(message)
-        }
-    }
-
-    sendInput() {
-
-        if (!this.target) {
-            return
-        }
-
-        let inputs = []
-        for (const messages of this.inputqueue) {
-            for (const message of messages) {
-                inputs.push(message)
-            }
-        }
-
-        if (inputs.length > 0) {
-            const message = {
-                type: "inputs",
-                // --
-                inputs: inputs
-            }
-            this.client.send(message)
-        }
-    }
-
-    update(dt) {
-        if (!this.target) {
-            return
-        }
-
-        this.frameIndex = CspReceiver.instance.input_clock + CspReceiver.instance.input_delay
-        let idx = (CspReceiver.instance.input_clock)%this.inputqueue_capacity
-        this.inputqueue[idx] = []
-
-        for (const input of this.inputqueue2) {
-            if (input.type == "wheel") {
-                this._setInputDirection(input.whlid, input.vector)
-            }
-            if (input.type == "button") {
-                if (input.pressed) {
-                    this._handleButtonPress(input.btnid)
-                } else {
-                    this._handleButtonRelease(input.btnid)
-
-                }
-            }
-        }
-        this.inputqueue2 = []
-
-        this.sendInput()
-
-        this.remotetimer += dt
-        if (this.remotetimer > this.remotetimeout) {
-            this.remotetimer -= this.remotetimeout
-
-            // TODO: counter to send N updates after last input?
-            // send clock + 1 when the controller is updated prior to the receiver
-            // otherwise just send the clock value
-            let message = {
-                type: "update",
-                entid: this.target.entid,
-                frame: CspReceiver.instance.input_clock,
-                delta: (this.lastInputFrameIndex>=0)(this.frameIndex - this.lastInputFrameIndex):0,
-                state: this.target.getState(),
-                uid: this.input_id,
-            }
-            this.input_id += 1
-            this.lastInputFrameIndex = this.frame_index
-
-            this.client.send(message)
-
-        }
-
-        this.keepalivetimer += dt
-        this.keepalivetimer += dt
-        if (this.keepalivetimer > this.keepalivetimeout) {
-            this.keepalivetimer -= this.keepalivetimeout
-            let message = {
-                "type": "keepalive",
-                t0: performance.now(),
-            }
-            this.client.send(message)
-        }
-
-        //let msgcnt = 0
-        //for (let k = 0; k < this.inputqueue_capacity; k++) {
-        //    msgcnt += this.inputqueue[k].length
-        //}
-        //console.log(msgcnt)
-
-
-
-    }
-}
-
-class CspReceiver {
-    // run simulation on user input
-    // synchronize periodically
-    constructor(map) {
-
-        //this.queue = []
-        this.map = map
-
-        // capacity allows for +/- 2 seconds of inputs to be queued or cached
-        // queue is [entity.entid][seqid]
-        this.inputqueue_capacity = 120
-        this.inputqueue = []
-        for (let i=0; i < this.inputqueue_capacity; i++) {
-            this.inputqueue.push({})
-        }
-
-        this.statequeue_capacity = 120 // must be the same size as the inputqueue
-        this.statequeue = []
-        for (let i=0; i < this.statequeue_capacity; i++) {
-            this.statequeue.push(null)
-        }
-
-        this.error = {x:0, y:0}
-
-        this.input_clock = 0
-        this.input_delay = 6
-
-        this.received_offset = 0
-
-        this.dirty_index = null
-        //this.snap_position = null
-
-        // TODO: memory leak if not cleared when an entity is deleted
-        this.offsets = {}
-
-    }
-
-    _frameIndex(k) {
-        let idx = (k) % this.inputqueue_capacity
-        if (idx < 0) {
-            idx += this.inputqueue_capacity
-        }
-        return idx
-    }
-
-    _hasinput(idx, entid, uid) {
-        try {
-            return (!!this.inputqueue[idx]) && (entid in this.inputqueue[idx]) && (uid in this.inputqueue[idx][entid])
-        } catch (e) {
-            console.warn(idx, entid, uid)
-            console.error(e)
-        }
-    }
-
-    _getinput(idx, entid, uid) {
-        if (this.inputqueue[idx][entid] === undefined) {
-            throw {message: "illegal access", idx, entid, uid}
-        }
-        return this.inputqueue[idx][entid][uid]
-    }
-
-    _setinput(idx, entid, uid, input) {
-        if (this.inputqueue[idx][entid] === undefined) {
-            this.inputqueue[idx][entid] = {}
-        }
-        this.inputqueue[idx][entid][uid] = input
-    }
-
-    _getEntity(entid) {
-        const ent = this.map.entities[entid]
-        return ent
-    }
-
-    _getstate() {
-        const state = {}
-        for (const entid in this.map.entities) {
-            state[entid] = this.map.entities[entid].getState()
-        }
-        //const state = {
-        //    [this.map.player.entid]: this.map.player.physics.getState(),
-        //    [this.map.ghost.entid]: this.map.ghost.physics.getState(),
-        //    ...this.map.projectiles
-        //}
-        return state
-    }
-
-    _updatestate() {
-
-        // TODO: this is always 1/60, but could be part of the state
-        // its a constant
-        // it  could be variable?
-        //
-        this.map.update_entities(1/60)
-    }
-
-    _setstate(state) {
-        for (const entid in this.map.entities) {
-            if (!!state[entid]) {
-                this.map.entities[entid].setState(state[entid])
-                this.map.entities[entid].$active = true
-            } else {
-                this.map.entities[entid].$active = false
-            }
-        }
-    }
-
-    _local_receive(state) {
-
-        //console.log("receive local", "now=", this.input_clock, "delayed until=", state.frame)
-
-        const idx = this._frameIndex(state.frame ) // + this.input_delay
-
-        this._setinput(idx, state.entid, state.uid, state)
-    }
-
-    _receive(msg) {
-        const alpha = 0.8
-
-        let frameIndex;
-        if (msg.type == "spawn_player") {
-            frameIndex = msg.frame + this.input_delay
-        } else {
-
-            // TODO: deduplicate messages before updating offsets
-            // TODO: continuosly update the offset for every message that is receiving
-            //       only set a new offset when an update is received?
-            // TODO: design a low pass filter for offsets (choose a better alpha)
-            if (this.offsets[msg.entid] === undefined) {
-                this.offsets[msg.entid] = this.input_clock - msg.frame
-            }
-
-            frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
-            msg.$offset = this.input_clock - msg.frame
-
-            if (frameIndex > this.input_clock + 6) {
-                console.log("update offset (delay)", this.offsets[msg.entid], msg.$offset)
-                this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
-                frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
-            }
-        }
-
-
-        if ((frameIndex < this.input_clock - 60) || (frameIndex > this.input_clock + 60)) {
-            console.log(this.offsets)
-            console.warn("drop stale msg",
-                msg.entid!=this.map?.player?.entid,
-                "remote clock=", msg.frame,
-                "local clock=", this.input_clock,
-                this.input_delay,
-                "offset=", this.offsets[msg.entid],
-                "frame=", frameIndex,
-                msg)
-            return
-        }
-
-        if (frameIndex >= this.input_clock && msg.type == "input") {
-            console.log("delta input", frameIndex - this.input_clock)
-        }
-
-        let idx = this._frameIndex(frameIndex)
-
-        if (!msg.entid || !msg.uid) {
-            console.log(msg)
-            throw {"message": "invalid entid or uid", type: msg.type, entid: msg.entid, uid: msg.uid}
-        }
-
-        if (!this._hasinput(idx, msg.entid, msg.uid)) {
-            this._setinput(idx, msg.entid, msg.uid, msg)
-
-            if (frameIndex <= this.input_clock) {
-                if (this.dirty_index == null || frameIndex < this.dirty_index) {
-                    this.dirty_index = frameIndex
-                }
-            }
-
-            if (frameIndex <= this.input_clock) {
-                msg.$offset += 6
-                console.log("update offset (dirty)",
-                    "index=", frameIndex,
-                    "clock=", this.input_clock,
-                    "offset=", this.offsets[msg.entid],
-                    "offset=", msg.$offset)
-                this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
-            }
-
-        }
-        return
-    }
-
-    _reconcile() {
-
-        //let x1 = this.map.player.rect.x
-        //let y1 = this.map.player.rect.y
-        if (this.dirty_index !== null && this.dirty_index <= this.input_clock) {
-            //console.log("found dirty index at", this.dirty_index, this.input_clock, "offset", this.received_offset)
-
-            const last_index = this._frameIndex(this.dirty_index - 1)
-            const last_known_state = this.statequeue[last_index]
-            //console.log("restore state", dirty_index-1, idx, last_known_state)
-            if (last_known_state === null) {
-                // TODO: null last state could be a non issue
-                // or instead we need to get the 'first' state
-                console.error("last known state is null")
-            } else {
-                this._setstate(last_known_state)
-            }
-
-            //if (snap_position !== null && snap_position.frameIndex == this.dirty_index) {
-            //    this.physics.target.rect.x = snap_position.state.x
-            //    this.physics.target.rect.y = snap_position.state.y
-            //}
-
-            // process up to the current time (+1), an update after this will take care of advancing to the next frame
-            const start = this.dirty_index
-            const end = this.input_clock
-            let result = {}
-            let error = false
-            console.log("reconcile start=", start, "end=", end)
-
-            for (let clock = start; clock <= end; clock += 1) {
-                this.input_clock = clock
-                let idx = this._frameIndex(clock)
-                this._apply(clock, true)
-                this._updatestate()
-                let new_global_state = this._getstate()
-                // TODO: error checking for synchronization
-                if (!!this.map.player) {
-                    const playerid = this.map.player.entid
-
-                    let old_state = this.statequeue[idx]?.[playerid]
-                    let new_state = new_global_state?.[playerid]
-                    if (!!old_state && !!new_state) {
-
-                        if (!!old_state && (old_state.x != new_state.x || old_state.y != new_state.y)) {
-                            error = true
-                        }
-
-                        const diff = {}
-                        for (const prop of Object.keys(new_state)) {
-                            if (prop === "doublejump_position") {
-                                continue
-                            }
-                            const d = new_state[prop] - old_state[prop]
-                            if (d != 0) {
-                                diff[prop] = d
-                            }
-                        }
-
-                        result[clock] = diff
-
-                    }
-                }
-                this.statequeue[idx] = new_global_state
-            }
-
-            if (error) {
-                console.error("reconcile end", result)
-                //throw "error"
-            }
-
-            //let x2 = this.map.player.rect.x
-            //let y2 = this.map.player.rect.y
-            //console.log(this.input_clock, end, {x: x2-x1, y:y2-y1})
-        }
-
-        this.dirty_index = null
-    }
-
-    _apply(clock, reconcile) {
-        const idx = this._frameIndex(clock)
-        for (const entid in this.inputqueue[idx]) {
-            for (const uid in this.inputqueue[idx][entid]) {
-                const message = this.inputqueue[idx][entid][uid]
-                this._apply_one(clock, entid, message, reconcile)
-            }
-        }
-    }
-
-    _apply_one(clock, entid, message, reconcile) {
-
-        //console.log(reconcile?"reconcile":"update", "clock=", clock, message.type, "entid=",message.entid)
-
-        //console.log("apply input idx=", "message=", message)
-        if (message.type === "respawn") {
-            const ent = this._getEntity(message.entid)
-
-            ent.spawn(304, 128)
-
-            console.log(message)
-        } else if (message.type === "spawn_player") {
-            if (message.$state !== undefined) {
-                const ent = this._getEntity(message.$entid)
-                ent.setState(message.$state)
-            } else {
-
-                const ent = new Character(message.chara)
-                ent.physics.group = this.map.walls
-                ent.entid = message.entid
-                ent.sendEvent = (event) => {
-                    this.map.sendEvent(event)
-                }
-
-                ent.group_charas = this.map.ecs.players
-                ent.spawn(304, 128)
-
-                this.map.addEntity(message.entid, ent)
-
-                if (!message.remote) {
-                    ent.layer = 10
-                    if (this.map.player !== null) {
-                        throw "player already exists"
-                    }
-
-                    this.map.player = ent
-                    this.map.controller.setTarget(ent)
-                    this.map.camera.setTarget(ent)
-                } else {
-
-                    if (!this.map.ghost) {
-                        this.map.ghost = ent
-                    }
-                    ent.filter = `hue-rotate(+180deg)`
-                }
-
-                message.$state = ent.getState()
-                message.$entid = ent.entid
-            }
-
-        } else if (message.type === "input") {
-            const ent = this._getEntity(message.entid)
-            if (!ent) {
-                //console.log("no ent ", message.entid, message)
-            } else {
-                apply_character_input(this.map, message, ent.physics)
-
-                //console.log("input delta", message.entid, message.frame)
-            }
-
-            if (reconcile && !message.applied) {
-                console.log("!! applying input for the first time", message.entid, message)
-            }
-
-
-
-            //if (entid == 223) {
-            //    ent.rect.x += 4 // TODO: FIXME for testing snap
-            //}
-            message.applied = true
-            //
-        } else if (message.type === "update") {
-
-            //console.log("update delta", message.entid, message.frame - this.input_clock)
-
-            const ent = this._getEntity(message.entid)
-            if (!ent) {
-
-                if (message.$state !== undefined) {
-                    const ent = this._getEntity(message.entid)
-                    ent.setState(message.state)
-                } else {
-
-
-                    const ent = new Character(message.state.chara)
-                    ent.physics.group = this.map.walls
-                    ent.group_charas = this.map.ecs.players
-                    ent.sendEvent = (event) => {
-                        this.map.sendEvent(event)
-                    }
-                    ent.entid = message.entid
-
-                    this.map.addEntity(message.entid, ent)
-
-                    if (!this.map.ghost) {
-                        this.map.ghost = ent
-                    }
-                    ent.filter = `hue-rotate(+180deg)`
-                    ent.setState(message.state)
-
-                }
-
-
-            } else {
-                // const gendiff = (state1, state2) => {
-                //     const diff = {}
-                //     for (const prop of Object.keys(state1)) {
-                //         if (prop === "doublejump_position") {
-                //             continue
-                //         }
-                //         const d = state1[prop] - state2[prop]
-                //         if (d != 0) {
-                //             diff[prop] = d
-                //         }
-                //     }
-                //     return diff
-                // }
-
-                //const current_state = ent.getState()
-                //const cached1_state = this.statequeue[this._frameIndex(this.input_clock-1)]?.[message.entid]
-                //const cached2_state = this.statequeue[this._frameIndex(this.input_clock)]?.[this.map.player.entid]
-                //const player_state = this.map.player.getState()
-                //const message_state = message.state
-                //console.log("update offset", message.$offset)
-
-                ent.setState(message.state)
-            }
-
-        } else if (message.type === "hit") {
-
-            const ent = this._getEntity(message.entid)
-            if (!!ent) {
-
-                gEngine.paused = true
-
-                ent.kill()
-            }
-
-        } else if (message.type === "create") {
-
-            console.log("do make Shuriken")
-
-            //if (message.$state !== undefined) {
-            //    const ent = this._getEntity(message.$entid)
-            //    ent.setState(message.$state)
-            //} else {
-            //    //const src = this._getEntity(message.entid)
-            //    //const ent = new Shuriken()
-            //    //ent.physics.group = this.map.walls
-            //    //ent.physics.xspeed *= (src.physics.facing == Direction.LEFT)?-1:1
-            //    //ent.rect.x = src.rect.cx() - 8
-            //    //ent.rect.y = src.rect.cy() - 24
-            //    //this.map.addEntity(ent)
-            //    //message.$state = ent.getState()
-            //    //message.$entid = ent.entid
-            //}
-
-
-
-
-        } else if (message.type == "snap") {
-            // TODO: I think there is a bug here
-            // snap at the beginning of an update
-            // but message is saved at the end
-            // TODO: trying to brute force the offset to compare
-            //for (let o = -7; o <= 7; o++){
-            //    const st = this.statequeue[this._frameIndex(this.input_clock + o)]?.[message.entid]
-            //    if (!!st) {
-            //        const ent = this._getEntity(message.entid)
-            //        //let a = {x: ent.physics.target.rect.x, y: ent.physics.target.rect.y}
-            //        let a = {x: st.x, y: st.y}
-            //        let b = {x: message.x, y: message.y}
-            //        let e = ((a.x - b.x)**2 + (a.y - b.y) ** 2)**0.5
-            //        console.log("snap", o, e, a, b)
-            //    } else {
-            //        console.error("no state")
-            //    }
-            //}
-            //ent.rect.x = message.x
-            //ent.rect.y = message.y
-
-        }
-    }
-
-    update_before() {
-
-        this.input_clock += 1
-
-        // clear events from 1 second ago
-        const delete_idx = this._frameIndex(this.input_clock - 60)
-        for (const entid in this.inputqueue[delete_idx]) {
-            for (const uid in this.inputqueue[delete_idx][entid]) {
-                const state = this.inputqueue[delete_idx][entid][uid]
-                if (state.type == "input") {
-                    if (!state.applied) {
-                        // Crash the game whenever an input is not applied cleanly
-                        throw {message: "state not applied" ,state}
-                    }
-                }
-            }
-        }
-        this.inputqueue[delete_idx] = {}
-
-        // process next frame
-        //const idx = this._frameIndex(this.input_clock)
-        //console.log("apply", this.input_clock, this.inputqueue[idx])
-        this._apply(this.input_clock, false)
-    }
-
-    update_after() {
-        const idx = this._frameIndex(this.input_clock)
-        this.statequeue[idx] = this._getstate()
-    }
-
-    paint(ctx) {
-
-        ctx.save()
-        ctx.filter = `hue-rotate(+180deg)`
-        ctx.globalAlpha = 0.5;
-        this.ent.paint(ctx)
-        ctx.restore()
-
-    }
-
-    paintOverlay(ctx) {
-        // draw an animation of the packets as they arrive
-        ctx.save()
-        let bw = 4
-        let w = bw*this.inputqueue_capacity
-        let h = 6
-        ctx.fillStyle = "#7f7f7f"
-        ctx.beginPath()
-        ctx.rect(0, 16, w, h)
-        ctx.fill()
-        // draw center marker
-        ctx.fillStyle = "#0000FF"
-        ctx.beginPath()
-        ctx.rect(w/2, 8, 2, 16)
-        ctx.fill()
-
-        for (let i=-60; i<60; i++) {
-            let j = this._frameIndex(this.input_clock + i - this.input_delay)
-
-            if (Object.keys(this.inputqueue[j]).length > 0) {
-                let x = i*bw + w/2
-                let y = 16
-                let k = 0;
-                for (const entid in this.inputqueue[j]) {
-                    //if (entid != this.map.ghost.entid) {
-                    //    continue
-                    //}
-                    for (const uid in this.inputqueue[j][entid]) {
-                        const state = this.inputqueue[j][entid][uid]
-
-                        if (state.type == "input") {
-                            ctx.beginPath()
-                            if (state.applied) {
-                                ctx.fillStyle = "#00FF00"
-                            } else {
-                                ctx.fillStyle = "#FF0000"
-                            }
-                            ctx.rect(x, y, bw, h)
-                            ctx.fill()
-                        }
-                    }
-                }
-
-            }
-        }
-
-        ctx.restore()
-    }
-}
-
-CspReceiver.instance = null
-
-class Physics2d {
-
-    constructor(target) {
-        this.target = target
-        this.group = []
-
-        // state
-        this.ninputs = 0
-        this.frame_index = 0 // candidate for 'world state'
-        this.direction = 0
-        this.xspeed = 0
-        this.yspeed = 0
-        this.xaccum = 0
-        this.yaccum = 0
-        this.gravityboost = false // more gravity when button not pressed
-        this.doublejump = false
-        this.doublejump_position = {x:0, y: 0} // animation center
-        this.doublejump_timer = 0 // for the animation duration
-
-        // computed states
-        this.action = "idle"
-        this.facing = Direction.RIGHT
-
-        // properties that are updated on every update()
-        this.xcollide = false
-        this.ycollide = false
-        this.collide = false
-        this.collisions = new Set()
-
-        this.standing = false       //
-        this.standing_frame = 0     // last frame standing on the ground
-        this.pressing = false       //
-        this.pressing_frame = 0     // last frame pressing on a wall
-        this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
-
-        // the duration that gives some specified maximum velocity v'
-        //      t = sqrt(H^2 / v'^2)
-        // gravity for some specified height and duration
-        //      g = H / (2*t^2)
-        // jump speed for a given height and gravity
-        //      v' = sqrt(2 * H * g)
-        // height for a given initial velocity
-        //      v'^2 = 2*H*g
-
-        // selecting a maximum speed of 8 pixels per frame, at 60 frames per second
-        //      max speed = 8 PPF * 60 FPS = 480
-        //      h = 128
-        //      t = .2666
-
-        // jump cancel
-        // instead of messing with initial velocity and duration
-        //      apply a a curve to the max speed
-        // when the user releases the button rapidly drop the speed to zero over multiple frames
-        // this will ensure the maximum height is as calculated
-        // and that when the user releases, they will go a little higher and drop normally
-
-        this.xmaxspeed1 = 7*32  // from pressing buttons
-        this.xmaxspeed2 = 14*32 // from other sources ?
-        this.xfriction = this.xmaxspeed1 / .1 // stop moving in .1 seconds
-        this.xacceleration = this.xmaxspeed1 / .2 // get up to max speed in .2 seconds
-        // horizontal direction in a wall jump
-        // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
-        this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
-         // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
-
-        this.jumpheight = 96
-        //this.jumpduration = .1875 // total duration divided by 4?
-        this.jumpduration = .22 // total duration divided by 4?
-        this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
-        this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
-
-        this.wallfriction = .2
-
-        this.ymaxspeed = - this.jumpspeed
-
-        // log velocity over time
-        //let speeds = []
-        //let times = [0, .25, .5, .75, 1.0]
-        //for (const t of times) {
-        //    speeds.push(this.jumpspeed + this.gravity * 4 * this.jumpduration * t)
-        //}
-        //console.log("velocities", speeds)
-    }
-
-    collidePoint(x, y) {
-        for (let i=0; i < this.group.length; i++) {
-            if ((!!this.group[i].solid) && this.group[i].rect.collidePoint(x, y)) {
-                return this.group[i]
-            }
-        }
-        return null
-    }
-
-    _move_y(dt) {
-
-    }
-
-    update(dt) {
-        this.frame_index += 1
-
-        if (true) {
-            /////////////////////////////////////////////////////////////
-            // apply x acceleration
-
-            if ((this.direction & Direction.LEFT) > 0) {
-                if (this.xspeed > -this.xmaxspeed1) {
-                    this.xspeed -= this.xacceleration * dt
-                }
-            } else if ((this.direction & Direction.RIGHT) > 0) {
-                if (this.xspeed < this.xmaxspeed1) {
-                    this.xspeed += this.xacceleration * dt
-                }
-            } else if (this.standing) {
-                // apply friction while standing
-                if (Math.abs(this.xspeed) < this.xfriction * dt) {
-                    this.xspeed = 0
-                } else {
-                    this.xspeed -= Math.sign(this.xspeed) * this.xfriction * dt
-                }
-            }
-
-            // bounds check x velocity
-            if (this.xspeed > this.xmaxspeed2) {
-                this.xspeed = this.xmaxspeed2
-            }
-            if (this.xspeed < -this.xmaxspeed2) {
-                this.xspeed = -this.xmaxspeed2
-            }
-
-            /////////////////////////////////////////////////////////////
-            // apply y acceleration
-            //console.log(this.gravity, this.yspeed, dt, this.gravityboost)
-
-            this.yspeed += this.gravity * dt
-
-            // increase gravity when not pressing a jump button
-            if (this.gravityboost && this.yspeed < 0) {
-                this.yspeed += this.gravity * dt
-            }
-
-            // check for terminal velocity
-            if (this.yspeed > this.ymaxspeed) {
-                this.yspeed = this.ymaxspeed
-            }
-
-            // reduce speed when pressed on a wall?
-            if (this.pressing && this.yspeed > 0) {
-                if (this.yspeed > this.ymaxspeed*this.wallfriction) {
-                    this.yspeed = this.ymaxspeed*this.wallfriction
-                }
-            }
-        }
-
-        /////////////////////////////////////////////////////////////
-        // move x
-        this.xaccum += dt*this.xspeed
-        //sconsole.log(CspReceiver.instance.input_clock, dt, this.xspeed, this.xaccum)
-        let dx = Math.trunc(this.xaccum)
-        let xstep = dx
-        if (xstep == 0) {
-            xstep = (this.facing == Direction.LEFT)?-1:1
-        }
-        if (true) {
-            this.xcollide = false
-            this.xcollisions = new Set()
-            this.xaccum -= dx
-
-            let rect = new Rect(
-                this.target.rect.x + xstep,
-                this.target.rect.y,
-                this.target.rect.w,
-                this.target.rect.h,
-            )
-
-            let solid = false;
-            for (let i=0; i < this.group.length; i++) {
-                if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
-                    this.collisions.add(this.group[i])
-                    solid = true
-                    if (this.xspeed > 0) {
-                        dx = Math.min(this.group[i].rect.left() - this.target.rect.right())
-                    } else if (this.xspeed < 0) {
-                        dx = Math.min(this.group[i].rect.right() - this.target.rect.left())
-                    }
-                    break;
-                }
-            }
-
-            this.target.rect.x += dx
-            if (solid) {
-                //this.xspeed = 0 // Math.sign(this.xspeed) * 60
-                this.xcollide = true
-            }
-
-
-            if (this.xcollide) {
-                this.pressing = true
-                // check the movement vector and fix the facing direction to stick to a wall
-                this.facing = (this.xspeed > 0)?Direction.RIGHT:(this.xspeed<0)?Direction.LEFT:this.facing
-                // configure the direction for when pressing the jump button
-                // TODO: can this be removed if instead check the facing direction?
-                this.pressing_direction = (this.facing == Direction.LEFT)?1:-1;
-                this.xspeed = 0
-                this.xaccum = 0
-            } else {
-                this.pressing = false
-            }
-            //console.log(this.pressing?"pressing":"not", Direction.name[this.facing], xstep, dx)
-            /*
-
-            if (this.xspeed > 0 && this.xcollide) {
-                this.xspeed = 0
-                this.pressing = this.frame_index
-                this.pressing_direction = -1
-            } else if (this.xspeed < 0 && this.xcollide) {
-                this.xspeed = 0
-                this.pressing = this.frame_index
-                this.pressing_direction = 1
-            } else {
-                this.pressing = false
-            }
-            */
-            // update state
-            if (this.pressing) {
-                this.pressing_frame = this.frame_index
-            }
-        }
-
-        /////////////////////////////////////////////////////////////
-        // move y
-        this.yaccum += dt*this.yspeed
-        //console.log(this.target.entid, dt, this.yspeed, this.yaccum)
-        let dy = Math.trunc(this.yaccum)
-        let ystep = dy
-        if (ystep == 0) {
-            // check if standing
-            ystep = 1
-        }
-        if (true) {
-            this.ycollisions = new Set()
-            this.ycollide = false
-            this.yaccum -= dy
-            let rect = new Rect(
-                this.target.rect.x,
-                this.target.rect.y + ystep,
-                this.target.rect.w,
-                this.target.rect.h,
-            )
-
-            let solid = false;
-            for (let i=0; i < this.group.length; i++) {
-                if ((!!this.group[i].solid) && rect.collideRect(this.group[i].rect)) {
-                    this.collisions.add(this.group[i])
-                    solid = true
-                    if (this.yspeed > 0) {
-                        dy = Math.min(this.group[i].rect.top() - this.target.rect.bottom())
-                    } else if (this.yspeed < 0) {
-                        dy = Math.min(this.group[i].rect.bottom() - this.target.rect.top())
-                    }
-                    break;
-                }
-            }
-
-            this.target.rect.y += dy
-            if (solid) {
-                this.ycollide = true
-            }
-
-            if (this.yspeed > 0 && this.ycollide) {
-                this.standing = true
-                this.yspeed = 0
-                this.yaccum = 0
-            } else {
-                if (this.yspeed < 0 && this.ycollide) {
-                    this.yspeed = 0
-                    this.yaccum = 0
-                }
-                this.standing = false
-            }
-
-            if (this.standing) {
-                this.standing_frame = this.frame_index
-            }
-
-        }
-
-        this.collide = this.xcollide || this.ycollide
-
-        /////////////////////////////////////////////////////////////
-        // bounds check
-        if (Physics2d.maprect.w > 0) {
-            if (this.target.rect.x < Physics2d.maprect.x) {
-                this.target.rect.x = Physics2d.maprect.x
-                this.xspeed = 0
-            }
-
-            let maxx = Physics2d.maprect.w - this.target.rect.w
-            if (this.target.rect.x > maxx) {
-                this.target.rect.x = maxx
-                this.xspeed = 0
-            }
-
-            if (this.target.rect.y < Physics2d.maprect.y) {
-                this.target.rect.y = Physics2d.maprect.y
-                this.yspeed = 0
-            }
-
-            let maxy = Physics2d.maprect.h - this.target.rect.h
-            if (this.target.rect.y > maxy) {
-
-                this.target.rect.y = maxy
-                this.yspeed = 0
-            }
-        }
-
-        /////////////////////////////////////////////////////////////
-        // update current action
-
-        // double_jump
-        // fall
-        // hit
-        // idle
-        // jump
-        // run
-        // wall_slide
-
-        if (this.doublejump_timer > 0) {
-            this.doublejump_timer -= dt
-        }
-
-        let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
-        let falling = !this.standing && this.yspeed > 0
-        let rising = this.yspeed < 0
-        if (falling) {
-            if (this.pressing) {
-                this.action = "wall_slide"
-            } else {
-                this.action = "fall"
-            }
-        } else if (rising) {
-            if (!this.doublejump) {
-                this.action = "double_jump"
-            } else {
-                this.action = "jump"
-            }
-        } else if (not_moving) {
-            this.action = "idle"
-        } else {
-            this.action = "run"
-        }
-
-    }
-
-    getState() {
-        const state = [
-            this.target.rect.x,
-            this.target.rect.y,
-            this.direction,
-            this.xspeed,
-            this.yspeed,
-            this.xaccum,
-            this.yaccum,
-            this.gravityboost,
-            this.doublejump,
-            this.doublejump_position,
-            this.doublejump_timer,
-            this.pressing,
-            this.standing,
-            this.facing,
-        ]
-
-        //const state = {
-        //    x: this.target.rect.x,
-        //    y: this.target.rect.y,
-        //    //frame_index: this.frame_index,
-        //    //clock: CspReceiver.instance.input_clock,
-        //    direction: this.direction,
-        //    xspeed: this.xspeed,
-        //    yspeed: this.yspeed,
-        //    xaccum: this.xaccum,
-        //    yaccum: this.yaccum,
-        //    gravityboost: this.gravityboost,
-        //    doublejump: this.doublejump,
-        //    doublejump_position: this.doublejump_position,
-        //    doublejump_timer: this.doublejump_timer,
-        //    pressing: this.pressing,
-        //    standing: this.standing,
-        //    facing: this.facing,
-        //    //ninputs: this.ninputs,
-        //}
-        return state
-    }
-
-    setState(state) {
-
-        //this.target.rect.x = state.x
-        //this.target.rect.y = state.y
-        //this.direction = state.direction
-        //this.xspeed = state.xspeed
-        //this.yspeed = state.yspeed
-        //this.xaccum = state.xaccum
-        //this.yaccum = state.yaccum
-        //this.gravityboost = state.gravityboost
-        //this.doublejump = state.doublejump
-        //this.doublejump_position = state.doublejump_position
-        //this.doublejump_timer = state.doublejump_timer
-        //this.pressing = state.pressing
-        //this.standing = state.standing
-        //this.facing = state.facing
-        [
-            this.target.rect.x,
-            this.target.rect.y,
-            this.direction,
-            this.xspeed,
-            this.yspeed,
-            this.xaccum,
-            this.yaccum,
-            this.gravityboost,
-            this.doublejump,
-            this.doublejump_position,
-            this.doublejump_timer,
-            this.pressing,
-            this.standing,
-            this.facing,
-        ] = state
-    }
-}
-
-Physics2d.maprect = new Rect(0,0,0,0)
-
-class CspEntity {
-
-    constructor() {
-        this.entid = -1
-        // TODO: destroyed at could be a global cache in the world
-        //       that contains the initial state and destroyed at information
-        //       this way the object state would not need to be updated?
-        this.$destroyed_at = 0  // ECS:
-        this.layer = 0
-
-        this.active = true // in view, can update and paint
-        this.solid = true
-        this.visible = true
-        this.layer = 0
-
-        this.rect = new Rect(0, 0, 0, 0)
-
-        this.physics = new Physics2d(this)
-        this.animation = new AnimationComponent(this)
-    }
-
-    destroy() {
-        if (this.$destroyed_at == 0) {
-            this.$destroyed_at = CspReceiver.instance.input_clock
-        }
-    }
-
-    update(dt) {
-
-        this.physics.update(dt)
-        this.animation.update(dt)
-    }
-
-    paint(ctx) {
-        this.animation.paint(ctx)
     }
 }
 
@@ -1602,6 +524,267 @@ class Wall extends CspEntity {
     }
 }
 
+function applyfnull(f, a,b) {
+    let r = null
+    if (a != null && b != null) {
+        r = f(a, b)
+    } else if (a != null) {
+        r = a
+    } else if (b != null) {
+        r = b
+    }
+    return r
+}
+
+class Slope extends CspEntity {
+    constructor(x, y, direction) {
+        super()
+
+        this.rect.x = x
+        this.rect.y = y
+        this.rect.w = 32
+        this.rect.h = 32
+
+        /*
+     +======================+
+    ||   upleft | upright   ||
+    ||         /o\          ||
+    ||        / | \         ||
+    ||       o--o--o        ||
+    ||        \ | /         ||
+    ||         \o/          ||
+    || downleft | downright ||
+     +======================+
+        */
+        this.points = []
+
+        // points are organized such that:
+        // origin is always first
+        // left most non-origin point is second
+        // right most non-origin point is third
+        switch (direction) {
+
+            case Direction.UPRIGHT:
+                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
+                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
+                this.points.push({x: this.rect.left(), y: this.rect.top()})
+                break
+            case Direction.UPLEFT:
+                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
+                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
+                this.points.push({x: this.rect.right(), y: this.rect.top()})
+                break
+            case Direction.DOWNRIGHT:
+                this.points.push({x: this.rect.left(), y: this.rect.top()})
+                this.points.push({x: this.rect.right(), y: this.rect.top()})
+                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
+                break
+            case Direction.DOWNLEFT:
+                this.points.push({x: this.rect.right(), y: this.rect.top()})
+                this.points.push({x: this.rect.left(), y: this.rect.top()})
+                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
+                break
+            default:
+                throw {message: "invalid direction", direction}
+        }
+
+        this.direction = direction
+
+        const p1 = this.points[1]
+        const p2 = this.points[2]
+
+
+        const m = (p2.y - p1.y) / (p2.x-p1.x)
+        const b = p1.y - m *p1.x
+
+        this.f = (x) => {
+            if (x >= this.rect.left() && x <= this.rect.right()) {
+                return m*x + b
+            }
+            return null;
+        }
+
+        this.g = (y) => {
+            if (y >= this.rect.top() && y <= this.rect.bottom()) {
+                return (y - b) / m
+            }
+            return null;
+        }
+
+
+        if (this.direction&Direction.DOWN) {
+            // ceiling
+            this._fx = (x,y) => {
+                if (x >= this.rect.left() && x <= this.rect.right()) {
+                    const yp = m*x + b
+                    return Math.max(yp)
+                }
+                return null;
+            }
+        } else {
+            // floor
+            this._fx = (x,y) => {
+                if (x >= this.rect.left() && x <= this.rect.right()) {
+                    const yp = m*x + b
+                    return Math.floor(yp)
+                }
+                return null;
+            }
+        }
+
+        console.log(`y=${m}*x+${b}`)
+
+        //this.sheet = sheet
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+    }
+
+    collide(rect, dx, dy) {
+        // TODO: the api could return up to two two options
+        // {dx, 0} or {0, dy}
+        // {dx, dy}
+
+        const original_rect = rect
+        rect = rect.copy()
+        rect.translate(dx, dy)
+
+
+        if (this.direction&Direction.LEFT && original_rect.left() >= this.rect.right()) {
+            let update = original_rect.copy()
+            update.set_left(this.rect.right())
+            update.z = 1
+            return update
+        }
+
+        if (this.direction&Direction.RIGHT && original_rect.right() <= this.rect.left()) {
+
+            let update = original_rect.copy()
+            update.set_right(this.rect.left())
+            update.z = 2
+            return update
+        }
+
+        let tmp = rect.intersect(this.rect)
+        if (tmp.w == 0) {
+            // likely unreachable unless a prior this.rect  other.rect test was not done
+            return null
+        }
+
+        const x1 = tmp.x
+        const x2 = tmp.x + tmp.w
+        //console.log(">",{x1,x2}, this.rect, this.f(x1), this.f(x2))
+        const y1 = rect.top()
+        const y2 = rect.bottom()
+
+        if (this.direction&Direction.DOWN) {
+
+            if (original_rect.bottom() <= this.rect.top()) {
+                if (dy > 0) {
+                    let update = original_rect.copy()
+                    update.set_bottom(this.rect.top())
+                    update.z = 3
+                    return update
+                }
+            } else {
+
+                const yp = applyfnull(Math.max, this._fx(x1, y1), this._fx(x2, y1))
+                //console.log("!!", yp, y1, y2, (yp != null && (y2 >= yp || y1 >= yp)))
+
+                // TODO: consider returning two candidates then picking the best one
+
+
+                const xp = this.g(y1)
+                if (!!xp && this.direction&Direction.RIGHT && dx < 0 && rect.left() <= xp) {
+                    // candidate position without adjusting the y direction
+                    // when walking left
+                    let update = rect.copy()
+                    update.set_left(Math.ceil(xp)+1)
+                    update.z = 4
+                    update.xp = xp
+                    return update
+                } else if (!!xp && this.direction&Direction.LEFT && dx > 0  && rect.right() >= xp) {
+                    // candidate position without adjusting the y direction
+                    // when walking right
+                    let update = rect.copy()
+                    update.set_right(Math.floor(xp)-1)
+                    update.z = 5
+                    update.xp = xp
+                    return update
+                }
+
+
+                if (yp != null && y1 <= yp) {
+                    // candidate position with adjusting the y direction
+
+                    // return a rectangle that does not collide
+                    let update = rect.copy()
+                    update.set_top(yp)
+                    update.z = 6
+                    return update
+                }
+            }
+        } else {
+
+            if (original_rect.top() >= this.rect.bottom()) {
+                if (dy < 0) {
+                    let update = original_rect.copy()
+                    update.set_top(this.rect.bottom())
+                    update.z = 7
+                    return update
+                }
+            } else {
+                const yp = applyfnull(Math.min, this._fx(x1, y2), this._fx(x2, y2))
+
+                //if (yp != null && (y2 >= yp || y1 >= yp)) {
+                if (yp != null && y2 >= yp) {
+                    // return a rectangle that does not collide
+                    let update = rect.copy()
+                    update.set_bottom(yp)
+                    update.z = 8
+                    return update
+                }
+            }
+
+
+        }
+        return null
+
+    }
+
+    collidePoint(x, y) {
+        let yp = this._fx(x, y)
+        if (yp == null) {
+            return false
+        }
+        if (this.direction&Direction.DOWN) {
+            return yp >= y
+        } else {
+            return yp <= y
+        }
+    }
+
+    paint(ctx) {
+
+        let l = this.rect.x
+        let t = this.rect.y
+        let r = this.rect.x+this.rect.w
+        let b = this.rect.y+this.rect.h
+
+        ctx.fillStyle = "#c3a3a3";
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        ctx.lineTo(this.points[1].x, this.points[1].y);
+        ctx.lineTo(this.points[2].x, this.points[2].y);
+        ctx.fill();
+
+    }
+
+
+
+}
+
+
 class Character extends CspEntity {
 
     constructor(chara) {
@@ -1609,6 +792,8 @@ class Character extends CspEntity {
         this.chara = chara
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
+
+        this.solid = false
 
         this.filter = null
 
@@ -1820,10 +1005,7 @@ class Character extends CspEntity {
 
     paint(ctx) {
 
-        //ctx.fillStyle = this.physics.standing?"#00bb00":this.physics.pressing?"#665533":"#009933";
-        //ctx.beginPath()
-        //ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
-        //ctx.fill()
+
 
         ctx.save()
         //if (!!this.filter) {
@@ -1855,6 +1037,11 @@ class Character extends CspEntity {
             ctx.roundRect(p.x-9, p.y, 18, 4, 4)
             ctx.stroke()
         }
+
+        ctx.fillStyle = this.physics.standing?"#ff0000":this.physics.pressing?"#007f00":"#7f0000";
+        ctx.beginPath()
+        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
+        ctx.fill()
     }
 
     getState() {
@@ -1883,7 +1070,7 @@ class Character extends CspEntity {
         this.animation.setAnimationById(this.animations.appear[this.physics.facing])
         this.iskill = false
         this.visible = true
-        global.loader.sounds.spawn.play()
+        global.loader.sounds.spawn.play(.6)
     }
 
     kill() {
@@ -1901,7 +1088,7 @@ class Character extends CspEntity {
         this.physics.xspeed = d * Math.sqrt( 32*this.physics.xacceleration)
         this.physics.yspeed = - Math.sqrt(2*48*this.physics.gravity)
         this.physics.doublejump = false
-        global.loader.sounds.dead.play()
+        global.loader.sounds.dead.play(.6)
     }
 }
 
@@ -1909,6 +1096,8 @@ class Shuriken extends CspEntity {
 
     constructor() {
         super()
+
+        this.solid = false
 
         this.rect.w = 8
         this.rect.h = 8
@@ -1950,54 +1139,16 @@ class Shuriken extends CspEntity {
     }
 }
 
-class ECS {
-    constructor(parent) {
 
-        this.parent = parent
-
-        this.cache_created = -1
-        this.cache = {}
-
-        this.addGroup('solid', (ent) => ent.solid)
-    }
-
-    addGroup(groupname, rule) {
-        this[groupname] = () => {
-            const now = CspReceiver.instance.input_clock
-
-            if (now != this.cache_created) {
-                this.cache = {}
-                this.cache_created = now
-            }
-
-            if (!(groupname in this.cache)) {
-                const rule2 = (ent) => ((!ent.$destroyed_at || now <= ent.$destroyed_at) && rule(ent))
-                this.cache[groupname] = Object.values(this.parent.entities).filter(rule2)
-            }
-
-            return this.cache[groupname]
-        }
-    }
-}
-
-
-class World {
-    /*
-
-     TODO: the server will send a message indicating that the main character
-           should spawn on frame N, the controller should be initialized
-           with this for the clock
-           this will synchronize the client and server
-
-    */
+class World extends CspWorld {
 
     constructor(client) {
+        super()
 
         let mapw = 640 * 2
         let maph = 360
 
         this.messages = []
-        this.client = client
 
         this.map = {width: mapw, height: maph}
 
@@ -2014,12 +1165,8 @@ class World {
         this.latency_stddev = 0
         this.message_count = 0
 
-        this.entities = {}
-
         this.player = null
         this.ghost = null
-
-        this.ecs = new ECS(this)
 
         this.ecs.addGroup("players", (ent) => {return ent instanceof Character})
 
@@ -2037,38 +1184,86 @@ class World {
         let w;
         w = new Wall()
         w.rect.x = 0
-        w.rect.y = 320 - 32
+        w.rect.y = this.map.height - 32
         w.rect.w = this.map.width
         w.rect.h = 32
-        this.walls.push(w)
+        this.addEntity(w)
+
+        w = new Wall()
+        w.rect.x = 0
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height
+        this.addEntity(w)
+
+        w = new Wall()
+        w.rect.x = this.map.width - 32
+        w.rect.y = 0
+        w.rect.w = 32
+        w.rect.h = this.map.height
+        this.addEntity(w)
 
         w = new Wall()
         w.rect.x = this.map.width/4 - 32
-        w.rect.y = 320 - 64
+        w.rect.y = this.map.height - 64
         w.rect.w = 64
         w.rect.h = 32
-        this.walls.push(w)
+
+        this.addEntity(w)
+
+        w = new Slope(this.map.width/4 - 32 - 32, this.map.height - 64, Direction.UPLEFT)
+        this.addEntity(w)
+
+        w = new Slope(this.map.width/4 - 32 + 64, this.map.height - 64, Direction.UPRIGHT)
+        this.addEntity(w)
+
+        //w = new Slope(32, this.map.height - 64, Direction.UPLEFT)
+        w = new Slope(32, this.map.height - 64, Direction.DOWNRIGHT)
+        this.addEntity(w)
+
+        w = new Slope(128, this.map.height - 64, Direction.UPRIGHT)
+        this.addEntity(w)
+
+        w = new Slope(192, this.map.height - 64, Direction.UPLEFT)
+        this.addEntity(w)
+
+        w = new Slope(224, this.map.height - 64, Direction.UPRIGHT)
+        this.addEntity(w)
+
 
         w = new Wall()
         w.rect.x = 128
-        w.rect.y = 0
-        w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
+        w.rect.y = this.map.height - 128
+        w.rect.w = 64
+        w.rect.h = 32
+        this.addEntity(w)
+
+        w = new Slope(96, this.map.height - 128, Direction.DOWNLEFT)
+        this.addEntity(w)
+
+        w = new Slope(192, this.map.height - 128, Direction.DOWNRIGHT)
+        this.addEntity(w)
+
+        w = new Slope(96, this.map.height - 160, Direction.DOWNLEFT)
+        this.addEntity(w)
+
+        w = new Slope(192, this.map.height - 160, Direction.DOWNRIGHT)
+        this.addEntity(w)
+
 
         w = new Wall()
         w.rect.x = this.map.width/2 - 128 - 32
         w.rect.y = 0
         w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
+        w.rect.h = this.map.height - 96
+        this.addEntity(w)
 
         w = new Wall()
         w.rect.x = this.map.width/2 - 128 - 32 + 96
         w.rect.y = 0
         w.rect.w = 32
-        w.rect.h = this.map.height - 128
-        this.walls.push(w)
+        w.rect.h = this.map.height - 96
+        this.addEntity(w)
 
         this.player = null
         this.ghost = null
@@ -2076,20 +1271,14 @@ class World {
         this.controller = new CspController(this.client)
         this.controller.map = this
 
-        this.receiver = new CspReceiver(this)
-        this.receiver.input_clock = 100
+        this.receiver = new DemoReceiver(this)
 
         this.controller.receiver = this.receiver
         CspReceiver.instance = this.receiver
 
         this.camera = new Camera(this.map)
 
-        this.entities = {
-            //[this.ghost.entid]: this.ghost,
-            //[this.player.entid]: this.player,
-        }
 
-        this.next_entid = 1024
     }
 
     handleMockMessage(message) {
@@ -2145,6 +1334,9 @@ class World {
 
     update(dt) {
 
+        // this.use_network
+        const NOGHOST = true
+
         if (this.messages.length > 0) {
             this.message_count = this.messages.length
             for (let message of this.messages) {
@@ -2188,7 +1380,10 @@ class World {
                     }
                 }
                 else if (message.type == "input") {
-                    this.receiver._receive(message)
+
+                    if (!NOGHOST) {
+                        this.receiver._receive(message)
+                    }
                 }
                 else if (message.type == "update") {
 
@@ -2202,17 +1397,21 @@ class World {
                     //    })
                     //}
 
-                    this.receiver._receive(message)
+                    if (!NOGHOST) {
+                        this.receiver._receive(message)
+                    }
                 }
                 else if (message.type == "player_join") {
-                    this.receiver._receive({
-                        type: "spawn_player",
-                        remote: true,
-                        chara: message.chara,
-                        frame: this.receiver.input_clock,
-                        entid: message.entid,
-                        uid: message.uid
-                    })
+                    if (!NOGHOST) {
+                        this.receiver._receive({
+                            type: "spawn_player",
+                            remote: true,
+                            chara: message.chara,
+                            frame: this.receiver.input_clock,
+                            entid: message.entid,
+                            uid: message.uid
+                        })
+                    }
                 }
                 else if (message.type == "respawn") {
                     this.receiver._receive({
@@ -2267,15 +1466,15 @@ class World {
         const todelete = []
         for (const entid in this.entities) {
             const ent = this.entities[entid]
-            if (!ent.$destroyed_at || now <= ent.$destroyed_at) {
+            if (!ent.$csp_destroyed_at || now <= ent.$csp_destroyed_at) {
                 this.entities[entid].update(dt)
-            } else if (!!ent.$destroyed_at && now > (ent.$destroyed_at + delete_delay)) {
+            } else if (!!ent.$csp_destroyed_at && now > (ent.$csp_destroyed_at + delete_delay)) {
                 todelete.push(ent)
             }
         }
 
         for (const ent of todelete) {
-            console.log("delete", ent.entid, ent.$destroyed_at, now)
+            console.log("delete", ent.entid, ent.$csp_destroyed_at, now)
             delete this.entities[ent.entid]
         }
         //for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -2308,7 +1507,7 @@ class World {
         ctx.rect(0,0,this.map.width,  this.map.height)
         ctx.stroke()
 
-        for (let y=32; y < this.map.height; y+=32) {
+        for (let y=this.map.height; y > 0; y-=32) {
             ctx.beginPath()
             ctx.moveTo(0, y)
             ctx.lineTo(this.map.width, y)
@@ -2367,21 +1566,8 @@ class World {
 
     }
 
-    addEntity(entid, ent) {
-        ent.entid = entid
-        this.entities[entid] = ent
-    }
 
-    addEntityOld(ent) {
-        console.log("adding ent")
-        ent.entid = this.next_entid
-        this.entities[this.next_entid] = ent
-        this.next_entid += 1
-    }
 
-    sendEvent(event) {
-        this.client.send(event)
-    }
 }
 
 class DemoScene extends GameScene {
@@ -2397,6 +1583,8 @@ class DemoScene extends GameScene {
             {name: "good", mean: 50, stddev: 10, droprate: 0},
             {name: "bad", mean: 200, stddev: 100, droprate: 0},
             {name: "poor", mean: 250, stddev: 150, droprate: 0},
+            {name: "mobile-ok", mean: 100, stddev: 100, droprate: 0},
+            {name: "mobile-poor", mean: 400, stddev: 200, droprate: 0},
         ]
         const query = daedalus.util.parseParameters()
         this.profile_index = parseInt(query.quality)||0
@@ -2404,7 +1592,11 @@ class DemoScene extends GameScene {
             this.profile_index = 0
         }
 
+        const valid = ['frog', 'pink', 'blue', 'mask']
         global.chara = (query?.chara??["frog"])[0]
+        if (!valid.includes(global.chara)){
+            global.chara = 'frog'
+        }
 
         this.map = new World()
 
@@ -2629,7 +1821,7 @@ class DemoScene extends GameScene {
             this.client.latency_mean = Math.max(25, Math.min(1000,this.client.latency_mean))
             this.client.latency_stddev = Math.min(
                 this.client.latency_stddev,
-                Math.floor(this.client.latency_mean/2)
+                Math.floor(this.client.latency_mean)
             )
             txt2._text = this.client.latency_mean
             txt4._text = this.client.latency_stddev
@@ -2641,7 +1833,7 @@ class DemoScene extends GameScene {
             this.client.latency_mean = Math.max(25, Math.min(1000,this.client.latency_mean))
             this.client.latency_stddev = Math.min(
                 this.client.latency_stddev,
-                Math.floor(this.client.latency_mean/2)
+                Math.floor(this.client.latency_mean)
             )
             txt2._text = this.client.latency_mean
             txt4._text = this.client.latency_stddev
@@ -2652,7 +1844,7 @@ class DemoScene extends GameScene {
             this.client.latency_stddev -= 5
             this.client.latency_stddev = Math.max(0, Math.min(
                 this.client.latency_stddev,
-                Math.floor(this.client.latency_mean/2)
+                Math.floor(this.client.latency_mean)
             ))
             txt2._text = this.client.latency_mean
             txt4._text = this.client.latency_stddev
@@ -2663,7 +1855,7 @@ class DemoScene extends GameScene {
             this.client.latency_stddev += 5
             this.client.latency_stddev = Math.max(0, Math.min(
                 this.client.latency_stddev,
-                Math.floor(this.client.latency_mean/2)
+                Math.floor(this.client.latency_mean)
             ))
             txt2._text = this.client.latency_mean
             txt4._text = this.client.latency_stddev
