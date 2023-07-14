@@ -640,10 +640,12 @@ class Slope extends CspEntity {
         this.solid = 1
     }
 
-    collide(rect, dx, dy) {
+    collide(other, dx, dy) {
         // TODO: the api could return up to two two options
         // {dx, 0} or {0, dy}
         // {dx, dy}
+
+        let rect = other.rect
 
         const original_rect = rect
         rect = rect.copy()
@@ -784,9 +786,6 @@ class Slope extends CspEntity {
         ctx.fill();
 
     }
-
-
-
 }
 
 class OneWayPlatform extends CspEntity {
@@ -801,7 +800,9 @@ class OneWayPlatform extends CspEntity {
         this.solid = 1
     }
 
-    collide(rect, dx, dy) {
+    collide(other, dx, dy) {
+
+        let rect = other.rect
 
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
             // return a rectangle that does not collide
@@ -821,28 +822,122 @@ class OneWayPlatform extends CspEntity {
         ctx.fill();
 
     }
+}
 
+class MovingPlatform extends CspEntity {
+    /*
 
+    Movinging platforms work by
 
+     - capture a reference to any entity that lands on top of the platform
+     - references are cleared if there is no more collision with that object
+     - setting the order to be lower than other entities
+       the platform update is run first, any captured entities are moved by the same amount
+
+    */
+    constructor(rect) {
+        super()
+
+        this.rect = rect
+
+        this.targets = {}
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+        this.order = 10
+
+        this.travel = 0
+        this.travel_dx = 1
+        this.travel_dy = 0
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            this.targets[other.entid] = other
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = "#10c05f";
+        ctx.beginPath();
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 4);
+        ctx.fill();
+
+    }
+
+    update(dt) {
+
+        this.travel += 1
+        this.rect.x += this.travel_dx
+        this.rect.y += this.travel_dy
+        if (this.travel > 64) {
+            this.travel_dx *= -1
+            this.travel_dy *= -1
+            this.travel = 0
+        }
+
+        const keys = Object.keys(this.targets)
+        if (keys.length > 0) {
+            for (const entid of keys) {
+                const ent = this.targets[entid]
+                if (ent.rect.collideRect(new Rect(this.rect.x, this.rect.y-2, this.rect.w, 4))) {
+                    // ent.rect.set_bottom(this.rect.top())
+                    ent.rect.x += this.travel_dx
+                    ent.rect.y += this.travel_dy
+                    if (ent.rect.bottom() > this.rect.bottom()) {
+                        ent.rect.set_bottom(this.rect.top())
+                    }
+                } else {
+                    delete this.targets[entid]
+                }
+            }
+        }
+    }
 }
 
 class Brick extends CspEntity {
 
-    constructor(x, y) {
+    constructor(x, y, w=16, h=16) {
         super()
 
         this.rect.x = x
         this.rect.y = y
-        this.rect.w = 32
-        this.rect.h = 32
+        this.rect.w = w
+        this.rect.h = h
 
         this.breakable = 0
         this.alive = 1
         this.solid = 1
     }
 
-    collide(rect, dx, dy) {
+    collide(other, dx, dy) {
 
+        let rect = other.rect
         let update = rect.copy()
 
         if (dx > 0 && rect.right() <= this.rect.left()) {
@@ -1133,10 +1228,10 @@ class Character extends CspEntity {
             ctx.stroke()
         }
 
-        ctx.fillStyle = this.physics.standing?"#ff0000":this.physics.pressing?"#007f00":"#7f0000";
-        ctx.beginPath()
-        ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
-        ctx.fill()
+        //ctx.fillStyle = this.physics.standing?"#ff0000":this.physics.pressing?"#007f00":"#7f0000";
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x,this.rect.y,this.rect.w,this.rect.h)
+        //ctx.fill()
     }
 
     getState() {
@@ -1344,10 +1439,24 @@ class World extends CspWorld {
         w = new Slope(192, this.map.height - 160, Direction.DOWNRIGHT)
         this.addEntity(w)
 
-        w = new OneWayPlatform(new Rect(256, this.map.height - 128, 48, 12))
+        w = new OneWayPlatform(new Rect(256-32, this.map.height - 128, 48, 12))
         this.addEntity(w)
 
-        w = new Brick(256+128, this.map.height - 96)
+        w = new MovingPlatform(new Rect(128, this.map.height - 128 - 48, 48, 12))
+        this.addEntity(w)
+
+
+        w = new Brick(400, this.map.height - 96)
+        this.addEntity(w)
+        w = new Brick(400+32, this.map.height - 96)
+        this.addEntity(w)
+        w = new Brick(400+64, this.map.height - 96)
+        this.addEntity(w)
+        w = new Brick(400+16, this.map.height - 112)
+        this.addEntity(w)
+        w = new Brick(400+48, this.map.height - 112)
+        this.addEntity(w)
+        w = new Brick(400+32, this.map.height - 128)
         this.addEntity(w)
 
         w = new Wall()
@@ -1434,19 +1543,17 @@ class World extends CspWorld {
     update(dt) {
 
         // this.use_network
-        const NOGHOST = true
+        const NOGHOST = false
 
         if (this.messages.length > 0) {
             this.message_count = this.messages.length
             for (let message of this.messages) {
                 if (message.type == "logout") {
-                    console.log(message)
                     if (message.entid in this.entities) {
                         this.entities[message.entid].destroy()
                     }
                     //this.receiver._receive(message)
                 } else if (message.type == "login") {
-                    console.log("login received", message)
 
                     //this.receiver.input_clock = message.clock
                     this.receiver._receive({
@@ -1648,16 +1755,16 @@ class World extends CspWorld {
         ctx.fillStyle = "yellow"
         // ${this.latency_min.toFixed(2)} ${this.latency_max.toFixed(2)}
         ctx.fillText(`${(gEngine.spt).toFixed(3)} : ${(gEngine.fps).toFixed(2)} latency: mean=${this.latency_mean.toFixed(0)}ms sd=${this.latency_stddev.toFixed(0)}ms`, 32, 40)
-        ctx.fillText(`${gEngine.timings}`, 32, 56)
+        //ctx.fillText(`${gEngine.timings}`, 32, 56)
         //ctx.fillText(`${Direction.name[this.player.current_facing]} action=${this.player.physics.action}`, 32, 56)
         const stats = this.client.stats()
         ctx.fillText(`bytes: sent=${Math.floor(stats.sent/3)} received=${Math.floor(stats.received/3)}`, 32, 72)
         ctx.fillStyle = "#00FF00"
         //ctx.fillText(`error = (${Math.floor(this.ghost2.error.x)}, ${Math.floor(this.ghost2.error.y)}) ${this.ghost2.received_offset }`, 32, 88)
         //ctx.fillText(`pos = (${this.player.rect.x}, ${this.player.rect.y})`, 32, 104)
-        if (!!this.player && !!this.ghost) {
-            ctx.fillText(`player=${this.player.physics.ninputs} ghost=${this.ghost.physics.ninputs} offset=${CspReceiver.instance.offsets[this.ghost.entid]}`, 32, 104)
-        }
+        //if (!!this.player && !!this.ghost) {
+        //    ctx.fillText(`player=${this.player.physics.ninputs} ghost=${this.ghost.physics.ninputs} offset=${CspReceiver.instance.offsets[this.ghost.entid]}`, 32, 104)
+        //}
         this.receiver.paintOverlay(ctx)
 
     }
