@@ -2,8 +2,24 @@
 /**
  * jump war
  *
+ * - send input to the server
+ *   server reconciles the input with a time step
+ *   server replies with the time the input got aplied
+ *   game replays the state with the correct time input
+ *   need to get to a point where the server has a single time step for all players
+ *   ** there is no offset on the server side, only the time at which the input is received
+ *       +/- effects due to lag on that connection
+ *
+ *
+ * - level data should be compressed and split into chunks
+ *   have a scene specifically for collecting the login message and map info
+ *
  * - one way platforms are an extension of slopes
  *   https://www.emanueleferonato.com/2012/05/24/the-guide-to-implementing-2d-platformers/
+ *
+ * - pass through floors
+ *    press down and check if standing on a one way platform
+ *    if so. move to 1 pixel below the floor, which will trigger dropping through it/
  *
  * - update offset on every "update"
  *   update offset on every message received with an origin / map tag?
@@ -92,10 +108,14 @@ $import("entity", {CspController, CspReceiver, CspEntity, CspWorld, Physics2d})
 
 class DemoRealTimeClient extends RealTimeClient {
 
-    constructor(callback) {
+    constructor() {
         super();
-        this.callback = callback
         this.dcInterval = null
+    }
+
+    setCallback(callback) {
+        this.callback = callback
+
     }
 
     onClose() {
@@ -462,7 +482,7 @@ function apply_character_input(map, input, physics) {
                 // TODO: this causes a stutter when trying to wall jump  on the same wall
                 //       if the direction of travel is the same as the current direction button
                 //       the facing direction will need to be fixed, without a new input
-                physics.facing = (physics.facing == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+                //physics.facing = (physics.facing == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
                 global.loader.sounds.jump.play(.3)
 
             } else if (!standing && physics.doublejump && physics.yspeed > 0) {
@@ -834,7 +854,27 @@ class MovingPlatform extends CspEntity {
      - setting the order to be lower than other entities
        the platform update is run first, any captured entities are moved by the same amount
 
+    TODO: a pushable platform is a moving platform where:
+        - it doesnt start moving until it captures an entity
+        - if there are entities on both sides it stops moving
+        - every time it moves it drags the player along
+
+    TODO: moving platforms need to run movement tests in the x and y direction
+          for now placing platforms where there is no possible obstruction is the solution
+          crunching a player in the y direction should cause damage and have the player fall through the floor
+
+    TODO: movement can be complicated, such as a 4 platform windmill, or following a track
+
+    it may be useful to have bricks and platforms know if the
+    entity is the player controlled entity.
+    entities can have a property for control state
+        local player
+        network synced
+        non-networked synced
+    this is more or less easy to determine from the ent id
+        the local player entid can be made global
     */
+
     constructor(rect) {
         super()
 
@@ -847,13 +887,26 @@ class MovingPlatform extends CspEntity {
         this.solid = 1
         this.order = 10
 
-        this.travel = 0
-        this.travel_dx = 1
-        this.travel_dy = 0
+        this.xspeed = 20
+        this.xaccum = 0
+        this.yspeed = -20
+        this.yaccum = 0
     }
 
     collide(other, dx, dy) {
 
+        let rect = other.rect
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            // return a rectangle that does not collide
+            this.targets[other.entid] = other
+            let update = rect.copy()
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        return null
+        /*
         let rect = other.rect
         let update = rect.copy()
 
@@ -867,7 +920,7 @@ class MovingPlatform extends CspEntity {
             return update
         }
 
-        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+        if (dy > 0 && rect.bottom() <= this.rect.cy()) {
             this.targets[other.entid] = other
             update.set_bottom(this.rect.top())
             return update
@@ -876,7 +929,7 @@ class MovingPlatform extends CspEntity {
         if (dy < 0 && rect.top() >= this.rect.top()) {
             update.set_top(this.rect.bottom())
             return update
-        }
+        }*/
 
         return null
     }
@@ -892,14 +945,27 @@ class MovingPlatform extends CspEntity {
 
     update(dt) {
 
-        this.travel += 1
-        this.rect.x += this.travel_dx
-        this.rect.y += this.travel_dy
-        if (this.travel > 64) {
-            this.travel_dx *= -1
-            this.travel_dy *= -1
-            this.travel = 0
+
+        this.xaccum += dt * this.xspeed
+        this.yaccum += dt * this.yspeed
+
+        const dx = Math.trunc(this.xaccum)
+        const dy = Math.trunc(this.yaccum)
+        this.xaccum -= dx
+        this.yaccum -= dy
+
+        this.rect.x += dx
+        this.rect.y += dy
+        if (this.rect.x > 256) {
+            this.xspeed = -20
+            this.yspeed = 0
         }
+
+        if (this.rect.x < 128) {
+            this.xspeed = 20
+            this.yspeed = 0
+        }
+
 
         const keys = Object.keys(this.targets)
         if (keys.length > 0) {
@@ -907,16 +973,18 @@ class MovingPlatform extends CspEntity {
                 const ent = this.targets[entid]
                 if (ent.rect.collideRect(new Rect(this.rect.x, this.rect.y-2, this.rect.w, 4))) {
                     // ent.rect.set_bottom(this.rect.top())
-                    ent.rect.x += this.travel_dx
-                    ent.rect.y += this.travel_dy
-                    if (ent.rect.bottom() > this.rect.bottom()) {
-                        ent.rect.set_bottom(this.rect.top())
-                    }
+                    ent.rect.x += dx
+                    ent.rect.set_bottom(this.rect.top())
+                    const after = {ent: ent.rect.copy(), rect: this.rect.copy()}
                 } else {
                     delete this.targets[entid]
                 }
             }
         }
+    }
+
+    setState(state) {
+        console.log("received platform state", state)
     }
 }
 
@@ -972,9 +1040,6 @@ class Brick extends CspEntity {
         ctx.fill();
 
     }
-
-
-
 }
 
 class Character extends CspEntity {
@@ -1119,7 +1184,9 @@ class Character extends CspEntity {
 
     update(dt) {
 
-        this.physics.update(dt)
+        if (!this.spawning) {
+            this.physics.update(dt)
+        }
 
         if (!this.spawning && !this.iskill) {
             if (this.physics.facing != this.current_facing) {
@@ -1334,6 +1401,8 @@ class World extends CspWorld {
     constructor(client) {
         super()
 
+        this.client = client
+
         let mapw = 640 * 2
         let maph = 360
 
@@ -1343,6 +1412,7 @@ class World extends CspWorld {
 
         this.login_sent = false
         this.login_received = false
+        this.map_info_received = false
 
         this.game_ready = false
 
@@ -1359,12 +1429,24 @@ class World extends CspWorld {
 
         this.ecs.addGroup("players", (ent) => {return ent instanceof Character})
 
+        this.controller = new CspController(this.client)
+        this.controller.map = this
+
+        this.receiver = new DemoReceiver(this)
+
+        this.controller.receiver = this.receiver
+        CspReceiver.instance = this.receiver
+
+        this.camera = new Camera(this.map)
+
+        this.walls = [] // TODO: deprecate
+        //this.entities = []
+
     }
 
-    buildMap() {
+    buildMap(objects) {
 
-        this.walls = []
-        //this.entities = []
+
 
         Physics2d.maprect = new Rect(0,-128, this.map.width, this.map.height+64)
 
@@ -1442,8 +1524,8 @@ class World extends CspWorld {
         w = new OneWayPlatform(new Rect(256-32, this.map.height - 128, 48, 12))
         this.addEntity(w)
 
-        w = new MovingPlatform(new Rect(128, this.map.height - 128 - 48, 48, 12))
-        this.addEntity(w)
+        //w = new MovingPlatform(new Rect(128, this.map.height - 128 - 48, 48, 12))
+        //this.addEntity(w)
 
 
         w = new Brick(400, this.map.height - 96)
@@ -1473,18 +1555,23 @@ class World extends CspWorld {
         w.rect.h = this.map.height - 96
         this.addEntity(w)
 
+        for (const obj of objects) {
+            if (obj.className == "MovingPlatform") {
+                w = new MovingPlatform(new Rect(obj.state.position[0], obj.state.position[1], 48, 12))
+                //w.setState(obj.state)
+                w.xspeed = obj.state.speed[0]
+                w.yspeed = obj.state.speed[1]
+                this.addEntity(w, obj.entid)
+            }
+
+
+
+        }
+
         this.player = null
         this.ghost = null
 
-        this.controller = new CspController(this.client)
-        this.controller.map = this
 
-        this.receiver = new DemoReceiver(this)
-
-        this.controller.receiver = this.receiver
-        CspReceiver.instance = this.receiver
-
-        this.camera = new Camera(this.map)
 
 
     }
@@ -1503,6 +1590,12 @@ class World extends CspWorld {
                 //"clock": 123456,
                 "entid": 123,
                 "uid": 1
+            })
+
+            this.handleMessage({
+                type: "map_info",
+                "uid": 1,
+                "objects": [],
             })
 
             this.handleMessage({
@@ -1554,18 +1647,26 @@ class World extends CspWorld {
                     }
                     //this.receiver._receive(message)
                 } else if (message.type == "login") {
+                    console.log("login received")
 
                     //this.receiver.input_clock = message.clock
                     this.receiver._receive({
                         type: "spawn_player",
                         remote: false,
                         chara: message.chara,
-                        frame: this.receiver.input_clock,
+                        frame: this.receiver.input_clock + 6,
                         entid: message.entid,
                         uid: message.uid
 
                     })
                     this.login_received = true
+
+                } else if (message.type == "map_info") {
+                    console.log("map_info received")
+
+                    this.buildMap(message.objects)
+
+                    this.map_info_received = true
 
                 }
                 else if (message.type == "keepalive") {
@@ -1613,7 +1714,7 @@ class World extends CspWorld {
                             type: "spawn_player",
                             remote: true,
                             chara: message.chara,
-                            frame: this.receiver.input_clock,
+                            frame: this.receiver.input_clock + 6,
                             entid: message.entid,
                             uid: message.uid
                         })
@@ -1654,6 +1755,9 @@ class World extends CspWorld {
             return
         }
 
+        if (!this.map_info_received) {
+            return
+        }
 
         this.camera.update(dt)
         this.controller.update(dt)
@@ -1670,10 +1774,9 @@ class World extends CspWorld {
         const delete_delay = 120
 
         const todelete = []
-        for (const entid in this.entities) {
-            const ent = this.entities[entid]
+        for (const ent of this.ecs.updatable()) {
             if (ent.$csp_destroyed_at < 0 || now <= ent.$csp_destroyed_at) {
-                this.entities[entid].update(dt)
+                ent.update(dt)
             } else if (ent.$csp_destroyed_at>=0 && now > (ent.$csp_destroyed_at + delete_delay)) {
                 todelete.push(ent)
             }
@@ -1691,6 +1794,13 @@ class World extends CspWorld {
 
     paint(ctx) {
 
+        if (!this.login_received) {
+            return
+        }
+
+        if (!this.map_info_received) {
+            return
+        }
 
         ctx.save()
 
@@ -1768,9 +1878,6 @@ class World extends CspWorld {
         this.receiver.paintOverlay(ctx)
 
     }
-
-
-
 }
 
 class DemoScene extends GameScene {
@@ -1801,36 +1908,41 @@ class DemoScene extends GameScene {
             global.chara = 'frog'
         }
 
-        this.map = new World()
-
-         if (daedalus.env.backend=="webrtc") {
+        let use_network = false
+        if (daedalus.env.backend=="webrtc") {
             // backend is a multi player webrtc server
-            this.client = new DemoRealTimeClient(this.map.handleMessage.bind(this.map))
+            this.client = new DemoRealTimeClient()
             this.client.connect("/rtc/offer", {})
             this.buildRtcWidgets()
-            this.map.use_network = true
+            use_network = true
 
         } else if (daedalus.env.backend == "echo") {
             // backend is an echo server
-            this.client = new DemoRealTimeClient(this.map.handleMockMessage.bind(this.map))
+            this.client = new DemoRealTimeClient()
             this.client.connect("/rtc/offer", {})
-            this.map.use_network = true
+            use_network = true
             SoundEffect.global_volume = 0
 
         } else {
-            this.client = new RealTimeEchoClient(this.map.handleMockMessage.bind(this.map))
+            this.client = new RealTimeEchoClient()
             const profile = this.profiles[this.profile_index]
             this.client.latency_mean = profile.mean
             this.client.latency_stddev = profile.stddev
             this.client.packet_lossrate = profile.droprate
             this.buildLatencyWidgets()
-            this.map.use_network = false
+            use_network = false
             SoundEffect.global_volume = 0
         }
 
+        this.map = new World(this.client)
+        if (daedalus.env.backend=="webrtc") {
+            this.client.setCallback(this.map.handleMessage.bind(this.map))
+        } else {
+            this.client.setCallback(this.map.handleMockMessage.bind(this.map))
+        }
+        this.map.use_network = use_network
         this.map.client = this.client
 
-        this.map.buildMap()
 
         this.touch = new TouchInput(this.map.controller)
         this.touch.addWheel(72, -72, 72)

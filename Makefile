@@ -1,6 +1,6 @@
 
 
-.PHONY: breakout maze build widgets chat netdebug nettest echotest jumpwar
+.PHONY: breakout maze build widgets chat netdebug nettest echotest jumpwar clean
 
 breakout:
 	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
@@ -34,3 +34,9 @@ build:
 	daedalus build --minify --htmlname breakout.html --onefile --paths=./src src/breakout/breakout2.js ./build
 	daedalus build --minify --htmlname jumpwar.html --onefile --paths=./src --env backend=mock --static src/jumpwar/static src/jumpwar/app.js ./build
 	cp src/site/index.html build/index.html
+
+clean:
+	# there should be a daedalus build flag to ignore the cache
+	find src -path '*/__pycache__/*.ast' | xargs rm -v
+	find daedalus/res/ -path '*/__pycache__/*.ast' | xargs rm -v
+

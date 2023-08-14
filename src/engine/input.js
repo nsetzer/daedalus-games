@@ -150,12 +150,9 @@ export class TouchInput {
 
         this.touches = []
 
-        this.touch_move = null;
-
         this.wheels = []
         this.buttons = []
 
-        this.resize()
     }
 
     addWheel(x, y, radius, options) {
@@ -266,7 +263,6 @@ export class TouchInput {
 
         // find first touch on for movement...
         let wheel_events = {}
-        let touch_move = null;
 
         for (let j=0; j<this.wheels.length;j++) {
             let wheel = this.wheels[j]
@@ -345,6 +341,7 @@ export class TouchInput {
             const cr = Math.floor(whl.radius)
             const dw = 16
             const dr = 48
+
 
             /*
             ctx.beginPath();
