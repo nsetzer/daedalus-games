@@ -527,26 +527,22 @@ export class CspReceiver {
         const alpha = 0.8
 
         let frameIndex;
-        if (msg.type == "spawn_player") {
-            frameIndex = msg.frame + this.input_delay
-        } else {
 
-            // TODO: deduplicate messages before updating offsets
-            // TODO: continuosly update the offset for every message that is receiving
-            //       only set a new offset when an update is received?
-            // TODO: design a low pass filter for offsets (choose a better alpha)
-            if (this.offsets[msg.entid] === undefined) {
-                this.offsets[msg.entid] = this.input_clock - msg.frame
-            }
+        // TODO: deduplicate messages before updating offsets
+        // TODO: continuosly update the offset for every message that is receiving
+        //       only set a new offset when an update is received?
+        // TODO: design a low pass filter for offsets (choose a better alpha)
+        if (this.offsets[msg.entid] === undefined) {
+            this.offsets[msg.entid] = this.input_clock - msg.frame
+        }
 
+        frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
+        msg.$offset = this.input_clock - msg.frame
+
+        if (frameIndex > this.input_clock + 6) {
+            //console.log("update offset (delay)", this.offsets[msg.entid], msg.$offset)
+            this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
             frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
-            msg.$offset = this.input_clock - msg.frame
-
-            if (frameIndex > this.input_clock + 6) {
-                //console.log("update offset (delay)", this.offsets[msg.entid], msg.$offset)
-                this.offsets[msg.entid] = alpha * this.offsets[msg.entid] + ((1 - alpha) * (msg.$offset))
-                frameIndex = msg.frame + this.input_delay + Math.round(this.offsets[msg.entid])
-            }
         }
 
 

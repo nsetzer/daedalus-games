@@ -376,9 +376,6 @@ export class CanvasEngine extends DomElement {
             this.view.y = 0
         }
 
-
-
-
         console.log('view changed:',
             `screen: orientation=${screen.orientation.type} size=(${width}, ${height})`,
             `view: (${this.view.x}, ${this.view.x}) (${this.view.width}, ${this.view.height})`,

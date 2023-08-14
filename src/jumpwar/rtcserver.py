@@ -19,47 +19,104 @@ from webrtc_server import add_dev_routes, main_loop, WebContext
 
 # https://stackoverflow.com/questions/37512182/how-can-i-periodically-execute-a-function-with-asyncio
 
-class Entity(object):
-    def __init__(self, peer_id, entid):
-        super(Entity, self).__init__()
-        self.peer_id = peer_id
-        self.entid = entid
-
-        self.updates = []
-
-    def push(self, update):
-
-        if len(self.updates) == 0:
-            self.updates.append(update)
-
-        else:
-            # TODO: fix ordering of events
-            if update['frame'] > self.updates[-1]['frame']:
-                self.updates.append(update)
-
-        # TODO: how many events to keep
-        if len(self.updates) > 20:
-            self.updates.pop(0)
-
-
-class Context(WebContext):
-
+class Map(object):
     def __init__(self):
-        super().__init__()
+        super(Map, self).__init__()
 
-        self.mapinfo = {'next_entid': 1}
+        self.peers = {} # entid => entity
+        self.entities = {} # entid => entity
+
+        self.frameIndex = 0
+
+        self.nextEntId = 1
 
         self.peer2ent = {}
         self.entid2ent = {}
 
         self.spawntimer = {} # entid -> timer
 
-    def onConnect(self, peer_id):
-        logging.info("peer connected: %s", peer_id)
+        self.objects = []
 
-    def onDisconnect(self, peer_id):
-        logging.info("peer disconnected: %s", peer_id)
+        self.outbox = []
 
+    def update(self, dt):
+
+        self.frameIndex += 1
+
+        for ent in self.entities:
+            ent.update()
+
+        for obj in self.objects:
+            obj.update(dt)
+
+        for entid in list(self.spawntimer.keys()):
+            self.spawntimer[entid] -= dt
+            if self.spawntimer[entid] < 0:
+
+                if entid in self.entid2ent:
+                    ent = self.entid2ent[entid]
+                    peer_id = ent.peer_id
+                    # TODO: send frame id with this message that is +6 frames in the future
+                    reply = {
+                            "type": "respawn",
+                            "entid": entid,
+                            "uid": 1024 + self.frameIndex&0xFFF,
+                        }
+
+                    if peer_id in self.peers:
+                        self.peers[peer_id].send(json.dumps(reply))
+
+                del self.spawntimer[entid]
+
+        for message in self.outbox:
+            print("sending", message)
+            for other_id, peer in self.peers.items():
+                peer.send(json.dumps(message))
+
+        self.outbox = []
+
+    def join(self, peer, message):
+
+        if peer.uid in self.peers:
+            pass
+
+        else:
+
+            entid = self.getEntityId()
+            uid = 1024 + self.frameIndex&0xFFF
+
+            # TODO: send frame id with this message that is +6 frames in the future
+            reply1 = {
+                "type": "login",
+                "entid": entid,
+                "chara": message['chara'],
+                "uid": uid
+            }
+
+            # TODO: send frame id with this message that is +6 frames in the future
+            reply2 = {
+                "type": "player_join",
+                "entid": entid,
+                "chara": message['chara'],
+                "uid": uid
+            }
+
+            reply3 = self.getState()
+
+            self.peers[peer.uid] = peer
+
+            ent = Entity(peer.uid, entid)
+            self.peer2ent[peer.uid] = ent
+            self.entid2ent[entid] = ent
+
+            peer.send(json.dumps(reply1))
+            peer.send(json.dumps(reply3))
+
+            for other_id, peer in self.peers.items():
+                if other_id != peer.uid:
+                    peer.send(json.dumps(reply2))
+
+    def logout(self, peer_id):
         if peer_id in self.peer2ent:
 
             reply = {
@@ -77,64 +134,21 @@ class Context(WebContext):
                 if other_id != peer_id:
                     peer.send(json.dumps(reply))
 
-    def _getEntityId(self):
-
-            entid = self.mapinfo['next_entid']
-
-            # TODO: verify entid not in the set of active entities
-
-            self.mapinfo['next_entid'] = (1 + self.mapinfo['next_entid']) & 0xFFFF
-
-            if self.mapinfo['next_entid'] <= 0:
-                self.mapinfo['next_entid'] = 1
-
-            return entid
-
     def onMessage(self, peer_id, message):
 
-        #if message['type'] != "keepalive":
-        #    print("onMessage", peer_id, message)
+        # TODO: create a per user offset map
+        #       update the offset calculation for every received message
+        #       when broadcasting to players use a single stable frame index
+        #
+        #       don't join the message ringbuffers
+        #       this way the offsets can be changed without moving message buckets around
 
-        if message['type'] == "login":
-
-            if peer_id in self.peer2ent:
-                pass
-
-            else:
-
-                entid = self._getEntityId()
-                uid = 1024 + self.frameIndex&0xFFF
-                reply1 = {
-                    "type": "login",
-                    "entid": entid,
-                    "chara": message['chara'],
-                    "uid": uid
-                }
-
-                reply2 = {
-                    "type": "player_join",
-                    "entid": entid,
-                    "chara": message['chara'],
-                    "uid": uid
-                }
-
-                ent = Entity(peer_id, entid)
-                self.peer2ent[peer_id] = ent
-                self.entid2ent[entid] = ent
-
-                self.peers[peer_id].send(json.dumps(reply1))
-
-                for other_id, peer in self.peers.items():
-                    if other_id != peer_id:
-                        peer.send(json.dumps(reply2))
-
-        elif message['type'] == "keepalive":
+        if message['type'] == "keepalive":
             reply = {
                 "type": "keepalive",
                 "t0": message["t0"],
             }
             self.peers[peer_id].send(json.dumps(reply))
-            # print("send reply", peer_id, message)
 
         elif message['type'] == "update":
 
@@ -154,6 +168,7 @@ class Context(WebContext):
             for other_id, peer in self.peers.items():
                 if other_id != peer_id:
                     peer.send(json.dumps(message))
+
         elif message['type'] == "hit":
 
             if peer_id in self.peer2ent:
@@ -201,25 +216,172 @@ class Context(WebContext):
         #    if peer.connected():
         #        peer.send(json.dumps(message))
 
+    def getState(self):
+        return {
+            "type": "map_info",
+            "uid": max(1, 1024 + (self.frameIndex&0xFFF)),
+            "objects": [obj.getMapState() for obj in self.objects]
+        }
+
+    def setState(self):
+        pass
+
+    def getEntityId(self):
+
+        entid = self.nextEntId
+
+        # TODO: verify entid not in the set of active entities
+
+        self.nextEntId = (1 + self.nextEntId) & 0xFFFF
+
+        if self.nextEntId <= 0:
+            self.nextEntId = 1
+
+        return entid
+
+class MapEntity(object):
+    def __init__(self, map, entid):
+        super(MapEntity, self).__init__()
+        self.entid = entid
+        self.map = map
+        self.next_uid = 1
+
+    def update(self, dt):
+        pass
+
+    def post(self):
+        self.map.outbox.append({
+            "type": "update",
+            "entid": self.entid,
+            "uid": self.next_uid,
+            "frame": self.map.frameIndex,
+            "state": self.getState(),
+        })
+        self.next_uid += 1
+
+
+
+class Entity(MapEntity):
+    def __init__(self, peer_id, entid):
+        super(Entity, self).__init__(None, entid)
+        self.peer_id = peer_id
+
+        self.updates = []
+        self._offset = None
+
+    def push(self, update):
+
+        if len(self.updates) == 0:
+            self.updates.append(update)
+
+        else:
+            # TODO: fix ordering of events
+            if update['frame'] > self.updates[-1]['frame']:
+                self.updates.append(update)
+
+        # TODO: how many events to keep
+        if len(self.updates) > 20:
+            self.updates.pop(0)
+
+    def getFrameOffset(self, currentFrameIndex, message):
+        alpha = 0.8
+        inputDelay = 6
+
+        if self._offset is None:
+            self._offset = currentFrameIndex - message.frame
+
+        frameIndex = message.frame + inputDelay + round(self._offset)
+        delta = currentFrameIndex - message.frame
+        self._offset = alpha * self._offset + ((1 - alpha) * delta)
+
+        return frameIndex
+
+class MovingPlatform(MapEntity):
+    def __init__(self, map, entid):
+        super().__init__(map, entid)
+
+        self.x = 128
+        self.y = 128
+
+        self.xspeed = 20
+        self.yspeed = 0
+
+    def update(self, dt):
+
+
+        self.x += self.xspeed*dt
+
+        if self.x > 256:
+            self.x = 256
+            self.post()
+            self.xspeed = -20
+
+        if self.x < 128:
+            self.x = 128
+            self.post()
+            self.xspeed = 20
+
+    def getState(self):
+        # for serializing updates to this entity
+        return {
+            "position": (self.x, self.y),
+            "speed": (self.xspeed, self.yspeed)
+        }
+
+    def getMapState(self):
+        # for serializing the current state of the map
+        return {
+            "className": "MovingPlatform",
+            "entid": self.entid,
+            "state": self.getState()
+        }
+
+
+class Context(WebContext):
+
+    def __init__(self):
+        super().__init__()
+
+        self.peers = {}
+
+        self.current_map = None
+
+    def onConnect(self, peer):
+        logging.info("peer connected: %s", peer.uid)
+
+        if self.current_map == None:
+            self.current_map = Map()
+            self.current_map.objects.append(MovingPlatform(self.current_map, self.current_map.getEntityId()))
+
+        self.peers[peer.uid] = peer
+
+    def onDisconnect(self, peer_id):
+        logging.info("peer disconnected: %s", peer_id)
+
+        if self.current_map:
+            self.current_map.logout(peer_id)
+
+            if peer_id in self.peers:
+                del self.peers[peer_id]
+
+        if len(self.peers) == 0:
+            self.current_map = None
+
+    def onMessage(self, peer_id, message):
+
+
+
+        if self.current_map:
+
+            if message['type'] == "login":
+                self.current_map.join(self.peers[peer_id], message)
+            else:
+                self.current_map.onMessage(peer_id, message)
+
     def onUpdate(self, dt):
 
-        for entid in list(self.spawntimer.keys()):
-            self.spawntimer[entid] -= dt
-            if self.spawntimer[entid] < 0:
-
-                if entid in self.entid2ent:
-                    ent = self.entid2ent[entid]
-                    peer_id = ent.peer_id
-                    reply = {
-                            "type": "respawn",
-                            "entid": entid,
-                            "uid": 1024 + self.frameIndex&0xFFF,
-                        }
-
-                    if peer_id in self.peers:
-                        self.peers[peer_id].send(json.dumps(reply))
-
-                del self.spawntimer[entid]
+        if self.current_map:
+            self.current_map.update(dt)
 
 
 

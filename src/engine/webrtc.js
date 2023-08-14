@@ -69,7 +69,7 @@ export class CspRingBuffer {
 
 export class RealTimeEchoClient {
 
-    constructor(callback) {
+    constructor() {
 
         this.frame_index = 0
         // average total bytes sent and received over a 3 second window
@@ -77,7 +77,6 @@ export class RealTimeEchoClient {
         this.total_sent = 0
         this.total_received = 0
 
-        this.callback = callback
 
         this.latency_mean = 200
         this.latency_stddev = 75
@@ -91,6 +90,12 @@ export class RealTimeEchoClient {
         }
 
         this.rb_xmit.set(this.frame_index, {sent:0, received:0})
+    }
+
+
+    setCallback(callback) {
+        this.callback = callback
+
     }
 
     send(obj) {
