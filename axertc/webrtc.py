@@ -180,6 +180,9 @@ class DevSite(object):
 
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
+        self.srcmap_routes, self.srcmap = self.builder.sourcemap
+
+        self.source = "//# sourceMappingURL=/static/index.js.map\n" + self.source
         print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
 
 async def route_index(request):
@@ -189,7 +192,13 @@ async def route_index(request):
 
 async def route_source(request):
     global site
+    # optional header SourceMap: static/index.js.map
     return web.Response(content_type="application/javascript", text=site.source)
+
+async def route_source_map(request):
+    global site
+    # optional header SourceMap: static/index.js.map
+    return web.Response(content_type="application/json", text=site.srcmap)
 
 async def route_style(request):
     global site
@@ -201,6 +210,19 @@ async def route_static(request):
     try:
         path = request.match_info.get('path', 0)
         path = path_join_safe(site.static_path, path)
+
+        return web.FileResponse(path=path)
+    except ValueError:
+        return web.json_response({'error': 'invalid id'})
+
+async def route_source_map_file(request):
+    global site
+    request.match_info.get('path', 0)
+    try:
+        path = request.match_info.get('path', 0)
+        tmp = '/static/srcmap/' + path
+        path = site.srcmap_routes[tmp]
+
         return web.FileResponse(path=path)
     except ValueError:
         return web.json_response({'error': 'invalid id'})
@@ -223,14 +245,12 @@ async def main_loop(ctxt):
     spt = 1/60
     while True:
 
-        ctxt.frameIndex += 1
-
         disconnected = []
         for peer_id, peer in peers.items():
 
             if peer.state == ConnectionState.CONNECTING and peer.dc is not None:
                 peer.state = ConnectionState.CONNECTED
-                ctxt.onConnect(peer_id)
+                ctxt.onConnect(peer)
 
             if peer.state == ConnectionState.DISCONNECTING:
                 disconnected.append(peer_id)
@@ -262,12 +282,8 @@ class WebContext():
         super().__init__()
 
         self.interval = 1/60
-        self.frameIndex = 0
 
-        global peers
-        self.peers = peers
-
-    def onConnect(self, peer_id):
+    def onConnect(self, peer):
         pass
 
     def onDisconnect(self, peer_id):
@@ -279,7 +295,6 @@ class WebContext():
     def onUpdate(self, dt):
         pass
 
-
 def add_dev_routes(app, index_js, search_path, static_data, static_path):
 
     global site
@@ -289,6 +304,8 @@ def add_dev_routes(app, index_js, search_path, static_data, static_path):
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/", route_index)
     app.router.add_get("/static/index.js", route_source)
+    app.router.add_get("/static/index.js.map", route_source_map)
+    app.router.add_get("/static/srcmap/{path:.*}", route_source_map_file)
     app.router.add_get("/static/index.css", route_style)
     app.router.add_get("/static/{path:.*}", route_static)
     app.router.add_post("/rtc/offer", route_rtc_offer)
