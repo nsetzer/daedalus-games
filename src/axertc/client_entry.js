@@ -1,17 +1,56 @@
  
 
 $import("axertc_client", {
-    ApplicationBase, GameScene
+    ApplicationBase, GameScene, RealTimeClient
 })
+
+class DemoRealTimeClient extends RealTimeClient {
+
+    constructor() {
+        super();
+        this.dcInterval = null
+    }
+
+    setCallback(callback) {
+        this.callback = callback
+
+    }
+
+    onClose() {
+        console.log("rtc closed")
+    }
+
+    onOpen() {
+        console.log("rtc opened")
+    }
+
+    onMessage(obj) {
+
+        this.callback(obj)
+    }
+}
 
 
 class DemoScene {
+
+
+    constructor() {
+
+        this.client = null
+    }
 
     pause(paused) {
 
     }
 
     update(dt) {
+
+        if (!this.client) {
+
+            this.client = new DemoRealTimeClient()
+            this.client.connect("/rtc/offer", {})
+
+        }
     }
 
     paint(ctx) {

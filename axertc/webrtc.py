@@ -87,7 +87,7 @@ class Peer(object):
         #    logging.error("unable to send, data channel not open")
 
 async def route_rtc_offer(request):
-    #print("offer headers", request.headers)
+    print("offer headers", request.headers)
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
@@ -151,6 +151,8 @@ async def route_rtc_offer(request):
         "type": pc.localDescription.type
     })
 
+    print("reply", content)
+
     return web.Response(
         content_type="application/json",
         text=content
@@ -181,6 +183,7 @@ class DevSite(object):
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
         self.srcmap_routes, self.srcmap = self.builder.sourcemap
+        print(self.srcmap_routes)
 
         self.source = "//# sourceMappingURL=/static/index.js.map\n" + self.source
         print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
@@ -208,10 +211,14 @@ async def route_static(request):
     global site
     request.match_info.get('path', 0)
     try:
-        path = request.match_info.get('path', 0)
-        path = path_join_safe(site.static_path, path)
+        tmp = request.match_info.get('path', 0)
+        path = path_join_safe(site.static_path, tmp)
+        print('route_static', tmp, '=>', path)
 
-        return web.FileResponse(path=path)
+        if not os.path.exists(path):
+            return web.json_response({'error': tmp}, status=404)
+        else:
+            return web.FileResponse(path=path)
     except ValueError:
         return web.json_response({'error': 'invalid id'})
 
@@ -219,11 +226,17 @@ async def route_source_map_file(request):
     global site
     request.match_info.get('path', 0)
     try:
-        path = request.match_info.get('path', 0)
-        tmp = '/static/srcmap/' + path
-        path = site.srcmap_routes[tmp]
+        tmp = 'srcmap/' + request.match_info.get('path', 0)
+        #print('route_source_map_file', tmp, '=>', path)
 
-        return web.FileResponse(path=path)
+        if tmp not in site.srcmap_routes:
+            print("!!!!")
+            print(tmp)
+            print(list(site.srcmap_routes.keys()))
+            return web.json_response({'error': tmp}, status=404)
+        else:
+            path = site.srcmap_routes[tmp]
+            return web.FileResponse(path=path)
     except ValueError:
         return web.json_response({'error': 'invalid id'})
 

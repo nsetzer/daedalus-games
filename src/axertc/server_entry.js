@@ -3,10 +3,12 @@
 $import("axertc_server", {ServerLobby, ServerEngine})
 
 
+export const server = {}
 
-export const server = new ServerEngine();
-export const connect = server.connect.bind(server);
-export const disconnect = server.disconnect.bind(server);
-export const onMessage = server.onMessage.bind(server);
-export const update = server.update.bind(server);
+const _server = new ServerEngine();
+
+server.connect = _server.connect.bind(server);
+server.disconnect = _server.disconnect.bind(server);
+server.onMessage = _server.onMessage.bind(server);
+server.update = _server.update.bind(server);
 
