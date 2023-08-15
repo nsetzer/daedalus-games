@@ -17,7 +17,7 @@ from daedalus.builder import Builder, Lexer
 
 site = None
 peers = {}
-messages = []
+incoming_messages = []
 
 logging.getLogger("aioice.ice").setLevel(logging.WARNING)
 logger = logging.getLogger("pc")
@@ -126,10 +126,10 @@ async def route_rtc_offer(request):
         @channel.on("message")
         def on_message(message):
             if isinstance(message, str):
-                obj = json.loads(message)
+                #obj = json.loads(message)
                 #obj['type'] = "pong"
                 #channel.send(json.dumps(obj))
-                messages.append((pc_id, obj))
+                incoming_messages.append((pc_id, message))
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -183,7 +183,7 @@ class DevSite(object):
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
         self.srcmap_routes, self.srcmap = self.builder.sourcemap
-        print(self.srcmap_routes)
+        self.favicon_path = self.builder.favicon_path
 
         self.source = "//# sourceMappingURL=/static/index.js.map\n" + self.source
         print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
@@ -192,6 +192,12 @@ async def route_index(request):
     global site
     site.build()
     return web.Response(content_type="text/html", text=site.html)
+
+async def route_favicon(request):
+
+    if site.favicon_path:
+        return web.FileResponse(path=site.favicon_path)
+    return web.json_response({'error': "no icon set"}, status=404)
 
 async def route_source(request):
     global site
@@ -274,12 +280,12 @@ async def main_loop(ctxt):
             del peers[peer_id]
             ctxt.onDisconnect(peer_id)
 
-        for peer_id, message in messages:
+        for peer_id, message in incoming_messages:
             ctxt.onMessage(peer_id, message)
 
         ctxt.onUpdate(1/60) # TODO: delta t?
 
-        messages.clear()
+        incoming_messages.clear()
 
         t1 = time.monotonic()
         dt = t1 - t0
@@ -315,10 +321,11 @@ def add_dev_routes(app, index_js, search_path, static_data, static_path):
 
 
     app.on_shutdown.append(on_shutdown)
-    app.router.add_get("/", route_index)
     app.router.add_get("/static/index.js", route_source)
     app.router.add_get("/static/index.js.map", route_source_map)
     app.router.add_get("/static/srcmap/{path:.*}", route_source_map_file)
     app.router.add_get("/static/index.css", route_style)
     app.router.add_get("/static/{path:.*}", route_static)
     app.router.add_post("/rtc/offer", route_rtc_offer)
+    app.router.add_get("/favicon.ico", route_favicon)
+    app.router.add_get("/", route_index)

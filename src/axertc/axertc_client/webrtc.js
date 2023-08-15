@@ -191,6 +191,9 @@ export class RealTimeClient {
 
         this.pc.addEventListener('iceconnectionstatechange', () => {
             let message = ' webrtc -> ' + this.pc.iceConnectionState;
+            if (this.pc.iceConnectionState == 'failed') {
+                console.error("on firefox, use localhost instead of 0.0.0.0")
+            }
             console.log(message);
         }, false);
         console.log(' webrtc -> ' + this.pc.iceConnectionState);
@@ -356,6 +359,10 @@ export class RealTimeClient {
 
     stats() {
         return {sent: this.total_sent/3, received: this.total_received/3}
+    }
+
+    state() {
+        return this._open ? "connected" : "disconnected"
     }
 }
 

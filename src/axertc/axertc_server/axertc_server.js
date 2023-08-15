@@ -1,4 +1,36 @@
 
+/*
+client
+
+components:
+    scene
+    engine
+    map
+    sync-strategy
+    webrtc-client
+
+messages
+    player-create
+    player-input
+    player-destroy
+
+    object-create
+    object-input
+    object-destroy
+
+step
+    handle inbound messages
+        synchronize
+        check for reset
+        check drift per message
+    check drift per update
+    step the game engine
+
+synchronize
+    require a full update before proceeding
+
+
+*/
 
 export class ServerLobby {
 
@@ -48,6 +80,7 @@ export class ServerLobby {
 
     sendMessage(playerId, message) {
         // send a message to playerId
+        console.log(message)
     }
 
     sendNeighbors(playerId, message) {
@@ -82,9 +115,8 @@ export class ServerEngine {
     }
 
     onMessage(playerId, message) {
-        console.log("onMessage")
-        //xtransmit(playerId, message)
-        return 0;
+        console.log(message)
+        webrtc.xsend(playerId, {"type": "pong", t: performance.now()})
     }
 
     update(dt) {

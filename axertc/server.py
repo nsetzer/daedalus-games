@@ -16,17 +16,20 @@ class DevServer(WebContext):
         self.static_data = static_data
         self.static_path = static_path
         self.opts = opts
-        self.outgoing_messages = []
+
 
         self.builder = Builder(search_path, static_data, platform=platform)
 
         self.build()
 
+        self.peers = {}
+        self.outgoing_messages = []
+
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
         #self.srcmap_routes, self.srcmap = self.builder.sourcemap
         #self.source = "//# sourceMappingURL=/static/index.js.map\n" + self.source
-        print("source lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
+        print("server lines:", len(self.source.split("\n")), "bytes:", len(self.source),)
 
         #print(self.builder.globals)
         #print(self.builder.root_exports)
@@ -38,25 +41,43 @@ class DevServer(WebContext):
         #exports = self.builder.root_exports
         exports = ['connect', 'disconnect', 'onMessage', 'update']
 
-        self.mod = JsModule(self.source, exports)
-        self.mod.ctxt.add_callable("xtransmit", self._transmit)
+        self.mod = JsModule(self.source, exports, sourcemap=self.builder.servermap)
+        self.mod.ctxt.add_callable("_webrtc_xsend", self._transmit)
+        self.mod.ctxt.eval("webrtc={};webrtc.xsend=_webrtc_xsend")
 
 
     def _transmit(self, playerId, message):
         self.outgoing_messages.append((playerId, message))
 
     def onConnect(self, peer):
-        self.mod.invoke('connect', 1)
+        self.mod.invoke('connect', peer.uid)
 
-    def onDisconnect(self, peer_id):
-        self.mod.invoke('disconnect', 1)
+        self.peers[peer.uid] = peer
+
+    def onDisconnect(self, peer_uid):
+        self.mod.invoke('disconnect', peer_uid)
+
+        if peer_uid in self.peers:
+            del self.peers[peer_uid]
 
     def onMessage(self, peer_id, message):
-        self.mod.invoke('onMessage', 1, self.mod.parse_json("{\"a\":1}"))
+        self.mod.invoke('onMessage', peer_id, self.mod.parse_json(message))
 
     def onUpdate(self, dt):
+
+        # webrtc main loop processes incoming messages first
+        # then the update runs
+        # then outgoing messages are sent
+
         self.mod.invoke('update', (1/60))
 
+        while len(self.outgoing_messages) > 0:
+            playerId, message = self.outgoing_messages.pop()
+
+            if playerId in self.peers:
+                self.peers[playerId].send(message.json())
+            else:
+                print("attempting to send message to peer that does not exist", playerId)
 
 def test():
 
@@ -89,6 +110,11 @@ def test():
 
 def run():
 
+    args = lambda: None
+    args.host = "0.0.0.0"
+    args.port = 4100
+    ssl_context = None
+
     server_js = "./src/axertc/server_entry.js"
     client_js = "./src/axertc/client_entry.js"
     search_path = ["./src", "./src/axertc"]
@@ -104,11 +130,6 @@ def run():
     loop.create_task(main_loop(server))
 
     add_dev_routes(app, client_js, search_path, static_data, static_path)
-
-    args = lambda: None
-    args.host = "0.0.0.0"
-    args.port = 4100
-    ssl_context = None
 
     web.run_app(
         app,
