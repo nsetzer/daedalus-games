@@ -4,12 +4,20 @@ client
 
 components:
     scene
+    lobby
     engine
     map
     sync-strategy
     webrtc-client
 
 messages
+    use a container message
+
+    MapSync
+        fullUpdate: bool
+        stepIndex: int
+        events: list
+
     player-create
     player-input
     player-destroy
@@ -18,6 +26,40 @@ messages
     object-input
     object-destroy
 
+<<<<---->>>>
+if the character is lagging, run an extra update
+if the character is leading, skip an update
+    extra/skipped capped at 6 fps
+remoteWorldStep
+localWorldStep
+
+synchronize may set a flag to skip the next update
+
+GameEngine
+    constructor
+    receiveMessage
+        save until next update
+    update
+        step
+        package and transmit all outgoing events
+
+ClientGameEngine
+    constructor
+    receiveMessage
+        GameEngine.receiveMessage
+    update
+        GameEngine.update
+    paint
+
+ServerGameEngine
+
+    constructor
+    receiveMessage
+        GameEngine.receiveMessage
+    update
+        GameEngine.update
+
+
 step
     handle inbound messages
         synchronize
@@ -25,6 +67,10 @@ step
         check drift per message
     check drift per update
     step the game engine
+        step objects
+        bend objects
+    if client connected:
+        handle outbound messages
 
 synchronize
     require a full update before proceeding
@@ -40,6 +86,8 @@ export class ServerLobby {
         this.objects = {} // objectId => object
         this.players = {} // playerId => player
         this.nextObjectId = 1;
+
+        this.world_step = 0
     }
 
     getNewObjectId() {
@@ -66,6 +114,14 @@ export class ServerLobby {
 
     }
 
+    join(playerId) {
+
+    }
+
+    leave(playerId) {
+
+    }
+
     update(dt) {
 
         // for input message in input queue
@@ -75,6 +131,8 @@ export class ServerLobby {
         // on delete objects
         // have a history of objectId => exists
         // delete objects in this history not in the lobby
+
+        this.world_step += 1
 
     }
 
@@ -97,26 +155,33 @@ export class ServerLobby {
 export class ServerEngine {
 
     constructor() {
-
         this.playerId2lobbyId = {}
         this.lobbies = {}
         this.players = {}
 
     }
 
+
+    addPlayerToLobby(playerId, lobbyId) {
+        this.playerId2lobbyId[playerId] = lobbyId
+
+        this.lobbies[lobbyId].join(playerId)
+    }
+
+    init() {
+
+    }
+
     connect(playerId) {
-        console.log("connect")
         return 0;
     }
 
     disconnect(playerId) {
-        console.log("disconnect")
         return 0;
     }
 
     onMessage(playerId, message) {
-        console.log(message)
-        webrtc.xsend(playerId, {"type": "pong", t: performance.now()})
+        return 0;
     }
 
     update(dt) {

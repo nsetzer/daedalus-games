@@ -87,7 +87,6 @@ class Peer(object):
         #    logging.error("unable to send, data channel not open")
 
 async def route_rtc_offer(request):
-    print("offer headers", request.headers)
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
@@ -262,6 +261,9 @@ async def main_loop(ctxt):
 
     t0 = time.monotonic()
     spt = 1/60
+
+    ctxt.onServerInit()
+
     while True:
 
         disconnected = []
@@ -301,6 +303,9 @@ class WebContext():
         super().__init__()
 
         self.interval = 1/60
+
+    def onServerInit(self):
+        pass
 
     def onConnect(self, peer):
         pass

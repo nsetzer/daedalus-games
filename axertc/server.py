@@ -6,6 +6,7 @@ from daedalus.builder import Builder
 from .webrtc import main_loop, WebContext, add_dev_routes
 from aiohttp import web
 import asyncio
+import psutil
 
 class DevServer(WebContext):
 
@@ -25,6 +26,8 @@ class DevServer(WebContext):
         self.peers = {}
         self.outgoing_messages = []
 
+        self.proctimer = 0
+
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
         #self.srcmap_routes, self.srcmap = self.builder.sourcemap
@@ -33,21 +36,24 @@ class DevServer(WebContext):
 
         #print(self.builder.globals)
         #print(self.builder.root_exports)
+        self.source += "\ninit=server_entry.server.init"
         self.source += "\nupdate=server_entry.server.update"
         self.source += "\nconnect=server_entry.server.connect"
         self.source += "\ndisconnect=server_entry.server.disconnect"
         self.source += "\nonMessage=server_entry.server.onMessage"
 
         #exports = self.builder.root_exports
-        exports = ['connect', 'disconnect', 'onMessage', 'update']
+        exports = ['init', 'connect', 'disconnect', 'onMessage', 'update']
 
         self.mod = JsModule(self.source, exports, sourcemap=self.builder.servermap)
         self.mod.ctxt.add_callable("_webrtc_xsend", self._transmit)
         self.mod.ctxt.eval("webrtc={};webrtc.xsend=_webrtc_xsend")
 
-
     def _transmit(self, playerId, message):
         self.outgoing_messages.append((playerId, message))
+
+    def onServerInit(self):
+        self.mod.invoke('init')
 
     def onConnect(self, peer):
         self.mod.invoke('connect', peer.uid)
@@ -78,6 +84,13 @@ class DevServer(WebContext):
                 self.peers[playerId].send(message.json())
             else:
                 print("attempting to send message to peer that does not exist", playerId)
+
+        #self.proctimer -= dt
+        #if self.proctimer < 0:
+        #    self.proctimer += 5
+        #    ram_info = psutil.virtual_memory()
+        #    used = ram_info.used / 1024 / 1024 / 1024
+        #    print("cpu", psutil.cpu_percent(), used)
 
 def test():
 

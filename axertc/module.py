@@ -1,4 +1,8 @@
 
+"""
+
+the original quickjs repo has an example of using bjson
+"""
 import timeit
 
 import quickjs
@@ -19,9 +23,21 @@ def _js_performance_now(*args):
     delta = time.perf_counter() - _reference_time
     return int(delta*1000)
 
+def wrapcall(cbk):
+    # javascript swallows exceptions raised by python code in quickjs
+    # wrap the call and log the exception. then re-raise
+    def chkcall(*args, **kwargs):
+        try:
+            return cbk(*args, **kwargs)
+        except BaseException as e:
+            print(e)
+            raise e
+
 class JsModule(object):
-    def __init__(self, source, exports, sourcemap=None):
+    def __init__(self, source, exports=None, sourcemap=None):
         super(JsModule, self).__init__()
+
+        # exports can be a list of names defined in the global namespace
 
         # the source map is made up of two lists
         # index2path: a list containing the original file paths
@@ -33,6 +49,10 @@ class JsModule(object):
         # for the eval function, other than <input>. this will avoid the need for a preamble
         self.sourcemap = sourcemap # 2 tuple (index2path, lineNumber2index)
 
+        self._init_context()
+        self._init_source(source, exports)
+
+    def _init_context(self):
         self.ctxt = quickjs.Context()
 
         self.ctxt.add_callable("_console_log", _js_console_log)
@@ -41,19 +61,22 @@ class JsModule(object):
         self.ctxt.add_callable("_performance_now", _js_performance_now)
         self.ctxt.eval("performance={};performance.now=_performance_now")
 
+    def _init_source(self, source, exports):
         # preamble is a workwround for the hardcoded "<input>" for the source name
         # if the line number for an error is > 256 then the line corresponds to this
         # source code
         preamble = "\n" * 256
         source = preamble + source
-
         self.ctxt.eval(source)
-
         self.source = source.splitlines()
 
         self.exports = {}
-        for name in exports:
-            self.exports[name] = self.ctxt.get(name)
+        if exports:
+            for name in exports:
+                self.exports[name] = self.ctxt.get(name)
+
+    def add_callable(self, name, cbk):
+        return self.ctxt.add_callable(name, wrapcall(cbk))
 
     def convert_arg(self, arg):
         if isinstance(arg, _scalar_types):
