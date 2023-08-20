@@ -1,7 +1,40 @@
  
+/*
 
+fireworks game
+
+tap the screen to make fireworks. synchronized to all connected players
+
+
+
+architecture
+
+ClientApplication
+ClientEngine (canvas)
+Scene
+CspReceiver
+CspMap
+
+ServerContext
+ServerLobby
+CspReceiver
+CspMap
+
+map and entities implement get/set state
+
+tap the screen
+    scene sends a message to the server
+    server receives message
+    lobby receives message
+        message is validated
+        message is rebroadcast to all neighbors
+        csp receiver receives message
+
+
+
+*/
 $import("axertc_client", {
-    ApplicationBase, GameScene, RealTimeClient
+    ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget
 })
 
 class DemoRealTimeClient extends RealTimeClient {
@@ -36,19 +69,18 @@ class GameEngine {
     constructor() {
         this.world_step = -1
         this.local_step = -1
-        this.incomming_messages = []
+        this.incoming_messages = []
 
     }
 
     receiveMessage(message) {
-        console.log("receive", message)
-        this.incomming_messages.push(message)
+        this.incoming_messages.push(message)
     }
 
     update(dt) {
 
-        while (this.incomming_messages.length > 0) {
-            const msg = this.incomming_messages.shift()
+        while (this.incoming_messages.length > 0) {
+            const msg = this.incoming_messages.shift()
             if (msg.type == "map-sync") {
 
                 if (this.world_step < 0) {
@@ -111,10 +143,25 @@ class DemoScene {
         this.client = null
 
         this.keepalive_timer = 1
-        this.incomming_messages = []
+        this.incoming_messages = []
         this.latency = 0
 
         this.engine = new GameEngine()
+
+        this.grp = new WidgetGroup()
+        this.btn = this.grp.addWidget(new ButtonWidget())
+        const btnw = 128
+        const btnh = 32
+        this.btn.setText("Disconnect")
+        this.btn.rect.x = gEngine.view.width - btnw - 4
+        this.btn.rect.y = 4
+        this.btn.rect.w = btnw
+        this.btn.rect.h = btnh
+        this.btn.clicked = () => {
+            this.client.disconnect()
+        }
+
+
 
     }
 
@@ -131,7 +178,7 @@ class DemoScene {
                 if (message.type === "map-sync") {
                     this.engine.receiveMessage(message)
                 } else {
-                    this.incomming_messages.push(message)
+                    this.incoming_messages.push(message)
                 }
             })
             this.client.connect("/rtc/offer", {})
@@ -156,10 +203,11 @@ class DemoScene {
 
         this.engine.update(dt)
 
+        this.grp.update(dt)
 
 
-        while (this.incomming_messages.length > 0) {
-            const msg = this.incomming_messages.shift()
+        while (this.incoming_messages.length > 0) {
+            const msg = this.incoming_messages.shift()
             if (msg.type == "keepalive") {
 
                 let t1 = performance.now();
@@ -181,6 +229,8 @@ class DemoScene {
         ctx.beginPath()
         ctx.rect(0,0,gEngine.view.width, gEngine.view.height)
         ctx.stroke()
+
+        this.grp.paint(ctx)
 
         if (this.client) {
 
@@ -207,6 +257,15 @@ class DemoScene {
     }
 
     handleTouches(touches) {
+
+        this.grp.handleTouches(touches)
+
+        if (touches.length > 0) {
+            let touch = touches[0]
+            if (touch.pressed) {
+                console.log(touch)
+            }
+        }
     }
 
     handleKeyPress(keyevent) {
