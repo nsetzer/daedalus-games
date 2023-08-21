@@ -336,6 +336,7 @@ export class RealTimeClient {
             this.rb_xmit.get(this.frame_index).sent += nbytes
 
             this.dc.send(msg)
+            console.log("send", msg)
         }
     }
 

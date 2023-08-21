@@ -30,6 +30,9 @@ class DevServer(WebContext):
 
     def build(self):
         self.style, self.source, self.html = self.builder.build(self.index_js, **self.opts)
+
+        if self.builder.error:
+            raise self.builder.error
         #self.srcmap_routes, self.srcmap = self.builder.sourcemap
         #self.source = "//# sourceMappingURL=/static/index.js.map\n" + self.source
         print("server lines:", len(self.source.split("\n")), "bytes:", len(self.source),)

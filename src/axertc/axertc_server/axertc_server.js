@@ -87,7 +87,6 @@ export class ServerLobby {
         this.players = {} // playerId => player
         this.nextObjectId = 1;
 
-        this.world_step = 0
     }
 
     getNewObjectId() {
@@ -132,7 +131,6 @@ export class ServerLobby {
         // have a history of objectId => exists
         // delete objects in this history not in the lobby
 
-        this.world_step += 1
 
     }
 

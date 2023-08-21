@@ -13,7 +13,7 @@ def main():
 
     server_js = "./src/fireworks/server_entry.js"
     client_js = "./src/fireworks/client_entry.js"
-    search_path = ["./src", "./src/axertc"]
+    search_path = ["./src", "./src/axertc", "./src/fireworks"]
     static_data = {"daedalus": {"env": {"backend": "webrtc"}}}
     static_path = "./src/axertc/static"
 

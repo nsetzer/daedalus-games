@@ -20,6 +20,12 @@ ServerLobby
 CspReceiver
 CspMap
 
+CspReceiver and CspMap may be blended together
+    addObject
+    receiveInput
+    getState
+    setState
+
 map and entities implement get/set state
 
 tap the screen
@@ -31,11 +37,48 @@ tap the screen
         csp receiver receives message
 
 
+csp-sync-message
+    step: int
+    fragment: int
+    num_fragments: int
+    events: list
+
+
+Implementation order
+
+- [easy]   implement synchronized clocks
+- [medium] implement message sending / receiving
+- [hard]   implement create/destroy
+
+
+use pause break key to test resync
 
 */
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget
 })
+
+$import("fireworks_common", {FireworksMap})
+
+function pad(n, width, z) {
+  z = z || '0';
+  n = n + '';
+  return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
+
+function fmtTime(s) {
+    let z = pad(Math.floor((s%1)*10), 1)
+    let m = Math.floor(s / 60)
+    s = pad(Math.floor(s % 60), 2);
+    let h = Math.floor(m / 60)
+    m = m % 60
+    if (h > 0) {
+        m = pad(m, 2);
+        return `${h}:${m}:${s}.${z}`
+    } else {
+        return `${m}:${s}.${z}`
+    }
+}
 
 class DemoRealTimeClient extends RealTimeClient {
 
@@ -63,78 +106,6 @@ class DemoRealTimeClient extends RealTimeClient {
     }
 }
 
-
-class GameEngine {
-
-    constructor() {
-        this.world_step = -1
-        this.local_step = -1
-        this.incoming_messages = []
-
-    }
-
-    receiveMessage(message) {
-        this.incoming_messages.push(message)
-    }
-
-    update(dt) {
-
-        while (this.incoming_messages.length > 0) {
-            const msg = this.incoming_messages.shift()
-            if (msg.type == "map-sync") {
-
-                if (this.world_step < 0) {
-
-                    // TODO: check reset
-                    this.world_step = msg.step
-                    this.local_step = msg.step
-                } else {
-                    if (msg.step > this.world_step) {
-                        this.world_step = msg.step
-                    }
-                }
-
-            } else {
-                console.log(msg)
-            }
-        }
-
-        if (this.world_step >= 0) {
-
-            const STEP_NORMAL = 0
-            const STEP_SKIP = 1
-            const STEP_CATCHUP = 2
-            const delta = this.world_step - this.local_step
-            let step_kind = STEP_NORMAL
-
-            if (delta > 0) {
-                step_kind = STEP_CATCHUP
-            }
-            if (delta < 0) {
-                step_kind = STEP_SKIP
-            }
-
-            this.world_step += 1
-
-            if (step_kind == STEP_SKIP) {
-
-            } else if (step_kind == STEP_CATCHUP) {
-                this.step(dt)
-                this.step(dt)
-            } else {
-                this.step(dt)
-            }
-        }
-
-    }
-
-
-    step(dt) {
-        this.local_step += 1
-    }
-}
-
-
 class DemoScene {
 
 
@@ -146,7 +117,6 @@ class DemoScene {
         this.incoming_messages = []
         this.latency = 0
 
-        this.engine = new GameEngine()
 
         this.grp = new WidgetGroup()
         this.btn = this.grp.addWidget(new ButtonWidget())
@@ -161,7 +131,19 @@ class DemoScene {
             this.client.disconnect()
         }
 
+        this.client = new DemoRealTimeClient()
+        this.client.setCallback(message => {
+            if (message.type === "map-sync") {
+                this.map.receiveMessage(message)
+            } else {
+                this.incoming_messages.push(message)
+            }
+        })
 
+        this.connection_sent = false
+
+        console.log("create map", this.client.send)
+        this.map = new FireworksMap(this.client.send.bind(this.client))
 
     }
 
@@ -171,17 +153,11 @@ class DemoScene {
 
     update(dt) {
 
-        if (!this.client) {
+        if (!this.connection_sent) {
 
-            this.client = new DemoRealTimeClient()
-            this.client.setCallback(message => {
-                if (message.type === "map-sync") {
-                    this.engine.receiveMessage(message)
-                } else {
-                    this.incoming_messages.push(message)
-                }
-            })
+
             this.client.connect("/rtc/offer", {})
+            this.connection_sent = true
 
         } else {
 
@@ -201,7 +177,7 @@ class DemoScene {
 
         }
 
-        this.engine.update(dt)
+        this.map.update(dt)
 
         this.grp.update(dt)
 
@@ -215,7 +191,7 @@ class DemoScene {
                 this.latency = (t1 - t0)/2
 
             } else {
-                console.log(msg)
+                console.log("client update", msg)
             }
 
         }
@@ -238,10 +214,10 @@ class DemoScene {
             ctx.fillStyle = "yellow"
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
-            ctx.fillText(`world step: ${this.engine.world_step} ${(this.engine.world_step/60).toFixed(1)}`, 2, 2);
-            const d = this.engine.world_step - this.engine.local_step
+            ctx.fillText(`world step: ${this.map.world_step} ${fmtTime(this.map.world_step/60)}`, 2, 2);
+            const d = this.map.world_step - this.map.local_step
             const s = (d>=0)?'+':""
-            ctx.fillText(`local step: ${this.engine.local_step} ${s}${d}`, 2, 2 + 16);
+            ctx.fillText(`local step: ${this.map.local_step} ${s}${d}`, 2, 2 + 16);
             ctx.fillText(`latency ${this.latency}`, 2, 2 + 32);
 
             ctx.font = "16px mono";
@@ -263,7 +239,7 @@ class DemoScene {
         if (touches.length > 0) {
             let touch = touches[0]
             if (touch.pressed) {
-                console.log(touch)
+                this.map.clientEvent("csp-player-input", 0, touch)
             }
         }
     }
