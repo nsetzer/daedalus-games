@@ -56,7 +56,7 @@ class JsModule(object):
         self.ctxt = quickjs.Context()
 
         self.ctxt.add_callable("_console_log", _js_console_log)
-        self.ctxt.eval("console={};console.log=_console_log")
+        self.ctxt.eval("console={};console.log=_console_log;console.warn=_console_log;console.error=_console_log")
 
         self.ctxt.add_callable("_performance_now", _js_performance_now)
         self.ctxt.eval("performance={};performance.now=_performance_now")
@@ -67,8 +67,20 @@ class JsModule(object):
         # source code
         preamble = "\n" * 256
         source = preamble + source
-        self.ctxt.eval(source)
+
         self.source = source.splitlines()
+
+        error = None
+        try:
+            self.ctxt.eval(source)
+        except quickjs.JSException as e:
+            error = self._js_exception(e)
+        finally:
+            self.ctxt.gc()
+
+        if error:
+            raise error
+
 
         self.exports = {}
         if exports:
@@ -100,50 +112,7 @@ class JsModule(object):
                 result = json.loads(result.json())
 
         except quickjs.JSException as e:
-            lines = str(e).splitlines()
-
-            message = lines.pop(0)
-
-            errorinfo = ["Error executing javascript:"]
-
-            for line in lines[::-1]:
-                line = line.strip()
-                reference, location = line[2:].strip().rsplit(' ', 1)
-                location = int(location[1:-1].split(":")[1])
-
-                current_line = self.source[location-1].lstrip()
-                if location >= 256 and self.sourcemap:
-                    lineNumber = location - 256 - 1
-                    index2path, line2index = self.sourcemap
-
-                    index = None
-                    originalLineNumber = 0
-                    if lineNumber < len(line2index):
-                        if line2index[lineNumber]:
-                            index, originalLineNumber = line2index[lineNumber]
-                        else:
-                            print("\nwarning: info not set for line %s" % (lineNumber, ))
-                            print("  ", line2index[lineNumber-2:lineNumber+3])
-                    else:
-                        print("\nwarning: %s not in line2index %d" % (lineNumber, len(line2index)))
-
-                    path = None
-                    if index is not None and index < len(index2path):
-                        path = index2path[index]
-                    else:
-                        print("\nwarning: %s not in index2path %d" % (index, len(index2path)))
-
-                    if path:
-                        errorinfo.append("JS File \"%s\", line %d, in %s" % (path, originalLineNumber - 1, reference))
-                        errorinfo.append("  " + current_line)
-                    else:
-                        errorinfo.append("  " + line + " " + current_line)
-                else:
-                    errorinfo.append("  " + line + " " + current_line)
-
-            errorinfo.append(message)
-
-            error = Exception("\n".join(errorinfo))
+            error = self._js_exception(e)
 
         finally:
 
@@ -155,6 +124,59 @@ class JsModule(object):
 
         return result
 
+    def _js_exception(self, e):
+        lines = str(e).splitlines()
+
+        message = lines.pop(0)
+
+        errorinfo = ["Error executing javascript:"]
+
+        for line in lines[::-1]:
+            line = line.strip()
+            line = line[2:].strip()
+            if ' ' in line:
+                reference, location = line.rsplit(' ', 1)
+                location = int(location[1:-1].split(":")[1])
+            else:
+                reference = "???"
+                location = int(line.split(":")[1])
+
+
+            current_line = self.source[location-1].lstrip()
+            if location >= 256 and self.sourcemap:
+                lineNumber = location - 256 - 1
+                index2path, line2index = self.sourcemap
+
+                index = None
+                originalLineNumber = 0
+                if lineNumber < len(line2index):
+                    if line2index[lineNumber]:
+                        index, originalLineNumber = line2index[lineNumber]
+                    else:
+                        print("\nwarning: info not set for line %s" % (lineNumber, ))
+                        print("  ", line2index[lineNumber-2:lineNumber+3])
+                else:
+                    print("\nwarning: %s not in line2index %d" % (lineNumber, len(line2index)))
+
+                path = None
+                if index is not None and index < len(index2path):
+                    path = index2path[index]
+                else:
+                    print("\nwarning: %s not in index2path %d" % (index, len(index2path)))
+
+                if path:
+                    errorinfo.append("JS File \"%s\", line %d, in %s" % (path, originalLineNumber - 1, reference))
+                    errorinfo.append("  " + current_line)
+                else:
+                    errorinfo.append("  " + line + " " + current_line)
+            else:
+                errorinfo.append("  " + line + " " + current_line)
+
+        errorinfo.append(message)
+
+        error = Exception("\n".join(errorinfo))
+
+        return error
 
 def bench1():
 

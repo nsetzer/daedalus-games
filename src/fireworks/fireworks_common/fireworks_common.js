@@ -1,11 +1,11 @@
  
-$import("axertc_common", {ClientCspMap})
+$import("axertc_common", {CspMap, ClientCspMap})
 
 
 
-export class FireworksMap extends ClientCspMap {
+export class FireworksMap extends CspMap {
 
-    constructor(xsend = null) {
+    constructor(xsend=null) {
         super(xsend)
     }
 
@@ -18,7 +18,7 @@ export class FireworksMap extends ClientCspMap {
     }
 
     getState() {
-        return null
+        return {}
     }
 
     setState(state) {

@@ -57,7 +57,7 @@ use pause break key to test resync
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget
 })
-
+$import("axertc_common", {CspMap, ClientCspMap})
 $import("fireworks_common", {FireworksMap})
 
 function pad(n, width, z) {
@@ -143,7 +143,10 @@ class DemoScene {
         this.connection_sent = false
 
         console.log("create map", this.client.send)
-        this.map = new FireworksMap(this.client.send.bind(this.client))
+        let xsend = this.client.send.bind(this.client)
+        this.map = new ClientCspMap(new FireworksMap(xsend))
+
+        console.log("map created", this.map)
 
     }
 
@@ -215,9 +218,9 @@ class DemoScene {
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
             ctx.fillText(`world step: ${this.map.world_step} ${fmtTime(this.map.world_step/60)}`, 2, 2);
-            const d = this.map.world_step - this.map.local_step
+            const d = this.map.world_step - this.map.map.local_step
             const s = (d>=0)?'+':""
-            ctx.fillText(`local step: ${this.map.local_step} ${s}${d}`, 2, 2 + 16);
+            ctx.fillText(`local step: ${this.map.map.local_step} ${s}${d}`, 2, 2 + 16);
             ctx.fillText(`latency ${this.latency}`, 2, 2 + 32);
 
             ctx.font = "16px mono";

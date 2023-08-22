@@ -1,7 +1,7 @@
 
 
 $import("axertc_server", {ServerLobby, ServerEngine})
-
+$import("axertc_common", {CspMap, ServerCspMap})
 $import("fireworks_common", {FireworksMap})
 
 
@@ -13,7 +13,7 @@ class DemoLobby extends ServerLobby {
 
         this.world_timer = 0;
 
-        this.map = new FireworksMap()
+        this.map = new ServerCspMap(new FireworksMap(webrtc.xsend))
     }
 
     join(playerId) {
@@ -32,9 +32,9 @@ class DemoLobby extends ServerLobby {
     onMessage(playerId, message) {
 
         if (message.type == "csp-player-input") {
-            console.log("receive", playerId, this.map.local_step, message.step, message)
+            console.log("receive", playerId, this.map.map.local_step, message.step, message)
 
-            this.map.receiveEvent(message)
+            this.map.receiveMessage(message)
         }
 
 
@@ -43,7 +43,7 @@ class DemoLobby extends ServerLobby {
     update(dt) {
         super.update();
 
-        this.map.reconcile()
+        //this.map.reconcile()
         this.map.update(dt)
 
         this.world_timer -= dt
@@ -56,7 +56,7 @@ class DemoLobby extends ServerLobby {
 
     send_sync() {
         for (const playerId of Object.keys(this.players)) {
-            webrtc.xsend(playerId, {type: "map-sync", step: this.map.local_step})
+            webrtc.xsend(playerId, {type: "map-sync", step: this.map.map.local_step})
         }
     }
 

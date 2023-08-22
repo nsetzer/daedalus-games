@@ -2,7 +2,8 @@
 
 export class CspMap {
 
-    constructor() {
+    constructor(xsend = null) {
+        this.xsend = xsend
 
         this.step_rate = 60
 
@@ -212,12 +213,11 @@ const STEP_NORMAL = 0
 const STEP_SKIP = 1
 const STEP_CATCHUP = 2
 
-export class ClientCspMap extends CspMap {
+export class ClientCspMap {
 
-    constructor(xsend = null) {
-        super()
+    constructor(map) {
 
-        this.xsend = xsend
+        this.map = map
 
         this.world_step = -1
         this.incoming_message = []
@@ -228,7 +228,6 @@ export class ClientCspMap extends CspMap {
 
     }
 
-
     clientEvent(type, entid, payload) {
 
         let uid = this.next_msg_uid;
@@ -236,22 +235,19 @@ export class ClientCspMap extends CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.step_delay,
+            step: this.map.local_step + this.step_delay,
             entid,
             uid,
             payload
         }
 
-        console.log("csp-send", this.local_step, event)
+        console.log("csp-send", this.map.local_step, event)
 
-        this.receiveEvent(event)
+        this.map.receiveEvent(event)
 
-        console.log(this.xsend)
-
-        this.xsend?.(event)
+        this.map.xsend?.(event)
 
     }
-
 
     receiveMessage(message) {
         this.incoming_message.push(message)
@@ -267,7 +263,7 @@ export class ClientCspMap extends CspMap {
 
                     // TODO: check reset
                     this.world_step = msg.step
-                    this.local_step = msg.step
+                    this.map.local_step = msg.step
                 } else {
                     if (msg.step > this.world_step) {
                         this.world_step = msg.step
@@ -281,11 +277,11 @@ export class ClientCspMap extends CspMap {
             }
         }
 
-        this.reconcile()
+        this.map.reconcile()
 
         if (this.world_step >= 0) {
 
-            const delta = this.world_step - this.local_step
+            const delta = this.world_step - this.map.local_step
             let step_kind = STEP_NORMAL
 
             if (delta > this.step_delay) {
@@ -300,22 +296,47 @@ export class ClientCspMap extends CspMap {
             if (step_kind == STEP_SKIP) {
 
             } else if (step_kind == STEP_CATCHUP) {
-                this.update_before(dt, false)
-                this.update_main(dt, false)
-                this.update_after(dt, false)
+                this.map.update_before(dt, false)
+                this.map.update_main(dt, false)
+                this.map.update_after(dt, false)
 
-                this.update_before(dt, false)
-                this.update_main(dt, false)
-                this.update_after(dt, false)
+                this.map.update_before(dt, false)
+                this.map.update_main(dt, false)
+                this.map.update_after(dt, false)
             } else {
 
-                this.update_before(dt, false)
-                this.update_main(dt, false)
-                this.update_after(dt, false)
+                this.map.update_before(dt, false)
+                this.map.update_main(dt, false)
+                this.map.update_after(dt, false)
             }
         }
-
-
     }
 
+    paint(ctx) {
+        this.map.paint(ctx)
+    }
+
+}
+
+
+export class ServerCspMap {
+    constructor(map, xsend = null) {
+        this.map = map
+        this.xsend = xsend
+        this.incoming_message = []
+    }
+
+    receiveMessage(message) {
+        this.incoming_message.push(message)
+    }
+
+    update(dt) {
+
+        while (this.incoming_message.length > 0) {
+            const msg = this.incoming_message.shift()
+            this.map.receiveEvent(msg)
+        }
+        this.map.reconcile()
+        this.map.update(dt)
+    }
 }
