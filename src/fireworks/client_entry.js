@@ -56,8 +56,8 @@ use pause break key to test resync
 
 user presses a button
     sends a message with playerId, local_step+6, msg_uid, indicating the intent to create an object
-    creates a firework with objectid <oid-shadow>
-    server validates that the user is allowed to create this object, assigns an object id <oid>
+    creates a firework with objectid <obj-`playerId`-`msg_uid`>
+    server validates that the user is allowed to create this object, assigns an object id <obj-`playerId`-`msg_uid`>
     server broadcasts to all players that <playerid, msg_uid, oid> created an object at step <step>
     other players create the same object
 
@@ -66,7 +66,7 @@ user presses a button
         prop playerId
         fun  createObject(msg_uid, class-ctor, props)
                 shadowObjects[(playerId, msg_uid)] = new class-ctor(props)
-        fun  createObject(msg_uid, oid, class-ctor, props)
+        fun  createObject(playerId, msg_uid, oid, class-ctor, props)
 
 Shadow Objects
 two kinds
@@ -76,11 +76,21 @@ two kinds
         server validates and updates the client to the true state
         the bullet can be created a head of time assuming that the server will validate it correctly
 
+        solving this requires that object-ids are the player id that created them + a unique id
+
+
     Bending
         objects controlled by remote players should have a shadow copy
         the shadow copy receives all updates, including reconciliation
         the true objects dont get reconciled
         instead, at each step the true object is updated to be a little more like the shadow
+
+validate / invalidate
+
+when a client sends an input message
+the server can just respond with the <entid, msg_uid> and whether it is valid/invalid
+invalid messages are deleted by the framework and then reconciled.
+the server can use sendNeighbors to forward the input to all peers
 */
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget

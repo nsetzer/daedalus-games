@@ -234,6 +234,40 @@ export class CspMap {
         this.outgoing_messages.push(tmp)
     }
 
+    registerClass(className, classConstructor) {
+
+    }
+
+    createObject(entId, className, props) {
+        // get the class from the registered set of classes
+        // check if the object has already been created
+    }
+
+    sendCreateObjectEvent(className, props) {
+
+        // provide api to generate entid from message
+        // entid is playerId + msg uid + localstep
+
+        let uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+
+        const type = "csp-object-create"
+        const payload = {className, props}
+
+        const event = {
+            type,
+            step: this.map.local_step + this.step_delay,
+            entid,
+            uid,
+            payload
+        }
+
+        console.log("csp-send", this.map.local_step, event)
+
+        this.receiveEvent(event)
+
+        this.map.sendMessage(null, event)
+    }
 
 }
 

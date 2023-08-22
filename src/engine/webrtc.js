@@ -223,7 +223,7 @@ export class RealTimeClient {
         }).then(() => {
             let offer = this.pc.localDescription;
             let codec;
-            console.log(offer.sdp)
+            //console.log(offer.sdp)
             return fetch(url, {
                 body: JSON.stringify({
                     sdp: offer.sdp,
@@ -236,14 +236,14 @@ export class RealTimeClient {
                 method: 'POST'
             });
         }).then((response) => {
-            console.log(response)
+            //console.log(response)
             if (response.ok) {
                 return response.json();
             }
             response.text().then((message)=>{console.error(message)})
             throw new Error('Something went wrong.');
         }).then((answer) => {
-            console.log(answer.sdp)
+            //console.log(answer.sdp)
             return this.pc.setRemoteDescription(answer);
         }).catch((e) => {
             console.error(e);

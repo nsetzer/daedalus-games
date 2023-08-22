@@ -18,6 +18,7 @@ from daedalus.builder import Builder, Lexer
 site = None
 peers = {}
 incoming_messages = []
+next_peer_id = 1024;
 
 logging.getLogger("aioice.ice").setLevel(logging.WARNING)
 logger = logging.getLogger("pc")
@@ -91,10 +92,26 @@ async def route_rtc_offer(request):
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
     pc = RTCPeerConnection()
-    pc_id = str(uuid.uuid4())
+
+    global next_peer_id
+
+
+    pc_id = "%04X" % next_peer_id
+    next_peer_id += 1
+    if next_peer_id > 0xFFFF:
+        next_peer_id = 1024
+    while pc_id in peers:
+        pc_id = "%04X" % next_peer_id
+        next_peer_id += 1
+        if next_peer_id > 0xFFFF:
+            next_peer_id = 1024
+    # pc_id = str(uuid.uuid4())
+
     pc_sid = "PeerConnection(%s)" % pc_id
 
     current_peer = Peer(pc_id, pc)
+
+
 
     peers[pc_id] = current_peer
 

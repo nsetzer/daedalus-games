@@ -5,8 +5,7 @@ $import("axertc_common", {CspMap, ClientCspMap})
 
 export class FireworksMap extends CspMap {
 
-    constructor(xsend=null) {
-        super(xsend)
+    constructor() {
     }
 
     handleMessage(msg) {

@@ -48,12 +48,12 @@ function normalBoxMuller(mean=0, stdev=1) {
 
 export class CspRingBuffer {
 
-    constructor(capacity) {
+    constructor(capacity, default_value=null) {
 
         this.capacity = capacity
         this.data = []
         for (let i = 0; i < capacity; i++) {
-            this.data.push(null)
+            this.data.push(default_value)
         }
 
     }
@@ -73,7 +73,7 @@ export class RealTimeEchoClient {
 
         this.frame_index = 0
         // average total bytes sent and received over a 3 second window
-        this.rb_xmit = new CspRingBuffer(60*3)
+        this.rb_xmit = new CspRingBuffer(60*3, 0)
         this.total_sent = 0
         this.total_received = 0
 
@@ -187,7 +187,7 @@ export class RealTimeClient {
                 let message = ' webrtc -> ' + this.pc.iceGatheringState;
                 console.log(message);
             }, false);
-        console.log(' webrtc -> ' + this.pc.iceGatheringState);
+        //console.log(' webrtc -> ' + this.pc.iceGatheringState);
 
         this.pc.addEventListener('iceconnectionstatechange', () => {
             let message = ' webrtc -> ' + this.pc.iceConnectionState;
@@ -196,13 +196,13 @@ export class RealTimeClient {
             }
             console.log(message);
         }, false);
-        console.log(' webrtc -> ' + this.pc.iceConnectionState);
+        //console.log(' webrtc -> ' + this.pc.iceConnectionState);
 
         this.pc.addEventListener('signalingstatechange', () => {
             let message = ' webrtc -> ' + this.pc.signalingState;
             console.log(message);
         }, false);
-        console.log(' webrtc -> ' + this.pc.signalingState);
+        //console.log(' webrtc -> ' + this.pc.signalingState);
     }
 
     negotiate(url, headers) {
@@ -226,7 +226,7 @@ export class RealTimeClient {
         }).then(() => {
             let offer = this.pc.localDescription;
             let codec;
-            console.log(offer.sdp)
+            //console.log(offer.sdp)
             return fetch(url, {
                 body: JSON.stringify({
                     sdp: offer.sdp,
@@ -239,14 +239,14 @@ export class RealTimeClient {
                 method: 'POST'
             });
         }).then((response) => {
-            console.log(response)
+            //console.log(response)
             if (response.ok) {
                 return response.json();
             }
             response.text().then((message)=>{console.error(message)})
             throw new Error('Something went wrong.');
         }).then((answer) => {
-            console.log(answer.sdp)
+            //console.log(answer.sdp)
             return this.pc.setRemoteDescription(answer);
         }).catch((e) => {
             console.error(e);
