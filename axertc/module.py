@@ -65,8 +65,9 @@ class JsModule(object):
         # preamble is a workwround for the hardcoded "<input>" for the source name
         # if the line number for an error is > 256 then the line corresponds to this
         # source code
-        preamble = "\n" * 256
-        source = preamble + source
+        preamble = "\n" * 255
+        source = "try {\n" + preamble + source + "\n} catch (e) {throw (!!e.stack)?('message:' + e.message + '\\n' + e.stack):JSON.stringify(e)}"
+        #"console.log(e.stack); console.log('caught:', e.message); throw JSON.stringify(e)}"
 
         self.source = source.splitlines()
 
@@ -135,46 +136,56 @@ class JsModule(object):
 
         errorinfo = ["Error executing javascript:"]
 
-        for line in lines[::-1]:
-            line = line.strip()
-            line = line[2:].strip()
+        for org_line in lines[::-1]:
+            org_line = org_line.strip()
+            if not org_line:
+                continue
+            if org_line =="undefined":
+                continue
+            line = org_line[2:].strip()
             if ' ' in line:
                 reference, location = line.rsplit(' ', 1)
                 location = int(location[1:-1].split(":")[1])
-            else:
+            elif ':' in line:
                 reference = "???"
                 location = int(line.split(":")[1])
+            else:
 
+                errorinfo.append(org_line)
+                continue
 
             current_line = self.source[location-1].lstrip()
-            if location >= 256 and self.sourcemap:
-                lineNumber = location - 256 - 1
-                index2path, line2index = self.sourcemap
+            if self.sourcemap:
+                if location >= 256:
+                    lineNumber = location - 256 - 1
+                    index2path, line2index = self.sourcemap
 
-                index = None
-                originalLineNumber = 0
-                if lineNumber < len(line2index):
-                    if line2index[lineNumber]:
-                        index, originalLineNumber = line2index[lineNumber]
+                    index = None
+                    originalLineNumber = 0
+                    if lineNumber < len(line2index):
+                        if line2index[lineNumber]:
+                            index, originalLineNumber = line2index[lineNumber]
+                        else:
+                            print("\nwarning: info not set for line %s" % (lineNumber, ))
+                            print("  ", line2index[lineNumber-2:lineNumber+3])
                     else:
-                        print("\nwarning: info not set for line %s" % (lineNumber, ))
-                        print("  ", line2index[lineNumber-2:lineNumber+3])
-                else:
-                    print("\nwarning: %s not in line2index %d" % (lineNumber, len(line2index)))
+                        print("\nwarning: %s not in line2index %d" % (lineNumber, len(line2index)))
 
-                path = None
-                if index is not None and index < len(index2path):
-                    path = index2path[index]
-                else:
-                    print("\nwarning: %s not in index2path %d" % (index, len(index2path)))
+                    path = None
+                    if index is not None and index < len(index2path):
+                        path = index2path[index]
+                    else:
+                        print("\nwarning: %s not in index2path %d" % (index, len(index2path)))
 
-                if path:
-                    errorinfo.append("JS File \"%s\", line %d, in %s" % (path, originalLineNumber - 1, reference))
-                    errorinfo.append("  " + current_line)
+                    if path:
+                        errorinfo.append("JS File \"%s\", line %d, in %s" % (path, originalLineNumber - 1, reference))
+                        errorinfo.append("  " + current_line)
+                    else:
+                        errorinfo.append("  (*)" + line + " " + current_line)
                 else:
-                    errorinfo.append("  " + line + " " + current_line)
+                    errorinfo.append("  (+)" + line + " " + current_line)
             else:
-                errorinfo.append("  " + line + " " + current_line)
+                errorinfo.append("  (-)" + line + " " + current_line)
 
         errorinfo.append(message)
 

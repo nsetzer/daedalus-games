@@ -1,7 +1,7 @@
  
+// https://codepen.io/whqet/pen/abooRX
+
 $import("axertc_common", {CspMap, ClientCspMap})
-
-
 
 export class FireworksMap extends CspMap {
 

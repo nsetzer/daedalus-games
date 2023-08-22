@@ -4,13 +4,18 @@ export class CspMap {
 
     constructor() {
         this.isServer = false
+        this.playerId = "null"
 
         this.step_rate = 60
 
+        this.class_registry = {}
+
         this.objects = {}
+        this.destroyed_objects = {}
 
         //this.world_step = 0
         this.local_step = 0;
+        this.next_msg_uid = 1
 
         //-----------------------------------------------------
         // send (to remote)
@@ -43,6 +48,7 @@ export class CspMap {
 
         let step = msg.step
         let idx = this._frameIndex(step)
+        console.log(idx)
 
         if (!this._hasinput(idx, msg.entid, msg.uid)) {
             this._setinput(idx, msg.entid, msg.uid, msg)
@@ -207,16 +213,14 @@ export class CspMap {
     }
 
     sendMessage(playerId, message) {
-        console.log("csp send", playerId, message)
-
-        this.outgoing_messages.push({type: 0, playerId: playerId, message:message})
+        this.outgoing_messages.push({kind: 1, playerId: playerId, message:message})
     }
 
     sendNeighbors(playerId, message) {
         if (!this.isServer) {
             throw {message: "can only send to neighbors from the server"}
         }
-        this.outgoing_messages.push({type: 1, playerId, message})
+        this.outgoing_messages.push({kind: 2, playerId, message})
     }
 
     sendBroadcast(playerId, message) {
@@ -224,23 +228,50 @@ export class CspMap {
             throw {message: "can only send to neighbors from the server"}
         }
         const tmp = {
-            "type": 2,
+            kind: 3,
             "playerId":playerId,
             "message":message
         }
-        console.log("broadcast playerId", playerId)
-        console.log("broadcast message", message)
-        console.log(`broadcast ${JSON.stringify(tmp)}`)
         this.outgoing_messages.push(tmp)
     }
 
     registerClass(className, classConstructor) {
 
+        this.class_registry[className] = classConstructor
+
+    }
+
+    setPlayerId(playerId) {
+        // TODO: only needed on the client
+        this.playerId = playerId
     }
 
     createObject(entId, className, props) {
         // get the class from the registered set of classes
         // check if the object has already been created
+
+
+        // TODO: if the object already exists, reset to initial state
+        const ctor = this.class_registry[className]
+
+        const ent = new ctor(entId, props)
+
+        this.objects[entId] = ent
+
+        console.log('object created', entId)
+    }
+
+
+    destroyObject(entId) {
+
+        if (entId in this.objects) {
+
+            this.destroyed_objects[entId] = this.objects[entId]
+            delete this.objects[entId]
+            console.log('object destroyed', entId)
+        } else {
+            console.log('no object to delete', entId)
+        }
     }
 
     sendCreateObjectEvent(className, props) {
@@ -248,25 +279,36 @@ export class CspMap {
         // provide api to generate entid from message
         // entid is playerId + msg uid + localstep
 
-        let uid = this.next_msg_uid;
+        const uid = this.next_msg_uid;
         this.next_msg_uid += 1;
 
         const type = "csp-object-create"
         const payload = {className, props}
 
+        let entid;
+
+        if (this.isServer) {
+            entid= "" + uid
+        } else {
+            if (this.playerId === null) {
+                throw {message: "playerId not set"}
+            }
+            entid= this.playerId + "-" + uid
+        }
+
         const event = {
             type,
-            step: this.map.local_step + this.step_delay,
+            step: this.local_step + this.input_delay,
             entid,
             uid,
             payload
         }
 
-        console.log("csp-send", this.map.local_step, event)
+        console.log("csp-send", this.local_step, event)
 
         this.receiveEvent(event)
 
-        this.map.sendMessage(null, event)
+        this.sendMessage(null, event)
     }
 
 }
