@@ -278,6 +278,8 @@ export class CspMap {
 
         // provide api to generate entid from message
         // entid is playerId + msg uid + localstep
+        // entid is msg uid + localstep
+        // because playerId may not be known by this class
 
         const uid = this.next_msg_uid;
         this.next_msg_uid += 1;
@@ -377,6 +379,9 @@ export class ClientCspMap {
 
                 //this.receiveEvent()
 
+            }
+            else if (msg.type == "csp-object-create") {
+                this.map.receiveEvent(msg)
             } else {
                 console.log("unreconized map message", msg)
             }
@@ -432,8 +437,16 @@ export class ServerCspMap {
         this.incoming_message = []
     }
 
-    receiveMessage(message) {
-        this.incoming_message.push(message)
+    receiveMessage(playerId, message) {
+
+        console.log("server received", message)
+
+        if (this.map.validateMessage(playerId, message) === false) {
+            ;
+        } else {
+            this.incoming_message.push(message)
+        }
+
     }
 
     update(dt) {

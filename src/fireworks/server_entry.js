@@ -31,10 +31,12 @@ class DemoLobby extends ServerLobby {
 
     onMessage(playerId, message) {
 
-        if (message.type == "csp-player-input") {
+        if (message.type == "csp-object-create") {
             console.log("receive", playerId, this.map.map.local_step, message.step, message)
 
-            this.map.receiveMessage(message)
+            this.map.receiveMessage(playerId, message)
+        } else {
+            console.log("unreconized message", playerId, message)
         }
 
 
@@ -50,14 +52,14 @@ class DemoLobby extends ServerLobby {
             const msg = this.map.map.outgoing_messages.shift()
             console.log("xserver send id ", msg.playerId)
             console.log("xserver send msg", msg.message)
-            switch (msg.type) {
-            case 0:
+            switch (msg.kind) {
+            case 1:
                 this.sendMessage(msg.playerId, msg.message)
                 break;
-            case 1:
+            case 2:
                 this.sendNeighbors(msg.playerId, msg.message)
                 break;
-            case 2:
+            case 3:
                 this.sendBroadcast(msg.playerId, msg.message)
                 break;
             default:

@@ -171,7 +171,10 @@ class DemoScene {
 
         this.client = new DemoRealTimeClient()
         this.client.setCallback(message => {
-            if (message.type === "map-sync") {
+            if (message.type === "csp-object-create") {
+                this.map.receiveMessage(message)
+            }
+            else if (message.type === "map-sync") {
                 this.map.receiveMessage(message)
             } else {
                 this.incoming_messages.push(message)
@@ -237,6 +240,7 @@ class DemoScene {
             } else if (msg.type === "connect") {
                 console.log(msg)
                 this.playerId = msg.playerId
+                this.map.map.setPlayerId(this.playerId)
                 console.log("playerId:", this.playerId)
             } else {
                 console.log("client update", msg)
@@ -260,6 +264,7 @@ class DemoScene {
         ctx.rect(0,0,gEngine.view.width, gEngine.view.height)
         ctx.stroke()
 
+        this.map.paint(ctx)
         this.grp.paint(ctx)
 
         if (this.client) {
@@ -293,7 +298,7 @@ class DemoScene {
         if (touches.length > 0) {
             let touch = touches[0]
             if (touch.pressed) {
-                this.map.clientEvent("csp-player-input", 0, touch)
+                this.map.map.sendCreateObjectEvent("Entity", touch)
             }
         }
     }
