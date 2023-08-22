@@ -70,6 +70,10 @@ class JsModule(object):
 
         self.source = source.splitlines()
 
+
+        with open("/tmp/server.js", "w") as wf:
+            wf.write(source)
+
         error = None
         try:
             self.ctxt.eval(source)

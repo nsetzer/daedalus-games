@@ -53,6 +53,34 @@ Implementation order
 
 use pause break key to test resync
 
+
+user presses a button
+    sends a message with playerId, local_step+6, msg_uid, indicating the intent to create an object
+    creates a firework with objectid <oid-shadow>
+    server validates that the user is allowed to create this object, assigns an object id <oid>
+    server broadcasts to all players that <playerid, msg_uid, oid> created an object at step <step>
+    other players create the same object
+
+
+    client:
+        prop playerId
+        fun  createObject(msg_uid, class-ctor, props)
+                shadowObjects[(playerId, msg_uid)] = new class-ctor(props)
+        fun  createObject(msg_uid, oid, class-ctor, props)
+
+Shadow Objects
+two kinds
+    Predictive Shadow Copies
+        player fires a gun,
+        client creates the bullet
+        server validates and updates the client to the true state
+        the bullet can be created a head of time assuming that the server will validate it correctly
+
+    Bending
+        objects controlled by remote players should have a shadow copy
+        the shadow copy receives all updates, including reconciliation
+        the true objects dont get reconciled
+        instead, at each step the true object is updated to be a little more like the shadow
 */
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget
@@ -140,13 +168,16 @@ class DemoScene {
             }
         })
 
+
         this.connection_sent = false
 
         console.log("create map", this.client.send)
-        let xsend = this.client.send.bind(this.client)
-        this.map = new ClientCspMap(new FireworksMap(xsend))
+        //let xsend = this.client.send.bind(this.client)
+        this.map = new ClientCspMap(new FireworksMap())
 
         console.log("map created", this.map)
+
+        this.playerId = null
 
     }
 
@@ -193,11 +224,21 @@ class DemoScene {
                 let t0 = msg.t
                 this.latency = (t1 - t0)/2
 
+            } else if (msg.type === "connect") {
+                console.log(msg)
+                this.playerId = msg.playerId
+                console.log("playerId:", this.playerId)
             } else {
                 console.log("client update", msg)
             }
 
         }
+
+        while (this.map.map.outgoing_messages.length > 0) {
+            const msg = this.map.map.outgoing_messages.shift()
+            this.client.send(msg.message)
+        }
+
 
 
     }

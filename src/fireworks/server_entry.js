@@ -13,7 +13,7 @@ class DemoLobby extends ServerLobby {
 
         this.world_timer = 0;
 
-        this.map = new ServerCspMap(new FireworksMap(webrtc.xsend))
+        this.map = new ServerCspMap(new FireworksMap())
     }
 
     join(playerId) {
@@ -45,6 +45,27 @@ class DemoLobby extends ServerLobby {
 
         //this.map.reconcile()
         this.map.update(dt)
+
+        while (this.map.map.outgoing_messages.length > 0) {
+            const msg = this.map.map.outgoing_messages.shift()
+            console.log("xserver send id ", msg.playerId)
+            console.log("xserver send msg", msg.message)
+            switch (msg.type) {
+            case 0:
+                this.sendMessage(msg.playerId, msg.message)
+                break;
+            case 1:
+                this.sendNeighbors(msg.playerId, msg.message)
+                break;
+            case 2:
+                this.sendBroadcast(msg.playerId, msg.message)
+                break;
+            default:
+                console.log("invalid message type", msg)
+                break
+            }
+        }
+
 
         this.world_timer -= dt
         if (this.world_timer < 0) {
@@ -89,6 +110,8 @@ class DemoServerEngine extends ServerEngine {
 
         this.players[playerId] = true
         this.addPlayerToLobby(playerId, this.default_lobby_id)
+
+        webrtc.xsend(playerId, {type: "connect", playerId})
 
         return 0;
     }

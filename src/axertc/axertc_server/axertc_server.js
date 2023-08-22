@@ -136,16 +136,24 @@ export class ServerLobby {
 
     sendMessage(playerId, message) {
         // send a message to playerId
-        console.log(message)
+        webrtc.xsend(playerId, message)
+
     }
 
     sendNeighbors(playerId, message) {
         // send a message to all players in the lobby except playerId
-
+        for (const [otherId, _] of Object.entries(this.players)) {
+            if (otherId != playerId) {
+                webrtc.xsend(otherId, message)
+            }
+        }
     }
 
     sendBroadcast(playerId, message) {
         // send a message to all players in the lobby
+        for (const [otherId, _] of Object.entries(this.players)) {
+            webrtc.xsend(otherId, message)
+        }
     }
 
 }

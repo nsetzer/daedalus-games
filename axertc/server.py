@@ -84,6 +84,10 @@ class DevServer(WebContext):
             playerId, message = self.outgoing_messages.pop()
 
             if playerId in self.peers:
+                try:
+                    data = message.json()
+                except AttributeError as e:
+                    raise Exception(f"{playerId}: message: {str(e)}")
                 self.peers[playerId].send(message.json())
             else:
                 print("attempting to send message to peer that does not exist", playerId)

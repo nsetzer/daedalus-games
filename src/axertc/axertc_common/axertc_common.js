@@ -2,8 +2,8 @@
 
 export class CspMap {
 
-    constructor(xsend = null) {
-        this.xsend = xsend
+    constructor() {
+        this.isServer = false
 
         this.step_rate = 60
 
@@ -13,8 +13,9 @@ export class CspMap {
         this.local_step = 0;
 
         //-----------------------------------------------------
-        // send
+        // send (to remote)
         this.input_delay = 6
+        this.outgoing_messages = []
 
         //-----------------------------------------------------
         // receive
@@ -35,7 +36,6 @@ export class CspMap {
 
         this.dirty_step = null
 
-
     }
 
     receiveEvent(msg) {
@@ -55,7 +55,6 @@ export class CspMap {
 
 
         }
-
     }
 
     reconcile() {
@@ -207,6 +206,35 @@ export class CspMap {
         this.update_main(1.0/this.step_rate, true)
     }
 
+    sendMessage(playerId, message) {
+        console.log("csp send", playerId, message)
+
+        this.outgoing_messages.push({type: 0, playerId: playerId, message:message})
+    }
+
+    sendNeighbors(playerId, message) {
+        if (!this.isServer) {
+            throw {message: "can only send to neighbors from the server"}
+        }
+        this.outgoing_messages.push({type: 1, playerId, message})
+    }
+
+    sendBroadcast(playerId, message) {
+        if (!this.isServer) {
+            throw {message: "can only send to neighbors from the server"}
+        }
+        const tmp = {
+            "type": 2,
+            "playerId":playerId,
+            "message":message
+        }
+        console.log("broadcast playerId", playerId)
+        console.log("broadcast message", message)
+        console.log(`broadcast ${JSON.stringify(tmp)}`)
+        this.outgoing_messages.push(tmp)
+    }
+
+
 }
 
 const STEP_NORMAL = 0
@@ -218,6 +246,7 @@ export class ClientCspMap {
     constructor(map) {
 
         this.map = map
+        this.map.isServer = false
 
         this.world_step = -1
         this.incoming_message = []
@@ -245,7 +274,7 @@ export class ClientCspMap {
 
         this.map.receiveEvent(event)
 
-        this.map.xsend?.(event)
+        this.map.sendMessage(null, event)
 
     }
 
@@ -316,13 +345,14 @@ export class ClientCspMap {
         this.map.paint(ctx)
     }
 
+
 }
 
 
 export class ServerCspMap {
-    constructor(map, xsend = null) {
+    constructor(map) {
         this.map = map
-        this.xsend = xsend
+        this.map.isServer = true
         this.incoming_message = []
     }
 
