@@ -171,10 +171,8 @@ class DemoScene {
 
         this.client = new DemoRealTimeClient()
         this.client.setCallback(message => {
-            if (message.type === "csp-object-create") {
-                this.map.receiveMessage(message)
-            }
-            else if (message.type === "map-sync") {
+
+            if (this.map.acceptsEvent(message.type)) {
                 this.map.receiveMessage(message)
             } else {
                 this.incoming_messages.push(message)
@@ -240,10 +238,10 @@ class DemoScene {
             } else if (msg.type === "connect") {
                 console.log(msg)
                 this.playerId = msg.playerId
-                this.map.map.setPlayerId(this.playerId)
+                this.map.setPlayerId(this.playerId)
                 console.log("playerId:", this.playerId)
             } else {
-                console.log("client update", msg)
+                console.log("client scene received unknown message", msg)
             }
 
         }
@@ -277,7 +275,9 @@ class DemoScene {
             const d = this.map.world_step - this.map.map.local_step
             const s = (d>=0)?'+':""
             ctx.fillText(`local step: ${this.map.map.local_step} ${s}${d}`, 2, 2 + 16);
-            ctx.fillText(`latency ${this.latency}`, 2, 2 + 32);
+            ctx.fillText(`latency ${this.latency} ms`, 2, 2 + 32);
+            ctx.fillText(`fps ${gEngine.fps}`, 2, 2 + 48);
+            ctx.fillText(`entities ${Object.keys(this.map.map.objects).length}`, 2, 2 + 64);
 
             ctx.font = "16px mono";
             ctx.fillStyle = "yellow"

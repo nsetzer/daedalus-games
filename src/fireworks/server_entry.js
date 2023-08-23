@@ -114,6 +114,7 @@ class DemoServerEngine extends ServerEngine {
         this.addPlayerToLobby(playerId, this.default_lobby_id)
 
         webrtc.xsend(playerId, {type: "connect", playerId})
+        console.log("connection sent for", playerId)
 
         return 0;
     }

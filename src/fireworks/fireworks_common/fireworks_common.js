@@ -1,13 +1,27 @@
  
 // https://codepen.io/whqet/pen/abooRX
 
+// TODO: rename map to World
 $import("axertc_common", {CspMap, ClientCspMap})
 
 class Entity {
-    constructor(entid, props) {
+    constructor(map, entid, props) {
 
-        this.x = props.x
-        this.y = props.y
+        // TODO: if the only reason to pass in the map is to implement Destroy
+        //       then an alternative is in the creation phase, destroy can be patched in
+        this.map = map
+        this.entid = entid
+
+        this.x = 320
+        this.y = 360
+
+        this.x_start = 320
+        this.y_start = 360
+
+        this.x_end = props.x
+        this.y_end = props.y
+
+        this.timer = 0
 
     }
 
@@ -21,6 +35,32 @@ class Entity {
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#003300';
         ctx.stroke();
+    }
+
+    update(dt) {
+
+        this.timer += dt
+
+        const d1 = .8
+        const d2 = 1.6
+
+        if (this.timer < d1) {
+            const p = this.timer / d1
+            this.x = this.x_start + (this.x_end - this.x_start) * p
+            this.y = this.y_start + (this.y_end - this.y_start) * p
+        } else {
+            this.x = this.x_end
+            this.y = this.y_end
+        }
+
+        if (this.timer > d2) {
+            this.destroy()
+        }
+
+    }
+
+    destroy() {
+        this.map.destroyObject(this.entid)
     }
 
 
@@ -39,23 +79,12 @@ export class FireworksMap extends CspMap {
         this.sendNeighbors(playerId, msg)
     }
 
-    handleMessage(msg) {
-        // TODO: this must receive the playerId that sent the message
-
-        if (this.isServer) {
-            console.log(`csp-server ${this.local_step} ${JSON.stringify(msg)}`)
-
-            //this.sendBroadcast(null, {type:"csp-player-input", payload: "not ready"})
-        } else {
-
-
-            this.createObject(msg.entid, msg.payload.className, msg.payload.props)
-            console.log(`csp-client ${this.local_step} ${JSON.stringify(msg)}`)
-        }
-
-    }
-
     update_main(dt, reconcile) {
+
+        for (const obj of Object.values(this.objects)) {
+
+            obj.update(dt)
+        }
 
     }
 

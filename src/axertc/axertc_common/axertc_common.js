@@ -1,5 +1,11 @@
 
 
+/**
+ * one way to implement reconciliation is to hydrate a shadow world
+ * using the saved state, then run the simulation forward
+ * then for up to N steps after run both the shadow world and current world
+ * at every step bend objects that are detected to be out of sync
+ */
 export class CspMap {
 
     constructor() {
@@ -41,7 +47,38 @@ export class CspMap {
 
         this.dirty_step = null
 
+        this.events = {}
+
+        this.addCustomEvent("csp-object-create", this._onEventObjectCreate.bind(this))
+        this.addCustomEvent("csp-object-input", this._onEventObjectInput.bind(this))
+        this.addCustomEvent("csp-object-destroy", this._onEventObjectDestroy.bind(this))
+        this.addCustomEvent("map-sync", (msg)=>{})
+
     }
+
+    addCustomEvent(eventName, cbk) {
+
+        this.events[eventName] = cbk
+    }
+
+    _onEventObjectCreate(msg) {
+        this.createObject(msg.entid, msg.payload.className, msg.payload.props)
+    }
+
+    _onEventObjectInput(msg) {
+        this.objects[entId].onInput(msg.payload)
+    }
+
+    _onEventObjectDestroy(msg) {
+        this.destroyObject(msg.entid)
+    }
+
+    acceptsEvent(etype) {
+
+        return etype in this.events
+
+    }
+
 
     receiveEvent(msg) {
 
@@ -106,6 +143,12 @@ export class CspMap {
 
     handleMessage(msg) {
 
+        if (msg.type in this.events) {
+            this.events[msg.type](msg)
+            console.log(`csp-handle ${this.local_step} ${JSON.stringify(msg)}`)
+        } else {
+            console.log(`csp-handle not supported ${JSON.stringify(msg)}`)
+        }
     }
 
     update_before(dt, reconcile) {
@@ -241,11 +284,6 @@ export class CspMap {
 
     }
 
-    setPlayerId(playerId) {
-        // TODO: only needed on the client
-        this.playerId = playerId
-    }
-
     createObject(entId, className, props) {
         // get the class from the registered set of classes
         // check if the object has already been created
@@ -254,7 +292,7 @@ export class CspMap {
         // TODO: if the object already exists, reset to initial state
         const ctor = this.class_registry[className]
 
-        const ent = new ctor(entId, props)
+        const ent = new ctor(this, entId, props)
 
         this.objects[entId] = ent
 
@@ -356,6 +394,14 @@ export class ClientCspMap {
 
     }
 
+    setPlayerId(playerId) {
+        this.map.playerId = playerId
+    }
+
+    acceptsEvent(type) {
+        return this.map.acceptsEvent(type)
+    }
+
     receiveMessage(message) {
         this.incoming_message.push(message)
     }
@@ -435,6 +481,14 @@ export class ServerCspMap {
         this.map = map
         this.map.isServer = true
         this.incoming_message = []
+    }
+
+    acceptsEvent(type) {
+        return this.map.acceptsEvent(type)
+    }
+
+    validateEvent(playerId, message) {
+        return this.map.validateMessage(playerId, message) !== false
     }
 
     receiveMessage(playerId, message) {
