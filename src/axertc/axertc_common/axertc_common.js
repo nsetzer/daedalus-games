@@ -311,17 +311,17 @@ export class CspMap {
 
         this.objects[entId] = ent
 
-        console.log('object created', entId)
+        console.log('object created', this.local_step, entId, ent.timer)
     }
 
 
     destroyObject(entId) {
 
         if (entId in this.objects) {
+            console.log('object destroyed', this.local_step, entId, this.objects[entId].timer)
 
             this.destroyed_objects[entId] = this.objects[entId]
             delete this.objects[entId]
-            console.log('object destroyed', entId)
         } else {
             console.log('no object to delete', entId)
         }

@@ -32,6 +32,7 @@ class Entity {
 
         this.particles = []
 
+        this.hue = random(0, 360 );
         this.gravity = 25
         this.friction = 0.95
         for (let i=0; i < 40; i++) {
@@ -72,7 +73,7 @@ class Entity {
             // move to the last tracked coordinate in the set, then draw a line to the current x and y
             ctx.moveTo( pt1.x, pt1.y);
             ctx.lineTo( pt2.x, pt2.y);
-            const hue = random(0, 360 );
+            const hue = random(this.hue - 60, this.hue + 60);
             const brightness = random( 50, 80 );
             ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + brightness + '%)';
             ctx.stroke();
@@ -90,8 +91,8 @@ class Entity {
                     alpha += 1
                 }
                 ctx.beginPath();
-                ctx.lineWidth = 2;
-                const hue = random(0, 360 );
+                ctx.lineWidth = 1;
+                const hue = random(this.hue - 60, this.hue + 60);
                 const brightness = random( 50, 80 );
                 ctx.strokeStyle = 'hsla(' + hue + ', 100%, ' + brightness + '%, ' + alpha + ')';
                 ctx.moveTo( particle.x, particle.y);
@@ -163,10 +164,20 @@ export class FireworksMap extends CspMap {
 
     paint(ctx) {
 
+        ctx.beginPath();
+        ctx.strokeStyle = "blue"
+        // move to the last tracked coordinate in the set, then draw a line to the current x and y
+        ctx.moveTo( 0, 0);
+        ctx.lineTo( 320, 360);
+        ctx.lineTo( gEngine.view.width, 0);
+        ctx.stroke()
+
         for (const obj of Object.values(this.objects)) {
 
             obj.paint(ctx)
         }
+
+
 
     }
 

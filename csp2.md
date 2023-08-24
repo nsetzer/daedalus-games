@@ -67,3 +67,10 @@ If the delta is to large, request a full resync.
 
 clock delay, handling messages
 
+state
+
+the server can kill an object
+clients can process damage, but should wait for the server to indicate an object actually died.
+
+
+
