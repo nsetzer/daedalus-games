@@ -206,10 +206,7 @@ class DemoScene {
 
         } else {
 
-            if (this.client.state() == "disconnected") {
-
-
-            } else {
+            if (this.client.connected()) {
                 this.client.update(dt)
                 //console.log("xmit")
                 this.keepalive_timer -= dt
@@ -236,6 +233,7 @@ class DemoScene {
                 this.latency = (t1 - t0)/2
 
             } else if (msg.type === "connect") {
+                // todo grab player id from the client
                 console.log(msg)
                 this.playerId = msg.playerId
                 this.map.setPlayerId(this.playerId)

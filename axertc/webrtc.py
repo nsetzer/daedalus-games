@@ -164,7 +164,8 @@ async def route_rtc_offer(request):
 
     content = json.dumps({
         "sdp": pc.localDescription.sdp,
-        "type": pc.localDescription.type
+        "type": pc.localDescription.type,
+        "playerId": pc_id
     })
 
     return web.Response(

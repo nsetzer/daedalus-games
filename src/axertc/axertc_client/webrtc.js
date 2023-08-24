@@ -73,7 +73,7 @@ export class RealTimeEchoClient {
 
         this.frame_index = 0
         // average total bytes sent and received over a 3 second window
-        this.rb_xmit = new CspRingBuffer(60*3, 0)
+        this.rb_xmit = new CspRingBuffer(60*3)
         this.total_sent = 0
         this.total_received = 0
 
@@ -90,6 +90,8 @@ export class RealTimeEchoClient {
         }
 
         this.rb_xmit.set(this.frame_index, {sent:0, received:0})
+
+        this.playerId = null
     }
 
 
@@ -170,6 +172,8 @@ export class RealTimeClient {
         this.total_sent = 0
         this.total_received = 0
 
+        this.rb_xmit.set(this.frame_index, {sent:0, received:0})
+
     }
 
     createPeerConnection() {
@@ -246,7 +250,9 @@ export class RealTimeClient {
             response.text().then((message)=>{console.error(message)})
             throw new Error('Something went wrong.');
         }).then((answer) => {
-            //console.log(answer.sdp)
+            //console.log("answer", answer)
+            this.playerId = answer.playerId
+            console.log(" webrtc -> playerId=", answer.playerId)
             return this.pc.setRemoteDescription(answer);
         }).catch((e) => {
             console.error(e);
@@ -275,8 +281,16 @@ export class RealTimeClient {
 
         this.dc = this.pc.createDataChannel('chat', parameters);
 
-        this.dc.onclose = () => {this._open = false; this.onClose.bind(this)}
-        this.dc.onopen = () => {this._open = true; this.onOpen.bind(this)}
+        this.dc.onclose = () => {
+            this._open = false;
+            this.onClose.bind(this)
+            this.playerId = null
+            console.log("dc closed")
+        }
+        this.dc.onopen = () => {
+            this._open = true;
+            this.onOpen.bind(this)
+        }
         this.dc.onmessage = (evt) => {
 
             let nbytes = byteSize(evt.data)
@@ -288,8 +302,6 @@ export class RealTimeClient {
         }
 
         this.negotiate(url, headers);
-
-
     }
 
     disconnect() {
@@ -319,7 +331,6 @@ export class RealTimeClient {
 
         this.dc = null
         this.pc = null
-
     }
 
     onClose() {

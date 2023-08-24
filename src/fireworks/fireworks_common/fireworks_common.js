@@ -4,6 +4,10 @@
 // TODO: rename map to World
 $import("axertc_common", {CspMap, ClientCspMap})
 
+function random( min, max ) {
+    return Math.random() * ( max - min ) + min;
+}
+
 class Entity {
     constructor(map, entid, props) {
 
@@ -23,37 +27,98 @@ class Entity {
 
         this.timer = 0
 
+        this.d1 = 0.8
+        this.d2 = 1.6
+
+        this.particles = []
+
+        this.gravity = 25
+        this.friction = 0.95
+        for (let i=0; i < 40; i++) {
+            const angle = random( 0, Math.PI * 2 );
+            const speed = random( 20, 80 );
+            const dx =  Math.cos( angle )
+            const dy =  Math.sin( angle )
+            const alpha_decay = random( 0.015, 0.03 );
+            this.particles.push({x:this.x_end, y:this.y_end, dx, dy, speed, alpha_decay})
+        }
+
+    }
+
+    _position(t) {
+        if (t < this.d1) {
+            const p = t / this.d1
+            return {
+                x: this.x_start + (this.x_end - this.x_start) * p,
+                y: this.y_start + (this.y_end - this.y_start) * p
+            }
+        } else {
+            return {x: this.x_end, y: this.y_end}
+        }
     }
 
     paint(ctx) {
 
-        const radius = 16
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, radius, 0, 2 * Math.PI, false);
-        ctx.fillStyle = '#008800';
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#003300';
-        ctx.stroke();
+        const d1 = .6
+        const d2 = 1.6
+
+
+        if (this.timer < this.d1) {
+
+            const pt1 = this._position(this.timer-.03)
+            const pt2 = this._position(this.timer+.03)
+
+            ctx.beginPath();
+            // move to the last tracked coordinate in the set, then draw a line to the current x and y
+            ctx.moveTo( pt1.x, pt1.y);
+            ctx.lineTo( pt2.x, pt2.y);
+            const hue = random(0, 360 );
+            const brightness = random( 50, 80 );
+            ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + brightness + '%)';
+            ctx.stroke();
+
+
+        } else {
+            const dt = this.timer - d1
+            const radius = 6
+            for (const particle of this.particles) {
+
+                const x = this.x + dt * particle.dx * particle.speed
+                const y = this.y + dt * particle.dy * particle.speed + dt*this.gravity
+                let alpha = 1 - dt * particle.alpha_decay
+                if (alpha < 0) {
+                    alpha += 1
+                }
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                const hue = random(0, 360 );
+                const brightness = random( 50, 80 );
+                ctx.strokeStyle = 'hsla(' + hue + ', 100%, ' + brightness + '%, ' + alpha + ')';
+                ctx.moveTo( particle.x, particle.y);
+                ctx.lineTo( x, y);
+                particle.x = x
+                particle.y = y
+                ctx.stroke();
+            }
+
+        }
+
+
     }
+
+
 
     update(dt) {
 
         this.timer += dt
 
-        const d1 = .8
-        const d2 = 1.6
+        // todo: dont use timer based position in phase 1
+        // constant speed, not constant time
+        const pt = this._position(this.timer)
+        this.x = pt.x
+        this.y = pt.y
 
-        if (this.timer < d1) {
-            const p = this.timer / d1
-            this.x = this.x_start + (this.x_end - this.x_start) * p
-            this.y = this.y_start + (this.y_end - this.y_start) * p
-        } else {
-            this.x = this.x_end
-            this.y = this.y_end
-        }
-
-        if (this.timer > d2) {
+        if (this.timer > this.d2) {
             this.destroy()
         }
 

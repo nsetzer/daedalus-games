@@ -5,6 +5,21 @@
  * using the saved state, then run the simulation forward
  * then for up to N steps after run both the shadow world and current world
  * at every step bend objects that are detected to be out of sync
+ *
+ *
+ * TODO: how to handle just kidding events
+ *  the server receives a batch of inputs and processes them
+ *  it decides a certain player died
+ *  a late arriving input indicates that player actually moved out of the way
+ *  reconciliation determines the player did not die.
+ *  but the death notification has already been sent out.
+ * - server is authoritative, at a certain point new inputs should be rejected
+ * - the state, say 500ms in the past can be queried to the truth
+ * - the game should send the authoritative truth as deltas ever 100 ms
+ *
+ * https://www.gabrielgambetta.com/client-side-prediction-server-reconciliation.html
+ * https://gamedev.stackexchange.com/questions/141496/server-reconciliation-for-multiplayer-games
+ *
  */
 export class CspMap {
 
