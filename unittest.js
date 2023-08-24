@@ -16,13 +16,13 @@ function assert(result, message) {
     }
 }
 
-export function test() {
+export function test1() {
 
 
     const map = new CspMap()
 
     const playerId = "0400"
-    map.setPlayerId(playerId)
+    map.playerId = playerId
     map.registerClass("TestEntity", TestEntity)
 
     map.sendCreateObjectEvent("TestEntity", {})
@@ -42,6 +42,49 @@ export function test() {
 
     assert(!(msg.entid in map.objects), "object exists")
 
+    //assert(false, "failed this assert")
+}
+
+export function test() {
+
+    const playerId = "0400"
+    const entid = "0400-1"
+
+    const map = new CspMap()
+    map.playerId = playerId
+    map.registerClass("TestEntity", TestEntity)
+
+    console.log("step", map.local_step)
+
+    map.update(1/60)
+    map.update(1/60)
+    map.update(1/60)
+
+    map.sendCreateObjectEvent("TestEntity", {})
+
+    map.update(1/60)
+    map.update(1/60)
+    map.update(1/60)
+
+    map.update(1/60)
+    map.update(1/60)
+    map.update(1/60)
+
+    console.log("step", map.local_step)
+
+    assert(entid in map.objects, "no object")
+
+    map.destroyObject(entid)
+
+    map.update(1/60)
+    map.update(1/60)
+    map.update(1/60)
+    console.log("step", map.local_step)
+    assert(!(entid in map.objects), "object exists")
+
+    map.dirty_step = 2
+    map.reconcile()
+    map.update(1/60)
     //assert(false, "failed this assert")
 }
 
