@@ -51,27 +51,6 @@ class DemoClient {
 
     }
 
-    onClose() {
-        console.log("rtc closed")
-    }
-
-    onOpen() {
-        console.log("rtc opened")
-    }
-
-    onMessage(obj) {
-
-        this.callback(obj)
-    }
-
-    send1(msg) {
-        this.queue1.push(msg)
-    }
-
-    send2(msg) {
-        this.queue2.push(msg)
-    }
-
     update(dt) {
 
         this.sync_timer -= dt
@@ -147,6 +126,10 @@ class DemoScene {
         this.map_player2.setPlayerId("player2")
 
         this.map_server = new ServerCspMap(new FireworksMap())
+
+        this.map_player1.map.instanceId = "map-player1"
+        this.map_player2.map.instanceId = "map-player2"
+        this.map_server.map.instanceId = "map-server"
 
         this.client = new DemoClient(this.map_player1, this.map_player2, this.map_server)
 
@@ -244,11 +227,13 @@ class DemoScene {
 
                 if (touch.x < (this.views[0].x+this.views[0].width)) {
                     touch.x -= this.views[0].x
+                    console.log("player1 create firework")
                     this.map_player1.map.sendCreateObjectEvent("Firework", touch)
                 }
 
                 else if (touch.x > (this.views[2].x)) {
                     touch.x -= this.views[2].x
+                    console.log("player2 create firework")
                     this.map_player2.map.sendCreateObjectEvent("Firework", touch)
 
                 }

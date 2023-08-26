@@ -87,11 +87,10 @@ class Player extends Entity {
     }
 
     onBend(progress, shadow) {
-        console.log("do bend", p, obj.entid)
-        obj.x  += (shadow.x  - obj.x)  * progress
-        obj.y  += (shadow.y  - obj.y)  * progress
-        obj.dx += (shadow.dx - obj.dx) * progress
-        obj.dy += (shadow.dy - obj.dy) * progress
+        this.x  += (shadow.x  - this.x)  * progress
+        this.y  += (shadow.y  - this.y)  * progress
+        this.dx += (shadow.dx - this.dx) * progress
+        this.dy += (shadow.dy - this.dy) * progress
     }
 
     onInput(payload) {

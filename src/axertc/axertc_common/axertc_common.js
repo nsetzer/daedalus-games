@@ -80,6 +80,7 @@ export class Entity {
 export class CspMap {
 
     constructor() {
+        this.instanceId = this.constructor.name
         this.isServer = false
         this.playerId = "null"
 
@@ -127,6 +128,8 @@ export class CspMap {
         this.addCustomEvent("csp-object-destroy", this._onEventObjectDestroy.bind(this))
         this.addCustomEvent("map-sync", (msg, reconcile)=>{})
 
+        this._debug_reconcile = false
+
     }
 
     addCustomEvent(eventName, cbk) {
@@ -142,13 +145,10 @@ export class CspMap {
         // TODO: if not reconciling, apply to both shadow and real object
         const ent = this.objects[msg.entid]
         if (!!ent._shadow) {
-            console.log("apply input to shadow")
             ent._shadow.onInput(msg.payload)
             if (!reconcile) {
-                console.log("apply input to ent")
                 ent.onInput(msg.payload)
             }
-            console.log("after input", ent.dx, ent.dy, ent._shadow.dx, ent._shadow.dy)
         } else {
             ent.onInput(msg.payload)
         }
@@ -169,6 +169,11 @@ export class CspMap {
         let step = msg.step
         let idx = this._frameIndex(step)
 
+        if (step < this.local_step - this.step_rate) {
+            console.warn("dropping stale input")
+            return
+        }
+
         if (!this._hasinput(idx, msg.entid, msg.uid)) {
             this._setinput(idx, msg.entid, msg.uid, msg)
 
@@ -187,7 +192,7 @@ export class CspMap {
         if (this.dirty_step !== null && this.dirty_step <= this.local_step) {
             //console.log("found dirty index at", this.dirty_step, this.local_step, "offset", this.received_offset)
 
-
+            this._debug_reconcile = true
 
             const last_index = this._frameIndex(this.dirty_step - 1)
             const last_known_state = this.statequeue[last_index]
@@ -228,6 +233,9 @@ export class CspMap {
             const end = this.local_step
             let error = false
             console.log(`reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
+            if (start < this.local_step - this.step_rate) {
+                throw new Error("reconcile starts before the last cached input")
+            }
 
             for (let clock = start; clock <= end; clock += 1) {
                 this.local_step = clock
@@ -241,10 +249,17 @@ export class CspMap {
                             // restore the incorrect state
                             const obj = this.objects[objId]
                             if (!!this.statequeue[idx][objId]) {
-                                console.log("shadow restore", this.statequeue[idx][objId].state)
+                                //console.log("shadow restore", this.statequeue[idx][objId].state)
                                 obj.setState(this.statequeue[idx][objId].state)
                             } else {
-                                console.log("warning: missing state info for", objId, this.statequeue[idx][objId])
+                                // TODO: double check this, it might be a hack
+                                // an object now exists that did not used to exist
+                                // deleting breaks things but does fix the double explode issue from sever latency
+                                //delete this.objects[objId]
+                                // TODO: the bug here is that the object was created during reconciliation
+                                //       so it would not have any prior state information to restore
+                                // the solution may be to only create shadow objects during reconciliation
+                                console.warn(this.instanceId, "warning: missing state info for", objId) // , "step", this.local_step)
                             }
                         }
                     }
@@ -253,10 +268,14 @@ export class CspMap {
                 let new_global_state = this._getstate()
                 this.statequeue[idx] = new_global_state
             }
+
+
         }
 
         this.dirty_step = null
         this.dirty_objects = {}
+        this._debug_reconcile = false
+
     }
 
     handleMessage(msg, reconcile) {
@@ -284,6 +303,9 @@ export class CspMap {
         //        //    }
         //        //}
         //    }
+        //}
+        //if (Object.keys(this.inputqueue[delete_idx]).length > 0) {
+        //    console.error(this.instanceId, "clear input index at", this.local_step, delete_idx)
         //}
         this.inputqueue[delete_idx] = {}
 
@@ -382,7 +404,7 @@ export class CspMap {
 
     _stepstate() {
 
-        this.update_main(1.0/this.step_rate, true)
+        this.update_main(1.0/60, true)
     }
 
     sendMessage(playerId, message) {
@@ -430,7 +452,7 @@ export class CspMap {
 
         this.objects[entId] = ent
 
-        console.log('object created', this.local_step, entId)
+        console.error(this.instanceId, this._debug_reconcile?"reconcile":"normal", 'object created', this.local_step, this._frameIndex(this.local_step), entId)
 
         return ent
     }
@@ -439,7 +461,7 @@ export class CspMap {
     destroyObject(entId) {
 
         if (entId in this.objects) {
-            console.log('object destroyed', this.local_step, entId, this.objects[entId].timer)
+            console.log(this.instanceId, 'object destroyed', this.local_step, entId, this.objects[entId].timer)
 
             delete this.objects[entId]
         } else {
@@ -779,6 +801,9 @@ export class ServerCspMap {
 
         while (this.incoming_message.length > 0) {
             const msg = this.incoming_message.shift()
+            if (msg.type == "csp-object-create") {
+                console.log("server received object create")
+            }
             this.map.receiveEvent(msg)
         }
         this.map.reconcile()

@@ -50,7 +50,6 @@ class Firework extends Entity {
             this.particles.push({x:this.x_end, y:this.y_end, dx, dy, speed, alpha_decay})
         }
 
-
     }
 
     _position(t) {
@@ -70,8 +69,8 @@ class Firework extends Entity {
 
         if (this.timer < this.d1) {
 
-            const pt1 = this._position(this.timer-.03)
-            const pt2 = this._position(this.timer+.03)
+            const pt1 = this._position(this.timer-.02)
+            const pt2 = this._position(this.timer+.02)
 
             ctx.beginPath();
             // move to the last tracked coordinate in the set, then draw a line to the current x and y
@@ -115,7 +114,9 @@ class Firework extends Entity {
             y: this.y,
             x_end: this.x_end,
             y_end: this.y_end,
-            timer: this.timer
+            timer: this.timer,
+            d0: this.d0,
+            d1: this.d1
         }
     }
 
@@ -125,6 +126,8 @@ class Firework extends Entity {
         this.x_end = state.x_end
         this.y_end = state.y_end
         this.timer = state.timer
+        this.d0 = state.d0
+        this.d1 = state.d1
     }
 
     update(dt) {
