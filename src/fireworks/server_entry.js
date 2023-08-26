@@ -31,9 +31,7 @@ class DemoLobby extends ServerLobby {
 
     onMessage(playerId, message) {
 
-        if (message.type == "csp-object-create") {
-            console.log("receive", playerId, this.map.map.local_step, message.step, message)
-
+        if (this.map.acceptsEvent(message.type)) {
             this.map.receiveMessage(playerId, message)
         } else {
             console.log("unreconized message", playerId, message)

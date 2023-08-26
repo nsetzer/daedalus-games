@@ -64,6 +64,8 @@ steps on even-numbered steps, so that the frame rate
 will never be less than half the expected frame rate.
 If the delta is to large, request a full resync.
 
+the better way will to increase or decrease the overall framerate
+running at 58 or 62 frames per second until the steps is caught up.
 
 2) Receiving messages
 
@@ -79,13 +81,21 @@ implement get/set state for the entity
 implement get/set state for the world
 the state is a dictionary mapping ObjectId => {object, state}
 
+update_before
+    pop input
+    apply all input received for this step
+update
+update_after
+    save state
 
+4) Synchronization
+
+when a player joins mid way through, they will need to be sent the entire state of the game
+do to floating point rounding errors, deltas will need to be periodically sent to clients
 
 5) Bending
 
-clock delay, handling messages
-
-state
+6) other notes
 
 the server can kill an object
 clients can process damage, but should wait for the server to indicate an object actually died.

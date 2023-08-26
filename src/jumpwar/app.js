@@ -2242,7 +2242,6 @@ class DemoScene extends GameScene {
 
     handleKeyRelease(keyevent) {
         this.keyboard.handleKeyRelease(keyevent);
-
     }
 
     resize() {

@@ -1,6 +1,6 @@
 
 
-.PHONY: breakout maze build widgets chat netdebug nettest echotest jumpwar fireworks clean
+.PHONY: breakout maze build widgets chat netdebug nettest echotest jumpwar fireworks maze2 clean
 
 breakout:
 	daedalus serve --paths=./src --env debug=true  src/breakout/breakout2.js
@@ -29,7 +29,8 @@ jumpwar:
 fireworks:
 	PYTHONPATH=. python src/fireworks/server.py
 
-	#--paths=./src --static src/maze/static --env debug=true ./src/jumpwar/app.js
+maze2:
+	PYTHONPATH=. python src/maze2/server.py
 
 build:
 	mkdir -p build

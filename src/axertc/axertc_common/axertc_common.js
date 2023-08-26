@@ -16,10 +16,12 @@
  * - server is authoritative, at a certain point new inputs should be rejected
  * - the state, say 500ms in the past can be queried to the truth
  * - the game should send the authoritative truth as deltas ever 100 ms
- *
+ * answer: server sends out notification of death, but clients can process taking damage
  * https://www.gabrielgambetta.com/client-side-prediction-server-reconciliation.html
  * https://gamedev.stackexchange.com/questions/141496/server-reconciliation-for-multiplayer-games
  *
+ * TODO: avoid server reconcillication on every input message
+ * server can be run with a delay of 100 ms.
  */
 
 export class Entity {
@@ -32,6 +34,10 @@ export class Entity {
     }
 
     update(dt) {
+    }
+
+    onInput(payload) {
+
     }
 
     getState() {
@@ -106,7 +112,7 @@ export class CspMap {
     }
 
     _onEventObjectInput(msg) {
-        this.objects[entId].onInput(msg.payload)
+        this.objects[msg.entid].onInput(msg.payload)
     }
 
     _onEventObjectDestroy(msg) {
@@ -124,7 +130,6 @@ export class CspMap {
 
         let step = msg.step
         let idx = this._frameIndex(step)
-        console.log(idx)
 
         if (!this._hasinput(idx, msg.entid, msg.uid)) {
             this._setinput(idx, msg.entid, msg.uid, msg)
@@ -165,7 +170,7 @@ export class CspMap {
             const start = this.dirty_step
             const end = this.local_step
             let error = false
-            console.log("reconcile start=", start, "end=", end)
+            console.log(`reconcile start=${start} end=${end} delta=${end-start}`)
 
             for (let clock = start; clock <= end; clock += 1) {
                 this.local_step = clock
@@ -360,6 +365,29 @@ export class CspMap {
         }
     }
 
+    sendObjectInputEvent(entid, payload) {
+        const type = "csp-object-input"
+        const uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+
+        const event = {
+            type,
+            step: this.local_step + this.input_delay,
+            entid,
+            uid,
+            payload
+        }
+
+        this.receiveEvent(event)
+
+        if (this.isServer) {
+            this.sendBroadcast(this.playerId, event)
+        } else {
+            this.sendMessage(this.playerId, event)
+        }
+
+    }
+
     sendCreateObjectEvent(className, props) {
 
         // provide api to generate entid from message
@@ -376,7 +404,7 @@ export class CspMap {
         let entid;
 
         if (this.isServer) {
-            entid= "" + uid
+            entid= "s" + uid
         } else {
             if (this.playerId === null) {
                 throw {message: "playerId not set"}
@@ -394,9 +422,15 @@ export class CspMap {
 
         //console.log("csp-send", this.local_step, event)
 
+
         this.receiveEvent(event)
 
-        this.sendMessage(null, event)
+        if (this.isServer) {
+            this.sendBroadcast(this.playerId, event)
+        } else {
+            this.sendMessage(this.playerId, event)
+        }
+
     }
 
 }
@@ -464,17 +498,42 @@ export class ClientCspMap {
 
                     // TODO: check reset
                     this.world_step = msg.step
-                    this.map.local_step = msg.step
+                    this.map.local_step = msg.step - this.step_delay
                 } else {
                     if (msg.step > this.world_step) {
                         this.world_step = msg.step
                     }
                 }
 
+                if (msg.sync === 1) {
+                    console.log("received full sync")
+
+                    let idx = this.map._frameIndex(msg.step)
+
+                    this.map.objects = {}
+                    for (const [entId, item] of Object.entries(msg.objects)) {
+                        console.log("hydrate", entId)
+                        const ctor = this.map.class_registry[item.className]
+                        const ent = new ctor(entId, {})
+                        ent._destroy = ()=>{this.map.destroyObject(entId)}
+                        ent.setState(item.state)
+                        this.map.objects[entId] = ent
+                    }
+
+                    let new_global_state = this.map._getstate()
+                    this.map.statequeue[idx] = new_global_state
+
+                    this.map.dirty_step = msg.step + 1
+                    this.map.reconcile()
+                }
+
                 //this.receiveEvent()
 
             }
             else if (msg.type == "csp-object-create") {
+                this.map.receiveEvent(msg)
+            }
+            else if (msg.type == "csp-object-input") {
                 this.map.receiveEvent(msg)
             } else {
                 console.log("unreconized map message", msg)
@@ -497,11 +556,11 @@ export class ClientCspMap {
             if (this.map.local_step%4==0) {
                 if (delta > this.step_delay) {
                     step_kind = STEP_CATCHUP
-                    console.log("catchup", this.local_step)
+                    console.log("catchup", this.map.local_step)
                 }
                 if (delta < this.step_delay) {
                     step_kind = STEP_SKIP
-                    console.log("skip", this.local_step)
+                    console.log("skip", this.map.local_step)
                 }
             }
 
@@ -529,8 +588,6 @@ export class ClientCspMap {
     paint(ctx) {
         this.map.paint(ctx)
     }
-
-
 }
 
 
@@ -551,8 +608,6 @@ export class ServerCspMap {
 
     receiveMessage(playerId, message) {
 
-        console.log("server received", message)
-
         if (this.map.validateMessage(playerId, message) === false) {
             ;
         } else {
@@ -560,6 +615,30 @@ export class ServerCspMap {
         }
 
     }
+
+    join(playerId) {
+
+        const objects = {}
+        for (const [objId, obj] of Object.entries(this.map.objects)) {
+            objects[objId] = {className:obj.constructor.name, state: obj.getState()}
+        }
+
+        const state = {
+            type: "map-sync",
+            step: this.map.local_step,
+            sync: 1,
+            objects: objects
+        }
+
+        const s = JSON.stringify(objects)
+        console.log("full sync:", s.length)
+
+
+
+        this.map.sendMessage(playerId, state)
+
+    }
+    
 
     update(dt) {
 
