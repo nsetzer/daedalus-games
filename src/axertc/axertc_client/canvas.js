@@ -138,7 +138,7 @@ export class CanvasEngine extends DomElement {
         this.frameTimer = tickTimer()
         this.updateTimer = tickTimer()
         this.renderTimer = tickTimer()
-
+        this.fps_timer = 6
 
         this.lastRender = null
 
@@ -547,7 +547,14 @@ export class CanvasEngine extends DomElement {
             }
 
             this.timings = [Math.floor(1.0/this.spt_a), Math.floor(1.0/this.spt_b), Math.floor(1.0/this.spt_c)]
-            this.fps = Math.floor(1.0/this.spt_b)
+            //this.fps = Math.floor(1.0/this.spt_b)
+            // reduce the frequency that the fps updates when displayed
+            this.fps_timer -= 1
+            if (this.fps_timer <= 0) {
+                this.fps = Math.floor(1.0/this.spt_b)
+                this.fps_timer = 30
+            }
+
 
         }
         this.lastTime = now;
@@ -616,7 +623,12 @@ export class CanvasEngine extends DomElement {
                     now = performance.now()
                     const e = (now - this.lastTime)/1000
                     this.spt += (0.02551203525869137) * (e - this.spt)
-                    this.fps = Math.round(1.0/this.spt)
+                    this.fps_timer -= 1
+                    if (this.fps_timer <= 0) {
+                        this.fps = Math.round(1.0/this.spt)
+                        console.log(performance.now())
+                        this.fps_timer = 300
+                    }
                     this.lastTime = now;
                     this.timings = timings
 

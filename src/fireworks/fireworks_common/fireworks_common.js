@@ -157,7 +157,6 @@ export class FireworksMap extends CspMap {
     }
 
     validateMessage(playerId, msg) {
-        console.log("validate")
         this.sendNeighbors(playerId, msg)
     }
 

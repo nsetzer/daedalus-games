@@ -48,8 +48,6 @@ class DemoLobby extends ServerLobby {
 
         while (this.map.map.outgoing_messages.length > 0) {
             const msg = this.map.map.outgoing_messages.shift()
-            console.log("xserver send id ", msg.playerId)
-            console.log("xserver send msg", msg.message)
             switch (msg.kind) {
             case 1:
                 this.sendMessage(msg.playerId, msg.message)

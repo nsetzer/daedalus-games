@@ -1,4 +1,32 @@
 
+Intro from
+https://www.gabrielgambetta.com/lag-compensation.html
+
+Introduction
+
+The previous three articles explained a client-server game architecture which can be summarized as follows:
+
+    Server gets inputs from all the clients, with timestamps
+
+    Server processes inputs and updates world status
+
+    Server sends regular world snapshots to all clients
+
+    Client sends input and simulates their effects locally
+
+    Client get world updates and
+
+        Syncs predicted state to authoritative state
+
+        Interpolates known past states for other entities
+
+From a player’s point of view, this has two important consequences:
+
+    Player sees himself in the present
+
+    Player sees other entities in the past
+
+
 
 1) synchronized clock
 
@@ -69,10 +97,10 @@ running at 58 or 62 frames per second until the steps is caught up.
 
 2) Receiving messages
 
-1. Map Sync
-2. Create Object
+1. Map Sync (full, partial, fragmentation)
+2. Object Create
 3. Object Input
-4. Destroy object
+4. Object Destroy
 
 3) Reconciliation
 
@@ -90,10 +118,15 @@ update_after
 
 4) Synchronization
 
-when a player joins mid way through, they will need to be sent the entire state of the game
-do to floating point rounding errors, deltas will need to be periodically sent to clients
+a) full sync
+b) partial sync
+
+a) when a player joins mid way through, they will need to be sent the entire state of the game
+b) do to floating point rounding errors, deltas will need to be periodically sent to clients
 
 5) Bending
+
+6) Optimize Serialization
 
 6) other notes
 

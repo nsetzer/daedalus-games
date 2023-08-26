@@ -22,7 +22,31 @@
  *
  * TODO: avoid server reconcillication on every input message
  * server can be run with a delay of 100 ms.
+ *
+ *
+ * bending and partial sync should be optional features
+ *  - mostly to demo performance without
  */
+
+function pad(n, width, z) {
+  z = z || '0';
+  n = n + '';
+  return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
+
+function fmtTime(s) {
+    let z = pad(Math.floor((s%1)*10), 1)
+    let m = Math.floor(s / 60)
+    s = pad(Math.floor(s % 60), 2);
+    let h = Math.floor(m / 60)
+    m = m % 60
+    if (h > 0) {
+        m = pad(m, 2);
+        return `${h}:${m}:${s}.${z}`
+    } else {
+        return `${m}:${s}.${z}`
+    }
+}
 
 export class Entity {
     constructor(entid, props) {
@@ -59,6 +83,8 @@ export class CspMap {
         this.isServer = false
         this.playerId = "null"
 
+        this.enable_bending = true
+
         this.step_rate = 60
 
         this.class_registry = {}
@@ -92,13 +118,14 @@ export class CspMap {
         }
 
         this.dirty_step = null
+        this.dirty_objects = {}
 
         this.events = {}
 
         this.addCustomEvent("csp-object-create", this._onEventObjectCreate.bind(this))
         this.addCustomEvent("csp-object-input", this._onEventObjectInput.bind(this))
         this.addCustomEvent("csp-object-destroy", this._onEventObjectDestroy.bind(this))
-        this.addCustomEvent("map-sync", (msg)=>{})
+        this.addCustomEvent("map-sync", (msg, reconcile)=>{})
 
     }
 
@@ -107,15 +134,27 @@ export class CspMap {
         this.events[eventName] = cbk
     }
 
-    _onEventObjectCreate(msg) {
+    _onEventObjectCreate(msg, reconcile) {
         this.createObject(msg.entid, msg.payload.className, msg.payload.props)
     }
 
-    _onEventObjectInput(msg) {
-        this.objects[msg.entid].onInput(msg.payload)
+    _onEventObjectInput(msg, reconcile) {
+        // TODO: if not reconciling, apply to both shadow and real object
+        const ent = this.objects[msg.entid]
+        if (!!ent._shadow) {
+            console.log("apply input to shadow")
+            ent._shadow.onInput(msg.payload)
+            if (!reconcile) {
+                console.log("apply input to ent")
+                ent.onInput(msg.payload)
+            }
+            console.log("after input", ent.dx, ent.dy, ent._shadow.dx, ent._shadow.dy)
+        } else {
+            ent.onInput(msg.payload)
+        }
     }
 
-    _onEventObjectDestroy(msg) {
+    _onEventObjectDestroy(msg, reconcile) {
         this.destroyObject(msg.entid)
     }
 
@@ -138,9 +177,8 @@ export class CspMap {
                 if (this.dirty_step == null || step < this.dirty_step) {
                     this.dirty_step = step
                 }
+                this.dirty_objects[msg.entid] = true
             }
-
-
         }
     }
 
@@ -149,6 +187,8 @@ export class CspMap {
 
         if (this.dirty_step !== null && this.dirty_step <= this.local_step) {
             //console.log("found dirty index at", this.dirty_step, this.local_step, "offset", this.received_offset)
+
+
 
             const last_index = this._frameIndex(this.dirty_step - 1)
             const last_known_state = this.statequeue[last_index]
@@ -161,6 +201,21 @@ export class CspMap {
                 this._setstate(last_known_state)
             }
 
+            if (this.enable_bending) {
+                for (const [objId, dirty] of Object.entries(this.dirty_objects)) {
+                    if (!!this.objects[objId]) {
+                        const obj = this.objects[objId]
+                        if (!obj._shadow) {
+                            const ctor = this.class_registry[obj.constructor.name]
+                            obj._shadow = new ctor(objId, {})
+                            //obj._shadow.setState(obj.getState())
+                            obj._shadow.setState(last_known_state[objId].state)
+                        }
+                        obj._shadow_step = 0
+                    }
+                }
+            }
+
             //if (snap_position !== null && snap_position.frameIndex == this.dirty_step) {
             //    this.physics.target.rect.x = snap_position.state.x
             //    this.physics.target.rect.y = snap_position.state.y
@@ -170,25 +225,42 @@ export class CspMap {
             const start = this.dirty_step
             const end = this.local_step
             let error = false
-            console.log(`reconcile start=${start} end=${end} delta=${end-start}`)
+            console.log(`reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
 
             for (let clock = start; clock <= end; clock += 1) {
                 this.local_step = clock
                 let idx = this._frameIndex(clock)
                 this._apply(clock, true)
                 this._stepstate()
+
+                if (this.enable_bending) {
+                    for (const [objId, dirty] of Object.entries(this.dirty_objects)) {
+                        if (!!this.objects[objId]) {
+                            // restore the incorrect state
+                            const obj = this.objects[objId]
+                            if (!!this.statequeue[idx][objId]) {
+                                console.log("shadow restore", this.statequeue[idx][objId].state)
+                                obj.setState(this.statequeue[idx][objId].state)
+                            } else {
+                                console.log("warning: missing state info for", objId, this.statequeue[idx][objId])
+                            }
+                        }
+                    }
+                }
+
                 let new_global_state = this._getstate()
                 this.statequeue[idx] = new_global_state
             }
         }
 
         this.dirty_step = null
+        this.dirty_objects = {}
     }
 
-    handleMessage(msg) {
+    handleMessage(msg, reconcile) {
 
         if (msg.type in this.events) {
-            this.events[msg.type](msg)
+            this.events[msg.type](msg, reconcile)
         } else {
             console.log(`csp-handle not supported ${JSON.stringify(msg)}`)
         }
@@ -250,6 +322,10 @@ export class CspMap {
         for (const [objId, item] of Object.entries(state)) {
             const obj = item.obj
             obj.setState(item.state)
+            if (!!obj._shadow) {
+                console.log("shadow setState", item.state)
+                obj._shadow.setState(item.state)
+            }
             this.objects[objId] = obj
         }
     }
@@ -290,7 +366,7 @@ export class CspMap {
         for (const entid in this.inputqueue[idx]) {
             for (const uid in this.inputqueue[idx][entid]) {
                 const message = this.inputqueue[idx][entid][uid]
-                this.handleMessage(message)
+                this.handleMessage(message, reconcile)
             }
         }
     }
@@ -348,9 +424,15 @@ export class CspMap {
         const ent = new ctor(entId, props)
         ent._destroy = ()=>{this.destroyObject(entId)}
 
+        if (entId in this.dirty_objects) {
+            ent._shadow = new ctor(entId, props)
+        }
+
         this.objects[entId] = ent
 
-        console.log('object created', this.local_step, entId, ent.timer)
+        console.log('object created', this.local_step, entId)
+
+        return ent
     }
 
 
@@ -430,6 +512,39 @@ export class CspMap {
         } else {
             this.sendMessage(this.playerId, event)
         }
+
+        return event
+
+    }
+
+    sendObjectDestroyEvent(entid) {
+
+        // provide api to generate entid from message
+        // entid is playerId + msg uid + localstep
+        // entid is msg uid + localstep
+        // because playerId may not be known by this class
+
+        const uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+
+        const type = "csp-object-destroy"
+
+        const event = {
+            type,
+            step: this.local_step + this.input_delay,
+            entid,
+            uid,
+        }
+
+        this.receiveEvent(event)
+
+        if (this.isServer) {
+            this.sendBroadcast(this.playerId, event)
+        } else {
+            this.sendMessage(this.playerId, event)
+        }
+
+        return event
 
     }
 
@@ -513,11 +628,8 @@ export class ClientCspMap {
                     this.map.objects = {}
                     for (const [entId, item] of Object.entries(msg.objects)) {
                         console.log("hydrate", entId)
-                        const ctor = this.map.class_registry[item.className]
-                        const ent = new ctor(entId, {})
-                        ent._destroy = ()=>{this.map.destroyObject(entId)}
+                        const ent = this.map.createObject(entId, item.className, {})
                         ent.setState(item.state)
-                        this.map.objects[entId] = ent
                     }
 
                     let new_global_state = this.map._getstate()
@@ -535,7 +647,11 @@ export class ClientCspMap {
             }
             else if (msg.type == "csp-object-input") {
                 this.map.receiveEvent(msg)
-            } else {
+            }
+            else if (msg.type == "csp-object-destroy") {
+                this.map.receiveEvent(msg)
+            }
+            else {
                 console.log("unreconized map message", msg)
             }
         }
@@ -587,6 +703,20 @@ export class ClientCspMap {
 
     paint(ctx) {
         this.map.paint(ctx)
+
+    }
+
+    paint_overlay(ctx) {
+
+        ctx.font = "16px mono";
+        ctx.fillStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.fillText(`world step: ${this.world_step} ${fmtTime(this.world_step/60)}`, 2, 2);
+        const d = this.map.local_step - this.world_step
+        const s = (d>=0)?'+':""
+        ctx.fillText(`local step: ${this.map.local_step} ${s}${d}`, 2, 2 + 16);
+        ctx.fillText(`entities ${Object.keys(this.map.objects).length}`, 2, 2 + 32);
     }
 }
 

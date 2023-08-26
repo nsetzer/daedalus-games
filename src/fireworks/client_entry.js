@@ -268,21 +268,11 @@ class DemoScene {
             ctx.font = "16px mono";
             ctx.fillStyle = "yellow"
             ctx.textAlign = "left"
-            ctx.textBaseline = "top"
-            ctx.fillText(`world step: ${this.map.world_step} ${fmtTime(this.map.world_step/60)}`, 2, 2);
-            const d = this.map.map.local_step - this.map.world_step
-            const s = (d>=0)?'+':""
-            ctx.fillText(`local step: ${this.map.map.local_step} ${s}${d}`, 2, 2 + 16);
-            ctx.fillText(`latency ${this.latency} ms`, 2, 2 + 32);
-            ctx.fillText(`fps ${gEngine.fps}`, 2, 2 + 48);
-            ctx.fillText(`entities ${Object.keys(this.map.map.objects).length}`, 2, 2 + 64);
-
-            ctx.font = "16px mono";
-            ctx.fillStyle = "yellow"
-            ctx.textAlign = "left"
             ctx.textBaseline = "bottom"
-            ctx.fillText(this.client.state(), 2, gEngine.view.height - 2);
+
+            ctx.fillText(`FPS: ${gEngine.fps} latency=${this.latency} ms ${this.client.state()}`, 2, gEngine.view.height - 2);
         }
+        this.map.paint_overlay(ctx)
 
     }
 
