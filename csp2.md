@@ -1,6 +1,6 @@
 
 
-synchronized clock
+1) synchronized clock
 
 The first step in implementing a fast paced multiplayer server is to
 have clocks synchronized between the client and the server.
@@ -64,6 +64,24 @@ steps on even-numbered steps, so that the frame rate
 will never be less than half the expected frame rate.
 If the delta is to large, request a full resync.
 
+
+2) Receiving messages
+
+1. Map Sync
+2. Create Object
+3. Object Input
+4. Destroy object
+
+3) Reconciliation
+
+implement get/set state for the entity
+
+implement get/set state for the world
+the state is a dictionary mapping ObjectId => {object, state}
+
+
+
+5) Bending
 
 clock delay, handling messages
 

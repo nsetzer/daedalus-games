@@ -21,6 +21,32 @@
  * https://gamedev.stackexchange.com/questions/141496/server-reconciliation-for-multiplayer-games
  *
  */
+
+export class Entity {
+    constructor(entid, props) {
+        this.entid = entid
+        this._destroy = () => {throw new Error("entity not attached to a world")}
+    }
+
+    paint(ctx) {
+    }
+
+    update(dt) {
+    }
+
+    getState() {
+        return {}
+    }
+
+    setState(state) {
+        return
+    }
+
+    destroy() {
+        this._destroy()
+    }
+}
+
 export class CspMap {
 
     constructor() {
@@ -32,7 +58,6 @@ export class CspMap {
         this.class_registry = {}
 
         this.objects = {}
-        this.destroyed_objects = {}
 
         //this.world_step = 0
         this.local_step = 0;
@@ -93,7 +118,6 @@ export class CspMap {
         return etype in this.events
 
     }
-
 
     receiveEvent(msg) {
 
@@ -160,7 +184,6 @@ export class CspMap {
 
         if (msg.type in this.events) {
             this.events[msg.type](msg)
-            console.log(`csp-handle ${this.local_step} ${JSON.stringify(msg)}`)
         } else {
             console.log(`csp-handle not supported ${JSON.stringify(msg)}`)
         }
@@ -209,11 +232,21 @@ export class CspMap {
     }
 
     getState() {
-        return null
+        // TODO: this state is not serializeable for a full sync
+        const state = {}
+        for (const [objId, obj] of Object.entries(this.objects)) {
+            state[objId] = {obj, state: obj.getState()}
+        }
+        return state;
     }
 
     setState(state) {
-
+        this.objects = {}
+        for (const [objId, item] of Object.entries(state)) {
+            const obj = item.obj
+            obj.setState(item.state)
+            this.objects[objId] = obj
+        }
     }
 
     _frameIndex(k) {
@@ -307,7 +340,8 @@ export class CspMap {
         // TODO: if the object already exists, reset to initial state
         const ctor = this.class_registry[className]
 
-        const ent = new ctor(this, entId, props)
+        const ent = new ctor(entId, props)
+        ent._destroy = ()=>{this.destroyObject(entId)}
 
         this.objects[entId] = ent
 
@@ -320,7 +354,6 @@ export class CspMap {
         if (entId in this.objects) {
             console.log('object destroyed', this.local_step, entId, this.objects[entId].timer)
 
-            this.destroyed_objects[entId] = this.objects[entId]
             delete this.objects[entId]
         } else {
             console.log('no object to delete', entId)
@@ -359,7 +392,7 @@ export class CspMap {
             payload
         }
 
-        console.log("csp-send", this.local_step, event)
+        //console.log("csp-send", this.local_step, event)
 
         this.receiveEvent(event)
 
@@ -455,11 +488,21 @@ export class ClientCspMap {
             const delta = this.world_step - this.map.local_step
             let step_kind = STEP_NORMAL
 
-            if (delta > this.step_delay) {
-                step_kind = STEP_CATCHUP
-            }
-            if (delta < this.step_delay) {
-                step_kind = STEP_SKIP
+            // this checks to see if the client step is out of sync with the
+            // last message received from the server. Every forth
+            // frame it takes corrective action to try and bring it into sync
+            // however this has a side effect of not drawing certain frames
+            // TODO: a better implementation would be to change the frame rate
+            // of the client to be 58,59 or 61,62 FPS until the game is synchronized again
+            if (this.map.local_step%4==0) {
+                if (delta > this.step_delay) {
+                    step_kind = STEP_CATCHUP
+                    console.log("catchup", this.local_step)
+                }
+                if (delta < this.step_delay) {
+                    step_kind = STEP_SKIP
+                    console.log("skip", this.local_step)
+                }
             }
 
             this.world_step += 1

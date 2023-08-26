@@ -2,18 +2,20 @@
 // https://codepen.io/whqet/pen/abooRX
 
 // TODO: rename map to World
-$import("axertc_common", {CspMap, ClientCspMap})
+$import("axertc_common", {Entity, CspMap, ClientCspMap})
 
 function random( min, max ) {
     return Math.random() * ( max - min ) + min;
 }
 
-class Entity {
-    constructor(map, entid, props) {
+
+
+class Firework extends Entity {
+    constructor(entid, props) {
+        super(entid, props)
 
         // TODO: if the only reason to pass in the map is to implement Destroy
         //       then an alternative is in the creation phase, destroy can be patched in
-        this.map = map
         this.entid = entid
 
         this.x = 320
@@ -27,10 +29,14 @@ class Entity {
 
         this.timer = 0
 
-        this.d1 = 0.8
-        this.d2 = 1.6
+        this.d0 = Math.sqrt((Math.pow(this.x_end - this.x_start, 2) + Math.pow(this.y_end - this.y_start, 2)))
+
+        this.d1 = this.d0/200
+        this.d2 = this.d1 + 0.8
 
         this.particles = []
+
+        // the fireworks colors and particles are not synced by the network
 
         this.hue = random(0, 360 );
         this.gravity = 25
@@ -43,6 +49,7 @@ class Entity {
             const alpha_decay = random( 0.015, 0.03 );
             this.particles.push({x:this.x_end, y:this.y_end, dx, dy, speed, alpha_decay})
         }
+
 
     }
 
@@ -59,9 +66,6 @@ class Entity {
     }
 
     paint(ctx) {
-
-        const d1 = .6
-        const d2 = 1.6
 
 
         if (this.timer < this.d1) {
@@ -80,7 +84,7 @@ class Entity {
 
 
         } else {
-            const dt = this.timer - d1
+            const dt = this.timer - this.d1
             const radius = 6
             for (const particle of this.particles) {
 
@@ -103,11 +107,25 @@ class Entity {
             }
 
         }
-
-
     }
 
+    getState() {
+        return {
+            x: this.x,
+            y: this.y,
+            x_end: this.x_end,
+            y_end: this.y_end,
+            timer: this.timer
+        }
+    }
 
+    setState(state) {
+        this.x = state.x
+        this.y = state.y
+        this.x_end = state.x_end
+        this.y_end = state.y_end
+        this.timer = state.timer
+    }
 
     update(dt) {
 
@@ -125,9 +143,7 @@ class Entity {
 
     }
 
-    destroy() {
-        this.map.destroyObject(this.entid)
-    }
+
 
 
 }
@@ -137,7 +153,7 @@ export class FireworksMap extends CspMap {
     constructor() {
         super()
 
-        this.registerClass("Entity", Entity)
+        this.registerClass("Firework", Firework)
     }
 
     validateMessage(playerId, msg) {
@@ -152,14 +168,6 @@ export class FireworksMap extends CspMap {
             obj.update(dt)
         }
 
-    }
-
-    getState() {
-        return {}
-    }
-
-    setState(state) {
-        return
     }
 
     paint(ctx) {

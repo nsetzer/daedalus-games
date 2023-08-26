@@ -270,7 +270,7 @@ class DemoScene {
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
             ctx.fillText(`world step: ${this.map.world_step} ${fmtTime(this.map.world_step/60)}`, 2, 2);
-            const d = this.map.world_step - this.map.map.local_step
+            const d = this.map.map.local_step - this.map.world_step
             const s = (d>=0)?'+':""
             ctx.fillText(`local step: ${this.map.map.local_step} ${s}${d}`, 2, 2 + 16);
             ctx.fillText(`latency ${this.latency} ms`, 2, 2 + 32);
@@ -296,7 +296,7 @@ class DemoScene {
         if (touches.length > 0) {
             let touch = touches[0]
             if (touch.pressed) {
-                this.map.map.sendCreateObjectEvent("Entity", touch)
+                this.map.map.sendCreateObjectEvent("Firework", touch)
             }
         }
     }
