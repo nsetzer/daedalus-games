@@ -166,7 +166,6 @@ export class CspMap {
 
     receiveEvent(msg) {
 
-
         let step = msg.step
         let idx = this._frameIndex(step)
 
@@ -326,7 +325,6 @@ export class CspMap {
             const obj = item.obj
             obj.setState(item.state)
             if (!!obj._shadow) {
-                console.log("shadow setState", item.state)
                 obj._shadow.setState(item.state)
             }
             this.objects[objId] = obj
@@ -419,7 +417,6 @@ export class CspMap {
     createObject(entId, className, props) {
         // get the class from the registered set of classes
         // check if the object has already been created
-
 
         // TODO: if the object already exists, reset to initial state
         const ctor = this.class_registry[className]
@@ -772,6 +769,11 @@ export class ServerCspMap {
 
     }
     
+
+    paint(ctx) {
+        this.map.paint(ctx)
+
+    }
 
     update(dt) {
 
