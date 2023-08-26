@@ -128,10 +128,22 @@ b) do to floating point rounding errors, deltas will need to be periodically sen
 
 6) Optimize Serialization
 
-6) other notes
+7) Lag compensation
+
+The server knows at what time each message was received, and can estimate the latency for each client.
+This information can be used to rewind the state to what a particular player was actually seeing
+at a specific point in time.
+
+8) other notes
 
 the server can kill an object
 clients can process damage, but should wait for the server to indicate an object actually died.
 
 
 
+demo client
+
+two CspMaps, side by side
+mock client
+individual latency sliders for each side
+client holds on to messages in an incomming queue, moves them to an outgoing queue

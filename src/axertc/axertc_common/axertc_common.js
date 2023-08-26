@@ -211,6 +211,9 @@ export class CspMap {
                             //obj._shadow.setState(obj.getState())
                             obj._shadow.setState(last_known_state[objId].state)
                         }
+                        // TODO: shadow step should be set when reconciliation is done.
+                        //       after N frames are drawn, then delete the shadow
+                        //       as the objects will have converged to the right position
                         obj._shadow_step = 0
                     }
                 }
