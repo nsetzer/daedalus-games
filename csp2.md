@@ -124,6 +124,13 @@ b) partial sync
 a) when a player joins mid way through, they will need to be sent the entire state of the game
 b) do to floating point rounding errors, deltas will need to be periodically sent to clients
 
+partial syncs are one solution to players with high ping
+packets may be dropped because they are too old. the sync will update the client
+to a known good starting point for applying new inputs.
+the other possible solution is to make the receive buffer larger,
+but this means reconciliation will need to be done over a larger window.
+partial syncs reduce how many steps are needed for worst case reconciliation
+
 5) Bending
 
 6) Optimize Serialization

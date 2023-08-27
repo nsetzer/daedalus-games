@@ -64,6 +64,11 @@ export class Entity {
 
     }
 
+    onBend(progress, shadow) {
+        // no bending by default
+        this.setState(shadow.getState())
+    }
+
     getState() {
         return {}
     }
@@ -84,7 +89,7 @@ export class CspMap {
         this.isServer = false
         this.playerId = "null"
 
-        this.enable_bending = true
+        this.enable_bending = false
 
         this.step_rate = 60
 
@@ -212,6 +217,7 @@ export class CspMap {
                         if (!obj._shadow) {
                             const ctor = this.class_registry[obj.constructor.name]
                             obj._shadow = new ctor(objId, {})
+                            obj._shadow._destroy = ()=>{}
                             //obj._shadow.setState(obj.getState())
                             obj._shadow.setState(last_known_state[objId].state)
                         }
@@ -429,7 +435,12 @@ export class CspMap {
         for (const entid in this.inputqueue[idx]) {
             for (const uid in this.inputqueue[idx][entid]) {
                 const message = this.inputqueue[idx][entid][uid]
-                this.handleMessage(message, reconcile)
+                if (message.step != this.local_step) {
+                    //TODO: state history does not seem to be cleared correctly
+                    console.error("illegal step", idx, this.local_step, message.step)
+                } else {
+                    this.handleMessage(message, reconcile)
+                }
             }
         }
     }
@@ -486,8 +497,11 @@ export class CspMap {
         const ent = new ctor(entId, props)
         ent._destroy = ()=>{this.destroyObject(entId)}
 
-        if (entId in this.dirty_objects) {
-            ent._shadow = new ctor(entId, props)
+        if (this.enable_bending) {
+            if (entId in this.dirty_objects) {
+                ent._shadow = new ctor(entId, props)
+                ent._shadow._destroy = ()=>{}
+            }
         }
 
         this.objects[entId] = ent
