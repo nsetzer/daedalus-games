@@ -214,6 +214,7 @@ export class Widget {
 
     handleTouches(touches) {
 
+        let unused = []
         let match = false;
         for (const touch of touches) {
             if (this.rect.collidePoint(touch.x, touch.y)) {
@@ -229,11 +230,14 @@ export class Widget {
                 }
                 match = true
                 break;
+            } else {
+                unused.push(touch)
             }
         }
         if (!match) {
             this._touch_id = null
         }
+        return unused;
     }
 
     handleTouchRelease() {
@@ -375,8 +379,9 @@ export class WidgetGroup {
 
     handleTouches(touches) {
         this.widgets.forEach(w => {
-            w.handleTouches(touches)
+            touches = w.handleTouches(touches)
         })
+        return  touches
     }
 
     handleKeyPress(keyevent) {

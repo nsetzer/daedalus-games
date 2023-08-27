@@ -1,6 +1,8 @@
 
 $import("axertc_client", {
-    ApplicationBase, GameScene, RealTimeClient, WidgetGroup, ButtonWidget
+    ApplicationBase, GameScene, RealTimeClient,
+    WidgetGroup, ButtonWidget,
+    ArrowButtonWidget, Direction, Alignment, Rect, TouchInput
 })
 $import("axertc_common", {CspMap, ClientCspMap, ServerCspMap})
 $import("fireworks_common", {FireworksMap})
@@ -41,8 +43,8 @@ class DemoClient {
         this.queues = [
             {queue:this.queue_p1_in,  latency: .05, callback: (msg) => this.server_receive("player1", msg)},
             {queue:this.queue_p1_out, latency: .05, callback: this.p1_receive},
-            {queue:this.queue_p2_in,  latency: .75, callback: (msg) => this.server_receive("player2", msg)},
-            {queue:this.queue_p2_out, latency: .75, callback: this.p2_receive},
+            {queue:this.queue_p2_in,  latency: .50, callback: (msg) => this.server_receive("player2", msg)},
+            {queue:this.queue_p2_out, latency: .50, callback: this.p2_receive},
         ]
 
     }
@@ -66,6 +68,7 @@ class DemoClient {
 
         while (this.map_player1.map.outgoing_messages.length > 0) {
             const msg = this.map_player1.map.outgoing_messages.shift()
+            console.log("p1 out", msg)
             this.queue_p1_in.push({delay: 0, message: msg.message})
         }
 
@@ -111,6 +114,122 @@ class DemoClient {
     state() {
         return "connected"
     }
+
+    changeLatency(playerId, amount) {
+        const step = 10
+        console.log("change latency", playerId, step*amount)
+
+        if (playerId === "player1") {
+            let latency = this.queues[0].latency
+            latency += (step * amount) / 1000
+            if (latency < 0.01) {
+                latency = 0.01
+            } else if (latency > .750) {
+                latency = 0.750
+            }
+            this.queues[0].latency = latency
+            this.queues[1].latency = latency
+        }
+
+        if (playerId === "player2") {
+            let latency = this.queues[2].latency
+            latency += (step * amount) / 1000
+            if (latency < 0.01) {
+                latency = 0.01
+            } else if (latency > .750) {
+                latency = 0.750
+            }
+            this.queues[2].latency = latency
+            this.queues[3].latency = latency
+        }
+
+    }
+
+    changeDelay(playerId, amount) {
+        console.log("change delay", playerId, amount)
+
+        if (playerId === "player1") {
+            const delay = this.map_player1.step_delay
+            delay += amount
+            if (delay < -60) {
+                delay = -60
+            }
+            if (delay > 60) {
+                delay = 60
+            }
+            this.map_player1.step_delay = delay
+        }
+
+        if (playerId === "player2") {
+            const delay = this.map_player2.step_delay
+            delay += amount
+            if (delay < -60) {
+                delay = -60
+            }
+            if (delay > 60) {
+                delay = 60
+            }
+            this.map_player2.step_delay = delay
+        }
+    }
+}
+
+class CspController {
+    constructor(map_player1, map_player2) {
+
+        this.map_player1 = map_player1
+        this.map_player2 = map_player2
+
+        this.player1 = null
+        this.player2 = null
+
+    }
+
+    getPlayer1() {
+        if (this.player1 === null) {
+            for (const obj of Object.values(this.map_player1.map.objects)) {
+                if (!!obj.playerId && obj.playerId=="player1") {
+                    this.player1 = obj
+                    break
+                }
+            }
+        }
+        return this.player1
+    }
+
+    getPlayer2() {
+        if (this.player2 === null) {
+            for (const obj of Object.values(this.map_player2.map.objects)) {
+                if (!!obj.playerId && obj.playerId=="player2") {
+                    this.player2 = obj
+                    break
+                }
+            }
+        }
+        return this.player2
+    }
+
+    setInputDirection(whlid, vector){
+        if (whlid == 0) {
+            const player = this.getPlayer1()
+            if (!player) {
+                return
+            }
+            this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
+        } else {
+            const player = this.getPlayer2()
+            if (!player) {
+                return
+            }
+            this.map_player2.map.sendObjectInputEvent(player.entid, {whlid, vector})
+        }
+    }
+
+    handleButtonPress(btnid){
+    }
+
+    handleButtonRelease(btnid){
+    }
 }
 
 class DemoScene {
@@ -124,6 +243,8 @@ class DemoScene {
 
         this.map_player2 = new ClientCspMap(new FireworksMap())
         this.map_player2.setPlayerId("player2")
+        // TODO: use latency estimation to adjust step delay?
+        //this.map_player2.step_delay = 0
 
         this.map_server = new ServerCspMap(new FireworksMap())
 
@@ -136,6 +257,106 @@ class DemoScene {
         this.maps = [this.map_player1, this.map_server, this.map_player2]
         this.resize()
 
+        this.initWidgets()
+
+        this.controller = new CspController(this.map_player1, this.map_player2);
+
+        this.touch = new TouchInput(this.controller)
+        this.touch.addWheel(72, -72, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
+        this.touch.addWheel(72, -72, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+
+
+        this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
+        this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+
+    }
+
+    initWidgets() {
+
+        const view1 = this.views[0]
+        const view2 = this.views[2]
+        const btn_height = 24
+        const btn_width = 32
+
+        this.grp = new WidgetGroup()
+
+
+
+        // player 1
+
+        this.btn_p1_latency_dn = new ArrowButtonWidget(Direction.LEFT)
+        this.btn_p1_latency_dn.rect = new Rect(
+            view1.x,
+            view1.y+32,
+            btn_width,
+            btn_height)
+        this.btn_p1_latency_dn.clicked = () => {this.client.changeLatency("player1", -1)}
+        this.grp.addWidget(this.btn_p1_latency_dn)
+
+
+        this.btn_p1_latency_up = new ArrowButtonWidget(Direction.RIGHT)
+        this.btn_p1_latency_up.rect = new Rect(
+            view1.x + view1.width - btn_width,
+            view1.y+32,
+            btn_width,
+            btn_height)
+        this.btn_p1_latency_up.clicked = () => {this.client.changeLatency("player1", 1)}
+        this.grp.addWidget(this.btn_p1_latency_up)
+
+        this.btn_p1_delay_dn = new ArrowButtonWidget(Direction.LEFT)
+        this.btn_p1_delay_dn.rect = new Rect(
+            view1.x,
+            view1.y+64,
+            btn_width,
+            btn_height)
+        this.btn_p1_delay_dn.clicked = () => {this.client.changeDelay("player1", -1)}
+        this.grp.addWidget(this.btn_p1_delay_dn)
+
+        this.btn_p1_delay_up = new ArrowButtonWidget(Direction.RIGHT)
+        this.btn_p1_delay_up.rect = new Rect(
+            view1.x + view1.width - btn_width,
+            view1.y+64,
+            btn_width,
+            btn_height)
+        this.btn_p1_delay_up.clicked = () => {this.client.changeDelay("player1", 1)}
+        this.grp.addWidget(this.btn_p1_delay_up)
+
+        // player 2
+        this.btn_p2_latency_dn = new ArrowButtonWidget(Direction.LEFT)
+        this.btn_p2_latency_dn.rect = new Rect(
+            view2.x,
+            view2.y+32,
+            btn_width,
+            btn_height)
+        this.btn_p2_latency_dn.clicked = () => {this.client.changeLatency("player2", -1)}
+        this.grp.addWidget(this.btn_p2_latency_dn)
+
+        this.btn_p2_latency_up = new ArrowButtonWidget(Direction.RIGHT)
+        this.btn_p2_latency_up.rect = new Rect(
+            view2.x + view2.width - btn_width,
+            view2.y+32,
+            btn_width,
+            btn_height)
+        this.btn_p2_latency_up.clicked = () => {this.client.changeLatency("player2", 1)}
+        this.grp.addWidget(this.btn_p2_latency_up)
+
+        this.btn_p2_delay_dn = new ArrowButtonWidget(Direction.LEFT)
+        this.btn_p2_delay_dn.rect = new Rect(
+            view2.x,
+            view2.y+64,
+            btn_width,
+            btn_height)
+        this.btn_p2_delay_dn.clicked = () => {this.client.changeDelay("player2", -1)}
+        this.grp.addWidget(this.btn_p2_delay_dn)
+
+        this.btn_p2_delay_up = new ArrowButtonWidget(Direction.RIGHT)
+        this.btn_p2_delay_up.rect = new Rect(
+            view2.x + view2.width - btn_width,
+            view2.y+64,
+            btn_width,
+            btn_height)
+        this.btn_p2_delay_up.clicked = () => {this.client.changeDelay("player2", 1)}
+        this.grp.addWidget(this.btn_p2_delay_up)
 
     }
 
@@ -145,19 +366,20 @@ class DemoScene {
 
     update(dt) {
 
-
-
         this.client.update(dt)
 
         this.map_player1.update(dt)
         this.map_player2.update(dt)
         this.map_server.update(dt)
 
+        this.grp.update(dt)
+
+
     }
 
     paint(ctx) {
 
-
+        ctx.save();
         for (let i=0; i < 3; i++) {
             const view = this.views[i]
             const map = this.maps[i]
@@ -185,25 +407,40 @@ class DemoScene {
             ctx.textBaseline = "top"
 
             ctx.fillText(view.name, 211/2, 2);
-            const delta1 = map.map.local_step - this.map_server.map.local_step
-            if (view.name!="Server") {
-                const delta2 = map.map.local_step - map.world_step
-                ctx.fillText(`step:${map.map.local_step%1000} (${delta2}) (${delta1}) `, 211/2, 2+16);
-            } else {
-                ctx.fillText(`step:${map.map.local_step%1000} (${delta1})`, 211/2, 2+16);
+            //const delta1 = map.map.local_step - this.map_server.map.local_step
+            if (i==0) {
+                //const delta2 = map.map.local_step - map.world_step
+                let latency = (this.client.queues[0].latency*1000).toFixed(0)
+                let delay = this.map_player1.step_delay
+                ctx.font = "12px mono";
+                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
+                ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
             }
+            if (i==2) {
+
+                let latency = (this.client.queues[2].latency*1000).toFixed(0)
+                let delay = this.map_player2.step_delay
+                ctx.font = "12px mono";
+                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
+                ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
+            }
+
 
             ctx.restore()
         }
+        ctx.restore();
+
+        this.grp.paint(ctx)
+        this.touch.paint(ctx)
 
         if (this.client) {
 
-            ctx.font = "16px mono";
+            ctx.font = "8px mono";
             ctx.fillStyle = "yellow"
             ctx.textAlign = "left"
-            ctx.textBaseline = "bottom"
+            ctx.textBaseline = "top"
 
-            ctx.fillText(`FPS: ${gEngine.fps}`, 2, gEngine.view.height - 2);
+            ctx.fillText(`FPS: ${gEngine.fps}`, 0, 0);
         }
 
     }
@@ -221,8 +458,11 @@ class DemoScene {
 
     handleTouches(touches) {
 
+        touches = this.grp.handleTouches(touches)
+        touches = this.touch.handleTouches(touches)
+
         if (touches.length > 0) {
-            let touch = touches[0]
+            let touch = {...touches[0]}
             if (touch.pressed) {
 
                 if (touch.x < (this.views[0].x+this.views[0].width)) {

@@ -145,11 +145,105 @@ class Firework extends Entity {
         }
 
     }
-
-
-
-
 }
+
+
+class Player extends Entity {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.x = props?.x??0
+        this.y = props?.y??0
+        this.dx = 0
+        this.dy = 0
+        this.playerId = props?.playerId??null
+
+        this.hue = random(0, 360)
+        this.brightness = random(50, 80)
+        this.input_count = 0
+
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.rect( this.x, this.y, 32, 32);
+        ctx.strokeStyle = 'hsl(' + this.hue + ', 100%, ' + this.brightness + '%)';
+        ctx.stroke();
+
+
+        ctx.font = "16px mono";
+        ctx.fillStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+
+        ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
+
+    }
+
+    getState() {
+        //if (isNaN(this.dx) || isNaN(this.dy)) {
+        //        console.log("---")
+        //        console.log(this.dx, this.dy )
+        //        console.log("---")
+        //        console.log(this)
+        //        throw new Error("nan get state")
+        //    }
+        return {
+            playerId: this.playerId,
+            x: this.x,
+            y: this.y,
+            dx: this.dx,
+            dy: this.dy,
+            input_count: this.input_count,
+            hue: this.hue,
+            brightness: this.brightness
+        }
+    }
+
+    setState(state) {
+        //if (isNaN(state.dx) || isNaN(state.dy)) {
+        //        console.log("---")
+        //        console.log(this)
+        //        throw new Error("nan set state")
+        //    }
+        this.playerId = state.playerId
+        this.x = state.x
+        this.y = state.y
+        this.dx = state.dx
+        this.dy = state.dy
+        this.input_count = state.input_count
+        this.hue = state.hue
+        this.brightness = state.brightness
+    }
+
+    update(dt) {
+
+        this.x += dt * this.dx
+        this.y += dt * this.dy
+
+    }
+
+    onBend(progress, shadow) {
+        this.x  += (shadow.x  - this.x)  * progress
+        this.y  += (shadow.y  - this.y)  * progress
+        this.dx += (shadow.dx - this.dx) * progress
+        this.dy += (shadow.dy - this.dy) * progress
+    }
+
+    onInput(payload) {
+        this.dx = 90 * payload.vector.x
+        this.dy = 90 * payload.vector.y
+
+        if (isNaN(this.dx) || isNaN(this.dy)) {
+            console.log("---")
+            console.log(payload)
+            throw new Error("nan")
+        }
+        this.input_count += 1
+    }
+}
+
 
 export class FireworksMap extends CspMap {
 
@@ -157,6 +251,7 @@ export class FireworksMap extends CspMap {
         super()
 
         this.registerClass("Firework", Firework)
+        this.registerClass("Player", Player)
     }
 
     validateMessage(playerId, msg) {
@@ -164,12 +259,7 @@ export class FireworksMap extends CspMap {
     }
 
     update_main(dt, reconcile) {
-
-        for (const obj of Object.values(this.objects)) {
-
-            obj.update(dt)
-        }
-
+        super.update_main(dt, reconcile)
     }
 
     paint(ctx) {

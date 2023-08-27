@@ -232,7 +232,7 @@ export class CspMap {
             const start = this.dirty_step
             const end = this.local_step
             let error = false
-            console.log(`reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
+            console.log(this.instanceId, `reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
             if (start < this.local_step - this.step_rate) {
                 throw new Error("reconcile starts before the last cached input")
             }
@@ -314,7 +314,47 @@ export class CspMap {
     }
 
     update_main(dt, reconcile) {
+        // todo: move this into the CspMap, require super?
+        // add a check in update_after to see if super was called?
+        for (const obj of Object.values(this.objects)) {
+            obj.update(dt)
+            if (!!obj._shadow) {
+                //if (!obj._shadow.x) {
+                //    console.log(obj)
+                //    throw new Error(JSON.stringify(obj))
+                //}
+                //if (!obj._shadow.y) {
+                //    console.log(obj)
+                //    throw new Error(JSON.stringify(obj))
+                //}
+                obj._shadow.update(dt);
 
+                if (!reconcile) {
+
+                    obj._shadow_step += 1
+                    const p = (obj._shadow_step) / 5
+                    obj.onBend(p, obj._shadow)
+
+                    if (obj._shadow_step >= 5){
+                        if (this._debug_reconcile) {
+                            throw new Error("shadow copy bending finished during reconcile")
+                        }
+                        console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
+                        //obj.setState(obj._shadow.getState())
+                        delete obj._shadow
+                    }
+
+                }
+            }
+
+            //if (!obj.x) {
+            //    throw new Error(JSON.stringify(obj))
+            //}
+            //if (!obj.y) {
+            //    console.log(obj)
+            //    throw new Error(obj)
+            //}
+        }
     }
 
     update_after(dt, reconcile) {
@@ -801,9 +841,6 @@ export class ServerCspMap {
 
         while (this.incoming_message.length > 0) {
             const msg = this.incoming_message.shift()
-            if (msg.type == "csp-object-create") {
-                console.log("server received object create")
-            }
             this.map.receiveEvent(msg)
         }
         this.map.reconcile()

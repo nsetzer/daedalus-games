@@ -158,11 +158,25 @@ export class TouchInput {
     addWheel(x, y, radius, options) {
 
         let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
+        console.log("Add wheel", alignment)
+
+        let cx, cy
+        if (alignment&Alignment.RIGHT) {
+            cx = gEngine.view.width - x
+        } else {
+            cx = x
+        }
+
+        if (alignment&Alignment.TOP) {
+            cy = y
+        } else {
+            cy = gEngine.view.height + y
+        }
 
         this.wheels.push({
             x, y, radius,
-            cx: x,
-            cy: gEngine.view.height + y,
+            cx: cx,
+            cy: cy,
             alignment: alignment,
             vector: {x:0, y:0},
             pressed: false
@@ -228,7 +242,6 @@ export class TouchInput {
     handleTouches(touches) {
 
         //touches = [...touches] // copy?
-
         if (touches.length) {
             this.touches = [...touches]
         }
@@ -286,6 +299,9 @@ export class TouchInput {
                 this.handleMoveCancel(j)
             }
         }
+
+        // return the unused touch events
+        return touches
 
     }
 

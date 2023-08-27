@@ -124,49 +124,7 @@ export class MazeMap extends CspMap {
     }
 
     update_main(dt, reconcile) {
-
-        // todo: move this into the CspMap, require super?
-        // add a check in update_after to see if super was called?
-        for (const obj of Object.values(this.objects)) {
-            obj.update(dt)
-            if (!!obj._shadow) {
-                if (!obj._shadow.x) {
-                    console.log(obj)
-                    throw new Error(JSON.stringify(obj))
-                }
-                if (!obj._shadow.y) {
-                    console.log(obj)
-                    throw new Error(JSON.stringify(obj))
-                }
-                obj._shadow.update(dt);
-
-                if (!reconcile) {
-
-                    obj._shadow_step += 1
-                    const p = (obj._shadow_step) / 5
-                    obj.onBend(p, obj._shadow)
-
-
-
-
-                    if (obj._shadow_step >= 5){
-                        console.log(this.local_step, "do bend finish", obj.entid, obj.x - obj._shadow.x, obj.y - obj._shadow.y)
-                        obj.setState(obj._shadow.getState())
-                        delete obj._shadow
-                    }
-
-                }
-            }
-
-            if (!obj.x) {
-                throw new Error(JSON.stringify(obj))
-            }
-            if (!obj.y) {
-                console.log(obj)
-                throw new Error(obj)
-            }
-        }
-
+        super.update_main(dt, reconcile)
     }
 
     paint(ctx) {
