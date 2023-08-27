@@ -149,7 +149,7 @@ class DemoClient {
         console.log("change delay", playerId, amount)
 
         if (playerId === "player1") {
-            const delay = this.map_player1.step_delay
+            let delay = this.map_player1.step_delay
             delay += amount
             if (delay < -60) {
                 delay = -60
@@ -161,7 +161,7 @@ class DemoClient {
         }
 
         if (playerId === "player2") {
-            const delay = this.map_player2.step_delay
+            let delay = this.map_player2.step_delay
             delay += amount
             if (delay < -60) {
                 delay = -60
@@ -424,9 +424,15 @@ class DemoScene {
                 ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
                 ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
             }
-
-
             ctx.restore()
+
+            ctx.font = "12px mono";
+            ctx.fillStyle = "yellow"
+            ctx.textAlign = "left"
+            ctx.textBaseline = "top"
+            ctx.fillText(`Bending ${map.map.enable_bending?"enabled":"disabled"} `, view.x+4, view.height);
+
+
         }
         ctx.restore();
 

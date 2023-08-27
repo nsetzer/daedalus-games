@@ -89,7 +89,7 @@ export class CspMap {
         this.isServer = false
         this.playerId = "null"
 
-        this.enable_bending = false
+        this.enable_bending = true
 
         this.step_rate = 60
 
@@ -337,11 +337,13 @@ export class CspMap {
 
                 if (!reconcile) {
 
+                    const bend_steps = 9
+
                     obj._shadow_step += 1
-                    const p = (obj._shadow_step) / 5
+                    const p = (obj._shadow_step) / bend_steps
                     obj.onBend(p, obj._shadow)
 
-                    if (obj._shadow_step >= 5){
+                    if (obj._shadow_step >= bend_steps){
                         if (this._debug_reconcile) {
                             throw new Error("shadow copy bending finished during reconcile")
                         }
@@ -501,6 +503,7 @@ export class CspMap {
             if (entId in this.dirty_objects) {
                 ent._shadow = new ctor(entId, props)
                 ent._shadow._destroy = ()=>{}
+                ent._shadow_step = 0
             }
         }
 
@@ -802,6 +805,7 @@ export class ServerCspMap {
         this.map = map
         this.map.isServer = true
         this.incoming_message = []
+        this.map.enable_bending = false
     }
 
     acceptsEvent(type) {

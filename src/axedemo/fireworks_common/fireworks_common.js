@@ -162,6 +162,11 @@ class Player extends Entity {
         this.brightness = random(50, 80)
         this.input_count = 0
 
+
+        if (isNaN(this.x)) {
+            throw new Error("init nan")
+        }
+
     }
 
     paint(ctx) {
@@ -182,13 +187,11 @@ class Player extends Entity {
     }
 
     getState() {
-        //if (isNaN(this.dx) || isNaN(this.dy)) {
-        //        console.log("---")
-        //        console.log(this.dx, this.dy )
-        //        console.log("---")
-        //        console.log(this)
-        //        throw new Error("nan get state")
-        //    }
+        if (isNaN(this.x)) {
+            console.log("---")
+            console.log(this)
+            throw new Error("nan get state")
+        }
         return {
             playerId: this.playerId,
             x: this.x,
@@ -202,11 +205,11 @@ class Player extends Entity {
     }
 
     setState(state) {
-        //if (isNaN(state.dx) || isNaN(state.dy)) {
-        //        console.log("---")
-        //        console.log(this)
-        //        throw new Error("nan set state")
-        //    }
+        if (isNaN(this.x) || isNaN(state.x)) {
+            console.log("---")
+            console.log(this)
+            throw new Error("nan set state")
+        }
         this.playerId = state.playerId
         this.x = state.x
         this.y = state.y
@@ -225,6 +228,13 @@ class Player extends Entity {
     }
 
     onBend(progress, shadow) {
+        console.log("bend", progress, this.x, shadow.x)
+        if (isNaN(progress)) {
+            throw new Error("onBend progress")
+        }
+        if (isNaN(this.x)||isNaN(shadow.x)) {
+            throw new Error("onBend nan")
+        }
         this.x  += (shadow.x  - this.x)  * progress
         this.y  += (shadow.y  - this.y)  * progress
         this.dx += (shadow.dx - this.dx) * progress
