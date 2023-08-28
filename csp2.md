@@ -27,6 +27,25 @@ From a player’s point of view, this has two important consequences:
     Player sees other entities in the past
 
 
+0) interactive demos
+
+* synchronized clock
+    display a clock in each of the 3 panels, counting
+    seconds since the server was started
+    allow changing the latency or step delay
+
+* fireworks
+    allow changing latency only
+
+* movement
+    basic top down adventure style movement system
+    allow changing latency only
+
+* moving platform
+    basic collision detection, physics
+    include an elevator platform
+    wheel only, up to jump, down to duck
+    allow changing latency only
 
 1) synchronized clock
 
@@ -99,6 +118,11 @@ If the delta is to large, request a full resync.
 the better way will to increase or decrease the overall framerate
 running at 58 or 62 frames per second until the steps is caught up.
 
+2) rest of the owl
+
+after implementing a synchronized clock, basically
+two circles stacked on top, fill in the rest of the owl details
+
 2) Receiving messages
 
 1. Map Sync (full, partial, fragmentation)
@@ -144,7 +168,17 @@ bending may be disabled on the server
 
 5) Bending
 
+bending is an optional enhancement on top of  reconciliation, interpolation, extrapolation
+
+
 6) partial syncs
+
+server is authoritative
+so even if a future event comes in that is valid, causes a reconciliation
+the next partial sync that is sent out is the truth
+there is no contradiction
+
+are partial syncs position only?
 
 7) delta syncs
 
@@ -156,6 +190,15 @@ bending may be disabled on the server
 The server knows at what time each message was received, and can estimate the latency for each client.
 This information can be used to rewind the state to what a particular player was actually seeing
 at a specific point in time.
+
+clients should send a special object-input message with a lag compensation flag
+the message indicates that the server should perform lag compensation when processing
+the message
+e.g. if its a collision, look at the state history for the two characters
+
+
+10)
+split axertc_client in axertc_client and axertc_daedalus_client
 
 8) other notes
 

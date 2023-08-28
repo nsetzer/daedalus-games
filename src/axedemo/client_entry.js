@@ -3,8 +3,9 @@ $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
     ArrowButtonWidget, Direction, Alignment, Rect, TouchInput
+
 })
-$import("axertc_common", {CspMap, ClientCspMap, ServerCspMap})
+$import("axertc_common", {CspMap, ClientCspMap, ServerCspMap, fmtTime})
 $import("fireworks_common", {FireworksMap})
 
 class DemoClient {
@@ -13,7 +14,6 @@ class DemoClient {
         this.map_player1 = map_player1
         this.map_player2 = map_player2
         this.map_server = map_server
-        this.sync_timer = .1
 
         this.p1_receive = message => {
 
@@ -55,20 +55,8 @@ class DemoClient {
 
     update(dt) {
 
-        this.sync_timer -= dt
-        if (this.sync_timer < 0) {
-            this.sync_timer += 0.1
-
-            this.map_server.map.sendBroadcast(null, {
-                type: "map-sync",
-                step: this.map_server.map.local_step,
-                sync: 0
-            })
-        }
-
         while (this.map_player1.map.outgoing_messages.length > 0) {
             const msg = this.map_player1.map.outgoing_messages.shift()
-            console.log("p1 out", msg)
             this.queue_p1_in.push({delay: 0, message: msg.message})
         }
 
@@ -117,7 +105,6 @@ class DemoClient {
 
     changeLatency(playerId, amount) {
         const step = 10
-        console.log("change latency", playerId, step*amount)
 
         if (playerId === "player1") {
             let latency = this.queues[0].latency
@@ -146,7 +133,6 @@ class DemoClient {
     }
 
     changeDelay(playerId, amount) {
-        console.log("change delay", playerId, amount)
 
         if (playerId === "player1") {
             let delay = this.map_player1.step_delay
@@ -215,6 +201,7 @@ class CspController {
             if (!player) {
                 return
             }
+            console.log("sent", whlid, vector)
             this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
         } else {
             const player = this.getPlayer2()
@@ -231,6 +218,12 @@ class CspController {
     handleButtonRelease(btnid){
     }
 }
+
+const DEMO_MODE_CLOCK     = 1
+const DEMO_MODE_FIREWORKS = 2
+const DEMO_MODE_MOVEMENT  = 4
+const DEMO_MODE_PLATFORM  = 8
+const DEMO_MODE_ALL = DEMO_MODE_CLOCK|DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
 
 class DemoScene {
 
@@ -262,12 +255,14 @@ class DemoScene {
         this.controller = new CspController(this.map_player1, this.map_player2);
 
         this.touch = new TouchInput(this.controller)
-        this.touch.addWheel(72, -72, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
-        this.touch.addWheel(72, -72, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+        this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
+        this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
 
 
         this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
         this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+
+        this.demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
 
     }
 
@@ -303,23 +298,25 @@ class DemoScene {
         this.btn_p1_latency_up.clicked = () => {this.client.changeLatency("player1", 1)}
         this.grp.addWidget(this.btn_p1_latency_up)
 
-        this.btn_p1_delay_dn = new ArrowButtonWidget(Direction.LEFT)
-        this.btn_p1_delay_dn.rect = new Rect(
-            view1.x,
-            view1.y+64,
-            btn_width,
-            btn_height)
-        this.btn_p1_delay_dn.clicked = () => {this.client.changeDelay("player1", -1)}
-        this.grp.addWidget(this.btn_p1_delay_dn)
+        if (this.demo_mode&DEMO_MODE_CLOCK) {
+            this.btn_p1_delay_dn = new ArrowButtonWidget(Direction.LEFT)
+            this.btn_p1_delay_dn.rect = new Rect(
+                view1.x,
+                view1.y+64,
+                btn_width,
+                btn_height)
+            this.btn_p1_delay_dn.clicked = () => {this.client.changeDelay("player1", -1)}
+            this.grp.addWidget(this.btn_p1_delay_dn)
 
-        this.btn_p1_delay_up = new ArrowButtonWidget(Direction.RIGHT)
-        this.btn_p1_delay_up.rect = new Rect(
-            view1.x + view1.width - btn_width,
-            view1.y+64,
-            btn_width,
-            btn_height)
-        this.btn_p1_delay_up.clicked = () => {this.client.changeDelay("player1", 1)}
-        this.grp.addWidget(this.btn_p1_delay_up)
+            this.btn_p1_delay_up = new ArrowButtonWidget(Direction.RIGHT)
+            this.btn_p1_delay_up.rect = new Rect(
+                view1.x + view1.width - btn_width,
+                view1.y+64,
+                btn_width,
+                btn_height)
+            this.btn_p1_delay_up.clicked = () => {this.client.changeDelay("player1", 1)}
+            this.grp.addWidget(this.btn_p1_delay_up)
+        }
 
         // player 2
         this.btn_p2_latency_dn = new ArrowButtonWidget(Direction.LEFT)
@@ -340,23 +337,25 @@ class DemoScene {
         this.btn_p2_latency_up.clicked = () => {this.client.changeLatency("player2", 1)}
         this.grp.addWidget(this.btn_p2_latency_up)
 
-        this.btn_p2_delay_dn = new ArrowButtonWidget(Direction.LEFT)
-        this.btn_p2_delay_dn.rect = new Rect(
-            view2.x,
-            view2.y+64,
-            btn_width,
-            btn_height)
-        this.btn_p2_delay_dn.clicked = () => {this.client.changeDelay("player2", -1)}
-        this.grp.addWidget(this.btn_p2_delay_dn)
+        if (this.demo_mode&DEMO_MODE_CLOCK) {
+            this.btn_p2_delay_dn = new ArrowButtonWidget(Direction.LEFT)
+            this.btn_p2_delay_dn.rect = new Rect(
+                view2.x,
+                view2.y+64,
+                btn_width,
+                btn_height)
+            this.btn_p2_delay_dn.clicked = () => {this.client.changeDelay("player2", -1)}
+            this.grp.addWidget(this.btn_p2_delay_dn)
 
-        this.btn_p2_delay_up = new ArrowButtonWidget(Direction.RIGHT)
-        this.btn_p2_delay_up.rect = new Rect(
-            view2.x + view2.width - btn_width,
-            view2.y+64,
-            btn_width,
-            btn_height)
-        this.btn_p2_delay_up.clicked = () => {this.client.changeDelay("player2", 1)}
-        this.grp.addWidget(this.btn_p2_delay_up)
+            this.btn_p2_delay_up = new ArrowButtonWidget(Direction.RIGHT)
+            this.btn_p2_delay_up.rect = new Rect(
+                view2.x + view2.width - btn_width,
+                view2.y+64,
+                btn_width,
+                btn_height)
+            this.btn_p2_delay_up.clicked = () => {this.client.changeDelay("player2", 1)}
+            this.grp.addWidget(this.btn_p2_delay_up)
+        }
 
     }
 
@@ -401,33 +400,57 @@ class DemoScene {
 
             map.paint(ctx)
 
+            ctx.font = "8px mono";
+            ctx.fillStyle = "yellow"
+            ctx.textAlign = "right"
+            ctx.textBaseline = "top"
+            const delta1 = map.map.local_step - this.map_server.map.local_step
+            ctx.fillText(`DELAY: ${delta1}`, 211, 0);
+
             ctx.font = "16px mono";
             ctx.fillStyle = "yellow"
             ctx.textAlign = "center"
             ctx.textBaseline = "top"
 
-
-            const delta1 = map.map.local_step - this.map_server.map.local_step
-            if (i==0) {
-                //const delta2 = map.map.local_step - map.world_step
-                ctx.fillText(view.name + ` (${delta1})`, 211/2, 2);
-                let latency = (this.client.queues[0].latency*1000).toFixed(0)
-                let delay = this.map_player1.step_delay
-                ctx.font = "12px mono";
-                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
-                ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
-            }
             if (i==1) {
                 ctx.fillText(view.name, 211/2, 2);
+            } else {
+                ctx.fillText(view.name, 211/2, 2);
             }
-            if (i==2) {
-                ctx.fillText(view.name + ` (${delta1})`, 211/2, 2);
-                let latency = (this.client.queues[2].latency*1000).toFixed(0)
-                let delay = this.map_player2.step_delay
+
+
+            if (i==0) {
                 ctx.font = "12px mono";
-                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
-                ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
+                ctx.textBaseline = "middle"
+
+                let latency = (this.client.queues[0].latency*1000).toFixed(0)
+                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32+12);
+
+                if (this.demo_mode&DEMO_MODE_CLOCK) {
+                    let delay = this.map_player1.step_delay
+                    ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64+12);
+                }
             }
+
+            if (i==2) {
+                ctx.font = "12px mono";
+                ctx.textBaseline = "middle"
+
+                let latency = (this.client.queues[2].latency*1000).toFixed(0)
+                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32+12);
+
+                if (this.demo_mode&DEMO_MODE_CLOCK) {
+                    let delay = this.map_player2.step_delay
+                    ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64+12);
+                }
+            }
+
+            if (this.demo_mode&DEMO_MODE_CLOCK) {
+                ctx.textBaseline = "top"
+                ctx.font = "24px mono";
+                ctx.fillText(`${fmtTime(map.map.local_step/60)} `, 211/2, 180);
+            }
+
             ctx.restore()
 
             ctx.font = "12px mono";

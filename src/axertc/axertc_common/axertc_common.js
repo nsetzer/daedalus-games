@@ -34,7 +34,7 @@ function pad(n, width, z) {
   return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
 }
 
-function fmtTime(s) {
+export function fmtTime(s) {
     let z = pad(Math.floor((s%1)*10), 1)
     let m = Math.floor(s / 60)
     s = pad(Math.floor(s % 60), 2);
@@ -90,6 +90,7 @@ export class CspMap {
         this.playerId = "null"
 
         this.enable_bending = true
+        this.enable_partial_sync = true
 
         this.step_rate = 120 // 2 seconds of buffered inputs
 
@@ -126,6 +127,8 @@ export class CspMap {
         this.dirty_step = null
         this.dirty_objects = {}
 
+        this.partial_sync_objects = {}
+
         this.events = {}
 
         this.addCustomEvent("csp-object-create", this._onEventObjectCreate.bind(this))
@@ -151,6 +154,7 @@ export class CspMap {
         // TODO: if not reconciling, apply to both shadow and real object
         const ent = this.objects[msg.entid]
         if (!!ent._shadow) {
+            console.log("on input", msg.type, reconcile, msg.payload.vector)
             ent._shadow.onInput(msg.payload)
             if (!reconcile) {
                 ent.onInput(msg.payload)
@@ -187,9 +191,18 @@ export class CspMap {
                 if (this.dirty_step == null || step < this.dirty_step) {
                     this.dirty_step = step
                 }
-                this.dirty_objects[msg.entid] = true
+
+                if (this.enable_bending) {
+                    this.dirty_objects[msg.entid] = true
+                }
+
+                if (this.enable_partial_sync) {
+                    this.partial_sync_objects[msg.entid] = 5 // for the next 5 syncs, send partial syncs for this object
+                }
             }
         }
+
+
     }
 
     reconcile() {
@@ -240,7 +253,7 @@ export class CspMap {
             const start = this.dirty_step
             const end = this.local_step
             let error = false
-            console.log(this.instanceId, `reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
+            //console.log(this.instanceId, `reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
             if (start < this.local_step - this.step_rate) {
                 throw new Error("reconcile starts before the last cached input")
             }
@@ -399,6 +412,9 @@ export class CspMap {
             const obj = item.obj
             obj.setState(item.state)
             if (!!obj._shadow) {
+                if (objId == "player1-1"){
+                    console.error(this._debug_reconcile, "setting state for", objId)
+                }
                 obj._shadow.setState(item.state)
             }
             this.objects[objId] = obj
@@ -810,6 +826,7 @@ export class ServerCspMap {
         this.map.isServer = true
         this.incoming_message = []
         this.map.enable_bending = false
+        this.sync_timer = .1
     }
 
     acceptsEvent(type) {
@@ -860,6 +877,17 @@ export class ServerCspMap {
     }
 
     update(dt) {
+
+        this.sync_timer -= dt
+        if (this.sync_timer < 0) {
+            this.sync_timer += 0.1
+
+            this.map.sendBroadcast(null, {
+                type: "map-sync",
+                step: this.map.local_step,
+                sync: 0
+            })
+        }
 
         while (this.incoming_message.length > 0) {
             const msg = this.incoming_message.shift()

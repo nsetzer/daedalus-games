@@ -210,6 +210,12 @@ class Player extends Entity {
             console.log(this)
             throw new Error("nan set state")
         }
+        if (Math.abs(this.dx) < 0.001) {
+            console.log("on set state", !this._shadow, this.dx, this.dy, state.dx, state.dy)
+        } else {
+            console.error("on set state", !this._shadow, this.dx, this.dy, state.dx, state.dy)
+        }
+
         this.playerId = state.playerId
         this.x = state.x
         this.y = state.y
@@ -240,11 +246,13 @@ class Player extends Entity {
         this.y  += (shadow.y  - this.y)  * progress
         this.dx += (shadow.dx - this.dx) * progress
         this.dy += (shadow.dy - this.dy) * progress
+        console.log("do bend", progress, shadow.dx, shadow.dy, this.dx, this.dy)
     }
 
     onInput(payload) {
         this.dx = 90 * payload.vector.x
         this.dy = 90 * payload.vector.y
+        console.warn("player received", payload.vector, this.dx, this.dy)
 
         if (isNaN(this.dx) || isNaN(this.dy)) {
             console.log("---")
