@@ -7,9 +7,10 @@ $import("axertc_client", {
 })
 $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
-    Direction, Alignment, Rect
+    Direction, Alignment, Rect,
+    Physics2dPlatform
 })
-$import("axedemo_common", {FireworksMap, PlatformDemo})
+$import("axedemo_common", {FireworksMap, PlatformMap})
 
 class DemoClient {
 
@@ -233,7 +234,11 @@ class DemoScene {
 
     constructor() {
 
-        let map_ctor = FireworksMap
+        //this.demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
+        this.demo_mode = DEMO_MODE_PLATFORM
+
+
+        let map_ctor = (this.demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
 
         this.map_player1 = new ClientCspMap(new map_ctor())
         this.map_player1.setPlayerId("player1")
@@ -255,14 +260,17 @@ class DemoScene {
         this.controller = new CspController(this.map_player1, this.map_player2);
 
         this.touch = new TouchInput(this.controller)
-        this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
-        this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
 
+        Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
 
-        this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
-        this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+        if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
 
-        this.demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
+            this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
+            this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+
+            this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
+            this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+        }
 
     }
 
@@ -494,21 +502,23 @@ class DemoScene {
         touches = this.grp.handleTouches(touches)
         touches = this.touch.handleTouches(touches)
 
-        if (touches.length > 0) {
-            let touch = {...touches[0]}
-            if (touch.pressed) {
+        if (this.demo_mode&DEMO_MODE_FIREWORKS) {
+            if (touches.length > 0) {
+                let touch = {...touches[0]}
+                if (touch.pressed) {
 
-                if (touch.x < (this.views[0].x+this.views[0].width)) {
-                    touch.x -= this.views[0].x
-                    console.log("player1 create firework")
-                    this.map_player1.map.sendCreateObjectEvent("Firework", touch)
-                }
+                    if (touch.x < (this.views[0].x+this.views[0].width)) {
+                        touch.x -= this.views[0].x
+                        console.log("player1 create firework")
+                        this.map_player1.map.sendCreateObjectEvent("Firework", touch)
+                    }
 
-                else if (touch.x > (this.views[2].x)) {
-                    touch.x -= this.views[2].x
-                    console.log("player2 create firework")
-                    this.map_player2.map.sendCreateObjectEvent("Firework", touch)
+                    else if (touch.x > (this.views[2].x)) {
+                        touch.x -= this.views[2].x
+                        console.log("player2 create firework")
+                        this.map_player2.map.sendCreateObjectEvent("Firework", touch)
 
+                    }
                 }
             }
         }

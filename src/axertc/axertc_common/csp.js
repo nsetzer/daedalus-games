@@ -236,7 +236,8 @@ export class CspMap {
                         if (!obj._shadow) {
                             const ctor = this.class_registry[obj.constructor.name]
                             obj._shadow = new ctor(objId, {})
-                            obj._shadow._destroy = ()=>{}
+                            obj._shadow._destroy = ()=>{} // todo: should this delete the owner?
+                            obj._shadow._x_debug_map = this
                             //obj._shadow.setState(obj.getState())
                             obj._shadow.setState(last_known_state[objId].state)
                         }
@@ -535,12 +536,14 @@ export class CspMap {
 
         const ent = new ctor(entId, props)
         ent._destroy = ()=>{this.destroyObject(entId)}
+        ent._x_debug_map = this
 
         if (this.enable_bending) {
             if (entId in this.dirty_objects) {
                 ent._shadow = new ctor(entId, props)
-                ent._shadow._destroy = ()=>{}
+                ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
                 ent._shadow_step = 0
+                ent._shadow._x_debug_map = this
             }
         }
 

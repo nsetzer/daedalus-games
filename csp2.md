@@ -9,6 +9,10 @@ This guide assumes that you have already read these articles:
   * [Gaffer On Games: Networked Physics](https://gafferongames.com/post/networked_physics_2004/)
   * [Valve Multiplayer Networking](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking)
 
+https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
+https://news.ycombinator.com/item?id=26020594
+https://0fps.net/2014/02/10/replication-in-networked-games-overview-part-1/
+
 There are many different ways to implement a Client-Server Game Architecture. Depending on whether
 you are building a table top turn based game, or an RTS, or an FPS, the exact features that need to be
 implemented will change. This guide focuses on real time simulation, closer to that found in a FPS.
@@ -225,6 +229,13 @@ the shadow copy and the real object are gradually synchronized over a number of 
 - during reconciliation apply inputs to entities. If the entity has a shadow, apply it to the shadow only
 - When reconciliation ends, bend the object and its shadow over a number of steps
 
+For simple objects bending can be a straight interpolation between the object and it's shadow.
+For more complicated objects, that model not just speed, but acceleration it can be more tricky.
+Regardless of the complexity, when bending finished the object should have
+exactly the same state as the shadow object.
+
+TODO: how to bend velocity and acceleration. (answer: the derivative should be smooth: https://en.wikipedia.org/wiki/Jerk_(physics))
+
 next steps
 
 * TODO: bending easing functions
@@ -251,6 +262,19 @@ are partial syncs position only?
 
 ## 6) Optimize Serialization
 
+The simulator used to build the example games is cheating in a major way. It uses 4 lists as queues to
+pass javascript objects between the 'clients' and the 'server'. In a real world game the objects
+will need to be serialized for messages to be sent over the network.
+
+Some options to reduce message size
+
+- uses lists over dictionaries to represent object state. a list of ints can be serialized into a smaller payload than an object.
+  - `[1,2]` vs `{x: 1, y:2}`
+- use bjson, msgpack, or protobuf instead of JSON.stringify/JSON.load
+- use zlib compression
+
+
+
 
 ## 7) Lag compensation
 
@@ -276,6 +300,11 @@ metric: number of updates per second
         ideally 1 update : 1 frame
         with reconciliation, it can be much more
         only reconcile on even frames?
+
+metric: number of bytes incoming and outgoing per player
+        query param to display this information
+        use JSON.stringify and count
+        for illustrative purposes pushing towards msgpack or something
 
 demo client
 

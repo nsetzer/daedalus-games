@@ -16,7 +16,7 @@ jumpspeed = - sqrt(2*H*g)
 
 */
 
-export class Physics2d {
+export class Physics2dPlatform {
 
     constructor(target) {
         this.target = target
@@ -88,8 +88,8 @@ export class Physics2d {
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 
         const dt = 1/16
-        console.log("xspeeds", Math.trunc(this.xjumpspeed*dt), Math.trunc(this.xmaxspeed1*dt), Math.trunc(this.xmaxspeed2*dt))
-        console.log("yspeeds", Math.trunc(this.jumpspeed*dt))
+        //console.log("xspeeds", Math.trunc(this.xjumpspeed*dt), Math.trunc(this.xmaxspeed1*dt), Math.trunc(this.xmaxspeed2*dt))
+        //console.log("yspeeds", Math.trunc(this.jumpspeed*dt))
 
         this.wallfriction = .2
 
@@ -426,10 +426,42 @@ export class Physics2d {
 
         }
 
+
+        /////////////////////////////////////////////////////////////
+        // bounds check
+        if (Physics2dPlatform.maprect.w > 0) {
+            if (this.target.rect.x < Physics2dPlatform.maprect.x) {
+                this.target.rect.x = Physics2dPlatform.maprect.x
+                this.xspeed = 0
+            }
+
+            let maxx = Physics2dPlatform.maprect.w - this.target.rect.w
+            if (this.target.rect.x > maxx) {
+                this.target.rect.x = maxx
+                this.xspeed = 0
+            }
+
+            if (this.target.rect.y < Physics2dPlatform.maprect.y) {
+                this.target.rect.y = Physics2dPlatform.maprect.y
+                this.yspeed = 0
+            }
+
+            let maxy = Physics2dPlatform.maprect.h - this.target.rect.h
+            if (this.target.rect.y > maxy) {
+                standing = true
+                this.target.rect.y = maxy
+                this.yspeed = 0
+            }
+        }
+
+        /////////////////////////////////////////////////////////////
+        // update state
+
         if (standing != this.standing) {
             this.standing = !!standing
-            console.log(`set standing=${standing}`)
+            //console.log(`set standing=${standing}`)
         }
+
         if (this.standing) {
             this.standing_frame = this.frame_index
         }
@@ -437,37 +469,10 @@ export class Physics2d {
         if (pressing != this.pressing) {
             this.pressing_direction = (this.facing == Direction.LEFT)?1:-1;
             this.pressing = pressing
-            console.log(`set pressing=${pressing}`)
+            //console.log(`set pressing=${pressing}`)
         }
         if (this.pressing) {
             this.pressing_frame = this.frame_index
-        }
-
-        /////////////////////////////////////////////////////////////
-        // bounds check
-        if (Physics2d.maprect.w > 0) {
-            if (this.target.rect.x < Physics2d.maprect.x) {
-                this.target.rect.x = Physics2d.maprect.x
-                this.xspeed = 0
-            }
-
-            let maxx = Physics2d.maprect.w - this.target.rect.w
-            if (this.target.rect.x > maxx) {
-                this.target.rect.x = maxx
-                this.xspeed = 0
-            }
-
-            if (this.target.rect.y < Physics2d.maprect.y) {
-                this.target.rect.y = Physics2d.maprect.y
-                this.yspeed = 0
-            }
-
-            let maxy = Physics2d.maprect.h - this.target.rect.h
-            if (this.target.rect.y > maxy) {
-
-                this.target.rect.y = maxy
-                this.yspeed = 0
-            }
         }
 
         /////////////////////////////////////////////////////////////
@@ -583,4 +588,4 @@ export class Physics2d {
     }
 }
 
-Physics2d.maprect = new Rect(0,0,0,0)
+Physics2dPlatform.maprect = new Rect(0,0,0,0)
