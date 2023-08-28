@@ -47,6 +47,18 @@ From a player’s point of view, this has two important consequences:
     wheel only, up to jump, down to duck
     allow changing latency only
 
+* lag compensation
+    player1 or player 2 have a button to be ai controlled
+    players are space invaders ships pointed at each other
+    and can only move left or right
+    players have a button to shoot a bullet
+
+demo features
+    adjust latency between client<->server
+    adjust input delay (constant at 6 normally)
+    adjust % packet loss (webrtc is reliable)
+
+
 1) synchronized clock
 
 The first step in implementing a fast paced multiplayer server is to

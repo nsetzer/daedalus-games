@@ -154,7 +154,6 @@ export class CspMap {
         // TODO: if not reconciling, apply to both shadow and real object
         const ent = this.objects[msg.entid]
         if (!!ent._shadow) {
-            console.log("on input", msg.type, reconcile, msg.payload.vector)
             ent._shadow.onInput(msg.payload)
             if (!reconcile) {
                 ent.onInput(msg.payload)
@@ -399,11 +398,28 @@ export class CspMap {
 
     getState() {
         // TODO: this state is not serializeable for a full sync
-        const state = {}
+        const map_state = {}
         for (const [objId, obj] of Object.entries(this.objects)) {
-            state[objId] = {obj, state: obj.getState()}
+            let state;
+
+            if (!!obj._shadow) {
+                // if bending is enabled copy the shadow state
+                // TODO: there could be a small amount of jitter
+                //       if there is a second reconcile shortly after a reconcile completes.
+                // when reconciliation begins, it rewinds to the last known good state
+                // when bending is enabled, the 'last known good state' needs to have
+                // the shadow state -- the true state of the object
+                // an alternative solution could be to instead force reconciliation to
+                // always begin from the last key frame, when partial updates are implemented
+                // without keyframes, grabbing the state from the shadow copy ensures
+                // that the object eventually ends up in the correct position
+                state = obj._shadow.getState()
+            } else {
+                state = obj.getState()
+            }
+            map_state[objId] = {obj, state}
         }
-        return state;
+        return map_state;
     }
 
     setState(state) {
@@ -412,9 +428,6 @@ export class CspMap {
             const obj = item.obj
             obj.setState(item.state)
             if (!!obj._shadow) {
-                if (objId == "player1-1"){
-                    console.error(this._debug_reconcile, "setting state for", objId)
-                }
                 obj._shadow.setState(item.state)
             }
             this.objects[objId] = obj

@@ -201,7 +201,6 @@ class CspController {
             if (!player) {
                 return
             }
-            console.log("sent", whlid, vector)
             this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
         } else {
             const player = this.getPlayer2()
@@ -219,10 +218,11 @@ class CspController {
     }
 }
 
-const DEMO_MODE_CLOCK     = 1
-const DEMO_MODE_FIREWORKS = 2
-const DEMO_MODE_MOVEMENT  = 4
-const DEMO_MODE_PLATFORM  = 8
+const DEMO_MODE_CLOCK     = (1<<0)
+const DEMO_MODE_FIREWORKS = (1<<1)
+const DEMO_MODE_MOVEMENT  = (1<<2)
+const DEMO_MODE_PLATFORM  = (1<<3)
+const DEMO_MODE_BULLET    = (1<<4)
 const DEMO_MODE_ALL = DEMO_MODE_CLOCK|DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
 
 class DemoScene {
