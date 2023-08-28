@@ -85,7 +85,11 @@ update(dt: float) {
 }
 ```
 
-In practice, skiping an update multiple frames in a row
+In practice, this is a terrible way to implement this.
+a better way would be to temporarily increase or decrease the framerate until the clocks are
+synchronized again.
+
+skiping an update multiple frames in a row
 make make it look like the game is lagging. One way
 to fix that is to only attempt to catch up or skip
 steps on even-numbered steps, so that the frame rate
@@ -101,6 +105,10 @@ running at 58 or 62 frames per second until the steps is caught up.
 2. Object Create
 3. Object Input
 4. Object Destroy
+
+interpolation
+    by sending only the user inputs and delaying by 100ms
+    interpolate using past inputs, aka dead reckoning
 
 3) Reconciliation
 
@@ -131,9 +139,17 @@ the other possible solution is to make the receive buffer larger,
 but this means reconciliation will need to be done over a larger window.
 partial syncs reduce how many steps are needed for worst case reconciliation
 
+partial syncs only need to be done for the same set of objects where bending could be used
+bending may be disabled on the server
+
 5) Bending
 
+6) partial syncs
+
+7) delta syncs
+
 6) Optimize Serialization
+
 
 7) Lag compensation
 

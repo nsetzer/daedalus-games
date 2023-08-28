@@ -43,8 +43,8 @@ class DemoClient {
         this.queues = [
             {queue:this.queue_p1_in,  latency: .05, callback: (msg) => this.server_receive("player1", msg)},
             {queue:this.queue_p1_out, latency: .05, callback: this.p1_receive},
-            {queue:this.queue_p2_in,  latency: .50, callback: (msg) => this.server_receive("player2", msg)},
-            {queue:this.queue_p2_out, latency: .50, callback: this.p2_receive},
+            {queue:this.queue_p2_in,  latency: .25, callback: (msg) => this.server_receive("player2", msg)},
+            {queue:this.queue_p2_out, latency: .25, callback: this.p2_receive},
         ]
 
     }
@@ -406,18 +406,22 @@ class DemoScene {
             ctx.textAlign = "center"
             ctx.textBaseline = "top"
 
-            ctx.fillText(view.name, 211/2, 2);
-            //const delta1 = map.map.local_step - this.map_server.map.local_step
+
+            const delta1 = map.map.local_step - this.map_server.map.local_step
             if (i==0) {
                 //const delta2 = map.map.local_step - map.world_step
+                ctx.fillText(view.name + ` (${delta1})`, 211/2, 2);
                 let latency = (this.client.queues[0].latency*1000).toFixed(0)
                 let delay = this.map_player1.step_delay
                 ctx.font = "12px mono";
                 ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32);
                 ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64);
             }
+            if (i==1) {
+                ctx.fillText(view.name, 211/2, 2);
+            }
             if (i==2) {
-
+                ctx.fillText(view.name + ` (${delta1})`, 211/2, 2);
                 let latency = (this.client.queues[2].latency*1000).toFixed(0)
                 let delay = this.map_player2.step_delay
                 ctx.font = "12px mono";
@@ -430,7 +434,7 @@ class DemoScene {
             ctx.fillStyle = "yellow"
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
-            ctx.fillText(`Bending ${map.map.enable_bending?"enabled":"disabled"} `, view.x+4, view.height);
+            ctx.fillText(`Bending ${map.map.enable_bending?"enabled":"disabled"} (${map.map._debug_reconcile_count})`, view.x+4, view.height);
 
 
         }

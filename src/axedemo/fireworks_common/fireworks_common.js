@@ -179,10 +179,10 @@ class Player extends Entity {
 
         ctx.font = "16px mono";
         ctx.fillStyle = "yellow"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-
-        ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        //ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
+        ctx.fillText(`${this.playerId=="player1"?1:2}`, this.x+16, this.y+16);
 
     }
 
@@ -221,6 +221,7 @@ class Player extends Entity {
     }
 
     update(dt) {
+        // TODO: limit position to map boundaries
 
         this.x += dt * this.dx
         this.y += dt * this.dy
@@ -228,7 +229,7 @@ class Player extends Entity {
     }
 
     onBend(progress, shadow) {
-        console.log("bend", progress, this.x, shadow.x)
+        //console.log("bend", progress, this.x, shadow.x)
         if (isNaN(progress)) {
             throw new Error("onBend progress")
         }

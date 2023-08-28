@@ -91,7 +91,7 @@ export class CspMap {
 
         this.enable_bending = true
 
-        this.step_rate = 60
+        this.step_rate = 120 // 2 seconds of buffered inputs
 
         this.class_registry = {}
 
@@ -109,7 +109,7 @@ export class CspMap {
         //-----------------------------------------------------
         // receive
 
-        // capacity allows for +/- 2 seconds of inputs to be queued or cached
+        // capacity allows for +/- 4 seconds of inputs to be queued or cached
         // queue is [entity.entid][seqid]
 
         this.inputqueue_capacity = this.step_rate * 2
@@ -134,6 +134,7 @@ export class CspMap {
         this.addCustomEvent("map-sync", (msg, reconcile)=>{})
 
         this._debug_reconcile = false
+        this._debug_reconcile_count = 0
 
     }
 
@@ -198,6 +199,7 @@ export class CspMap {
             //console.log("found dirty index at", this.dirty_step, this.local_step, "offset", this.received_offset)
 
             this._debug_reconcile = true
+            this._debug_reconcile_count += 1
 
             const last_index = this._frameIndex(this.dirty_step - 1)
             const last_known_state = this.statequeue[last_index]
@@ -265,7 +267,9 @@ export class CspMap {
                                 // TODO: the bug here is that the object was created during reconciliation
                                 //       so it would not have any prior state information to restore
                                 // the solution may be to only create shadow objects during reconciliation
-                                console.warn(this.instanceId, "warning: missing state info for", objId) // , "step", this.local_step)
+                                if (!obj._shadow) {
+                                    console.warn(this.instanceId, "warning: missing state info for", objId) // , "step", this.local_step)
+                                }
                             }
                         }
                     }
@@ -337,7 +341,7 @@ export class CspMap {
 
                 if (!reconcile) {
 
-                    const bend_steps = 9
+                    const bend_steps = 30
 
                     obj._shadow_step += 1
                     const p = (obj._shadow_step) / bend_steps
@@ -347,7 +351,7 @@ export class CspMap {
                         if (this._debug_reconcile) {
                             throw new Error("shadow copy bending finished during reconcile")
                         }
-                        console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
+                        //console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
                         //obj.setState(obj._shadow.getState())
                         delete obj._shadow
                     }
@@ -509,7 +513,7 @@ export class CspMap {
 
         this.objects[entId] = ent
 
-        console.error(this.instanceId, this._debug_reconcile?"reconcile":"normal", 'object created', this.local_step, this._frameIndex(this.local_step), entId)
+        //console.log(this.instanceId, this._debug_reconcile?"reconcile":"normal", 'object created', this.local_step, this._frameIndex(this.local_step), entId)
 
         return ent
     }
@@ -518,7 +522,7 @@ export class CspMap {
     destroyObject(entId) {
 
         if (entId in this.objects) {
-            console.log(this.instanceId, 'object destroyed', this.local_step, entId, this.objects[entId].timer)
+            //console.log(this.instanceId, 'object destroyed', this.local_step, entId, this.objects[entId].timer)
 
             delete this.objects[entId]
         } else {
