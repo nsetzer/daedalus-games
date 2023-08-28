@@ -1,15 +1,13 @@
  
- from module daedalus import {
+$import("daedalus", {
     StyleSheet, DomElement,
     TextElement, ListItemElement, ListElement,
     HeaderElement, ButtonElement, LinkElement
-}
+})
 
-include "./primitives.js"
-//include "./resource.js"
-//include "./entity.js"
-include "./input.js"
-include "./widget.js"
+$import("axertc_common", {Rect, Direction, Alignment})
+$include("./input.js")
+$include("./widget.js")
 
 export class GameScene {
 

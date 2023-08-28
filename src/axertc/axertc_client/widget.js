@@ -1,7 +1,6 @@
  
 
-include "primitives.js"
-
+$import("axertc_common", {Rect, Direction, Alignment})
 // https://gist.github.com/mjackson/5311256
 // https://github.com/goldfire/CanvasInput
 

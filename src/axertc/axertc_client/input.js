@@ -1,6 +1,6 @@
  
 
-include "./primitives.js"
+$import("axertc_common", {Rect, Direction, Alignment})
 
 const Keys = {
     LEFT: 37,

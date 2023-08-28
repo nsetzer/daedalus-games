@@ -2,11 +2,14 @@
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
-    ArrowButtonWidget, Direction, Alignment, Rect, TouchInput
+    ArrowButtonWidget, TouchInput
 
 })
-$import("axertc_common", {CspMap, ClientCspMap, ServerCspMap, fmtTime})
-$import("fireworks_common", {FireworksMap})
+$import("axertc_common", {
+    CspMap, ClientCspMap, ServerCspMap, fmtTime
+    Direction, Alignment, Rect
+})
+$import("axedemo_common", {FireworksMap, PlatformDemo})
 
 class DemoClient {
 
@@ -230,16 +233,13 @@ class DemoScene {
 
     constructor() {
 
+        let map_ctor = FireworksMap
 
-        this.map_player1 = new ClientCspMap(new FireworksMap())
+        this.map_player1 = new ClientCspMap(new map_ctor())
         this.map_player1.setPlayerId("player1")
-
-        this.map_player2 = new ClientCspMap(new FireworksMap())
+        this.map_player2 = new ClientCspMap(new map_ctor())
         this.map_player2.setPlayerId("player2")
-        // TODO: use latency estimation to adjust step delay?
-        //this.map_player2.step_delay = 0
-
-        this.map_server = new ServerCspMap(new FireworksMap())
+        this.map_server = new ServerCspMap(new map_ctor())
 
         this.map_player1.map.instanceId = "map-player1"
         this.map_player2.map.instanceId = "map-player2"

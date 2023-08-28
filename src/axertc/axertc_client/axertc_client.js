@@ -82,7 +82,7 @@ current direction
 */
 
 
-$include("./primitives.js")
+//$include("./primitives.js")
 //$include("./resource.js")
 //$include("./entity.js")
 $include("./input.js")
