@@ -12,6 +12,7 @@ This guide assumes that you have already read these articles:
 https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
 https://news.ycombinator.com/item?id=26020594
 https://0fps.net/2014/02/10/replication-in-networked-games-overview-part-1/
+https://www.pingdom.com/blog/theoretical-vs-real-world-speed-limit-of-ping/
 
 There are many different ways to implement a Client-Server Game Architecture. Depending on whether
 you are building a table top turn based game, or an RTS, or an FPS, the exact features that need to be

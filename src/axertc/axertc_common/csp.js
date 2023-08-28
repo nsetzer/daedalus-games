@@ -234,8 +234,7 @@ export class CspMap {
                     if (!!this.objects[objId]) {
                         const obj = this.objects[objId]
                         if (!obj._shadow) {
-                            const ctor = this.class_registry[obj.constructor.name]
-                            obj._shadow = new ctor(objId, {})
+                            obj._shadow = this._construct(objId, obj._classname, {})
                             obj._shadow._destroy = ()=>{} // todo: should this delete the owner?
                             obj._shadow._x_debug_map = this
                             //obj._shadow.setState(obj.getState())
@@ -527,20 +526,27 @@ export class CspMap {
 
     }
 
+    _construct(entId, className, props) {
+        const ctor = this.class_registry[className]
+        console.log(className, ctor)
+        const ent = new ctor(entId, props)
+        ent._classname = className
+        return ent
+    }
+
     createObject(entId, className, props) {
         // get the class from the registered set of classes
         // check if the object has already been created
 
         // TODO: if the object already exists, reset to initial state
-        const ctor = this.class_registry[className]
 
-        const ent = new ctor(entId, props)
+        const ent = this._construct(entId, className, props)
         ent._destroy = ()=>{this.destroyObject(entId)}
         ent._x_debug_map = this
 
         if (this.enable_bending) {
             if (entId in this.dirty_objects) {
-                ent._shadow = new ctor(entId, props)
+                ent._shadow = this._construct(entId, ent._classname, props)
                 ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
                 ent._shadow_step = 0
                 ent._shadow._x_debug_map = this
@@ -871,7 +877,7 @@ export class ServerCspMap {
 
         const objects = {}
         for (const [objId, obj] of Object.entries(this.map.objects)) {
-            objects[objId] = {className:obj.constructor.name, state: obj.getState()}
+            objects[objId] = {className:obj._classname, state: obj.getState()}
         }
 
         const state = {

@@ -4,7 +4,8 @@ from module engine import {
     SoundEffect, SpriteSheetBuilder, SpriteSheet,
     ResourceLoader, CameraBase
     Direction, TouchInput, KeyboardInput
-    Rect, Entity, CharacterComponent, GameScene
+    Rect, Entity, CharacterComponent, GameScene,
+    Physics2d, AnimationComponent
 }
 
 
@@ -164,7 +165,15 @@ class Controller {
     }
 }
 
-class Wall extends Entity {
+class MazeEntity extends Entity {
+    constructor() {
+        super()
+        this.physics = new Physics2d(this)
+        this.animation = new AnimationComponent(this)
+    }
+}
+
+class Wall extends MazeEntity {
     constructor(sheet) {
         super()
         this.sheet = sheet
@@ -239,7 +248,9 @@ function setCharacterSpriteSheet(target, sheet, hero) {
     target.current_aid = aidd
 }
 
-class Hero extends Entity {
+
+
+class Hero extends MazeEntity {
 
     constructor() {
         super()
@@ -252,6 +263,8 @@ class Hero extends Entity {
         this.mobs = []
 
         this.character = new CharacterComponent(this)
+
+
 
     }
 
@@ -429,7 +442,7 @@ class MonsterController {
     }
 }
 
-class Monster extends Entity {
+class Monster extends MazeEntity {
 
     constructor() {
         super()
@@ -471,7 +484,7 @@ class Monster extends Entity {
     }
 }
 
-class Fireball extends Entity {
+class Fireball extends MazeEntity {
 
 
     constructor(sheet, ydelta) {
@@ -564,7 +577,7 @@ class BossController {
     }
 }
 
-class Boss extends Entity {
+class Boss extends MazeEntity {
 
     constructor() {
         super()
@@ -600,7 +613,7 @@ class Boss extends Entity {
     }
 }
 
-class Bomb extends Entity {
+class Bomb extends MazeEntity {
     constructor(sheet) {
         super(null)
         this.sheet = sheet
@@ -822,7 +835,7 @@ class Bomb extends Entity {
 // unlocked doors are not painted
 // doors can be killed, and removed from the map
 // or remain alive and not solid to be locked again later
-class BossDoor extends Entity {
+class BossDoor extends MazeEntity {
 
     constructor(tile) {
         super()
@@ -855,7 +868,7 @@ class BossDoor extends Entity {
     }
 }
 
-class BossChest extends Entity {
+class BossChest extends MazeEntity {
 
     constructor(tile_open, tile_closed) {
         super()
@@ -890,7 +903,7 @@ class BossChest extends Entity {
     }
 }
 
-class BossDoorLock extends Entity {
+class BossDoorLock extends MazeEntity {
 
     constructor(targetcbk) {
         super()
