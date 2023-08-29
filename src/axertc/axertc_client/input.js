@@ -293,11 +293,9 @@ export class TouchInput {
 
             if (touch!==null && touch.pressed) {
                 wheel.pressed = true
-                console.log("touch move", touch.x, touch.y)
                 this.handleMove(j, touch.x, touch.y)
             } else if (wheel.pressed) {
                 wheel.pressed = false
-                console.log("touch cancel")
                 this.handleMoveCancel(j)
             }
         }

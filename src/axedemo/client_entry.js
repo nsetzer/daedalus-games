@@ -229,16 +229,11 @@ const DEMO_MODE_PLATFORM  = (1<<3)
 const DEMO_MODE_BULLET    = (1<<4)
 const DEMO_MODE_ALL = DEMO_MODE_CLOCK|DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
 
-class DemoScene {
+class AxeSimulatorScene extends GameScene {
 
+    constructor(map_ctor) {
 
-    constructor() {
-
-        //this.demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
-        this.demo_mode = DEMO_MODE_PLATFORM
-
-
-        let map_ctor = (this.demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
+        super()
 
         this.map_player1 = new ClientCspMap(new map_ctor())
         this.map_player1.setPlayerId("player1")
@@ -249,49 +244,44 @@ class DemoScene {
         this.map_player1.map.instanceId = "map-player1"
         this.map_player2.map.instanceId = "map-player2"
         this.map_server.map.instanceId = "map-server"
+        this.maps = [this.map_player1, this.map_server, this.map_player2]
 
         this.client = new DemoClient(this.map_player1, this.map_player2, this.map_server)
 
-        this.maps = [this.map_player1, this.map_server, this.map_player2]
+        this.grp = new WidgetGroup()
+
         this.resize()
-
-        this.initWidgets()
-
-        this.controller = new CspController(this.map_player1, this.map_player2);
-
-        this.touch = new TouchInput(this.controller)
-
-        Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
-
-        if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
-
-            this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
-            this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
-
-            const x1 = Physics2dPlatform.maprect.left() + 8
-            const x2 = Physics2dPlatform.maprect.right() - 40
-            this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
-            this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
-        }
-
-        if (this.demo_mode&DEMO_MODE_PLATFORM) {
-            const y = Physics2dPlatform.maprect.bottom() - 64
-            const x = Physics2dPlatform.maprect.cx() - 24
-            this.map_server.map.sendCreateObjectEvent("Wall", {x:x, y:y, w:48, h:12})
-        }
-
     }
 
-    initWidgets() {
+    resize() {
+
+        const width = Math.floor(gEngine.view.width/3) - 2
+        this.views = [
+            {name: "Player 1", x: 0,y: 0, width: width, height: gEngine.view.height},
+            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width: width, height: gEngine.view.height},
+            {name: "Player 2",x: gEngine.view.width - width,y: 0, width: width, height: gEngine.view.height},
+        ]
+    }
+
+    update(dt) {
+        this.client.update(dt)
+
+        this.map_player1.update(dt)
+        this.map_player2.update(dt)
+        this.map_server.update(dt)
+
+        this.grp.update(dt)
+    }
+
+
+    initWidgets(enable_delta) {
+
+        //
 
         const view1 = this.views[0]
         const view2 = this.views[2]
         const btn_height = 24
         const btn_width = 32
-
-        this.grp = new WidgetGroup()
-
-
 
         // player 1
 
@@ -314,7 +304,7 @@ class DemoScene {
         this.btn_p1_latency_up.clicked = () => {this.client.changeLatency("player1", 1)}
         this.grp.addWidget(this.btn_p1_latency_up)
 
-        if (this.demo_mode&DEMO_MODE_CLOCK) {
+        if (enable_delta) {
             this.btn_p1_delay_dn = new ArrowButtonWidget(Direction.LEFT)
             this.btn_p1_delay_dn.rect = new Rect(
                 view1.x,
@@ -353,7 +343,7 @@ class DemoScene {
         this.btn_p2_latency_up.clicked = () => {this.client.changeLatency("player2", 1)}
         this.grp.addWidget(this.btn_p2_latency_up)
 
-        if (this.demo_mode&DEMO_MODE_CLOCK) {
+        if (enable_delta) {
             this.btn_p2_delay_dn = new ArrowButtonWidget(Direction.LEFT)
             this.btn_p2_delay_dn.rect = new Rect(
                 view2.x,
@@ -372,24 +362,6 @@ class DemoScene {
             this.btn_p2_delay_up.clicked = () => {this.client.changeDelay("player2", 1)}
             this.grp.addWidget(this.btn_p2_delay_up)
         }
-
-    }
-
-    pause(paused) {
-
-    }
-
-    update(dt) {
-
-        this.client.update(dt)
-
-        this.map_player1.update(dt)
-        this.map_player2.update(dt)
-        this.map_server.update(dt)
-
-        this.grp.update(dt)
-
-
     }
 
     paint(ctx) {
@@ -491,19 +463,85 @@ class DemoScene {
 
             ctx.fillText(`FPS: ${gEngine.fps}`, 0, 0);
         }
+    }
+
+}
+
+class DemoScene extends AxeSimulatorScene {
+
+
+    constructor() {
+
+        const query = daedalus.util.parseParameters()
+        let demo_mode;
+        switch (query?.mode?.[0]) {
+            case "clock":
+                demo_mode = DEMO_MODE_CLOCK;
+                break
+            case "fireworks":
+                demo_mode = DEMO_MODE_FIREWORKS;
+                break
+            case "movement":
+                demo_mode = DEMO_MODE_MOVEMENT;
+                break
+            case "all":
+                demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT;
+                break
+            case "platform":
+                demo_mode = DEMO_MODE_PLATFORM;
+                break
+            case "bullet":
+                demo_mode = DEMO_MODE_BULLET;
+                break
+            default:
+                //demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
+                demo_mode = DEMO_MODE_PLATFORM
+                break
+        }
+
+        let map_ctor = (demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
+        super(map_ctor)
+        this.demo_mode = demo_mode
+
+        this.initWidgets(this.demo_mode&DEMO_MODE_CLOCK)
+
+        this.controller = new CspController(this.map_player1, this.map_player2);
+
+        this.touch = new TouchInput(this.controller)
+
+        Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
+
+        if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
+
+            this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
+            this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+
+            const x1 = Physics2dPlatform.maprect.left() + 8
+            const x2 = Physics2dPlatform.maprect.right() - 40
+            this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
+            this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+        }
+
+        if (this.demo_mode&DEMO_MODE_PLATFORM) {
+            const y = Physics2dPlatform.maprect.bottom() - 64
+            const x = Physics2dPlatform.maprect.cx() - 24
+            this.map_server.map.sendCreateObjectEvent("Wall", {x:x, y:y, w:48, h:12})
+        }
 
     }
 
-    resize() {
 
-        const width = Math.floor(gEngine.view.width/3) - 2
-        this.views = [
-            {name: "Player 1", x: 0,y: 0, width: width, height: gEngine.view.height},
-            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width: width, height: gEngine.view.height},
-            {name: "Player 2",x: gEngine.view.width - width,y: 0, width: width, height: gEngine.view.height},
-        ]
+    pause(paused) {
 
     }
+
+    update(dt) {
+
+        super.update(dt)
+
+    }
+
+
 
     handleTouches(touches) {
 

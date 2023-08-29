@@ -265,7 +265,13 @@ are partial syncs position only?
 
 The simulator used to build the example games is cheating in a major way. It uses 4 lists as queues to
 pass javascript objects between the 'clients' and the 'server'. In a real world game the objects
-will need to be serialized for messages to be sent over the network.
+will need to be serialized for messages to be sent over the network. Serializing javascript objects
+as JSON can take up a lot of space. Games with a large number of objects will quickly fill
+up the available bandwidth.
+
+As a rule of thumb individual packets should be under 1400 bytes, whether sent by TCP or UDP.
+Theoretically WebRTC supports even larger packet sizes, but it is still best to keep packets small.
+Packets over 1500 bytes are often dropped by certain kinds of networks.
 
 Some options to reduce message size
 
@@ -308,4 +314,12 @@ demo client
 two CspMaps, side by side
 mock client
 individual latency sliders for each side
-client holds on to messages in an incomming queue, moves them to an outgoing queue
+client holds on to messages in an incoming queue, moves them to an outgoing queue
+
+the passive replication article implies sending the inputs to the server
+which applies them in real time and replicates them to the clients.
+this implies that while the clock is synchronized, the inputs are not synchronized
+and that deltas will need to be sent out to all clients
+
+passive replication could potentially solve the jump bug and the bullet bug,
+as the player will end up jumping or firing the gun when the other player receives the message

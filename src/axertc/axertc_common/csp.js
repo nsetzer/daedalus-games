@@ -527,8 +527,8 @@ export class CspMap {
     }
 
     _construct(entId, className, props) {
+        // construct an object, including shadow objects
         const ctor = this.class_registry[className]
-        console.log(className, ctor)
         const ent = new ctor(entId, props)
         ent._classname = className
         return ent
