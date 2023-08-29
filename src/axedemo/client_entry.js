@@ -268,8 +268,16 @@ class DemoScene {
             this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
             this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
 
+            const x1 = Physics2dPlatform.maprect.left() + 8
+            const x2 = Physics2dPlatform.maprect.right() - 40
             this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
             this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+        }
+
+        if (this.demo_mode&DEMO_MODE_PLATFORM) {
+            const y = Physics2dPlatform.maprect.bottom() - 64
+            const x = Physics2dPlatform.maprect.cx() - 24
+            this.map_server.map.sendCreateObjectEvent("Wall", {x:x, y:y, w:48, h:12})
         }
 
     }

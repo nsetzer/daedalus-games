@@ -274,9 +274,6 @@ Some options to reduce message size
 - use bjson, msgpack, or protobuf instead of JSON.stringify/JSON.load
 - use zlib compression
 
-
-
-
 ## 7) Lag compensation
 
 The server knows at what time each message was received, and can estimate the latency for each client.
@@ -289,10 +286,9 @@ the message
 e.g. if its a collision, look at the state history for the two characters
 
 
-## 10)
-split axertc_client in axertc_client and axertc_daedalus_client
-
 ## 10) other notes
+
+split axertc_client in axertc_client and axertc_daedalus_client
 
 the server can kill an object
 clients can process damage, but should wait for the server to indicate an object actually died.
