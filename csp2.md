@@ -9,10 +9,17 @@ This guide assumes that you have already read these articles:
   * [Gaffer On Games: Networked Physics](https://gafferongames.com/post/networked_physics_2004/)
   * [Valve Multiplayer Networking](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking)
 
-https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
-https://news.ycombinator.com/item?id=26020594
-https://0fps.net/2014/02/10/replication-in-networked-games-overview-part-1/
-https://www.pingdom.com/blog/theoretical-vs-real-world-speed-limit-of-ping/
+  * 0fps Replication in Networked Games
+    [Part 1](https://0fps.net/2014/02/10/replication-in-networked-games-overview-part-1/)
+    [Part 2](https://0fps.net/2014/02/17/replication-in-networked-games-latency-part-2/)
+    [Part 3](https://0fps.net/2014/02/26/replication-in-networked-games-spacetime-consistency-part-3/)
+    [Part 4](https://0fps.net/2014/03/09/replication-in-network-games-bandwidth-part-4/)
+  * [Speed limit of Ping](https://www.pingdom.com/blog/theoretical-vs-real-world-speed-limit-of-ping/)
+  * https://news.ycombinator.com/item?id=26020594
+  * https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
+
+
+
 
 There are many different ways to implement a Client-Server Game Architecture. Depending on whether
 you are building a table top turn based game, or an RTS, or an FPS, the exact features that need to be
@@ -144,36 +151,90 @@ a better way would be to temporarily increase or decrease the framerate until th
 synchronized again. Implementing some hysteresis to smooth out changes will also help, as
 getting desynchronized by +/- one frame will be normal.
 
-## 2) rest of the owl
+## 2) Receiving messages
+
+
+A ring buffer data structure is easy to build out of a fixed length array
+
+```typescript
+
+    class Ringbuffer {
+        constructor(capacity, fill_callback) {
+            this.data = Array.from({length: capacity}, fill_callback)
+            this.capacity = capacity
+            this.fill_callback = fill_callback
+        }
+
+        get(step) {
+            return this.data[step%this.capacity]
+        }
+
+        set(step, value) {
+            this.data[step%this.capacity]
+        }
+
+        clear(step) {
+            this.set(step, this.fill_callback())
+        }
+    }
+
+
+
+```
+
+The size of the ringbuffer depends on how much history we want to keep, and the amount of
+lead time we want to store messages before processing. If the server is sending updates
+every 100ms at 60FPS, then an array size of 60 is enough for storing the last second of events.
+The game will delay applying inputs for 100 ms, so needs at least 6 frames to store look ahead.
+
+Rules for accessing data in a ringbuffer
+
+- On every step clear the the index at `(local_step - capacity/2) % capacity`
+  - this allows for reusing the index for future values
+- If the new input is has a step value outside the range from `local_step - history_size` to `local_step + buffer_size`, reject the message
+  - two many rejections may indicate a full re sync is needed
+
+The ring buffer structure that we need for Client Side Prediction is one that stores the Entity Id and list of messages for each frame index.
+```javascript
+
+    let messages = Ringbuffer(120, () => {})
+    if (!(msg.entId in messages.get(local_step))) {
+        messages.get(local_step)[msg.entId] = []
+    }
+    messages.get(local_step)[msg.entId].push(msg)
+
+```
+
+1. Map Sync (full, partial, fragmentation)
+2. Object Create
+3. Object Input
+4. Object Destroy
+
+We don't need an explicit 'Reject Message'. Instead if the message is rejected
+the server will send a new partial sync which will update the offending client
+
+## 3) rest of the owl
 
 Unfortunately, Multiplayer game development is a bit like drawing an owl. First draw two circles
 stacked on top of each other, one a little longer than the other. Then draw the owl. QED. After
 implementing a synchronized clock, there are a number of features that will need to be implemented
 for smooth gameplay. The next few sections cover these topics:
 
-  1. Sending and Receiving Messages
-  2. Reconciliation - the process of handing late arriving messages
-  3. Full Synchronization - sending the current state when a player connects
+  1. Reconciliation - the process of handing late arriving messages
+  2. Full Synchronization - sending the current state when a player connects
+  3. Partial Synchronization
   4. Object Bending - the process of synchronizing predictions with authoritative state
-  5. Partial Synchronization
+  5. Resync
 
 every section
 - highlevel explanation of topic
 - problems that are trying to be solved
 
-## 2.1) Receiving messages
-
-1. Map Sync (full, partial, fragmentation)
-2. Object Create
-3. Object Input
-4. Object Destroy
-5. Reject Message
-
 interpolation
     by sending only the user inputs and delaying by 100ms
     interpolate using past inputs, aka dead reckoning
 
-## 2.2) Reconciliation
+## 3.1) Reconciliation
 
 what happens if a message arrives late
 You lined up a shot, the enemy is in your cross hairs, and you pull the trigger. But the message
@@ -194,10 +255,9 @@ update
 update_after
     save state
 
-## 2.3) Full Synchronization
+## 3.2) Full Synchronization
 
 a) full sync
-b) partial sync
 
 a) when a player joins mid way through, they will need to be sent the entire state of the game
 b) do to floating point rounding errors, deltas will need to be periodically sent to clients
@@ -212,7 +272,31 @@ partial syncs reduce how many steps are needed for worst case reconciliation
 partial syncs only need to be done for the same set of objects where bending could be used
 bending may be disabled on the server
 
-## 2.4) Bending
+## 3.3) Partial Synchronization
+
+After the server processes an input, it sends the updated state of modified objects to all clients.
+
+remember that map-sync message implemented in step 1, and updated in step 2.3?
+
+server is authoritative
+so even if a future event comes in that is valid, causes a reconciliation
+the next partial sync that is sent out is the truth
+there is no contradiction
+
+in a perfect world, partial syncs are not necessary. this is not that world
+- packet loss
+- floating point rounding errors
+- cheaters and client side bugs: players may need to snap back to where the server says they are, if an input is rejected
+
+are partial syncs position only?
+
+### Delta Compression
+
+To reduce bandwidth
+
+
+
+## 3.4) Bending
 
 Bending is a process where the client prediction is synchronized with the authoritative server state over a number of frames.
 This prevents the object from snapping to the correct position.
@@ -235,6 +319,9 @@ For more complicated objects, that model not just speed, but acceleration it can
 Regardless of the complexity, when bending finished the object should have
 exactly the same state as the shadow object.
 
+There isnt a one size fits all solution to bending. Every object
+will need to implement its own rules for how to interpolate between two states.
+
 TODO: how to bend velocity and acceleration. (answer: the derivative should be smooth: https://en.wikipedia.org/wiki/Jerk_(physics))
 
 next steps
@@ -243,21 +330,22 @@ next steps
 * TODO: configurable bending steps
 * TODO: bend newly created objects between their created position and their real time position this would create non -linear velocity issues for bullets, but can be solved in onBend
 
-## 2.5) Partial Synchronization
+## 3.5) Resync
 
-remember that map-sync message implemented in step 1, and updated in step 2.3?
+If a client is sufficiently out of sync, trying to catch up to the server may not be feasible.
+The client can request a full sync from the server and fully refresh the game state.
 
-server is authoritative
-so even if a future event comes in that is valid, causes a reconciliation
-the next partial sync that is sent out is the truth
-there is no contradiction
+For browser based games, the browser may not render if the tab is not in focus. When the user
+switches back to that tab, the game will be out of sync.
 
-in a perfect world, partial syncs are not necessary. this is not that world
-- packet loss
-- floating point rounding errors
-- cheaters and client side bugs: players may need to snap back to where the server says they are, if an input is rejected
+## 4) Reconnect
 
-are partial syncs position only?
+playerId vs sessionId
+
+the first time a client connects the server can reply with a sessionId
+If the client ever disconnects, the client can send the last sessionId it had
+and attempt to reconnect to the old session.
+the server should check that the same IP is trying to connect to the session
 
 ## 7) delta syncs
 
