@@ -364,6 +364,147 @@ class AxeSimulatorScene extends GameScene {
         }
     }
 
+    arrowTo(ctx, fromx, fromy, tox, toy, r=5) {
+
+
+        let angle;
+        let x;
+        let y;
+
+
+
+
+        ctx.beginPath()
+        ctx.moveTo(fromx,fromy)
+        ctx.lineTo(tox,toy)
+        ctx.closePath();
+        ctx.stroke()
+
+        // shirnk the line by the radius so that the arrow touches
+        // the thing it is pointing at
+        angle = Math.atan2(toy-fromy,tox-fromx)
+        let distance = Math.sqrt(Math.pow(toy-fromy, 2) + Math.pow(tox-fromx, 2)) - r
+        tox = fromx + distance * Math.cos(angle)
+        toy = fromy + distance * Math.sin(angle)
+        //if (fromx < tox) {
+        //    tox -= r
+        //} else {
+        //    tox += r
+        //}
+//
+        //if (fromy < toy) {
+        //    toy -= r
+        //} else {
+        //    toy += r
+        //}
+//
+        let x_center = tox;
+        let y_center = toy;
+
+        ctx.beginPath();
+
+        angle = Math.atan2(toy-fromy,tox-fromx)
+        x = r*Math.cos(angle) + x_center;
+        y = r*Math.sin(angle) + y_center;
+
+        ctx.moveTo(x, y);
+
+        angle += (1/3)*(2*Math.PI)
+        x = r*Math.cos(angle) + x_center;
+        y = r*Math.sin(angle) + y_center;
+
+        ctx.lineTo(x, y);
+
+        angle += (1/3)*(2*Math.PI)
+        x = r*Math.cos(angle) + x_center;
+        y = r*Math.sin(angle) + y_center;
+
+        ctx.lineTo(x, y);
+
+        ctx.closePath();
+
+        ctx.fill();
+    }
+
+    paint_graph(ctx) {
+        let width = 512
+        let step_size = 24
+        let header = 48
+        let footer = 64
+        let height = 10*step_size+header+footer
+        ctx.save()
+
+        //ctx.translate(-width,0)
+        ctx.beginPath()
+        ctx.strokeStyle = "blue";
+        ctx.fillStyle = "#c3c3c3";
+        ctx.rect(0,0, width, height)
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.strokeStyle="black"
+        ctx.fillStyle="black"
+        let lineTo = (x1,y1,x2,y2, n) => {
+
+            ctx.font = "12px bold";
+            ctx.fillStyle = "black"
+            ctx.textAlign = "right"
+            ctx.textBaseline = "middle"
+
+            ctx.beginPath()
+            ctx.moveTo(x1,y1)
+            ctx.lineTo(x2,y2)
+            ctx.stroke()
+            const radius = 3
+            for (let y=y1+step_size; y<y2; n+=1, y+=step_size) {
+                ctx.beginPath()
+                ctx.arc(x1, y, radius, 0, 2 * Math.PI);
+
+                if (n >= 0) {
+                    ctx.fillText(n, x1 - radius*2, y)
+                }
+
+                ctx.fill()
+            }
+        }
+
+        let x0 = 1*width/8
+        let x1 = 2*width/8
+        let x2 = 4*width/8
+        let x3 = 6*width/8
+        let x4 = 7*width/8
+        let step_delay = 3
+        lineTo(x0, header, x0, height, -2 - step_delay)
+        lineTo(x1, header, x1, height, -2)
+        lineTo(x2, header, x2, height, 0)
+        lineTo(x3, header, x3, height, -3)
+        lineTo(x4, header, x4, height, -3 - step_delay)
+
+        this.arrowTo(ctx, x2, header + 1 * step_size,x1,header + 3 * step_size, 7)
+        this.arrowTo(ctx, x2, header + 1 * step_size,x3,header + 4 * step_size, 7)
+
+
+        this.arrowTo(ctx, x1, header + 7 * step_size,x2,header + 9 * step_size, 7)
+        this.arrowTo(ctx, x2, header + 9 * step_size,x1,header + 11 * step_size, 7)
+        this.arrowTo(ctx, x2, header + 9 * step_size,x3,header + 12 * step_size, 7)
+
+        ctx.font = "12px bold";
+        ctx.fillStyle = "black"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText("Player 1", (x0+x1)/2, 16)
+        ctx.fillText("Server", x2, 16)
+        ctx.fillText("Player 2", (x3+x4)/2, 16)
+
+        ctx.font = "10px bold";
+        ctx.fillText("Local Step", x0, 32)
+        ctx.fillText("World Step", x1, 32)
+        ctx.fillText("World Step", x2, 32)
+        ctx.fillText("World Step", x3, 32)
+        ctx.fillText("Local Step", x4, 32)
+
+        ctx.restore()
+    }
     paint(ctx) {
 
         ctx.save();
@@ -451,6 +592,7 @@ class AxeSimulatorScene extends GameScene {
         }
         ctx.restore();
 
+
         this.grp.paint(ctx)
         this.touch.paint(ctx)
 
@@ -463,6 +605,8 @@ class AxeSimulatorScene extends GameScene {
 
             ctx.fillText(`FPS: ${gEngine.fps}`, 0, 0);
         }
+
+        this.paint_graph(ctx);
     }
 
 }
@@ -470,34 +614,7 @@ class AxeSimulatorScene extends GameScene {
 class DemoScene extends AxeSimulatorScene {
 
 
-    constructor() {
-
-        const query = daedalus.util.parseParameters()
-        let demo_mode;
-        switch (query?.mode?.[0]) {
-            case "clock":
-                demo_mode = DEMO_MODE_CLOCK;
-                break
-            case "fireworks":
-                demo_mode = DEMO_MODE_FIREWORKS;
-                break
-            case "movement":
-                demo_mode = DEMO_MODE_MOVEMENT;
-                break
-            case "all":
-                demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT;
-                break
-            case "platform":
-                demo_mode = DEMO_MODE_PLATFORM;
-                break
-            case "bullet":
-                demo_mode = DEMO_MODE_BULLET;
-                break
-            default:
-                //demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
-                demo_mode = DEMO_MODE_PLATFORM
-                break
-        }
+    constructor(demo_mode) {
 
         let map_ctor = (demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
         super(map_ctor)
@@ -513,7 +630,10 @@ class DemoScene extends AxeSimulatorScene {
 
         if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
 
-            this.touch.addWheel(64, -64, 32, {align: Alignment.LEFT|Alignment.BOTTOM})
+            this.touch.addWheel(64, -64, 32, {
+                align: Alignment.LEFT|Alignment.BOTTOM,
+                symbols: ["W", "D", "S", "A"],
+            })
             this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
 
             const x1 = Physics2dPlatform.maprect.left() + 8
@@ -579,11 +699,39 @@ class DemoScene extends AxeSimulatorScene {
 
 export default class Application extends ApplicationBase {
     constructor() {
+
+        const query = daedalus.util.parseParameters()
+        let demo_mode;
+        switch (query?.mode?.[0]) {
+            case "clock":
+                demo_mode = DEMO_MODE_CLOCK;
+                break
+            case "fireworks":
+                demo_mode = DEMO_MODE_FIREWORKS;
+                break
+            case "movement":
+                demo_mode = DEMO_MODE_MOVEMENT;
+                break
+            case "all":
+                demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT;
+                break
+            case "platform":
+                demo_mode = DEMO_MODE_PLATFORM;
+                break
+            case "bullet":
+                demo_mode = DEMO_MODE_BULLET;
+                break
+            default:
+                //demo_mode = DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
+                demo_mode = DEMO_MODE_PLATFORM
+                break
+        }
+
         super({
             portrait: 0,
             fullscreen: 0
         }, () => {
-            return new DemoScene()
+            return new DemoScene(demo_mode)
         })
 
 

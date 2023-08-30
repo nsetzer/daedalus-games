@@ -323,3 +323,12 @@ and that deltas will need to be sent out to all clients
 
 passive replication could potentially solve the jump bug and the bullet bug,
 as the player will end up jumping or firing the gun when the other player receives the message
+
+in passive replication, on  the server, when not running reconciliation,
+record the entities that receive input,are created, or are destroyed. for every step
+in update_after send the updated state for each object to all clients
+v1: full state
+v2: position only
+v3: deltas only
+
+partial syncs apply to the cached world state, so that future reconciliation will be correct

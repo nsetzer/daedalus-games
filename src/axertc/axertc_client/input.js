@@ -158,8 +158,10 @@ export class TouchInput {
     addWheel(x, y, radius, options) {
 
         let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
-        console.log("Add wheel", alignment)
 
+        //let symbols = options?.symbols ?? ["🡅", "🡆", "🡇", "🡄"]
+        let symbols = options?.symbols ?? ["\u{2b9D}", "\u2b9E", "\u2b9F", "\u2b9C"]
+        console.log(symbols)
         let cx, cy
         if (alignment&Alignment.RIGHT) {
             cx = gEngine.view.width - x
@@ -179,7 +181,8 @@ export class TouchInput {
             cy: cy,
             alignment: alignment,
             vector: {x:0, y:0},
-            pressed: false
+            pressed: false,
+            symbols: symbols
         })
     }
 
@@ -411,25 +414,42 @@ export class TouchInput {
 
             ctx.strokeStyle = '#00000055';
 
+            let cxr = cx - dr + 16
+            let cxl = cx + dr - 16
+            let cyt = cy + dr - 16
+            let cyb = cy - dr + 16
+
             ctx.fillStyle = (whl.vector.x<-.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx - dr + 16, cy, 8, 0, 2*Math.PI);
+            ctx.arc(cxr, cy, 8, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.x>.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx + dr - 16, cy, 8, 0, 2*Math.PI);
+            ctx.arc(cxl, cy, 8, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.y<-.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx, cy - dr + 16, 8, 0, 2*Math.PI);
+            ctx.arc(cx, cyb, 8, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.y>.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx, cy + dr - 16, 8, 0, 2*Math.PI);
+            ctx.arc(cx, cyt, 8, 0, 2*Math.PI);
             ctx.fill();
+
+            ctx.font = "10px";
+            ctx.fillStyle = "black"
+            ctx.strokeStyle = "black"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+
+
+            ctx.fillText(whl.symbols[1], cxl, cy+1);
+            ctx.fillText(whl.symbols[3], cxr, cy+1);
+            ctx.fillText(whl.symbols[0], cx, cyb+1);
+            ctx.fillText(whl.symbols[2], cx, cyt+1);
 
 
 
