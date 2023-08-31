@@ -14,11 +14,14 @@ This guide assumes that you have already read these articles:
     [Part 2](https://0fps.net/2014/02/17/replication-in-networked-games-latency-part-2/)
     [Part 3](https://0fps.net/2014/02/26/replication-in-networked-games-spacetime-consistency-part-3/)
     [Part 4](https://0fps.net/2014/03/09/replication-in-network-games-bandwidth-part-4/)
+  * How Do Multiplayer games sync their state
+    [Part 1](https://medium.com/@qingweilim/how-do-multiplayer-games-sync-their-state-part-1-ab72d6a54043)
+    [Part 2](https://medium.com/@qingweilim/how-do-multiplayer-game-sync-their-state-part-2-d746fa303950)
   * [Speed limit of Ping](https://www.pingdom.com/blog/theoretical-vs-real-world-speed-limit-of-ping/)
   * https://news.ycombinator.com/item?id=26020594
   * https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
 
-
+![sequence diagram showing when events get processed](./sequencediagram.png)
 
 
 There are many different ways to implement a Client-Server Game Architecture. Depending on whether
@@ -56,16 +59,20 @@ From a player’s point of view, this has two important consequences:
 
 2. fireworks
     allow changing latency only
+    only uses the object create message
 
 3. movement
     basic top down adventure style movement system
     allow changing latency only
+
+    uses object create and object input message
 
 4. moving platform
     basic collision detection, physics
     include an elevator platform
     wheel only, up to jump, down to duck
     allow changing latency only
+    uses object create and object input message
 
 5. lag compensation
     player1 or player 2 have a button to be ai controlled
@@ -274,6 +281,24 @@ bending may be disabled on the server
 
 ## 3.3) Partial Synchronization
 
+server receives a message
+    mutate the message
+        step: current server local step
+        client_step: original step as received for estimating lag compensation later
+
+the game engine is meant to be implemented where only user inputs are sent
+from the client to the server, then replicated to neighbors
+but due to floating point rounding issues, the clients may need to
+re-synchronize from time to time.
+
+How to implement partial synchronization can be a bit of an art.
+
+1. every 100ms the server sends the full state of all objects which received
+   input from a client, or moved on the server.
+2. every 100ms the server sends the x/y position of all objects that moved.
+   clients verify if the position is correct, and then request full syncs
+   for only the objects that are out of sync
+
 After the server processes an input, it sends the updated state of modified objects to all clients.
 
 remember that map-sync message implemented in step 1, and updated in step 2.3?
@@ -321,6 +346,10 @@ exactly the same state as the shadow object.
 
 There isnt a one size fits all solution to bending. Every object
 will need to implement its own rules for how to interpolate between two states.
+
+things to consider
+    - object creation and deletion looks funny when bent
+    - inputs that alter trajectory should be bent
 
 TODO: how to bend velocity and acceleration. (answer: the derivative should be smooth: https://en.wikipedia.org/wiki/Jerk_(physics))
 

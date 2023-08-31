@@ -2,7 +2,7 @@
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
-    ArrowButtonWidget, TouchInput
+    ArrowButtonWidget, TouchInput, KeyboardInput
 
 })
 $import("axertc_common", {
@@ -54,7 +54,6 @@ class DemoClient {
     }
 
     connect() {
-
     }
 
     update(dt) {
@@ -133,7 +132,6 @@ class DemoClient {
             this.queues[2].latency = latency
             this.queues[3].latency = latency
         }
-
     }
 
     changeDelay(playerId, amount) {
@@ -250,16 +248,19 @@ class AxeSimulatorScene extends GameScene {
 
         this.grp = new WidgetGroup()
 
+        //this.enable_documentation = true
+
         this.resize()
     }
 
     resize() {
 
         const width = Math.floor(gEngine.view.width/3) - 2
+        const height = 360 // gEngine.view.height
         this.views = [
-            {name: "Player 1", x: 0,y: 0, width: width, height: gEngine.view.height},
-            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width: width, height: gEngine.view.height},
-            {name: "Player 2",x: gEngine.view.width - width,y: 0, width: width, height: gEngine.view.height},
+            {name: "Player 1", x: 0,y: 0, width: width, height: 360},
+            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width: width, height: 360},
+            {name: "Player 2",x: gEngine.view.width - width,y: 0, width: width, height: 360},
         ]
     }
 
@@ -272,7 +273,6 @@ class AxeSimulatorScene extends GameScene {
 
         this.grp.update(dt)
     }
-
 
     initWidgets(enable_delta) {
 
@@ -380,6 +380,7 @@ class AxeSimulatorScene extends GameScene {
         ctx.closePath();
         ctx.stroke()
 
+
         // shirnk the line by the radius so that the arrow touches
         // the thing it is pointing at
         angle = Math.atan2(toy-fromy,tox-fromx)
@@ -432,6 +433,7 @@ class AxeSimulatorScene extends GameScene {
         let header = 48
         let footer = 64
         let height = 10*step_size+header+footer
+
         ctx.save()
 
         //ctx.translate(-width,0)
@@ -505,6 +507,7 @@ class AxeSimulatorScene extends GameScene {
 
         ctx.restore()
     }
+
     paint(ctx) {
 
         ctx.save();
@@ -588,7 +591,6 @@ class AxeSimulatorScene extends GameScene {
             ctx.textBaseline = "top"
             ctx.fillText(`Bending ${map.map.enable_bending?"enabled":"disabled"} (${map.map._debug_reconcile_count})`, view.x+4, view.height);
 
-
         }
         ctx.restore();
 
@@ -606,7 +608,9 @@ class AxeSimulatorScene extends GameScene {
             ctx.fillText(`FPS: ${gEngine.fps}`, 0, 0);
         }
 
-        this.paint_graph(ctx);
+        if (this.enable_documentation) {
+            this.paint_graph(ctx);
+        }
     }
 
 }
@@ -625,8 +629,10 @@ class DemoScene extends AxeSimulatorScene {
         this.controller = new CspController(this.map_player1, this.map_player2);
 
         this.touch = new TouchInput(this.controller)
+        this.keyboard = new KeyboardInput(this.controller)
 
         Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
+        FireworksMap.maprect = new Rect(0, 0, 211, Math.floor(360))
 
         if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
 
@@ -635,6 +641,9 @@ class DemoScene extends AxeSimulatorScene {
                 symbols: ["W", "D", "S", "A"],
             })
             this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+
+            this.keyboard.addWheel_WASD()
+            this.keyboard.addWheel_ArrowKeys()
 
             const x1 = Physics2dPlatform.maprect.left() + 8
             const x2 = Physics2dPlatform.maprect.right() - 40
@@ -647,21 +656,16 @@ class DemoScene extends AxeSimulatorScene {
             const x = Physics2dPlatform.maprect.cx() - 24
             this.map_server.map.sendCreateObjectEvent("Wall", {x:x, y:y, w:48, h:12})
         }
-
     }
 
 
     pause(paused) {
-
     }
 
     update(dt) {
 
         super.update(dt)
-
     }
-
-
 
     handleTouches(touches) {
 
@@ -675,13 +679,11 @@ class DemoScene extends AxeSimulatorScene {
 
                     if (touch.x < (this.views[0].x+this.views[0].width)) {
                         touch.x -= this.views[0].x
-                        console.log("player1 create firework")
                         this.map_player1.map.sendCreateObjectEvent("Firework", touch)
                     }
 
                     else if (touch.x > (this.views[2].x)) {
                         touch.x -= this.views[2].x
-                        console.log("player2 create firework")
                         this.map_player2.map.sendCreateObjectEvent("Firework", touch)
 
                     }
@@ -691,9 +693,48 @@ class DemoScene extends AxeSimulatorScene {
     }
 
     handleKeyPress(keyevent) {
+        this.keyboard.handleKeyPress(keyevent)
     }
 
     handleKeyRelease(keyevent) {
+
+        this.keyboard.handleKeyRelease(keyevent)
+
+        if (keyevent.text=="1") {
+            this.enable_documentation = !this.enable_documentation
+        }
+
+        if (keyevent.text=="2" && this.enable_documentation) {
+            const width = 512
+            const height = 352
+            const hidden_canvas = document.createElement('canvas');
+            hidden_canvas.width = width;
+            hidden_canvas.height = height;
+
+            const hidden_ctx = hidden_canvas.getContext('2d');
+
+            hidden_ctx.drawImage(
+                gEngine.getDomNode(),
+                gEngine.view.x,
+                gEngine.view.y,
+                width,
+                height,
+                0,
+                0,
+                width,
+                height
+            );
+
+            const hidden_data = hidden_canvas.toDataURL("image/png")
+
+            const link = document.createElement("a");
+            link.href = hidden_data;
+            link.download = "documentation.png";
+            link.target="_blank"
+            link.click();
+
+        }
+
     }
 }
 
@@ -733,7 +774,5 @@ export default class Application extends ApplicationBase {
         }, () => {
             return new DemoScene(demo_mode)
         })
-
-
     }
 }

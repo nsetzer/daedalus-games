@@ -25,18 +25,18 @@ export class KeyboardInput {
     constructor(target) {
 
         this.target = target
-        this.keysDown = [];
 
         this.buttons = []
         this.pressed = {}
-        this.last_vector = {x:null, y:null}
 
         this.wheels = []
 
     }
 
     addWheel(up, right, down, left) {
-        this.wheels.push({up, right, down, left})
+        console.log("add wheel", {up, right, down, left})
+        this.wheels.push({up, right, down, left, keysDown: [],
+            last_vector: {x:null, y:null}, all:[up, right, down, left]})
     }
 
     addWheel_WASD() {
@@ -53,15 +53,25 @@ export class KeyboardInput {
 
     handleKeyPress(keyevent) {
         let kc = keyevent.keyCode
-        if (kc >= 37 && kc <= 40) {
-            if (!this.keysDown.includes(kc)) {
-                this.keysDown.push(kc)
+
+        let whlid = null
+        this.wheels.forEach((whl, index) => {
+            if (whl.all.includes(kc)) {
+                whlid = index
             }
-            // keyboard is always wheel zero?
-            let v = this.getDirectionVector(this.keysDown)
-            if (this.last_vector.x !=v.x || this.last_vector.y != v.y) {
-                this.last_vector = v
-                this.target.setInputDirection(0, v)
+        })
+
+        if (whlid !== null) {
+            const whl = this.wheels[whlid]
+
+            if (!whl.keysDown.includes(kc)) {
+                whl.keysDown.push(kc)
+            }
+            console.log(whlid, whl.keysDown)
+            let v = this.getDirectionVector(whl)
+            if (whl.last_vector.x !=v.x || whl.last_vector.y != v.y) {
+                whl.last_vector = v
+                this.target.setInputDirection(whlid, v)
             }
         } else if (kc > 0 ) {
 
@@ -83,15 +93,25 @@ export class KeyboardInput {
 
     handleKeyRelease(keyevent) {
         let kc = keyevent.keyCode
-        if (kc >= 37 && kc <= 40) {
-            let index = this.keysDown.indexOf(kc);
+
+        let whlid = null
+        this.wheels.forEach((whl, index) => {
+            if (whl.all.includes(kc)) {
+                whlid = index
+            }
+        })
+
+        if (whlid !== null) {
+            const whl = this.wheels[whlid]
+            console.log(whlid)
+            let index = whl.keysDown.indexOf(kc);
             if (index !== -1) {
-                this.keysDown.splice(index, 1);
+                whl.keysDown.splice(index, 1);
             }
             // keyboard is always wheel zero?
-            let v = this.getDirectionVector(this.keysDown)
-            this.target.setInputDirection(0, v)
-            this.last_vector = {x:null, y:null}
+            let v = this.getDirectionVector(whl)
+            this.target.setInputDirection(whlid, v)
+            whl.last_vector = {x:null, y:null}
         } else if (kc > 0 ) {
 
             let match = 0;
@@ -111,25 +131,25 @@ export class KeyboardInput {
 
     }
 
-    getDirectionVector(keysDown) {
+    getDirectionVector(whl) {
         // get first detected input
         // if user presses multiple keys, remember
         // the order they were pressed
 
         let x = 0;
         let y = 0;
-        for (let i=0; i<keysDown.length; i++) {
-            const kc = keysDown[i];
-            if (x == 0 && kc == Keys.LEFT) {
+        for (let i=0; i<whl.keysDown.length; i++) {
+            const kc = whl.keysDown[i];
+            if (x == 0 && kc == whl.left) {
                 x = -1;
             }
-            if (x == 0 && kc == Keys.RIGHT) {
+            if (x == 0 && kc == whl.right) {
                 x = 1;
             }
-            if (y == 0 && kc == Keys.UP) {
+            if (y == 0 && kc == whl.up) {
                 y = -1;
             }
-            if (y == 0 && kc == Keys.DOWN) {
+            if (y == 0 && kc == whl.down) {
                 y = 1;
             }
         }
@@ -138,6 +158,28 @@ export class KeyboardInput {
     }
 }
 KeyboardInput.Keys = Keys
+
+let _arrow = (dx, dy,radius=4) => {
+    let angle = Math.atan2(dx, dy)
+    let x1 = radius*Math.cos(angle)
+    let y1 = radius*Math.sin(angle)
+    angle += (1/3)*(2*Math.PI)
+    let x2 = radius*Math.cos(angle)
+    let y2 = radius*Math.sin(angle)
+    angle += (1/3)*(2*Math.PI)
+    let x3 = radius*Math.cos(angle)
+    let y3 = radius*Math.sin(angle)
+    return [{x:x1,y:y1},{x:x2,y:y2},{x:x3,y:y3}]
+}
+
+let _arrow_draw = (ctx, pts, cx, cy) => {
+    ctx.beginPath()
+    ctx.moveTo(cx + pts[0].x, cy + pts[0].y)
+    ctx.lineTo(cx + pts[1].x, cy + pts[1].y)
+    ctx.lineTo(cx + pts[2].x, cy + pts[2].y)
+    ctx.closePath()
+    ctx.fill()
+}
 
 export class TouchInput {
     // todo: make direction circles generic.
@@ -153,14 +195,20 @@ export class TouchInput {
         this.wheels = []
         this.buttons = []
 
+        this.arrows = {
+            up: _arrow(-1, 0),
+            down: _arrow(1, 0),
+            left: _arrow(0, -1),
+            right: _arrow(0, 1),
+        }
+
     }
 
     addWheel(x, y, radius, options) {
 
         let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
 
-        //let symbols = options?.symbols ?? ["🡅", "🡆", "🡇", "🡄"]
-        let symbols = options?.symbols ?? ["\u{2b9D}", "\u2b9E", "\u2b9F", "\u2b9C"]
+        let symbols = options?.symbols ?? null
         console.log(symbols)
         let cx, cy
         if (alignment&Alignment.RIGHT) {
@@ -418,41 +466,49 @@ export class TouchInput {
             let cxl = cx + dr - 16
             let cyt = cy + dr - 16
             let cyb = cy - dr + 16
-
+            let radius = 8
             ctx.fillStyle = (whl.vector.x<-.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cxr, cy, 8, 0, 2*Math.PI);
+            ctx.arc(cxr, cy, radius, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.x>.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cxl, cy, 8, 0, 2*Math.PI);
+            ctx.arc(cxl, cy, radius, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.y<-.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx, cyb, 8, 0, 2*Math.PI);
+            ctx.arc(cx, cyb, radius, 0, 2*Math.PI);
             ctx.fill();
 
             ctx.fillStyle = (whl.vector.y>.5)?'#FF770055':'#00000055';
             ctx.beginPath();
-            ctx.arc(cx, cyt, 8, 0, 2*Math.PI);
+            ctx.arc(cx, cyt, radius, 0, 2*Math.PI);
             ctx.fill();
 
-            ctx.font = "10px";
-            ctx.fillStyle = "black"
-            ctx.strokeStyle = "black"
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-
-
-            ctx.fillText(whl.symbols[1], cxl, cy+1);
-            ctx.fillText(whl.symbols[3], cxr, cy+1);
-            ctx.fillText(whl.symbols[0], cx, cyb+1);
-            ctx.fillText(whl.symbols[2], cx, cyt+1);
 
 
 
+            if (whl.symbols != null) {
+                ctx.font = "10px";
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+
+                ctx.fillText(whl.symbols[0], cx, cyb+1);
+                ctx.fillText(whl.symbols[1], cxl, cy+1);
+                ctx.fillText(whl.symbols[2], cx, cyt+1);
+                ctx.fillText(whl.symbols[3], cxr, cy+1);
+            } else {
+
+                ctx.fillStyle = '#000000';
+                _arrow_draw(ctx, this.arrows.up,    cx, cyb)
+                _arrow_draw(ctx, this.arrows.right, cxl, cy)
+                _arrow_draw(ctx, this.arrows.down,  cx, cyt)
+                _arrow_draw(ctx, this.arrows.left,  cxr, cy)
+            }
 
         }
 
