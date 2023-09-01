@@ -34,7 +34,6 @@ export class KeyboardInput {
     }
 
     addWheel(up, right, down, left) {
-        console.log("add wheel", {up, right, down, left})
         this.wheels.push({up, right, down, left, keysDown: [],
             last_vector: {x:null, y:null}, all:[up, right, down, left]})
     }
@@ -67,7 +66,6 @@ export class KeyboardInput {
             if (!whl.keysDown.includes(kc)) {
                 whl.keysDown.push(kc)
             }
-            console.log(whlid, whl.keysDown)
             let v = this.getDirectionVector(whl)
             if (whl.last_vector.x !=v.x || whl.last_vector.y != v.y) {
                 whl.last_vector = v
@@ -103,7 +101,6 @@ export class KeyboardInput {
 
         if (whlid !== null) {
             const whl = this.wheels[whlid]
-            console.log(whlid)
             let index = whl.keysDown.indexOf(kc);
             if (index !== -1) {
                 whl.keysDown.splice(index, 1);
@@ -209,7 +206,6 @@ export class TouchInput {
         let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
 
         let symbols = options?.symbols ?? null
-        console.log(symbols)
         let cx, cy
         if (alignment&Alignment.RIGHT) {
             cx = gEngine.view.width - x

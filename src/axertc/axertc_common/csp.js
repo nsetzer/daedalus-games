@@ -2,6 +2,10 @@
 
 /**
  * 
+ *
+ * TODO: what if the player character for the client always had a shadow copy
+ *       and that shadow was always bent when the delta became too greatdw
+ *
  * TODO: implement a way on the client to disable extrapolation
  * purely for illustrative purposes
  * 
@@ -132,6 +136,11 @@ export class CspMap {
             this.statequeue.push(null)
         }
 
+        this.partialstatequeue = []
+        for (let i=0; i < this.inputqueue_capacity; i++) {
+            this.partialstatequeue.push({})
+        }
+
         this.dirty_step = null
         this.dirty_objects = {}
 
@@ -255,7 +264,7 @@ export class CspMap {
             // process up to the current time (+1), an update after this will take care of advancing to the next frame
             const start = this.dirty_step
             const end = this.local_step
-            //console.log(this.instanceId, `reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
+            console.log(this.instanceId, `reconcile start=${start} end=${end} delta=${end-start} num_objects=${Object.keys(this.dirty_objects).length}`)
             if (start < this.local_step - this.step_rate) {
                 throw new Error("reconcile starts before the last cached input")
             }
@@ -332,6 +341,7 @@ export class CspMap {
         //    console.error(this.instanceId, "clear input index at", this.local_step, delete_idx)
         //}
         this.inputqueue[delete_idx] = {}
+        this.partialstatequeue[delete_idx] = {}
 
         if ('inputqueue_v2' in this) {
 
@@ -341,6 +351,20 @@ export class CspMap {
         }
 
         this._apply(this.local_step, false)
+
+        const idx = this._frameIndex(this.local_step)
+        if (Object.keys(this.partialstatequeue[idx]).length > 0) {
+            for (const [entid, state] of Object.entries(this.partialstatequeue[idx])) {
+
+                const ent = this.objects[entid];
+                ent._shadow = this._construct(entid, ent._classname, {})
+                ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
+                ent._shadow._x_debug_map = this
+                ent._shadow.setState(state)
+                ent._shadow_step = 0
+
+            }
+        }
     }
 
     update_main(dt, reconcile) {
@@ -472,7 +496,11 @@ export class CspMap {
     }
 
     _clearinput(idx, entid, uid) {
-        delete this.inputqueue[idx][entid][uid]
+        if (entid in this.inputqueue[idx]) {
+            delete this.inputqueue[idx][entid][uid]
+        } else {
+            console.warn("clearinput: entid not found", entid)
+        }
     }
 
     _apply(clock, reconcile) {
@@ -790,26 +818,43 @@ export class ClientCspMap {
             }
             else if (msg.type == "csp-object-input") {
                 if (msg.uid in this.map.waiting_validation) {
-                    console.log("do validate message", msg.uid)
-                    //const old = this.map.waiting_validation[msg.uid]
-                    //console.log(msg.client_step, old.step, msg.step, this.map.local_step)
-                    //const idx1 = this.map._frameIndex(old.step)
-                    //console.log("x has msg", this.map._hasinput(idx1, msg.entid, msg.uid))
-                    //this.map._clearinput(idx1, msg.entid, msg.uid)
-                    //const idx2 = this.map._frameIndex(msg.step)
-                    //this.map._setinput(idx2, msg.entid, msg.uid, msg)
+                    // TODO: this needs to validate that the msg originated from this client
+                    //       uid is not globally unique
+                    const old = this.map.waiting_validation[msg.uid]
+                    //console.log("do validate message", msg.uid, old.uid, old.entid, msg.entid)
 
+                    //console.log(msg.client_step, old.step, msg.step, this.map.local_step)
+                    const idx1 = this.map._frameIndex(old.step)
+                    this.map._clearinput(idx1, msg.entid, msg.uid)
+                    //console.log("x has msg", this.map._hasinput(idx1, msg.entid, msg.uid))
+
+                    const idx2 = this.map._frameIndex(msg.step)
+                    this.map._setinput(idx2, msg.entid, msg.uid, msg)
+
+                    console.log("client validate message. delta:",
+                        this.map.local_step - old.step, // if full reconciliation
+                        this.map.local_step - msg.step, // from state
+                        "msg step", msg.step,
+                        "current step", this.map.local_step
+
+                        )
+
+                    const idx3 = this.map._frameIndex(msg.step)
+                    this.map.partialstatequeue[idx3][msg.entid] = msg.state
+                    console.log("set partial step", this.map.local_step, msg.step)
                     //this.map.dirty_step = old.step
                     //if (this.map.enable_bending) {
                     //    this.map.dirty_objects[msg.entid] = true
                     //}
 
+                    // TODO: can detect automatically player controlled units
+                    //       these units need a different bending strategy
                     //const ent = this.map.objects[msg.entid]
-                    //ent._shadow = this._construct(objId, obj._classname, {})
-                    //ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
-                    //ent._shadow._x_debug_map = this
-                    //ent._shadow.setState(msg.state)
-
+                    //ent._player_shadow = this._construct(objId, obj._classname, {})
+                    //ent._player_shadow._destroy = ()=>{} // todo: should this delete the owner?
+                    //ent._player_shadow._x_debug_map = this
+                    //ent._player_shadow.setState(msg.state)
+                    delete this.map.waiting_validation[msg.uid]
 
                 } else {
                     this.map.receiveEvent(msg)
@@ -959,7 +1004,7 @@ export class ServerCspMap {
 
         for (let i=0; i < this.incoming_message.length; i++) {
             const msg = this.incoming_message[i]
-            console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
+            //console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
             const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
             this.map.receiveEvent(msg_v2)
         }
@@ -974,8 +1019,9 @@ export class ServerCspMap {
             const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step}
             if (msg.type == "csp-object-input") {
                 msg_v2.state = this.map.objects[msg.entid].getState()
-                console.log("_x_debug_t:", performance.now() - msg._x_debug_t)
+                //console.log("_x_debug_t:", (performance.now() - msg._x_debug_t) / (1000/60))
             }
+
 
             this.map.sendBroadcast(null, msg_v2)
         }

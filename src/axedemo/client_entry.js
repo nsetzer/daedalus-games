@@ -364,17 +364,17 @@ class AxeSimulatorScene extends GameScene {
         }
     }
 
-    arrowTo(ctx, fromx, fromy, tox, toy, r=5) {
+    arrowTo(ctx, fromx, fromy, tox, toy, r=5, dashed=false) {
 
 
         let angle;
         let x;
         let y;
 
-
-
-
         ctx.beginPath()
+        if (dashed) {
+            ctx.setLineDash([5, 15]);
+        }
         ctx.moveTo(fromx,fromy)
         ctx.lineTo(tox,toy)
         ctx.closePath();
@@ -489,6 +489,11 @@ class AxeSimulatorScene extends GameScene {
         this.arrowTo(ctx, x1, header + 7 * step_size,x2,header + 9 * step_size, 7)
         this.arrowTo(ctx, x2, header + 9 * step_size,x1,header + 11 * step_size, 7)
         this.arrowTo(ctx, x2, header + 9 * step_size,x3,header + 12 * step_size, 7)
+
+        this.arrowTo(ctx, x2, header + 7 * step_size,x3,header + 9 * step_size, 7, true)
+        this.arrowTo(ctx, x2, header + 9 * step_size,x3,header + 8 * step_size, 7, true)
+
+
 
         ctx.font = "12px bold";
         ctx.fillStyle = "black"
@@ -701,10 +706,26 @@ class DemoScene extends AxeSimulatorScene {
         this.keyboard.handleKeyRelease(keyevent)
 
         if (keyevent.text=="1") {
+            window.location.href = location.origin + "?mode=clock";
+        }
+
+        if (keyevent.text=="2") {
+            window.location.href = location.origin + "?mode=fireworks";
+        }
+
+        if (keyevent.text=="3") {
+            window.location.href = location.origin + "?mode=movement";
+        }
+
+        if (keyevent.text=="4") {
+            window.location.href = location.origin + "?mode=platform";
+        }
+
+        if (false && keyevent.text=="1") {
             this.enable_documentation = !this.enable_documentation
         }
 
-        if (keyevent.text=="2" && this.enable_documentation) {
+        if (false && keyevent.text=="2" && this.enable_documentation) {
             const width = 512
             const height = 352
             const hidden_canvas = document.createElement('canvas');
