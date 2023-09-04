@@ -1,4 +1,20 @@
 
+9/2/23 2:40: next plan is to send event with lag compensation
+    instead of an input delay of 6
+    the input delay is max(6, RTT/2)
+    then just use simple bending
+    debug: when 1-way latency is < 50 ms, there should not be  significant mis predictions
+
+* https://www.gamedev.net/forums/topic/695550-client-side-prediction-and-server-sync/
+     Place the server entity back into the frame that the client should have seen it in when it shot. ("Counter-strike model")
+    Accept the hit determination done on the client. (Mainly usable on consoles, because PCs are too open to cheating.)
+    Run the hit detection on the server, and require that players "lead" their shots. ("Quake model.")
+
+* TODO: is there a way to calculate an error budget per entity
+  in the x and y direction compute the error.
+  fix the error when velocity is negative to the error
+  bend when the error is to great
+
 # Client-Server Game Architecture
 
 This is a guide on how to implement a Client-Server Game architecture with
@@ -17,10 +33,11 @@ This guide assumes that you have already read these articles:
   * How Do Multiplayer games sync their state
     [Part 1](https://medium.com/@qingweilim/how-do-multiplayer-games-sync-their-state-part-1-ab72d6a54043)
     [Part 2](https://medium.com/@qingweilim/how-do-multiplayer-game-sync-their-state-part-2-d746fa303950)
+  * [Client-side Prediction for Smooth Multiplayer Gameplay](https://kinematicsoup.com/news/2017/5/30/multiplayerprediction)
   * [Speed limit of Ping](https://www.pingdom.com/blog/theoretical-vs-real-world-speed-limit-of-ping/)
   * https://news.ycombinator.com/item?id=26020594
   * https://gamedev.stackexchange.com/questions/136166/client-side-prediction-physics
-
+  * https://webdva.github.io/how-i-implemented-client-side-linear-interpolation/
 ![sequence diagram showing when events get processed](./sequencediagram.png)
 
 
@@ -449,3 +466,23 @@ v2: position only
 v3: deltas only
 
 partial syncs apply to the cached world state, so that future reconciliation will be correct
+
+
+
+
+https://gamedev.net/forums/topic/579104-interpolation-vs-client-side-prediction/4692250/
+
+Interpolation for proxies, ie. objects not controlled by the player, is fairly straight forward and it sounds like you've got it covered.
+
+Predicting controlled objects is hairier; This is how I do it.
+
+At T6 the client receives state T4 from server. It takes state T4 and applies all input entered during T5 and T6 to arrive at state P6.
+This is what's rendered on the screen (unless we use the technique below).
+
+At T7 the client receives state T5 from server. It takes state T5 and applies all input entered during T7 and T7 to arrive at state P7.
+
+Unfortunately, it turns out that on the server, the player collided with a newly spawned object. This was (of course) not part of our prediction, so a visible SNAP will occur between P6 and P7.
+
+To remedy this, the client will at T7 ALSO keep predicting from T4 (the old server state), applying input from T5, T6 and T7 to arrive at P7v2.
+
+Using both P7 and P7v2 we can interpolate for a short period of time between our old prediction and our new (better) prediction, to avoid snapping and instead smoothly going from misprediction to correct prediction.

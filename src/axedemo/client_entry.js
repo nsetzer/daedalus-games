@@ -12,6 +12,18 @@ $import("axertc_common", {
 })
 $import("axedemo_common", {FireworksMap, PlatformMap})
 
+function debug(msg) {
+
+    console.log(`*${pad(performance.now()/1000, 12, ' ')}: ${msg}`)
+}
+
+function pad(n, width, z) {
+  z = z || '0';
+  n = n + '';
+  return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
+
+
 class DemoClient {
 
     constructor(map_player1, map_player2, map_server) {
@@ -203,6 +215,8 @@ class CspController {
             if (!player) {
                 return
             }
+            debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + \
+                " client input event");
             this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
         } else {
             const player = this.getPlayer2()
@@ -239,8 +253,8 @@ class AxeSimulatorScene extends GameScene {
         this.map_player2.setPlayerId("player2")
         this.map_server = new ServerCspMap(new map_ctor())
 
-        this.map_player1.map.instanceId = "map-player1"
-        this.map_player2.map.instanceId = "map-player2"
+        this.map_player1.map.instanceId = "player1"
+        this.map_player2.map.instanceId = "player2"
         this.map_server.map.instanceId = "map-server"
         this.maps = [this.map_player1, this.map_server, this.map_player2]
 
@@ -652,14 +666,18 @@ class DemoScene extends AxeSimulatorScene {
 
             const x1 = Physics2dPlatform.maprect.left() + 8
             const x2 = Physics2dPlatform.maprect.right() - 40
-            this.map_player1.map.sendCreateObjectEvent("Player", {x: 9, y:128, playerId: "player1"})
-            this.map_player2.map.sendCreateObjectEvent("Player", {x: 170, y:128, playerId: "player2"})
+            this.map_player1.map.sendObjectCreateEvent("Player", {x: 9, y:128, playerId: "player1"})
+            this.map_player2.map.sendObjectCreateEvent("Player", {x: 170, y:128, playerId: "player2"})
+
+            //TODO: set player ownership
+            // this.map_player1.map.setOwned("player1")
+            // this.map_player2.map.setOwned("player2")
         }
 
         if (this.demo_mode&DEMO_MODE_PLATFORM) {
             const y = Physics2dPlatform.maprect.bottom() - 64
             const x = Physics2dPlatform.maprect.cx() - 24
-            this.map_server.map.sendCreateObjectEvent("Wall", {x:x, y:y, w:48, h:12})
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:y, w:48, h:12})
         }
     }
 
@@ -684,12 +702,13 @@ class DemoScene extends AxeSimulatorScene {
 
                     if (touch.x < (this.views[0].x+this.views[0].width)) {
                         touch.x -= this.views[0].x
-                        this.map_player1.map.sendCreateObjectEvent("Firework", touch)
+                        debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + " client create event");
+                        this.map_player1.map.sendObjectCreateEvent("Firework", touch)
                     }
 
                     else if (touch.x > (this.views[2].x)) {
                         touch.x -= this.views[2].x
-                        this.map_player2.map.sendCreateObjectEvent("Firework", touch)
+                        this.map_player2.map.sendObjectCreateEvent("Firework", touch)
 
                     }
                 }

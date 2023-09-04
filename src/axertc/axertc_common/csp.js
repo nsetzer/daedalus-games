@@ -37,6 +37,11 @@
  *  - mostly to demo performance without
  */
 
+function debug(msg) {
+
+    console.log(`*${pad(performance.now()/1000, 12, ' ')}: ${msg}`)
+}
+
 function pad(n, width, z) {
   z = z || '0';
   n = n + '';
@@ -99,7 +104,7 @@ export class CspMap {
         this.playerId = "null"
 
         this.enable_bending = true
-        this.bending_steps = 30
+        this.bending_steps = 15
         this.enable_partial_sync = true
 
         this.step_rate = 120 // 2 seconds of buffered inputs
@@ -177,6 +182,11 @@ export class CspMap {
         } else {
             ent.onInput(msg.payload)
         }
+
+        if (!!ent._server_shadow) {
+            ent._server_shadow.onInput(msg.payload)
+        }
+
     }
 
     _onEventObjectDestroy(msg, reconcile) {
@@ -243,6 +253,7 @@ export class CspMap {
                         const obj = this.objects[objId]
                         if (!obj._shadow) {
                             obj._shadow = this._construct(objId, obj._classname, {})
+                            obj._shadow._isShadow = true
                             obj._shadow._destroy = ()=>{} // todo: should this delete the owner?
                             obj._shadow._x_debug_map = this
                             //obj._shadow.setState(obj.getState())
@@ -355,13 +366,23 @@ export class CspMap {
         const idx = this._frameIndex(this.local_step)
         if (Object.keys(this.partialstatequeue[idx]).length > 0) {
             for (const [entid, state] of Object.entries(this.partialstatequeue[idx])) {
-
                 const ent = this.objects[entid];
-                ent._shadow = this._construct(entid, ent._classname, {})
-                ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
-                ent._shadow._x_debug_map = this
-                ent._shadow.setState(state)
-                ent._shadow_step = 0
+                //const error = {x:(ent.x - state.x), y:(ent.y - state.y)}
+                //const error = {x:(ent.rect.x - state.physics[0]), y:(ent.rect.y - state.physics[1])}
+
+                //console.log("construct partial shadow:",
+                //    "current step", this.local_step,
+                //    error
+                //    )
+
+                console.log("construct partial shadow", entid)
+                //const ent = this.objects[entid];
+                ent._server_shadow = this._construct(entid, ent._classname, {})
+                ent._server_shadow._isShadow = true
+                ent._server_shadow._destroy = ()=>{} // todo: should this delete the owner?
+                ent._server_shadow._x_debug_map = this
+                ent._server_shadow.setState(state)
+                ent._server_shadow._partial = true
 
             }
         }
@@ -371,6 +392,7 @@ export class CspMap {
         // todo: move this into the CspMap, require super?
         // add a check in update_after to see if super was called?
         for (const obj of Object.values(this.objects)) {
+            //obj.update_before()
             obj.update(dt)
             if (!!obj._shadow) {
                 //if (!obj._shadow.x) {
@@ -393,6 +415,7 @@ export class CspMap {
                         if (this._debug_reconcile) {
                             throw new Error("shadow copy bending finished during reconcile")
                         }
+                        console.warn("remove shadow")
                         //console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
                         //obj.setState(obj._shadow.getState())
                         delete obj._shadow
@@ -400,6 +423,13 @@ export class CspMap {
 
                 }
             }
+
+            if (!!obj._server_shadow) {
+                obj._server_shadow.update(dt);
+            }
+
+
+            //obj.update_after()
 
             //if (!obj.x) {
             //    throw new Error(JSON.stringify(obj))
@@ -460,6 +490,10 @@ export class CspMap {
             if (!!obj._shadow) {
                 obj._shadow.setState(item.state)
             }
+            if (!!obj._server_shadow) {
+                obj._server_shadow.setState(item.state)
+            }
+
             this.objects[objId] = obj
         }
     }
@@ -581,6 +615,7 @@ export class CspMap {
         if (this.enable_bending) {
             if (entId in this.dirty_objects) {
                 ent._shadow = this._construct(entId, ent._classname, props)
+                ent._shadow._isShadow = true
                 ent._shadow._destroy = ()=>{} // todo: should this delete the owner?
                 ent._shadow_step = 0
                 ent._shadow._x_debug_map = this
@@ -590,6 +625,7 @@ export class CspMap {
         if (entId in this.objects) {
             let old = this.objects[entId]
             //old._shadow = this._construct(entId, ent._classname, props)
+            //old._shadow._isShadow = true
             //old._shadow._destroy = ()=>{} // todo: should this delete the owner?
             //old._shadow_step = 0
             //old._shadow._x_debug_map = this
@@ -635,6 +671,8 @@ export class CspMap {
             _x_debug_t: performance.now()
         }
 
+
+
         this.receiveEvent(event)
 
         if (this.isServer) {
@@ -645,7 +683,7 @@ export class CspMap {
         }
     }
 
-    sendCreateObjectEvent(className, props) {
+    sendObjectCreateEvent(className, props) {
 
         // provide api to generate entid from message
         // entid is playerId + msg uid + localstep
@@ -824,24 +862,31 @@ export class ClientCspMap {
                     //console.log("do validate message", msg.uid, old.uid, old.entid, msg.entid)
 
                     //console.log(msg.client_step, old.step, msg.step, this.map.local_step)
-                    const idx1 = this.map._frameIndex(old.step)
-                    this.map._clearinput(idx1, msg.entid, msg.uid)
+                    //aconst idx1 = this.map._frameIndex(old.step)
+                    //this.map._clearinput(idx1, msg.entid, msg.uid)
                     //console.log("x has msg", this.map._hasinput(idx1, msg.entid, msg.uid))
 
-                    const idx2 = this.map._frameIndex(msg.step)
-                    this.map._setinput(idx2, msg.entid, msg.uid, msg)
+                    //const idx2 = this.map._frameIndex(msg.step)
+                    //this.map._setinput(idx2, msg.entid, msg.uid, msg)
 
-                    console.log("client validate message. delta:",
-                        this.map.local_step - old.step, // if full reconciliation
-                        this.map.local_step - msg.step, // from state
-                        "msg step", msg.step,
-                        "current step", this.map.local_step
 
-                        )
+                    // TODO: can I compute the error and
+                    //  have the client fix the error slightly
 
                     const idx3 = this.map._frameIndex(msg.step)
                     this.map.partialstatequeue[idx3][msg.entid] = msg.state
-                    console.log("set partial step", this.map.local_step, msg.step)
+
+                    const ent = this.map.objects[msg.entid]
+
+                    const error = {x:(ent.x - msg.state.x), y:(ent.y - msg.state.y)}
+
+                    debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + \
+                          ` client validate message: ${error}`);
+
+
+                    //ent.enableLerp(msg.state, msg.step - this.map.local_step)
+
+                    //console.log("set partial step", this.map.local_step, msg.step)
                     //this.map.dirty_step = old.step
                     //if (this.map.enable_bending) {
                     //    this.map.dirty_objects[msg.entid] = true
@@ -851,6 +896,7 @@ export class ClientCspMap {
                     //       these units need a different bending strategy
                     //const ent = this.map.objects[msg.entid]
                     //ent._player_shadow = this._construct(objId, obj._classname, {})
+                    //ent._player_shadow._isShadow = true
                     //ent._player_shadow._destroy = ()=>{} // todo: should this delete the owner?
                     //ent._player_shadow._x_debug_map = this
                     //ent._player_shadow.setState(msg.state)
@@ -1022,6 +1068,7 @@ export class ServerCspMap {
                 //console.log("_x_debug_t:", (performance.now() - msg._x_debug_t) / (1000/60))
             }
 
+            debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
 
             this.map.sendBroadcast(null, msg_v2)
         }
