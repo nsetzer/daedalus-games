@@ -125,6 +125,9 @@ class Player extends PlatformerEntity {
 
         this.hue = random(0, 360)
         this.brightness = random(50, 80)
+
+        this.deltas = []
+
     }
 
 
@@ -145,14 +148,27 @@ class Player extends PlatformerEntity {
         ctx.fillText(`${this.playerId=="player1"?1:2}`, this.rect.cx(), this.rect.cy());
 
         if (!!this._server_shadow) {
-        ctx.beginPath();
-        ctx.rect(
-            this._server_shadow.rect.x,
-            this._server_shadow.rect.y,
-            this._server_shadow.rect.w,
-            this._server_shadow.rect.h);
-        ctx.strokeStyle = 'red';
-        ctx.stroke();
+            ctx.beginPath();
+            ctx.rect(
+                this._server_shadow.rect.x,
+                this._server_shadow.rect.y,
+                this._server_shadow.rect.w,
+                this._server_shadow.rect.h);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+
+            let x = this._server_shadow.rect.x
+            let y = this._server_shadow.rect.y
+            for (const delta of this.deltas) {
+                x += delta.x
+                y += delta.y
+            }
+            console.log(x, y)
+            ctx.beginPath();
+            ctx.rect( x, y, 16, 16);
+            ctx.rect( x+2, y+2, 16-4, 16-4);
+            ctx.strokeStyle = 'yellow';
+            ctx.stroke();
 
         }
     }
@@ -178,15 +194,26 @@ class Player extends PlatformerEntity {
     }
 
     update(dt) {
+        const x1 = this.rect.x
+        const y1 = this.rect.y
         this.physics.update(dt)
 
+        const x2 = this.rect.x
+        const y2 = this.rect.y
+
         if (!!this._server_shadow) {
+
+            this.deltas.push({x: x2 - x1, y: y2 - y1})
+            while (this.deltas.length > this._server_latency) {
+                this.deltas.shift()
+            }
+
             const ent = this._server_shadow
             const error = {x:this.rect.x - ent.rect.x, y:this.rect.y - ent.rect.y}
             const m = Math.sqrt(error.x*error.x + error.y+error.y)
-            if (m > 0) {
-                console.log("error", m, error)
-            }
+            //if (m > 0) {
+            //    console.log("error", m, error)
+            //}
             //console.log("error", m, error)
         }
     }
@@ -223,8 +250,9 @@ class Player extends PlatformerEntity {
 
         if ("whlid" in payload) {
             this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
-
-            if (this.physics.direction&Direction.UP) {
+            //console.log(payload.vector.x, payload.vector.y)
+            //if (this.physics.direction&Direction.UP) {
+            if ( payload.vector.y < -0.7071) {
 
                 let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
 

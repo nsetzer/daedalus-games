@@ -72,6 +72,7 @@ class DemoClient {
 
         while (this.map_player1.map.outgoing_messages.length > 0) {
             const msg = this.map_player1.map.outgoing_messages.shift()
+            debug("queue push" + `  ${msg.uid} ${this.queues[0].latency} ${dt}`)
             this.queue_p1_in.push({delay: 0, message: msg.message})
         }
 
@@ -101,6 +102,10 @@ class DemoClient {
                 if (queue.queue[0].delay > queue.latency) {
                     //console.log(i, queue.latency, queue.queue[0].delay)
                     const msg = queue.queue.shift()
+                    if (msg.message.type != "map-sync") {
+                        debug("queue pop" + ` ${msg.message.uid} ${msg.delay} ${queue.latency}`)
+                    }
+
                     queue.callback(msg.message)
                 } else {
                     break

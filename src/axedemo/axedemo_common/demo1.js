@@ -181,6 +181,8 @@ class Player extends Entity {
             throw new Error("init nan")
         }
 
+        this.deltas = []
+
     }
 
     paint(ctx) {
@@ -197,6 +199,25 @@ class Player extends Entity {
         ctx.textBaseline = "middle"
         //ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
         ctx.fillText(`${this.playerId=="player1"?1:2}`, this.x+16, this.y+16);
+
+        if (!!this._server_shadow) {
+            ctx.beginPath();
+            ctx.rect( this._server_shadow.x, this._server_shadow.y, 32, 32);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+
+            let x = this._server_shadow.x
+            let y = this._server_shadow.y
+            for (const delta of this.deltas) {
+                x += delta.x
+                y += delta.y
+            }
+            ctx.beginPath();
+            ctx.rect( x, y, 32, 32);
+            ctx.strokeStyle = 'yellow';
+            ctx.stroke();
+
+        }
 
     }
 
@@ -275,13 +296,21 @@ class Player extends Entity {
             }
         }
 
+
+
         if (!!this._server_shadow) {
+
+            this.deltas.push({x: dt * this.dx, y: dt * this.dy})
+            while (this.deltas.length > this._server_latency) {
+                this.deltas.shift()
+            }
+
             const ent = this._server_shadow
             const error = {x:this.x - ent.x, y:this.y - ent.y}
             const m = Math.sqrt(error.x*error.x + error.y+error.y)
-            if (m > 0) {
-                console.log("error", m, error)
-            }
+            //if (m > 0) {
+            //    console.log("error", m, error)
+            //}
         }
     }
 

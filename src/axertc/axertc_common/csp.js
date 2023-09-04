@@ -367,6 +367,8 @@ export class CspMap {
         if (Object.keys(this.partialstatequeue[idx]).length > 0) {
             for (const [entid, state] of Object.entries(this.partialstatequeue[idx])) {
                 const ent = this.objects[entid];
+
+
                 //const error = {x:(ent.x - state.x), y:(ent.y - state.y)}
                 //const error = {x:(ent.rect.x - state.physics[0]), y:(ent.rect.y - state.physics[1])}
 
@@ -375,7 +377,7 @@ export class CspMap {
                 //    error
                 //    )
 
-                console.log("construct partial shadow", entid)
+                console.log("construct partial shadow", entid, )
                 //const ent = this.objects[entid];
                 ent._server_shadow = this._construct(entid, ent._classname, {})
                 ent._server_shadow._isShadow = true
@@ -712,7 +714,8 @@ export class CspMap {
             step: this.local_step + this.input_delay,
             entid,
             uid,
-            payload
+            payload,
+            _x_debug_t: performance.now()
         }
 
         //console.log("csp-send", this.local_step, event)
@@ -747,6 +750,7 @@ export class CspMap {
             step: this.local_step + this.input_delay,
             entid,
             uid,
+            _x_debug_t: performance.now()
         }
 
         this.receiveEvent(event)
@@ -877,11 +881,11 @@ export class ClientCspMap {
                     this.map.partialstatequeue[idx3][msg.entid] = msg.state
 
                     const ent = this.map.objects[msg.entid]
-
-                    const error = {x:(ent.x - msg.state.x), y:(ent.y - msg.state.y)}
-
+                    ent._server_latency = 6 + (this.map.local_step - msg.client_step)
+                    // delta should be 7 or 31
                     debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + \
-                          ` client validate message: ${error}`);
+                          ` client validate message deltA:`);
+                    console.warn(`delta: ${(this.map.local_step - msg.client_step)}`)
 
 
                     //ent.enableLerp(msg.state, msg.step - this.map.local_step)
@@ -1015,8 +1019,12 @@ export class ServerCspMap {
             objects[objId] = {className:obj._classname, state: obj.getState()}
         }
 
+        const uid = this.map.next_msg_uid;
+        this.map.next_msg_uid += 1;
+
         const state = {
             type: "map-sync",
+            uid: uid,
             step: this.map.local_step,
             sync: 1,
             objects: objects
@@ -1041,25 +1049,45 @@ export class ServerCspMap {
         if (this.sync_timer < 0) {
             this.sync_timer += 0.1
 
+            const uid = this.map.next_msg_uid;
+            this.map.next_msg_uid += 1;
+
+
             this.map.sendBroadcast(null, {
                 type: "map-sync",
+                uid: uid,
                 step: this.map.local_step,
                 sync: 0
             })
         }
 
-        for (let i=0; i < this.incoming_message.length; i++) {
+        let messages = []
+
+        let i=0;
+        while (i < this.incoming_message.length) {
+
             const msg = this.incoming_message[i]
             //console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
-            const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
-            this.map.receiveEvent(msg_v2)
+
+            if (true) {
+
+                debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
+                const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
+                this.map.receiveEvent(msg_v2)
+
+                //debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
+                messages.push(msg)
+                this.incoming_message.splice(i, 1)
+            } else {
+                i += 1
+            }
         }
 
         //this.map.reconcile()
         this.map.update(dt)
 
-        while (this.incoming_message.length > 0) {
-            const msg = this.incoming_message.shift()
+        while (messages.length > 0) {
+            const msg = messages.shift()
             //this.map.receiveEvent(msg)
 
             const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step}
@@ -1068,7 +1096,7 @@ export class ServerCspMap {
                 //console.log("_x_debug_t:", (performance.now() - msg._x_debug_t) / (1000/60))
             }
 
-            debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
+
 
             this.map.sendBroadcast(null, msg_v2)
         }
