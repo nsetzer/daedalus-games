@@ -5,6 +5,8 @@
     then just use simple bending
     debug: when 1-way latency is < 50 ms, there should not be  significant mis predictions
 
+When we do server-side collision detection, we need to rewind all other players’ position by network latency + interpolation delay, otherwise the collision detection will not be correct.
+
 * https://www.gamedev.net/forums/topic/695550-client-side-prediction-and-server-sync/
      Place the server entity back into the frame that the client should have seen it in when it shot. ("Counter-strike model")
     Accept the hit determination done on the client. (Mainly usable on consoles, because PCs are too open to cheating.)

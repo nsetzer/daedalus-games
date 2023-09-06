@@ -163,7 +163,6 @@ class Player extends PlatformerEntity {
                 x += delta.x
                 y += delta.y
             }
-            console.log(x, y)
             ctx.beginPath();
             ctx.rect( x, y, 16, 16);
             ctx.rect( x+2, y+2, 16-4, 16-4);
