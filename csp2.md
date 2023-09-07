@@ -1,9 +1,7 @@
 
-9/6/23: for moving platforms send a message that the player collided and the relative offset
+9/7/23: for moving platforms send a message that the player collided and the relative offset
         snap the server to the position and bend for other players
-
         {type: csp-object-input, "snap": entid, offsetx, offsety}
-9/6/23: for moving platforms, estimate latency and move to the predicted position
 
 9/2/23 2:40: next plan is to send event with lag compensation
     instead of an input delay of 6
