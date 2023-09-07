@@ -300,13 +300,13 @@ class AxeSimulatorScene extends GameScene {
         const view1 = this.views[0]
         const view2 = this.views[2]
         const btn_height = 24
-        const btn_width = 32
+        const btn_width = 24
 
         // player 1
 
         this.btn_p1_latency_dn = new ArrowButtonWidget(Direction.LEFT)
         this.btn_p1_latency_dn.rect = new Rect(
-            view1.x,
+            view1.x+8,
             view1.y+32,
             btn_width,
             btn_height)
@@ -316,7 +316,7 @@ class AxeSimulatorScene extends GameScene {
 
         this.btn_p1_latency_up = new ArrowButtonWidget(Direction.RIGHT)
         this.btn_p1_latency_up.rect = new Rect(
-            view1.x + view1.width - btn_width,
+            view1.x + view1.width - btn_width - 8,
             view1.y+32,
             btn_width,
             btn_height)
@@ -326,7 +326,7 @@ class AxeSimulatorScene extends GameScene {
         if (enable_delta) {
             this.btn_p1_delay_dn = new ArrowButtonWidget(Direction.LEFT)
             this.btn_p1_delay_dn.rect = new Rect(
-                view1.x,
+                view1.x+8,
                 view1.y+64,
                 btn_width,
                 btn_height)
@@ -335,7 +335,7 @@ class AxeSimulatorScene extends GameScene {
 
             this.btn_p1_delay_up = new ArrowButtonWidget(Direction.RIGHT)
             this.btn_p1_delay_up.rect = new Rect(
-                view1.x + view1.width - btn_width,
+                view1.x + view1.width - btn_width - 8,
                 view1.y+64,
                 btn_width,
                 btn_height)
@@ -346,7 +346,7 @@ class AxeSimulatorScene extends GameScene {
         // player 2
         this.btn_p2_latency_dn = new ArrowButtonWidget(Direction.LEFT)
         this.btn_p2_latency_dn.rect = new Rect(
-            view2.x,
+            view2.x+8,
             view2.y+32,
             btn_width,
             btn_height)
@@ -355,7 +355,7 @@ class AxeSimulatorScene extends GameScene {
 
         this.btn_p2_latency_up = new ArrowButtonWidget(Direction.RIGHT)
         this.btn_p2_latency_up.rect = new Rect(
-            view2.x + view2.width - btn_width,
+            view2.x + view2.width - btn_width - 8,
             view2.y+32,
             btn_width,
             btn_height)
@@ -365,7 +365,7 @@ class AxeSimulatorScene extends GameScene {
         if (enable_delta) {
             this.btn_p2_delay_dn = new ArrowButtonWidget(Direction.LEFT)
             this.btn_p2_delay_dn.rect = new Rect(
-                view2.x,
+                view2.x + 8,
                 view2.y+64,
                 btn_width,
                 btn_height)
@@ -374,7 +374,7 @@ class AxeSimulatorScene extends GameScene {
 
             this.btn_p2_delay_up = new ArrowButtonWidget(Direction.RIGHT)
             this.btn_p2_delay_up.rect = new Rect(
-                view2.x + view2.width - btn_width,
+                view2.x + view2.width - btn_width - 8,
                 view2.y+64,
                 btn_width,
                 btn_height)
@@ -683,6 +683,11 @@ class DemoScene extends AxeSimulatorScene {
             const y = Physics2dPlatform.maprect.bottom() - 64
             const x = Physics2dPlatform.maprect.cx() - 24
             this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:y, w:48, h:12})
+
+            const y2 = Physics2dPlatform.maprect.bottom() - 16
+            const x2 = Physics2dPlatform.maprect.right() - 16
+            this.map_server.map.sendObjectCreateEvent("Slope", {
+                x:x2, y:y2, w:16, h:16, direction:Direction.UPLEFT})
         }
     }
 
