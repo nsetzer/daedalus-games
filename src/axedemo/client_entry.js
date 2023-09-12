@@ -72,7 +72,7 @@ class DemoClient {
 
         while (this.map_player1.map.outgoing_messages.length > 0) {
             const msg = this.map_player1.map.outgoing_messages.shift()
-            debug("queue push" + `  ${msg.uid} ${this.queues[0].latency} ${dt}`)
+            //debug("queue push" + `  ${msg.uid} ${this.queues[0].latency} ${dt}`)
             this.queue_p1_in.push({delay: 0, message: msg.message})
         }
 
@@ -102,9 +102,9 @@ class DemoClient {
                 if (queue.queue[0].delay > queue.latency) {
                     //console.log(i, queue.latency, queue.queue[0].delay)
                     const msg = queue.queue.shift()
-                    if (msg.message.type != "map-sync") {
-                        debug("queue pop" + ` ${msg.message.uid} ${msg.delay} ${queue.latency}`)
-                    }
+                    //if (msg.message.type != "map-sync") {
+                    //    debug("queue pop" + ` ${msg.message.uid} ${msg.delay} ${queue.latency}`)
+                    //}
 
                     queue.callback(msg.message)
                 } else {
@@ -220,14 +220,16 @@ class CspController {
             if (!player) {
                 return
             }
-            debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + \
-                " client input event");
+            player.ownedByClient = true
+            //debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + \
+            //    " client input event");
             this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
         } else {
             const player = this.getPlayer2()
             if (!player) {
                 return
             }
+            player.ownedByClient = true
             this.map_player2.map.sendObjectInputEvent(player.entid, {whlid, vector})
         }
     }
@@ -712,7 +714,7 @@ class DemoScene extends AxeSimulatorScene {
 
                     if (touch.x < (this.views[0].x+this.views[0].width)) {
                         touch.x -= this.views[0].x
-                        debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + " client create event");
+                        //debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + " client create event");
                         this.map_player1.map.sendObjectCreateEvent("Firework", touch)
                     }
 

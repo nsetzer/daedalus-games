@@ -216,7 +216,6 @@ export class Physics2dPlatform {
 
         if (this.ycollisions.length > 0) {
             this.ycollisions.sort((a,b) => Math.abs(a.dy) - Math.abs(b.dy))
-
             return {dx: this.ycollisions[0].dx, dy: this.ycollisions[0].dy}
         }
 
@@ -290,6 +289,8 @@ export class Physics2dPlatform {
             }
         }
 
+        /////////////////////////////////////////////////////////////
+        // find nearby solid objects
         const solids = []
         if (true) {
             const rect = new Rect(
@@ -332,7 +333,7 @@ export class Physics2dPlatform {
         }
 
         /////////////////////////////////////////////////////////////
-        // move y (if ws standing , try to move at most 8 pixels)
+        // move y (if was standing , try to move at most 8 pixels)
         // if there is no collision then dont bother
         // validate that yspeed >= 0 and was standing
         let standing = false
@@ -341,16 +342,16 @@ export class Physics2dPlatform {
             const dd = this._move_y(solids, 9)
             if (dd != null && dd.dy >= 0 && dd.dy <= 8) {
                 this.target.rect.y += dd.dy
+                //if (this.target.playerId=="player1") {console.error("set standing yspeed sticky");}
                 standing = true
             }
         }
 
-
-        // reqiire a move_x(...) => {dx, dy}
+        // require a move_x(...) => {dx, dy}
         // require a move_y(...) => {dx, dy}
 
         /////////////////////////////////////////////////////////////
-        // move y (for real)
+        // move y
         this.yaccum += dt*this.yspeed
         //console.log(this.target.entid, dt, this.yspeed, this.yaccum)
         dy = Math.trunc(this.yaccum)
@@ -373,6 +374,7 @@ export class Physics2dPlatform {
                 }
 
                 if (this.yspeed > 0) {
+                    //if (this.target.playerId=="player1") {console.error("set standing yspeed");}
                     standing = true
                     this.yspeed = 0
                     this.yaccum = 0
@@ -381,7 +383,6 @@ export class Physics2dPlatform {
             } else {
                 this.target.rect.y += dy
             }
-
         }
 
         let sensor_floora = {x: this.target.rect.left(), y: this.target.rect.bottom() + 1}
@@ -393,7 +394,6 @@ export class Physics2dPlatform {
         } else {
             sensor_pressing = {x: this.target.rect.left()-1, y: this.target.rect.cy()}
         }
-
 
         let pressing = false
         for (const ent of solids) {
@@ -416,6 +416,8 @@ export class Physics2dPlatform {
                         ent.collidePoint(sensor_floorb.x, sensor_floorb.y)
                     )
                 }
+
+                //if (this.target.playerId=="player1") {console.error("set standing solids");}
                 standing = true
             }
 
@@ -447,7 +449,9 @@ export class Physics2dPlatform {
             }
 
             let maxy = Physics2dPlatform.maprect.h - this.target.rect.h
-            if (this.target.rect.y > maxy) {
+            if (this.target.rect.y + 1 > maxy) {
+
+                //if (this.target.playerId=="player1") {console.error("set standing bounds");}
                 standing = true
                 this.target.rect.y = maxy
                 this.yspeed = 0
@@ -475,6 +479,10 @@ export class Physics2dPlatform {
             this.pressing_frame = this.frame_index
         }
 
+        if (this.doublejump_timer > 0) {
+            this.doublejump_timer -= dt
+        }
+
         /////////////////////////////////////////////////////////////
         // update current action
 
@@ -485,10 +493,6 @@ export class Physics2dPlatform {
         // jump
         // run
         // wall_slide
-
-        if (this.doublejump_timer > 0) {
-            this.doublejump_timer -= dt
-        }
 
         let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
         let falling = !this.standing && this.yspeed > 0

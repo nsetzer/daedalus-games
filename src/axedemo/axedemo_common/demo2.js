@@ -441,6 +441,7 @@ class Player extends PlatformerEntity {
             ctx.stroke();
 
         }
+
     }
 
     getState() {
@@ -466,7 +467,33 @@ class Player extends PlatformerEntity {
     update(dt) {
         const x1 = this.rect.x
         const y1 = this.rect.y
+
+        const was_not_standing = !this.physics.standing
         this.physics.update(dt)
+        const is_standing = this.physics.standing
+
+        // TODO: how to best set ownedByClient
+        if (this.ownedByClient && was_not_standing && is_standing) {
+            // if the player landed on something solid,
+            // transmite the location to the server.
+            // transmit the coordinates relative to that entity, in case it was a moving object
+            let target = null
+            if (this.physics.ycollisions.length > 0) {
+                const other = this.physics.ycollisions[0].ent
+                let dx = this.rect.x - other.rect.x
+                let dy = this.rect.y - other.rect.y
+
+                target = {entid: other.entid, dx, dy}
+            }
+
+            const location = {x:this.rect.x, y:this.rect.y}
+
+            this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
+
+            // sendObjectInputEvent
+
+            //console.error("now standing", this.playerId, message)
+        }
 
         const x2 = this.rect.x
         const y2 = this.rect.y
@@ -531,16 +558,35 @@ class Player extends PlatformerEntity {
                     this.physics.yaccum = 0
                     this.physics.gravityboost = false
                     this.physics.doublejump = true
-                } else {
-                    console.log(this._x_debug_map.instanceId, "not standing")
                 }
 
             } else {
                 this.physics.xspeed = 90 * payload.vector.x
             }
 
+        } else if (payload.type == "standing" && !this.ownedByClient) {
+            let x, y;
+
+            if (!!payload.target) {
+                let other = this._x_debug_map.objects[payload.target.entid]
+                x = other.rect.x + payload.target.dx
+                y = other.rect.y + payload.target.dy
+            } else {
+                x = payload.location.x
+                y = payload.location.y
+            }
+
+            const shadow = this.bendTo(payload.state)
+            shadow.rect.x = x
+            shadow.rect.y = y
+
+
+
+            //this.rect.x = x
+            //this.rect.y = y
+
         } else {
-            console.log(payload)
+            console.warn("unexpected input event", payload)
         }
 
         //console.log(this._x_debug_map.instanceId, "on input", this.physics.direction, this.physics.xspeed)

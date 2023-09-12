@@ -94,6 +94,16 @@ export class Entity {
     destroy() {
         this._destroy()
     }
+
+    bendTo(state) {
+        this._shadow = this._x_debug_map._construct(this.entid, this._classname, {})
+        this._shadow._isShadow = true
+        this._shadow._destroy = ()=>{} // todo: should this delete the owner?
+        this._shadow._x_debug_map = this._x_debug_map
+        this._shadow.setState(state)
+        this._shadow_step = 0
+        return this._shadow
+    }
 }
 
 export class CspMap {
@@ -877,15 +887,21 @@ export class ClientCspMap {
                     // TODO: can I compute the error and
                     //  have the client fix the error slightly
 
-                    const idx3 = this.map._frameIndex(msg.step)
-                    this.map.partialstatequeue[idx3][msg.entid] = msg.state
+                    // todo server shadow
+                    if (false) {
+                        const idx3 = this.map._frameIndex(msg.step)
+                        this.map.partialstatequeue[idx3][msg.entid] = msg.state
+                    }
 
                     const ent = this.map.objects[msg.entid]
                     ent._server_latency = 6 + (this.map.local_step - msg.client_step)
                     // delta should be 7 or 31
-                    debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + \
-                          ` client validate message deltA:`);
-                    console.warn(`delta: ${(this.map.local_step - msg.client_step)}`)
+
+                    if (false) {
+                        debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + \
+                              ` client validate message deltA:`);
+                        console.warn(`delta: ${(this.map.local_step - msg.client_step)}`)
+                    }
 
 
                     //ent.enableLerp(msg.state, msg.step - this.map.local_step)
@@ -1071,7 +1087,7 @@ export class ServerCspMap {
 
             if (true) {
 
-                debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
+                //debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
                 const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
                 this.map.receiveEvent(msg_v2)
 
