@@ -660,6 +660,9 @@ class DemoScene extends AxeSimulatorScene {
         Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
         FireworksMap.maprect = new Rect(0, 0, 211, Math.floor(360))
 
+        this.event_player1_clicked = !(this.demo_mode&DEMO_MODE_FIREWORKS)
+        this.event_player2_clicked = !(this.demo_mode&DEMO_MODE_FIREWORKS)
+
         if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
 
             this.touch.addWheel(64, -64, 32, {
@@ -716,11 +719,13 @@ class DemoScene extends AxeSimulatorScene {
                         touch.x -= this.views[0].x
                         //debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + " client create event");
                         this.map_player1.map.sendObjectCreateEvent("Firework", touch)
+                        this.event_player1_clicked = true
                     }
 
                     else if (touch.x > (this.views[2].x)) {
                         touch.x -= this.views[2].x
                         this.map_player2.map.sendObjectCreateEvent("Firework", touch)
+                        this.event_player2_clicked = true
 
                     }
                 }
@@ -787,6 +792,30 @@ class DemoScene extends AxeSimulatorScene {
 
         }
 
+    }
+
+    paint(ctx) {
+
+        super.paint(ctx);
+
+        if (!this.event_player1_clicked) {
+            const view = this.views[0]
+            ctx.font = "12px bold";
+            ctx.fillStyle = "white"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText("Touch Here!", view.x+view.width/2, view.y+view.height/2)
+        }
+
+        if (!this.event_player2_clicked) {
+            const view = this.views[2]
+            ctx.font = "12px bold";
+            ctx.fillStyle = "white"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText("Touch Here!", view.x+view.width/2, view.y+view.height/2)
+
+        }
     }
 }
 

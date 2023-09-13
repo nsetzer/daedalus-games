@@ -3,6 +3,18 @@
         snap the server to the position and bend for other players
         {type: csp-object-input, "snap": entid, offsetx, offsety}
 
+        require specific message for bending instead of delaying an input
+        csp-object-bend
+            step: the step when bending should finish
+            payload: {state}
+        if the current step is less then step: start bending
+        the platformer requires customization of bending targets
+
+        THIS might be the same as server side collisions where the state needs to be broadcasted
+            and blended over multiple steps instead of delayed by input_delay
+            this might have the benefit of not requiring custom bending of targets
+        this is handled automatically by the existing framework by using reconciliation
+
 9/2/23 2:40: next plan is to send event with lag compensation
     instead of an input delay of 6
     the input delay is max(6, RTT/2)
@@ -11,10 +23,7 @@
 
 When we do server-side collision detection, we need to rewind all other players’ position by network latency + interpolation delay, otherwise the collision detection will not be correct.
 
-* https://www.gamedev.net/forums/topic/695550-client-side-prediction-and-server-sync/
-     Place the server entity back into the frame that the client should have seen it in when it shot. ("Counter-strike model")
-    Accept the hit determination done on the client. (Mainly usable on consoles, because PCs are too open to cheating.)
-    Run the hit detection on the server, and require that players "lead" their shots. ("Quake model.")
+
 
 * TODO: is there a way to calculate an error budget per entity
   in the x and y direction compute the error.
@@ -68,6 +77,14 @@ From a player’s point of view, this has two important consequences:
   * Player sees himself in the present
   * Player sees other entities in the past
 
+
+## Intro
+
+Categories of high speed action games [source](https://www.gamedev.net/forums/topic/695550-client-side-prediction-and-server-sync/):
+
+  1. **"Counter-strike model"**: Place the server entity back into the frame that the client should have seen it in when it shot.
+  1. **"Quake Model"**: Run the hit detection on the server, and require that players "lead" their shots.
+  1. **"Client Authoritative"**: Accept the hit determination done on the client. (Mainly usable on consoles, because PCs are too open to cheating, also useable in peer-to-peer)
 
 
 ## interactive demos
@@ -270,7 +287,7 @@ what happens if a message arrives late
 You lined up a shot, the enemy is in your cross hairs, and you pull the trigger. But the message
 for the player indicating they dodged out of the way is 1 frame late.
 
-Reconcililatin is a process where the game state is rewound to apply late messages.
+Reconciliation is a process where the game state is rewound to apply late messages.
 All steps are then run in sequence, to catch back up with the current time.
 
 implement get/set state for the entity
@@ -342,8 +359,6 @@ are partial syncs position only?
 
 To reduce bandwidth
 
-
-
 ## 3.4) Bending
 
 Bending is a process where the client prediction is synchronized with the authoritative server state over a number of frames.
@@ -389,6 +404,12 @@ The client can request a full sync from the server and fully refresh the game st
 
 For browser based games, the browser may not render if the tab is not in focus. When the user
 switches back to that tab, the game will be out of sync.
+
+## 3.6) Server Side Collisions
+
+- rewind to the collision frame
+- apply all new inputs since
+- bend client position to the new position over a number of frames
 
 ## 4) Reconnect
 

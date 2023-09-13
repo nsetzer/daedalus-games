@@ -775,6 +775,33 @@ export class CspMap {
 
     }
 
+    sendObjectBendEvent(entid, state) {
+
+        const uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+
+        const type = "csp-object-bend"
+
+        const event = {
+            type,
+            step: this.local_step + this.input_delay,
+            entid,
+            uid,
+            _x_debug_t: performance.now()
+        }
+
+        this.receiveEvent(event)
+
+        if (this.isServer) {
+            this.sendBroadcast(this.playerId, event)
+        } else {
+            this.sendMessage(this.playerId, event)
+        }
+
+        return event
+
+    }
+
 }
 
 const STEP_NORMAL = 0
