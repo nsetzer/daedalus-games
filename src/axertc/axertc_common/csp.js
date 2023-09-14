@@ -166,6 +166,7 @@ export class CspMap {
         this.addCustomEvent("csp-object-create", this._onEventObjectCreate.bind(this))
         this.addCustomEvent("csp-object-input", this._onEventObjectInput.bind(this))
         this.addCustomEvent("csp-object-destroy", this._onEventObjectDestroy.bind(this))
+        this.addCustomEvent("csp-object-bend", this._onEventObjectBend.bind(this))
         this.addCustomEvent("map-sync", (msg, reconcile)=>{})
 
         this._debug_reconcile = false
@@ -201,6 +202,11 @@ export class CspMap {
 
     _onEventObjectDestroy(msg, reconcile) {
         this.destroyObject(msg.entid)
+    }
+
+    _onEventObjectBend(msg, reconcile) {
+
+        this.objects[msg.entid].bendTo(msg.state)
     }
 
     acceptsEvent(etype) {
@@ -784,18 +790,19 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.input_delay,
+            step: this.local_step /* + this.input_delay */,
             entid,
             uid,
+            state,
             _x_debug_t: performance.now()
         }
 
-        this.receiveEvent(event)
+        // this.receiveEvent(event)
 
         if (this.isServer) {
             this.sendBroadcast(this.playerId, event)
         } else {
-            this.sendMessage(this.playerId, event)
+            throw new Error("not implemented")
         }
 
         return event
@@ -954,6 +961,9 @@ export class ClientCspMap {
                 }
             }
             else if (msg.type == "csp-object-destroy") {
+                this.map.receiveEvent(msg)
+            }
+            else if (msg.type == "csp-object-bend") {
                 this.map.receiveEvent(msg)
             }
             else {

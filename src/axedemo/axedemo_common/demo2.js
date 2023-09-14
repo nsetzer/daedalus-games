@@ -473,22 +473,27 @@ class Player extends PlatformerEntity {
         const is_standing = this.physics.standing
 
         // TODO: how to best set ownedByClient
+        // if (this._x_debug_map.isServer && was_not_standing && is_standing) {
+        //     this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
+        // }
+
+
         if (this.ownedByClient && was_not_standing && is_standing) {
             // if the player landed on something solid,
             // transmite the location to the server.
             // transmit the coordinates relative to that entity, in case it was a moving object
             let target = null
-            if (this.physics.ycollisions.length > 0) {
-                const other = this.physics.ycollisions[0].ent
-                let dx = this.rect.x - other.rect.x
-                let dy = this.rect.y - other.rect.y
-
-                target = {entid: other.entid, dx, dy}
-            }
+            //if (this.physics.ycollisions.length > 0) {
+            //    const other = this.physics.ycollisions[0].ent
+            //    let dx = this.rect.x - other.rect.x
+            //    let dy = this.rect.y - other.rect.y
+            //    target = {entid: other.entid, dx, dy}
+            //}
 
             const location = {x:this.rect.x, y:this.rect.y}
 
             this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
+
 
             // sendObjectInputEvent
 
