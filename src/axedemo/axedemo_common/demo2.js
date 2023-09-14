@@ -473,32 +473,31 @@ class Player extends PlatformerEntity {
         const is_standing = this.physics.standing
 
         // TODO: how to best set ownedByClient
-        // if (this._x_debug_map.isServer && was_not_standing && is_standing) {
-        //     this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
-        // }
-
-
-        if (this.ownedByClient && was_not_standing && is_standing) {
-            // if the player landed on something solid,
-            // transmite the location to the server.
-            // transmit the coordinates relative to that entity, in case it was a moving object
-            let target = null
-            //if (this.physics.ycollisions.length > 0) {
-            //    const other = this.physics.ycollisions[0].ent
-            //    let dx = this.rect.x - other.rect.x
-            //    let dy = this.rect.y - other.rect.y
-            //    target = {entid: other.entid, dx, dy}
-            //}
-
-            const location = {x:this.rect.x, y:this.rect.y}
-
-            this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
-
-
-            // sendObjectInputEvent
-
-            //console.error("now standing", this.playerId, message)
+        // TODO: server sends periodic state updates
+        // TODO: verify client receives state updates on the correct clock step
+        //         - it should be applied right away not after 6 frame delay
+        if (false) {
+            if (this._x_debug_map.isServer && was_not_standing && is_standing) {
+                 this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
+            }
+        } else  {
+            if (this.ownedByClient && was_not_standing && is_standing) {
+                // if the player landed on something solid,
+                // transmite the location to the server.
+                // transmit the coordinates relative to that entity, in case it was a moving object
+                let target = null
+                if (this.physics.ycollisions.length > 0) {
+                    const other = this.physics.ycollisions[0].ent
+                    let dx = this.rect.x - other.rect.x
+                    let dy = this.rect.y - other.rect.y
+                    target = {entid: other.entid, dx, dy}
+                }
+                const location = {x:this.rect.x, y:this.rect.y}
+                this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
+            }
         }
+
+
 
         const x2 = this.rect.x
         const y2 = this.rect.y
