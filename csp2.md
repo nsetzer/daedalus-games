@@ -1,4 +1,11 @@
 
+bendTo(state, step):
+    where step is in the future
+    on each update bend the object some amount so that it has exactly the future state
+    when the step index aligns
+    this is just bending, but don't apply inputs until a specific step is hit
+    percent is the number of bending steps away
+
 9/7/23: for moving platforms send a message that the player collided and the relative offset
         snap the server to the position and bend for other players
         {type: csp-object-input, "snap": entid, offsetx, offsety}

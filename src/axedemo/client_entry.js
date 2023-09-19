@@ -136,6 +136,8 @@ class DemoClient {
             }
             this.queues[0].latency = latency
             this.queues[1].latency = latency
+
+            return latency
         }
 
         if (playerId === "player2") {
@@ -148,7 +150,11 @@ class DemoClient {
             }
             this.queues[2].latency = latency
             this.queues[3].latency = latency
+
+            return latency
         }
+
+        return 0
     }
 
     changeDelay(playerId, amount) {
@@ -312,7 +318,13 @@ class AxeSimulatorScene extends GameScene {
             view1.y+32,
             btn_width,
             btn_height)
-        this.btn_p1_latency_dn.clicked = () => {this.client.changeLatency("player1", -1)}
+        this.btn_p1_latency_dn.clicked = () => {
+            const latency = this.client.changeLatency("player1", -1)
+            this.map_player1.world_step -= Math.floor(latency*60) + 1
+            if (this.map_player1.world_step < this.map_player1.map.local_step) {
+                this.map_player1.world_step = this.map_player1.map.local_step
+            }
+        }
         this.grp.addWidget(this.btn_p1_latency_dn)
 
 
@@ -322,7 +334,13 @@ class AxeSimulatorScene extends GameScene {
             view1.y+32,
             btn_width,
             btn_height)
-        this.btn_p1_latency_up.clicked = () => {this.client.changeLatency("player1", 1)}
+        this.btn_p1_latency_up.clicked = () => {
+            const latency = this.client.changeLatency("player1", 1)
+            this.map_player1.world_step -= Math.floor(latency*60) + 1
+            if (this.map_player1.world_step < this.map_player1.map.local_step) {
+                this.map_player1.world_step = this.map_player1.map.local_step
+            }
+        }
         this.grp.addWidget(this.btn_p1_latency_up)
 
         if (enable_delta) {
@@ -352,7 +370,13 @@ class AxeSimulatorScene extends GameScene {
             view2.y+32,
             btn_width,
             btn_height)
-        this.btn_p2_latency_dn.clicked = () => {this.client.changeLatency("player2", -1)}
+        this.btn_p2_latency_dn.clicked = () => {
+            const latency = this.client.changeLatency("player2", -1)
+            this.map_player2.world_step -= Math.floor(latency*60) + 1
+            if (this.map_player2.world_step < this.map_player2.map.local_step) {
+                this.map_player2.world_step = this.map_player2.map.local_step
+            }
+        }
         this.grp.addWidget(this.btn_p2_latency_dn)
 
         this.btn_p2_latency_up = new ArrowButtonWidget(Direction.RIGHT)
@@ -361,7 +385,13 @@ class AxeSimulatorScene extends GameScene {
             view2.y+32,
             btn_width,
             btn_height)
-        this.btn_p2_latency_up.clicked = () => {this.client.changeLatency("player2", 1)}
+        this.btn_p2_latency_up.clicked = () => {
+            const latency = this.client.changeLatency("player2", 1)
+            this.map_player2.world_step -= Math.floor(latency*60) + 1
+            if (this.map_player2.world_step < this.map_player2.map.local_step) {
+                this.map_player2.world_step = this.map_player2.map.local_step
+            }
+        }
         this.grp.addWidget(this.btn_p2_latency_up)
 
         if (enable_delta) {
@@ -562,7 +592,7 @@ class AxeSimulatorScene extends GameScene {
             ctx.fillStyle = "yellow"
             ctx.textAlign = "right"
             ctx.textBaseline = "top"
-            const delta1 = map.map.local_step - this.map_server.map.local_step
+            const delta1 = map.world_step - this.map_server.map.local_step
             ctx.fillText(`DELAY: ${delta1}`, 211, 0);
 
             ctx.font = "16px mono";
@@ -665,11 +695,11 @@ class DemoScene extends AxeSimulatorScene {
 
         if (this.demo_mode&DEMO_MODE_PLATFORM || this.demo_mode&DEMO_MODE_MOVEMENT) {
 
-            this.touch.addWheel(64, -64, 32, {
+            this.touch.addWheel(64, -64, 48, {
                 align: Alignment.LEFT|Alignment.BOTTOM,
                 symbols: ["W", "D", "S", "A"],
             })
-            this.touch.addWheel(64, -64, 32, {align: Alignment.RIGHT|Alignment.BOTTOM})
+            this.touch.addWheel(64, -64, 48, {align: Alignment.RIGHT|Alignment.BOTTOM})
 
             this.keyboard.addWheel_WASD()
             this.keyboard.addWheel_ArrowKeys()
@@ -741,20 +771,22 @@ class DemoScene extends AxeSimulatorScene {
 
         this.keyboard.handleKeyRelease(keyevent)
 
+        const url = `${location.origin}${location.pathname}`
+
         if (keyevent.text=="1") {
-            window.location.href = location.origin + "?mode=clock";
+            window.location.href = url + "?mode=clock";
         }
 
         if (keyevent.text=="2") {
-            window.location.href = location.origin + "?mode=fireworks";
+            window.location.href = url + "?mode=fireworks";
         }
 
         if (keyevent.text=="3") {
-            window.location.href = location.origin + "?mode=movement";
+            window.location.href = url + "?mode=movement";
         }
 
         if (keyevent.text=="4") {
-            window.location.href = location.origin + "?mode=platform";
+            window.location.href = url + "?mode=platform";
         }
 
         if (false && keyevent.text=="1") {

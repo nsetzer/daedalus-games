@@ -114,7 +114,7 @@ export class CspMap {
         this.playerId = "null"
 
         this.enable_bending = true
-        this.bending_steps = 15
+        this.bending_steps = 6
         this.enable_partial_sync = true
 
         this.step_rate = 120 // 2 seconds of buffered inputs
@@ -809,6 +809,31 @@ export class CspMap {
 
     }
 
+    queryObjects(query) {
+
+        return Object.values(this.objects).filter(obj => {
+
+            for (const [property, item] of Object.entries(query)) {
+                if (property == 'className') {
+                    if (obj._classname != item) {
+                        return false
+                    }
+                } else {
+                    if (!obj.hasOwnProperty(property)) {
+                        return false
+                    }
+
+                    if (item !== undefined && obj[property] != item) {
+                        return false
+                    }
+                }
+            }
+
+            return true
+
+        })
+    }
+
 }
 
 const STEP_NORMAL = 0
@@ -867,7 +892,6 @@ export class ClientCspMap {
         while (this.incoming_message.length > 0) {
             const msg = this.incoming_message.shift()
             if (msg.type == "map-sync") {
-
                 if (this.world_step < 0) {
 
                     // TODO: check reset
@@ -1105,12 +1129,12 @@ export class ServerCspMap {
             const uid = this.map.next_msg_uid;
             this.map.next_msg_uid += 1;
 
-
             this.map.sendBroadcast(null, {
                 type: "map-sync",
                 uid: uid,
                 step: this.map.local_step,
-                sync: 0
+                sync: 0,
+                _x_debug_t: performance.now()
             })
         }
 

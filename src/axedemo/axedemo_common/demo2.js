@@ -401,6 +401,8 @@ class Player extends PlatformerEntity {
         this.hue = random(0, 360)
         this.brightness = random(50, 80)
 
+        this.step_stomp = 0
+
         this.deltas = []
     }
 
@@ -451,7 +453,8 @@ class Player extends PlatformerEntity {
             //rect: this.rect,
             hue: this.hue,
             brightness: this.brightness,
-            physics: this.physics.getState()
+            physics: this.physics.getState(),
+            stomp: this.step_stomp,
         }
     }
 
@@ -460,6 +463,7 @@ class Player extends PlatformerEntity {
         //this.rect = state.rect
         this.hue = state.hue
         this.brightness = state.brightness
+        this.step_stomp = state.stomp
         this.physics.setState(state.physics)
         //console.log(this._x_debug_map.instanceId, "set state", this.physics.direction, this.physics.xspeed)
     }
@@ -468,9 +472,9 @@ class Player extends PlatformerEntity {
         const x1 = this.rect.x
         const y1 = this.rect.y
 
-        const was_not_standing = !this.physics.standing
+        const is_standing_before = this.physics.standing
         this.physics.update(dt)
-        const is_standing = this.physics.standing
+        const is_standing_after= !this.physics.standing
 
         // TODO: how to best set ownedByClient
         // TODO: server sends periodic state updates
@@ -481,7 +485,9 @@ class Player extends PlatformerEntity {
                  this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
             }
         } else  {
-            if (this.ownedByClient && was_not_standing && is_standing) {
+            //if (this.ownedByClient && was_not_standing && is_standing) {
+            // consider adding started moving, stopped moving
+            if (this.ownedByClient && is_standing_before != is_standing_after) {
                 // if the player landed on something solid,
                 // transmite the location to the server.
                 // transmit the coordinates relative to that entity, in case it was a moving object
@@ -497,7 +503,24 @@ class Player extends PlatformerEntity {
             }
         }
 
+        for (const obj of this._x_debug_map.queryObjects({className: 'Player'})) {
+            if (obj.entid == this.entid) {
+                continue
+            }
 
+            if (this.step_stomp == 0 &&
+                this.physics.yspeed > 0 &&
+                this.rect.cy() < obj.rect.cy() &&
+                this.rect.collideRect(obj.rect)) {
+                console.log(this.step_stomp, this._x_debug_map.local_step, 'map', this._x_debug_map.instanceId, "bang", this.entid, obj.entid)
+                this.step_stomp = 30;
+            }
+
+        }
+
+        if (this.step_stomp > 0) {
+            this.step_stomp -= 1
+        }
 
         const x2 = this.rect.x
         const y2 = this.rect.y
@@ -568,7 +591,11 @@ class Player extends PlatformerEntity {
                 this.physics.xspeed = 90 * payload.vector.x
             }
 
-        } else if (payload.type == "standing" && !this.ownedByClient) {
+        } else if (payload.type == "standing") {
+
+            if (this.ownedByClient) {
+                return
+            }
             let x, y;
 
             if (!!payload.target) {
@@ -592,6 +619,8 @@ class Player extends PlatformerEntity {
         } else {
             console.warn("unexpected input event", payload)
         }
+
+
 
         //console.log(this._x_debug_map.instanceId, "on input", this.physics.direction, this.physics.xspeed)
     }
