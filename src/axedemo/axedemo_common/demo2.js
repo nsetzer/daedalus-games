@@ -21,7 +21,6 @@ class PlatformerEntity extends Entity {
     collidePoint(x, y) {
         return this.rect.collidePoint(x, y)
     }
-
 }
 
 class Wall extends PlatformerEntity {
@@ -38,37 +37,39 @@ class Wall extends PlatformerEntity {
 
     update(dt) {
 
-        this.rect.x += this.direction
+        if (false) {
+            this.rect.x += this.direction
 
-        const rect = new Rect(this.rect.x,this.rect.y-2,this.rect.w,2)
-        for (const ent of this.group()) {
+            const rect = new Rect(this.rect.x,this.rect.y-2,this.rect.w,2)
+            for (const ent of this.group()) {
 
-            let c1 = ent.rect.collideRect(rect)
-            let c2 = (!!ent._shadow)?ent._shadow.rect.collideRect(rect):false
-            let c3 = (!!ent._server_shadow)?ent._server_shadow.rect.collideRect(rect):false
+                let c1 = ent.rect.collideRect(rect)
+                let c2 = (!!ent._shadow)?ent._shadow.rect.collideRect(rect):false
+                let c3 = (!!ent._server_shadow)?ent._server_shadow.rect.collideRect(rect):false
 
-            if (c1) {
-                ent.rect.x += this.direction
+                if (c1) {
+                    ent.rect.x += this.direction
+                }
+
+                if (c2) {
+                    ent._shadow.rect.x += this.direction
+                }
+
+                if (c3) {
+                    ent._server_shadow.rect.x += this.direction
+                }
+
             }
 
-            if (c2) {
-                ent._shadow.rect.x += this.direction
+            if (this.rect.right() >= Physics2dPlatform.maprect.right()) {
+                this.rect.x = Physics2dPlatform.maprect.right() - this.rect.w
+                this.direction = -1
             }
 
-            if (c3) {
-                ent._server_shadow.rect.x += this.direction
+            if (this.rect.left() <= Physics2dPlatform.maprect.left()) {
+                this.rect.x = Physics2dPlatform.maprect.left()
+                this.direction = 1
             }
-
-        }
-
-        if (this.rect.right() >= Physics2dPlatform.maprect.right()) {
-            this.rect.x = Physics2dPlatform.maprect.right() - this.rect.w
-            this.direction = -1
-        }
-
-        if (this.rect.left() <= Physics2dPlatform.maprect.left()) {
-            this.rect.x = Physics2dPlatform.maprect.left()
-            this.direction = 1
         }
     }
 
@@ -108,6 +109,11 @@ class Wall extends PlatformerEntity {
 }
 
 function applyfnull(f, a,b) {
+    // constraint logic for checking intersection
+
+    // apply f(a,b) if a and b are not null
+    // other wise return the first non-null value a or b
+    // return null if a and b is null
     let r = null
     if (a != null && b != null) {
         r = f(a, b)
@@ -473,8 +479,13 @@ class Player extends PlatformerEntity {
         const y1 = this.rect.y
 
         const is_standing_before = this.physics.standing
+        const is_moving_before = (Math.abs(this.physics.xspeed) + Math.abs(this.physics.yspeed)) > 1e-5
         this.physics.update(dt)
-        const is_standing_after= !this.physics.standing
+        const is_standing_after= this.physics.standing
+        const is_moving_after = (Math.abs(this.physics.xspeed) + Math.abs(this.physics.yspeed)) > 1e-5
+
+        const condition = (is_standing_before != is_standing_after)
+        //const condition = (!is_standing_before && is_standing_after) || (is_moving_before && !is_moving_after)
 
         // TODO: how to best set ownedByClient
         // TODO: server sends periodic state updates
@@ -484,10 +495,10 @@ class Player extends PlatformerEntity {
             if (this._x_debug_map.isServer && was_not_standing && is_standing) {
                  this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
             }
-        } else  {
+        } else if (false) {
             //if (this.ownedByClient && was_not_standing && is_standing) {
             // consider adding started moving, stopped moving
-            if (this.ownedByClient && is_standing_before != is_standing_after) {
+            if (this.ownedByClient && condition) {
                 // if the player landed on something solid,
                 // transmite the location to the server.
                 // transmit the coordinates relative to that entity, in case it was a moving object
@@ -499,10 +510,15 @@ class Player extends PlatformerEntity {
                     target = {entid: other.entid, dx, dy}
                 }
                 const location = {x:this.rect.x, y:this.rect.y}
+                console.log("send standing",
+                    (!is_standing_before && is_standing_after),
+                    (is_moving_before && !is_moving_after),
+                    performance.now())
                 this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
             }
         }
 
+        // check for collisions with other players
         for (const obj of this._x_debug_map.queryObjects({className: 'Player'})) {
             if (obj.entid == this.entid) {
                 continue

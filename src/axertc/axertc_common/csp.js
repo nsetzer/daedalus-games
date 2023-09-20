@@ -219,6 +219,16 @@ export class CspMap {
         let step = msg.step
         let idx = this._frameIndex(step)
 
+        // TODO: any messsage can have {bend: True, state}
+        // and initiate a pre-bending
+        if (this.enable_bending) {
+            if (msg?.payload?.type == "standing") {
+                console.log("received standing", this.local_step, msg.step)
+                const ent = this.objects[msg.entid]
+                ent.bendTo(msg.payload.state)
+            }
+        }
+
         if (step < this.local_step - this.step_rate) {
             console.warn("dropping stale input")
             return
