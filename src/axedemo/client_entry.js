@@ -8,9 +8,9 @@ $import("axertc_client", {
 $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
     Direction, Alignment, Rect,
-    Physics2dPlatform
 })
 $import("axedemo_common", {FireworksMap, PlatformMap})
+$import("axertc_physics", {Physics2dPlatform})
 
 function debug(msg) {
 

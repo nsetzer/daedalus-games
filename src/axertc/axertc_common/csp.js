@@ -95,12 +95,15 @@ export class Entity {
         this._destroy()
     }
 
-    bendTo(state) {
+    bendTo(state, world_step=null) {
+        // bend this object towards the given state over a number of frames
+        // world_step: optional, don't apply user inputs to shadow object before this world step
         this._shadow = this._x_debug_map._construct(this.entid, this._classname, {})
         this._shadow._isShadow = true
         this._shadow._destroy = ()=>{} // todo: should this delete the owner?
         this._shadow._x_debug_map = this._x_debug_map
         this._shadow.setState(state)
+        this._shadow._target_step = world_step
         this._shadow_step = 0
         return this._shadow
     }
@@ -222,10 +225,10 @@ export class CspMap {
         // TODO: any messsage can have {bend: True, state}
         // and initiate a pre-bending
         if (this.enable_bending) {
-            if (msg?.payload?.type == "standing") {
-                console.log("received standing", this.local_step, msg.step)
+            if (!!msg.bend) {
+                console.log("received bend request", this.local_step, msg.step)
                 const ent = this.objects[msg.entid]
-                ent.bendTo(msg.payload.state)
+                ent.bendTo(msg.payload.state, msg.step)
             }
         }
 

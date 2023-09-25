@@ -1,5 +1,5 @@
 
-$include("./primitives.js")
+$import("axertc_common", {Entity, Direction, Rect})
 /*
 
 https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
