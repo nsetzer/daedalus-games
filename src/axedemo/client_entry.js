@@ -23,6 +23,54 @@ function pad(n, width, z) {
   return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
 }
 
+function random( min, max ) {
+    return Math.random() * ( max - min ) + min;
+}
+
+function random_squared( min, max ) {
+    return Math.pow(Math.random(),2) * ( max - min ) + min;
+}
+
+
+function gamma(z) {
+    const g = 7;
+    const C = [
+        0.99999999999980993,
+        676.5203681218851,
+        -1259.1392167224028,
+        771.32342877765313,
+        -176.61502916214059,
+        12.507343278686905,
+        -0.13857109526572012,
+        9.9843695780195716e-6,
+        1.5056327351493116e-7
+    ];
+
+
+    if (z < 0.5) {
+        return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+    }
+    else {
+        z -= 1;
+
+        let x = C[0];
+        for (let i = 1; i < g + 2; i++) {
+            x += C[i] / (z + i);
+        }
+
+        let t = z + g + 0.5;
+        return Math.sqrt(2 * Math.PI) * Math.pow(t, (z + 0.5)) * Math.exp(-t) * x;
+    }
+}
+
+function poisson_pdf(x, k, theta) {
+    let n = 1
+    let d = gamma(k) * Math.pow(theta, k)
+    let c1 = Math.pow(x, k-1)
+    let c2 = Math.exp(-x/theta)
+    return (n/d) * c1 * c2
+}
+
 
 class DemoClient {
 
@@ -63,6 +111,15 @@ class DemoClient {
             {queue:this.queue_p2_out, latency: .25, callback: this.p2_receive},
         ]
 
+        this.queues[0].history = [...Array(6)].map(x => ({count: 0, size: 0}));
+        this.queues[1].history = [...Array(6)].map(x => ({count: 0, size: 0}));
+        this.queues[2].history = [...Array(6)].map(x => ({count: 0, size: 0}));
+        this.queues[3].history = [...Array(6)].map(x => ({count: 0, size: 0}));
+
+        this.history_timer = 0.0
+        this.history_duration = 0.2
+        this.history_size = 5
+        this.history_index = 0
     }
 
     connect() {
@@ -70,42 +127,57 @@ class DemoClient {
 
     update(dt) {
 
+        const jitter = 100 // messages can be up to 100ms late
+        const getLatency = (idx) => this.queues[idx].latency + random_squared(0, jitter)/1000
+
         while (this.map_player1.map.outgoing_messages.length > 0) {
             const msg = this.map_player1.map.outgoing_messages.shift()
-            //debug("queue push" + `  ${msg.uid} ${this.queues[0].latency} ${dt}`)
-            this.queue_p1_in.push({delay: 0, message: msg.message})
+            this.queue_p1_in.push({delay: getLatency(0), message: msg.message})
         }
 
         while (this.map_player2.map.outgoing_messages.length > 0) {
             const msg = this.map_player2.map.outgoing_messages.shift()
-            this.queue_p2_in.push({delay: 0, message: msg.message})
+            this.queue_p2_in.push({delay: getLatency(2), message: msg.message})
         }
 
         while (this.map_server.map.outgoing_messages.length > 0) {
             const msg = this.map_server.map.outgoing_messages.shift()
+
             if ((msg.kind == 2 && msg.playerId!="player1") || msg.kind!=2) {
-                this.queue_p1_out.push({delay: 0, message: msg.message})
+                this.queue_p1_out.push({delay: getLatency(1), message: msg.message})
             }
             if ((msg.kind == 2 && msg.playerId!="player2") || msg.kind!=2) {
-                this.queue_p2_out.push({delay: 0, message: msg.message})
+                this.queue_p2_out.push({delay: getLatency(3), message: msg.message})
             }
+        }
+
+        this.history_timer += dt
+        if (this.history_timer > this.history_duration) {
+            this.history_timer -= this.history_duration
+            this.history_index += 1
+
+            if (this.history_index > this.history_size) {
+                this.history_index = 0
+            }
+
+            this.queues[0].history[this.history_index] = {count: 0, size: 0}
+            this.queues[1].history[this.history_index] = {count: 0, size: 0}
+            this.queues[2].history[this.history_index] = {count: 0, size: 0}
+            this.queues[3].history[this.history_index] = {count: 0, size: 0}
         }
 
         for (let i=0; i < this.queues.length; i++) {
             const queue = this.queues[i]
 
             for (const item of queue.queue) {
-                item.delay += dt
+                item.delay -= dt
             }
 
             while (queue.queue.length > 0) {
-                if (queue.queue[0].delay > queue.latency) {
-                    //console.log(i, queue.latency, queue.queue[0].delay)
+                if (queue.queue[0].delay < 0) {
                     const msg = queue.queue.shift()
-                    //if (msg.message.type != "map-sync") {
-                    //    debug("queue pop" + ` ${msg.message.uid} ${msg.delay} ${queue.latency}`)
-                    //}
-
+                    queue.history[this.history_index].size += JSON.stringify(msg.message).length
+                    queue.history[this.history_index].count += 1
                     queue.callback(msg.message)
                 } else {
                     break
@@ -594,6 +666,33 @@ class AxeSimulatorScene extends GameScene {
             ctx.textBaseline = "top"
             const delta1 = map.world_step - this.map_server.map.local_step
             ctx.fillText(`DELAY: ${delta1}`, 211, 0);
+
+            if (i==0 || i==2) {
+
+                let q1,q2;
+                if (i==0) {
+                    q1 = this.client.queues[0]
+                    q2 = this.client.queues[1]
+                }
+
+                if (i==2) {
+                    q1 = this.client.queues[2]
+                    q2 = this.client.queues[3]
+                }
+
+                ctx.font = "8px mono";
+                ctx.fillStyle = "yellow"
+                ctx.textAlign = "right"
+                ctx.textBaseline = "bottom"
+
+                const count_in = q1.history.reduce((a, x) => a + x.count, 0);
+                const size_in = q1.history.reduce((a, x) => a + x.size, 0);
+                ctx.fillText(`SENT: N:${count_in} ${(count_in>0?size_in/count_in:0).toFixed(0)}B`, view.width, view.height - 16);
+
+                const count_out = q2.history.reduce((a, x) => a + x.count, 0);
+                const size_out = q2.history.reduce((a, x) => a + x.size, 0);
+                ctx.fillText(`RECV: N:${count_out} ${(count_out>0?size_out/count_out:0).toFixed(0)}B`, view.width, view.height - 0);
+            }
 
             ctx.font = "16px mono";
             ctx.fillStyle = "yellow"

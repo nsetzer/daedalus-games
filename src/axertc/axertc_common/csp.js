@@ -383,12 +383,11 @@ export class CspMap {
         this.inputqueue[delete_idx] = {}
         this.partialstatequeue[delete_idx] = {}
 
-        if ('inputqueue_v2' in this) {
-
-            if (this.dirty_step !== null) {
-                throw new Error("server dirty_step error")
-            }
-        }
+        //if ('inputqueue_v2' in this) {
+        //    if (this.dirty_step !== null) {
+        //        throw new Error("server dirty_step error")
+        //    }
+        //}
 
         this._apply(this.local_step, false)
 
@@ -597,14 +596,20 @@ export class CspMap {
     }
 
     sendMessage(playerId, message) {
-        this.outgoing_messages.push({kind: 1, playerId: playerId, message:message})
+        this.outgoing_messages.push({
+            kind: 1,
+            playerId: playerId,
+            message:message})
     }
 
     sendNeighbors(playerId, message) {
         if (!this.isServer) {
             throw {message: "can only send to neighbors from the server"}
         }
-        this.outgoing_messages.push({kind: 2, playerId, message})
+        this.outgoing_messages.push({
+            kind: 2,
+            playerId,
+            message})
     }
 
     sendBroadcast(playerId, message) {
@@ -1079,7 +1084,7 @@ export class ServerCspMap {
         this.map.enable_bending = false
         this.sync_timer = .1
 
-        this.map.inputqueue_v2 = []
+        //this.map.inputqueue_v2 = []
     }
 
     acceptsEvent(type) {
@@ -1153,42 +1158,51 @@ export class ServerCspMap {
 
         let messages = []
 
-        let i=0;
-        while (i < this.incoming_message.length) {
+        const experiment_ = true
 
-            const msg = this.incoming_message[i]
-            //console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
+        if (experiment_) {
+            let i=0;
+            while (i < this.incoming_message.length) {
 
-            if (true) {
+                const msg = this.incoming_message[i]
+                //console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
 
-                //debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
-                const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
-                this.map.receiveEvent(msg_v2)
+                if (true) {
 
-                //debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
-                messages.push(msg)
-                this.incoming_message.splice(i, 1)
-            } else {
-                i += 1
+                    //debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
+                    const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
+                    this.map.receiveEvent(msg_v2)
+
+                    //debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
+                    messages.push(msg)
+                    this.incoming_message.splice(i, 1)
+                } else {
+                    i += 1
+                }
+            }
+        } else {
+            while (this.incoming_message.length > 0) {
+                const msg = this.incoming_message.shift()
+                this.map.receiveEvent(msg)
+                this.map.sendBroadcast(null, msg)
             }
         }
 
         //this.map.reconcile()
         this.map.update(dt)
 
-        while (messages.length > 0) {
-            const msg = messages.shift()
-            //this.map.receiveEvent(msg)
+        if (experiment_) {
+            while (messages.length > 0) {
+                const msg = messages.shift()
+                //this.map.receiveEvent(msg)
 
-            const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step}
-            if (msg.type == "csp-object-input") {
-                msg_v2.state = this.map.objects[msg.entid].getState()
-                //console.log("_x_debug_t:", (performance.now() - msg._x_debug_t) / (1000/60))
+                const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step}
+                if (msg.type == "csp-object-input") {
+                    msg_v2.state = this.map.objects[msg.entid].getState()
+                    //console.log("_x_debug_t:", (performance.now() - msg._x_debug_t) / (1000/60))
+                }
+                this.map.sendBroadcast(null, msg_v2)
             }
-
-
-
-            this.map.sendBroadcast(null, msg_v2)
         }
 
     }

@@ -234,10 +234,23 @@ export class TouchInput {
 
         let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
 
+        let cx, cy
+        if (alignment&Alignment.RIGHT) {
+            cx = gEngine.view.width - x
+        } else {
+            cx = x
+        }
+
+        if (alignment&Alignment.TOP) {
+            cy = y
+        } else {
+            cy = gEngine.view.height + y
+        }
+
         this.buttons.push({
             x, y, radius,
-            cx: gEngine.view.width + x,
-            cy: gEngine.view.height + y,
+            cx: cx,
+            cy: cy,
             alignment: alignment,
             pressed: false,
             icon: icon,
@@ -525,6 +538,14 @@ export class TouchInput {
             ctx.globalAlpha = .5
             if (btn.icon !== null) {
                 btn.icon.sheet.drawTileScaled(ctx, btn.icon.tid, btn.cx-16,btn.cy-16, 32, 32)
+            } else {
+                ctx.font = "16px bold";
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+
+                ctx.fillText("" + i, btn.cx,btn.cy);
             }
             ctx.restore()
         }

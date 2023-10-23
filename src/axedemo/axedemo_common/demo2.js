@@ -14,8 +14,6 @@ function random( min, max ) {
 // moving platform entity that checks for objects above it on every tick and moves them out of the way
 // updating objects requires an order: move all platforms before all players
 
-
-
 class Player extends PlatformerEntity {
 
     constructor(entid, props) {
@@ -278,6 +276,7 @@ export class PlatformMap extends CspMap {
     }
 
     validateMessage(playerId, msg) {
+        // server side?
         this.sendNeighbors(playerId, msg)
     }
 
