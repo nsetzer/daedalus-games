@@ -719,6 +719,12 @@ export class CspMap {
         }
     }
 
+    _x_nextEntId() {
+        const uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+        return '' + uid
+    }
+
     sendObjectCreateEvent(className, props) {
 
         // provide api to generate entid from message

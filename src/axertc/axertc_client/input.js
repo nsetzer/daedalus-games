@@ -84,7 +84,8 @@ export class KeyboardInput {
                 }
             }
             if (match===0) {
-                console.log(`unexpected keycode ${event.keyCode}`)
+                console.log(`unexpected keycode ${event.keyCode} ${this.buttons}`)
+
             }
         }
     }
@@ -233,6 +234,7 @@ export class TouchInput {
     addButton(x, y, radius, options, icon=null) {
 
         let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
+        let style = options?.style ?? "circle"
 
         let cx, cy
         if (alignment&Alignment.RIGHT) {
@@ -252,6 +254,7 @@ export class TouchInput {
             cx: cx,
             cy: cy,
             alignment: alignment,
+            style: style,
             pressed: false,
             icon: icon,
         })
@@ -526,13 +529,25 @@ export class TouchInput {
             let btn = this.buttons[i];
             ctx.strokeStyle = '#00000055';
             ctx.fillStyle = '#888888aa';
-            ctx.beginPath();
-            ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
-            ctx.fill();
 
-            ctx.beginPath();
-            ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
-            ctx.stroke();
+            if (btn.style === 'rect') {
+                const r = btn.radius*.8
+                ctx.beginPath();
+                ctx.rect(btn.cx-r,btn.cy-r,r*2,r*2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.rect(btn.cx-r,btn.cy-r,r*2,r*2);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
+                ctx.stroke();
+            }
 
             ctx.save()
             ctx.globalAlpha = .5

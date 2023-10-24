@@ -18,7 +18,7 @@ jumpspeed = - sqrt(2*H*g)
 
 export class Physics2dPlatform {
 
-    constructor(target) {
+    constructor(target, config=null) {
         this.target = target
         this.group = () => []
 
@@ -42,6 +42,8 @@ export class Physics2dPlatform {
         // properties that are updated on every update()
         this.xcollide = false
         this.ycollide = false
+        this.xcollisions = []
+        this.ycollisions = []
         this.collide = false
         this.collisions = new Set()
 
@@ -72,8 +74,8 @@ export class Physics2dPlatform {
         // this will ensure the maximum height is as calculated
         // and that when the user releases, they will go a little higher and drop normally
 
-        this.xmaxspeed1 = 7*32  // from pressing buttons
-        this.xmaxspeed2 = 14*32 // from other sources ?
+        this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
+        this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
         this.xfriction = this.xmaxspeed1 / .1 // stop moving in .1 seconds
         this.xacceleration = this.xmaxspeed1 / .2 // get up to max speed in .2 seconds
         // horizontal direction in a wall jump
@@ -87,7 +89,7 @@ export class Physics2dPlatform {
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 
-        const dt = 1/16
+        //const dt = 1/16
         //console.log("xspeeds", Math.trunc(this.xjumpspeed*dt), Math.trunc(this.xmaxspeed1*dt), Math.trunc(this.xmaxspeed2*dt))
         //console.log("yspeeds", Math.trunc(this.jumpspeed*dt))
 
@@ -385,6 +387,9 @@ export class Physics2dPlatform {
             }
         }
 
+        this.collisions = [...this.xcollisions, ...this.ycollisions]
+        this.collide = this.collisions.length > 0
+
         let sensor_floora = {x: this.target.rect.left(), y: this.target.rect.bottom() + 1}
         let sensor_floorb = {x: this.target.rect.right()-1, y: this.target.rect.bottom() + 1}
         let sensor_ceiling = {x: this.target.rect.cx(), y: this.target.rect.top() - 1}
@@ -410,12 +415,12 @@ export class Physics2dPlatform {
                 (ent.collidePoint(sensor_floora.x, sensor_floora.y) ||
                 ent.collidePoint(sensor_floorb.x, sensor_floorb.y))
             ) {
-                if (!this.standing) {
-                    console.log("standing", this.target.rect, sensor_floora, sensor_floorb, this.target.rect.bottom(),
-                        ent.collidePoint(sensor_floora.x, sensor_floora.y),
-                        ent.collidePoint(sensor_floorb.x, sensor_floorb.y)
-                    )
-                }
+                //if (!this.standing) {
+                //    console.log("standing", this.target.rect, sensor_floora, sensor_floorb, this.target.rect.bottom(),
+                //        ent.collidePoint(sensor_floora.x, sensor_floora.y),
+                //        ent.collidePoint(sensor_floorb.x, sensor_floorb.y)
+                //    )
+                //}
 
                 //if (this.target.playerId=="player1") {console.error("set standing solids");}
                 standing = true
