@@ -76,64 +76,6 @@ class CspController {
     }
 }
 
-// precomputed tables for wave beam
-// middle, sin, -sin
-const bullet_h = [
-    [[ 4.000000, 0.000000], [ 4.000000, 3.105829], [ 4.000000,-3.105829]],
-    [[ 4.000000, 0.000000], [ 4.000000, 2.894171], [ 4.000000,-2.894171]],
-    [[ 4.000000, 0.000000], [ 4.000000, 2.485281], [ 4.000000,-2.485281]],
-    [[ 4.000000, 0.000000], [ 4.000000, 1.907023], [ 4.000000,-1.907023]],
-    [[ 4.000000, 0.000000], [ 4.000000, 1.198805], [ 4.000000,-1.198805]],
-    [[ 4.000000, 0.000000], [ 4.000000, 0.408890], [ 4.000000,-0.408890]],
-    [[ 4.000000, 0.000000], [ 4.000000,-0.408890], [ 4.000000, 0.408890]],
-    [[ 4.000000, 0.000000], [ 4.000000,-1.198805], [ 4.000000, 1.198805]],
-    [[ 4.000000, 0.000000], [ 4.000000,-1.907023], [ 4.000000, 1.907023]],
-    [[ 4.000000, 0.000000], [ 4.000000,-2.485281], [ 4.000000, 2.485281]],
-    [[ 4.000000, 0.000000], [ 4.000000,-2.894171], [ 4.000000, 2.894171]],
-    [[ 4.000000, 0.000000], [ 4.000000,-3.105829], [ 4.000000, 3.105829]],
-    [[ 4.000000, 0.000000], [ 4.000000,-3.105829], [ 4.000000, 3.105829]],
-    [[ 4.000000, 0.000000], [ 4.000000,-2.894171], [ 4.000000, 2.894171]],
-    [[ 4.000000, 0.000000], [ 4.000000,-2.485281], [ 4.000000, 2.485281]],
-    [[ 4.000000, 0.000000], [ 4.000000,-1.907023], [ 4.000000, 1.907023]],
-    [[ 4.000000, 0.000000], [ 4.000000,-1.198805], [ 4.000000, 1.198805]],
-    [[ 4.000000, 0.000000], [ 4.000000,-0.408890], [ 4.000000, 0.408890]],
-    [[ 4.000000, 0.000000], [ 4.000000, 0.408890], [ 4.000000,-0.408890]],
-    [[ 4.000000, 0.000000], [ 4.000000, 1.198805], [ 4.000000,-1.198805]],
-    [[ 4.000000, 0.000000], [ 4.000000, 1.907023], [ 4.000000,-1.907023]],
-    [[ 4.000000, 0.000000], [ 4.000000, 2.485281], [ 4.000000,-2.485281]],
-    [[ 4.000000, 0.000000], [ 4.000000, 2.894171], [ 4.000000,-2.894171]],
-    [[ 4.000000, 0.000000], [ 4.000000, 3.105829], [ 4.000000,-3.105829]],
-]
-
-const bullet_d = [
-    [[ 2.828427, 2.828427], [ 0.632275, 5.024580], [ 5.024580, 0.632275]],
-    [[ 2.828427, 2.828427], [ 0.781939, 4.874915], [ 4.874915, 0.781939]],
-    [[ 2.828427, 2.828427], [ 1.071068, 4.585786], [ 4.585786, 1.071068]],
-    [[ 2.828427, 2.828427], [ 1.479958, 4.176896], [ 4.176896, 1.479958]],
-    [[ 2.828427, 2.828427], [ 1.980744, 3.676110], [ 3.676110, 1.980744]],
-    [[ 2.828427, 2.828427], [ 2.539298, 3.117556], [ 3.117556, 2.539298]],
-    [[ 2.828427, 2.828427], [ 3.117556, 2.539298], [ 2.539298, 3.117556]],
-    [[ 2.828427, 2.828427], [ 3.676110, 1.980744], [ 1.980744, 3.676110]],
-    [[ 2.828427, 2.828427], [ 4.176896, 1.479958], [ 1.479958, 4.176896]],
-    [[ 2.828427, 2.828427], [ 4.585786, 1.071068], [ 1.071068, 4.585786]],
-    [[ 2.828427, 2.828427], [ 4.874915, 0.781939], [ 0.781939, 4.874915]],
-    [[ 2.828427, 2.828427], [ 5.024580, 0.632275], [ 0.632275, 5.024580]],
-    [[ 2.828427, 2.828427], [ 5.024580, 0.632275], [ 0.632275, 5.024580]],
-    [[ 2.828427, 2.828427], [ 4.874915, 0.781939], [ 0.781939, 4.874915]],
-    [[ 2.828427, 2.828427], [ 4.585786, 1.071068], [ 1.071068, 4.585786]],
-    [[ 2.828427, 2.828427], [ 4.176896, 1.479958], [ 1.479958, 4.176896]],
-    [[ 2.828427, 2.828427], [ 3.676110, 1.980744], [ 1.980744, 3.676110]],
-    [[ 2.828427, 2.828427], [ 3.117556, 2.539298], [ 2.539298, 3.117556]],
-    [[ 2.828427, 2.828427], [ 2.539298, 3.117556], [ 3.117556, 2.539298]],
-    [[ 2.828427, 2.828427], [ 1.980744, 3.676110], [ 3.676110, 1.980744]],
-    [[ 2.828427, 2.828427], [ 1.479958, 4.176896], [ 4.176896, 1.479958]],
-    [[ 2.828427, 2.828427], [ 1.071068, 4.585786], [ 4.585786, 1.071068]],
-    [[ 2.828427, 2.828427], [ 0.781939, 4.874915], [ 4.874915, 0.781939]],
-    [[ 2.828427, 2.828427], [ 0.632275, 5.024580], [ 5.024580, 0.632275]],
-
-]
-
-
 class Bullet extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -153,34 +95,39 @@ class Bullet extends PlatformerEntity {
         this.physics.xspeed = 0
         this.physics.yspeed = 0
         this.wave_counter = 0
-        this.wave_profile = []
+        this.wave_profile = null
 
         if (d == Direction.RIGHT) {
-            for (let i=0;i<bullet_h.length;i++) {
-                const [dx, dy] = bullet_h[i][this.split-1]
-                this.wave_profile.push([dx, -dy])
-            }
+            this.wave_profile = Bullet.velocity_profile_h[this.split-1].map(p => ([p.x, -p.y]))
+
+            //for (let i=0;i<bullet_h.length;i++) {
+            //    //const [dx, dy] = bullet_h[i][this.split-1]
+            //    //this.wave_profile.push([dx, -dy])
+            //}
         }
 
         if (d == Direction.LEFT) {
-            for (let i=0;i<bullet_h.length;i++) {
-                const [dx, dy] = bullet_h[i][this.split-1]
-                this.wave_profile.push([-dx, -dy])
-            }
+            this.wave_profile = Bullet.velocity_profile_h[this.split-1].map(p => ([-p.x, -p.y]))
+            //for (let i=0;i<bullet_h.length;i++) {
+            //    const [dx, dy] = bullet_h[i][this.split-1]
+            //    this.wave_profile.push([-dx, -dy])
+            //}
         }
 
         if (d == Direction.UPRIGHT) {
-            for (let i=0;i<bullet_d.length;i++) {
-                const [dx, dy] = bullet_d[i][this.split-1]
-                this.wave_profile.push([dx, -dy])
-            }
+            this.wave_profile = Bullet.velocity_profile_d[this.split-1].map(p => ([p.x, -p.y]))
+            //for (let i=0;i<bullet_d.length;i++) {
+            //    const [dx, dy] = bullet_d[i][this.split-1]
+            //    this.wave_profile.push([dx, -dy])
+            //}
         }
 
         if (d == Direction.UPLEFT) {
-            for (let i=0;i<bullet_d.length;i++) {
-                const [dx, dy] = bullet_d[i][this.split-1]
-                this.wave_profile.push([-dx, -dy])
-            }
+            this.wave_profile = Bullet.velocity_profile_d[this.split-1].map(p => ([-p.x, -p.y]))
+            //for (let i=0;i<bullet_d.length;i++) {
+            //    const [dx, dy] = bullet_d[i][this.split-1]
+            //    this.wave_profile.push([-dx, -dy])
+            //}
         }
 
     }
@@ -218,12 +165,66 @@ class Bullet extends PlatformerEntity {
     }
 
 }
+function init_velocity() {
+    // generate the velocity profile for a bullet moving
+    // forward at a constant velocity, even if traveling in
+    // a sin pattern. generate three profiles for no wave
+    // positive, and negative sin. generate an additional
+    // three profiles that are rotate 45 degrees up.
+    // the six profiles can be mirrored about the x axis.
+
+    // rotate a point by angle in radians (positive numbers are clock wise)
+    const rotate  = (p,a) => ({
+        x: Math.cos(a) * p.x - Math.sin(a) * p.y,
+        y: Math.sin(a) * p.x + Math.cos(a) * p.y,
+    })
+    // rotate a list of points
+    const rotatelist = (seq, a) => seq.map(x => rotate(x, a))
+    // get the difference for each point in the list
+    const get_velocity = (seq) => seq.slice(1).map((p, i) => ({x: p.x - seq[i].x, y: p.y - seq[i].y}))
+
+    // the number of points to sample
+    const period = 24
+    // velocity is pixels per second
+    const velocity = 240/60
+    // time (frame tick)
+    const t = [...Array(period + 1).keys()]
+    // position data. x and y position
+    const x0 = t.map(i=> velocity*i)
+    // no wave motion
+    const y1 = t.map(i=> 0)
+    // positive sin wave
+    const y2 = t.map(i=> +8*Math.sin(i/period * Math.PI * 2))
+    // negative sin wave
+    const y3 = t.map(i=> -8*Math.sin(i/period * Math.PI * 2))
+
+    const p1 = x0.map((v,i)=>({x:v,y:y1[i]})) //zip
+    const p2 = x0.map((v,i)=>({x:v,y:y2[i]})) //zip
+    const p3 = x0.map((v,i)=>({x:v,y:y3[i]})) //zip
+
+    const v1 = get_velocity(p1)
+    const v2 = get_velocity(p2)
+    const v3 = get_velocity(p3)
+
+    const p4 = rotatelist(p1, 45*Math.PI/180)
+    const p5 = rotatelist(p2, 45*Math.PI/180)
+    const p6 = rotatelist(p3, 45*Math.PI/180)
+
+    const v4 = get_velocity(p4)
+    const v5 = get_velocity(p5)
+    const v6 = get_velocity(p6)
+
+    Bullet.velocity_profile_h = [v1, v2 ,v3]
+    Bullet.velocity_profile_d = [v4, v5 ,v6]
+
+}
+init_velocity()
 
 class Player extends PlatformerEntity {
 
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 16, 24)
+        this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
         this.physics = new Physics2dPlatform(this,{
             xmaxspeed1: 180,
@@ -251,7 +252,7 @@ class Player extends PlatformerEntity {
     buildAnimations() {
 
         let spf = 1/8
-        let xoffset = - 8
+        let xoffset = - 12
         let yoffset = - 7
 
         this.animations = {
@@ -261,6 +262,7 @@ class Player extends PlatformerEntity {
             "jump":{},
             "fall":{},
             "hit":{},
+            "ball":{},
         }
 
         let ncols = 17
@@ -297,7 +299,15 @@ class Player extends PlatformerEntity {
         aid = this.animation.register(Player.sheet, [1*ncols+7], spf, {xoffset, yoffset})
         this.animations["jump"][Direction.UPLEFT] = aid
 
-        this.animations["fall"] = this.animations["jump"]
+        aid = this.animation.register(Player.sheet, [0*ncols+2], spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.RIGHT] = aid
+        aid = this.animation.register(Player.sheet, [0*ncols+5], spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.UPRIGHT] = aid
+
+        aid = this.animation.register(Player.sheet, [1*ncols+2], spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.LEFT] = aid
+        aid = this.animation.register(Player.sheet, [1*ncols+5], spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.UPLEFT] = aid
 
         aid = this.animation.register(Player.sheet, [1*ncols+9], spf, {xoffset, yoffset})
         this.animations["hit"][Direction.RIGHT] = aid
@@ -305,23 +315,69 @@ class Player extends PlatformerEntity {
         this.animations["hit"][Direction.UPRIGHT] = aid
         this.animations["hit"][Direction.UPLEFT] = aid
 
+        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf, {xoffset, yoffset})
+        this.animations["ball"][Direction.RIGHT] = aid
+
+        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf, {xoffset, yoffset})
+        this.animations["ball"][Direction.LEFT] = aid
+
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
-        console.log("animations built")
-        console.log(this.animations.run[Direction.RIGHT])
+
+        this.weapon_offset = {}
+        this.weapon_offset[Direction.RIGHT]   = {x: 12, y: 12}
+        this.weapon_offset[Direction.UPRIGHT] = {x: 11, y:  3}
+        this.weapon_offset[Direction.LEFT]    = {x: -8, y: 12}
+        this.weapon_offset[Direction.UPLEFT]  = {x: -7, y:  3}
+
     }
 
     paint(ctx) {
 
-        //ctx.beginPath();
-        //ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        //ctx.strokeStyle = 'red';
-        //ctx.fillStyle = 'red';
-        //ctx.stroke();
-        //ctx.fill();
+
 
         ctx.save()
         this.animation.paint(ctx)
         ctx.restore()
+
+        ctx.beginPath();
+        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.fillStyle = '#FF00007f';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.fillStyle = '#FF00007f';
+
+
+
+        const o = this.weapon_offset[this.current_facing]
+
+        ctx.rect( this.rect.x + o.x, this.rect.y + o.y, 4, 4);
+        //switch (this.current_facing) {
+        //    case Direction.RIGHT:
+        //        ctx.rect( this.rect.x + this.rect.w + 4, this.rect.y + 12, 4, 4);
+        //        break;
+        //    case Direction.UPRIGHT:
+        //        ctx.rect( this.rect.x + this.rect.w + 3, this.rect.y + 3, 4, 4);
+        //        break;
+        //    case Direction.LEFT:
+        //        ctx.rect( this.rect.x - 8, this.rect.y + 12, 4, 4);
+        //        break;
+        //    case Direction.UPLEFT:
+        //        ctx.rect( this.rect.x - 7, this.rect.y + 3, 4, 4);
+        //        break;
+        //    default:
+        //        break;
+        //}
+        ctx.fill();
+
+
+        //ctx.font = "bold 16px";
+        //ctx.fillStyle = "yellow"
+        //ctx.strokeStyle = "yellow"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        //ctx.fillText(`${this.physics.action}`, this.rect.x, this.rect.y);
+
     }
 
     update(dt) {
@@ -332,7 +388,21 @@ class Player extends PlatformerEntity {
         if (this.looking_up) {
             pfacing |= Direction.UP
         }
-        let paction = (this.physics.action == "run")?"run":"idle"
+
+        let paction = "idle"
+        switch (this.physics.action) {
+            case "run":
+                paction = "run"
+                break;
+            case "jump":
+                paction = "jump"
+                break;
+            case "fall":
+                paction = "fall"
+                break;
+            default:
+                break;
+        }
 
         if (pfacing != this.current_facing ||
             paction != this.current_action) {
@@ -355,7 +425,8 @@ class Player extends PlatformerEntity {
     onInput(payload) {
 
         if ("whlid" in payload) {
-            this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
+            //this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
+            this.physics.direction = Direction.fromVector(payload.vector.x, 0)
             //console.log(payload.vector.x, payload.vector.y)
             //if (this.physics.direction&Direction.UP) {
             if ( payload.vector.y < -0.3535) {
@@ -380,22 +451,30 @@ class Player extends PlatformerEntity {
 
         } else if (payload.btnid === 0) {
 
-            this._jump()
+            if (payload.pressed) {
+                this._jump()
+            } else {
+                this.physics.gravityboost = true
+            }
 
         } else if (payload.btnid === 1) {
 
-            if (payload.pressed) {
+            if (!payload.pressed) {
                 let d = this.physics.facing
                 if (this.looking_up) {
                     d |= Direction.UP
                 }
 
+                const o = this.weapon_offset[this.current_facing]
+                const px = this.rect.x + o.x
+                const py = this.rect.y + o.y
+
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: this.rect.cx(), y: this.rect.top(), direction: d, split:1})
+                    x: px, y: py, direction: d, split:1})
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: this.rect.cx(), y: this.rect.top(), direction: d, split:2})
+                    x: px, y: py, direction: d, split:2})
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: this.rect.cx(), y: this.rect.top(), direction: d, split:3})
+                    x: px, y: py, direction: d, split:3})
             }
         } else {
             console.log(payload)
@@ -404,13 +483,33 @@ class Player extends PlatformerEntity {
     }
 
     _jump() {
+
+        // coyote time
+
         let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
+        let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
         if (standing) {
             this.physics.yspeed = this.physics.jumpspeed
             this.physics.yaccum = 0
             this.physics.gravityboost = false
             this.physics.doublejump = true
+        } else if (pressing && !standing) {
+            this.physics.xspeed = this.physics.pressing_direction * this.physics.xjumpspeed
+            this.physics.xaccum = 0
+            this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
+            this.physics.yaccum = 0
+            this.physics.gravityboost = false
+
+        } else if (!standing && this.physics.doublejump && this.physics.yspeed > 0) {
+            this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
+            this.physics.yaccum = 0
+            this.physics.gravityboost = false
+            this.physics.doublejump = false
+            this.physics.doublejump_position = {x:this.physics.target.rect.cx(), y: this.physics.target.rect.bottom()}
+            this.physics.doublejump_timer = .4
+        } else {
+            console.log(`jump standing=${standing} pressing=${pressing}`)
         }
     }
 }
@@ -547,6 +646,17 @@ class MainScene extends GameScene {
         this.map.paint(ctx)
 
         this.touch.paint(ctx)
+
+
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+
+        ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
+        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height}` , 8, 8+32);
+
     }
 
     resize() {
@@ -555,6 +665,7 @@ class MainScene extends GameScene {
 
     handleTouches(touches) {
         touches = this.touch.handleTouches(touches)
+        //gEngine.setFullScreen(true)
     }
 
     handleKeyPress(keyevent) {
@@ -563,6 +674,7 @@ class MainScene extends GameScene {
 
     handleKeyRelease(keyevent) {
         this.keyboard.handleKeyRelease(keyevent);
+
     }
 }
 
@@ -573,11 +685,14 @@ export default class Application extends ApplicationBase {
 
         super({
             portrait: 0,
-            fullscreen: 0
+            fullscreen: 0,
+            screen_width: 12*32,
+            screen_height: 7*32
         }, () => {
 
             return new ResourceLoaderScene((loader)=> {
                 gEngine.scene = new MainScene(loader)
+
             })
         })
     }

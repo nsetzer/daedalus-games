@@ -33,8 +33,8 @@ N = 50
 p = 24
 t = [x for x in range(60)]
 x = [240/60*i for i in t]
-y1 = [12*math.sin(i/p * math.pi * 2) for i in t]
-y2 = [12*-math.sin(i/p * math.pi * 2) for i in t]
+y1 = [8*math.sin(i/p * math.pi * 2) for i in t]
+y2 = [8*-math.sin(i/p * math.pi * 2) for i in t]
 y3 = [0 for i in t]
 
 plt.scatter(x, y1, color='blue', alpha=0.5)

@@ -150,6 +150,8 @@ export class CanvasEngine extends DomElement {
         // fullscreen: when set to true the app will switch to
         //             full screen when the user taps the screen
         this.settings.fullscreen = this.settings.fullscreen??0
+        this.settings.screen_width = this.settings.screen_width??0
+        this.settings.screen_height = this.settings.screen_height??0
 
         this.delta_accum = 0
 
@@ -165,8 +167,8 @@ export class CanvasEngine extends DomElement {
         this.view = {
             x:0,
             y:0,
-            width:640,
-            height:320,
+            width: 0,
+            height: 0,
             rotate: 0,
             scale: 1,
             availWidth: 0,
@@ -262,15 +264,15 @@ export class CanvasEngine extends DomElement {
 
             if (this.view.rotate) {
                 return {
-                    "x": (touch.clientY - rect.top - this.view.x),
-                    "y": this.view.height - (touch.clientX - rect.left - this.view.y),
+                    "x": (touch.clientY - rect.top)/this.view.scale  - this.view.x,
+                    "y": this.view.height - (touch.clientX - rect.left)/this.view.scale - this.view.y,
                     "id": touch.identifier,
                     "pressed": !!pressed[touch.identifier],
                 }
             } else {
                 return {
-                    "x": (touch.clientX - rect.left - this.view.x),
-                    "y": (touch.clientY - rect.top - this.view.y),
+                    "x": (touch.clientX - rect.left)/this.view.scale - this.view.x,
+                    "y": (touch.clientY - rect.top)/this.view.scale - this.view.y,
                     "id": touch.identifier,
                     "pressed": !!pressed[touch.identifier],
                 }
@@ -308,20 +310,32 @@ export class CanvasEngine extends DomElement {
         }
     }
 
-    handleResize(width, height) {
+    handleResize(availWidth, availHeight) {
 
-        this.view.availWidth = width
-        this.view.availHeight = height
+        // TODO: if a specific resolution is given, use a float scale factor to make it fit
+        // TODO: touch inputs that are not scaled?
+
+        // width x height [height/32] (width/height) description
+        //  640 x  480 [15] (1.333) full screen
+        //  384 x  224 [ 7] (1.714) wide screen nes
+        //  768 x  448 [14] (1.714) 2x wide screen nes
+        // 1920 x 1080 [33] (1.778) HD
+        //  480 x  270 [ 8] (1.778) HD / 4
+        //  640 x  360 [11] (1.778) HD / 3
+        //  703 x  396 [12] (1.775) mobile
+        //  808 x  396 [12] (2.040) fullscreen mobile
 
         const islandscape = screen.orientation.type.includes("landscape")
 
         // on mobile swap width and height for landscape mode
-        if (!islandscape && width/height < 0.75 && !this.settings.portrait) {
-            [width, height] = [height, width]
+        if (!islandscape && availWidth/availHeight < 0.75 && !this.settings.portrait) {
+            [availWidth, availHeight] = [availHeight, availWidth]
             this.view.rotate = 1
         } else {
             this.view.rotate = 0
         }
+        this.view.availWidth = availWidth
+        this.view.availHeight = availHeight
 
         // detect if the new resolution is full scren
         if (daedalus.platform.isMobile) {
@@ -330,52 +344,68 @@ export class CanvasEngine extends DomElement {
             this.view.fullscreen = window.innerHeight == screen.height
         }
 
-        if (daedalus.platform.isMobile) {
-
-            if (this.view.fullscreen) {
-                this.view.width = width
-                this.view.height = height
-
-            } else {
-                this.view.width = Math.floor((width - 32)/32)*32
-                this.view.height = Math.floor((height)/16)*16
-            }
-
-            //this.view.width = Math.min(Math.floor(1920/3), this.view.width)
-            //this.view.height = Math.min(Math.floor(1080/3), this.view.height)
-
+        if (0 && this.settings.screen_height != 0) {
+            this.view.width = this.settings.screen_width
+            this.view.height = this.settings.screen_height
         } else {
-            const minw = Math.floor((width)/32)*32
-            const minh = Math.floor((height)/16)*16
-            if (this.settings.portrait) {
-                this.view.width = Math.min(Math.floor(1080/3), minw)
-                this.view.height = Math.min(Math.floor(1920/3), minh)
+            if (daedalus.platform.isMobile) {
+
+                if (this.view.fullscreen) {
+                    this.view.width = availWidth
+                    this.view.height = availHeight
+
+                } else {
+                    this.view.width = Math.floor((availWidth - 32)/32)*32
+                    this.view.height = Math.floor((availHeight)/16)*16
+                }
+
+                //this.view.width = Math.min(Math.floor(1920/3), this.view.width)
+                //this.view.height = Math.min(Math.floor(1080/3), this.view.height)
 
             } else {
-                this.view.width = Math.min(Math.floor(1920/3), minw)
-                this.view.height = Math.min(Math.floor(1080/3), minh)
+                const minw = Math.floor((availWidth)/32)*32
+                const minh = Math.floor((availHeight)/16)*16
+
+
+                let _scrw = Math.floor(1920/3)
+                let _scrh = Math.floor(1080/3)
+
+                if (this.settings.portrait) {
+                    this.view.width = Math.min(_scrh, minw)
+                    this.view.height = Math.min(_scrw, minh)
+
+                } else {
+                    this.view.width = Math.min(_scrw, minw)
+                    this.view.height = Math.min(_scrh, minh)
+                }
             }
+
         }
 
+        //this.view.width = Math.floor(this.view.width/2)
+        //this.view.height = Math.floor(this.view.height/2)
+        //this.view.width = Math.floor(availWidth/2/16)*16
+        //this.view.height = Math.floor(availHeight/2/16)*16
+        //this.view.scale = 2; // Math.floor(Math.max(1, Math.min(availWidth/this.view.width, availHeight/this.view.height)))
         this.view.scale = 1
-        if (width > 2*this.view.width && height > 2*this.view.height) {
+        if (availWidth > 2*this.view.width && availHeight > 2*this.view.height) {
             this.view.scale = 2
         }
 
         if (!daedalus.platform.isMobile && !this.view.rotate) {
             // center x
-            this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
-            this.view.y = Math.min(32, Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale)))
+            this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
+            this.view.y = Math.min(32, Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale)))
         } else if (daedalus.platform.isMobile) {
-            this.view.x = Math.floor((width - (this.view.width*this.view.scale))/(2*this.view.scale))
-            this.view.y = Math.floor((height - (this.view.height*this.view.scale))/(2*this.view.scale))
+            this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
+            this.view.y = Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale))
         } else {
             this.view.x = 0
             this.view.y = 0
         }
 
         console.log('view changed:',
-            `screen: orientation=${screen.orientation.type} size=(${width}, ${height})`,
+            `screen: orientation=${screen.orientation.type} size=(${availWidth}, ${availHeight})`,
             `view: (${this.view.x}, ${this.view.x}) (${this.view.width}, ${this.view.height})`,
             `rotate=${this.view.rotate}`,
             `fullscreen=${this.view.fullscreen}`,
