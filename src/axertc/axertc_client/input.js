@@ -157,7 +157,7 @@ export class KeyboardInput {
 }
 KeyboardInput.Keys = Keys
 
-let _arrow = (dx, dy,radius=4) => {
+let _arrow = (dx, dy, radius=4) => {
     let angle = Math.atan2(dx, dy)
     let x1 = radius*Math.cos(angle)
     let y1 = radius*Math.sin(angle)
@@ -193,13 +193,31 @@ export class TouchInput {
         this.wheels = []
         this.buttons = []
 
-        this.arrows = {
-            up: _arrow(-1, 0),
-            down: _arrow(1, 0),
-            left: _arrow(0, -1),
-            right: _arrow(0, 1),
+        this.arrows = {}
+        this.scale = 0
+
+    }
+
+    _align_wheel(x,y,alignment) {
+        // TODO: only on mobile: align to the screen, not the view
+        let cx, cy;
+
+        x /= gEngine.view.scale
+        y /= gEngine.view.scale
+
+        if (alignment&Alignment.RIGHT) {
+            cx = gEngine.view.width - x
+        } else {
+            cx = x
         }
 
+        if (alignment&Alignment.TOP) {
+            cy = y
+        } else {
+            cy = gEngine.view.height + y
+        }
+
+        return {cx, cy}
     }
 
     addWheel(x, y, radius, options) {
@@ -207,23 +225,12 @@ export class TouchInput {
         let alignment = options?.align ?? (Alignment.LEFT|Alignment.BOTTOM)
 
         let symbols = options?.symbols ?? null
-        let cx, cy
-        if (alignment&Alignment.RIGHT) {
-            cx = gEngine.view.width - x
-        } else {
-            cx = x
-        }
 
-        if (alignment&Alignment.TOP) {
-            cy = y
-        } else {
-            cy = gEngine.view.height + y
-        }
-
+        let p = this._align_wheel(x, y, alignment)
         this.wheels.push({
             x, y, radius,
-            cx: cx,
-            cy: cy,
+            cx: p.cx,
+            cy: p.cy,
             alignment: alignment,
             vector: {x:0, y:0},
             pressed: false,
@@ -231,12 +238,12 @@ export class TouchInput {
         })
     }
 
-    addButton(x, y, radius, options, icon=null) {
-
-        let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
-        let style = options?.style ?? "circle"
-
+    _align_button(x,y,alignment) {
         let cx, cy
+
+        x /= gEngine.view.scale
+        y /= gEngine.view.scale
+
         if (alignment&Alignment.RIGHT) {
             cx = gEngine.view.width - x
         } else {
@@ -248,11 +255,19 @@ export class TouchInput {
         } else {
             cy = gEngine.view.height + y
         }
+        return {cx, cy}
+    }
+    addButton(x, y, radius, options, icon=null) {
+
+        let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
+        let style = options?.style ?? "circle"
+
+        let p = this._align_button(x, y, alignment)
 
         this.buttons.push({
             x, y, radius,
-            cx: cx,
-            cy: cy,
+            cx: p.cx,
+            cy: p.cy,
             alignment: alignment,
             style: style,
             pressed: false,
@@ -318,7 +333,8 @@ export class TouchInput {
                 let touch = touches[i];
                 const dx = btn.cx - touch.x
                 const dy = btn.cy - touch.y
-                if ((dx*dx + dy*dy) < btn.radius*btn.radius) {
+                const dr = btn.radius / gEngine.view.scale
+                if ((dx*dx + dy*dy) < dr*dr) {
                     pressed = !!touch.pressed
                     touches.splice(i, 1);
                     break;
@@ -385,100 +401,70 @@ export class TouchInput {
         //    },
         //]
         for (let wheel of this.wheels) {
-            wheel.cx = gEngine.view.width + wheel.x
-            wheel.cy = gEngine.view.height + wheel.y
+
+            let p = this._align_wheel(wheel.x, wheel.y, wheel.alignment)
+            wheel.cx = p.cx
+            wheel.cy = p.cy
         }
 
-        //radius = 40
-        //this.buttons = [
-        //    {cx: gEngine.view.width - radius,
-        //     cy: gEngine.view.height - 3*radius,
-        //     radius: radius, pressed: 0},
-        //    {cx: gEngine.view.width - 3*radius,
-        //    cy: gEngine.view.height - radius,
-        //    radius: radius, pressed: 0},
-        //]
         for (let button of this.buttons) {
-            button.cx = gEngine.view.width + button.x
-            button.cy = gEngine.view.height + button.y
+            let p = this._align_button(button.x, button.y, button.alignment)
+
+            button.cx = p.cx
+            button.cy = p.cy
         }
     }
 
     paint(ctx) {
 
+        // TODO: add debug mode to paint touch radius around objects
+
         // input is a central point with radial lines coming from that point
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(0.5, 2/gEngine.view.scale);
         ctx.strokeStyle = 'red';
 
         for (let w = 0; w < this.wheels.length; w++) {
 
             let whl = this.wheels[w]
-            const e2 = Math.floor(whl.radius)
-            const e3 = Math.floor(whl.radius *.7071)
+            const rd = whl.radius // gEngine.view.scale
+            const e2 = Math.floor(rd)
+            const e3 = Math.floor(rd *.7071)
             const cx = Math.floor(whl.cx)
             const cy = Math.floor(whl.cy)
-            const cr = Math.floor(whl.radius)
-            const dw = 16
-            const dr = 48
-
-
-            /*
-            ctx.beginPath();
-            //ctx.moveTo(0,0);
-            //ctx.lineTo(32,32);
-
-            ctx.moveTo(cx - e3, cy - e3);
-            ctx.lineTo(cx + e3, cy + e3);
-
-            ctx.moveTo(cx + e3, cy - e3);
-            ctx.lineTo(cx - e3, cy + e3);
-
-            ctx.moveTo(cx - e2, cy);
-            ctx.lineTo(cx + e2, cy);
-
-            ctx.moveTo(cx, cy - e2);
-            ctx.lineTo(cx, cy + e2);
-
-
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx,cy,e2,0,2*Math.PI);
-
-            //ctx.moveTo(0,0);
-            //ctx.lineTo(320,320);
-            //ctx.lineTo(640,0);
-            ctx.stroke();
-            */
-
-
+            const cr = Math.floor(rd)
+            const dw = 16 / gEngine.view.scale
+            const dr = 48 / gEngine.view.scale
 
             ctx.strokeStyle = '#00000055';
             ctx.fillStyle = '#888888aa';
+            let rr = 8 / gEngine.view.scale
 
             ctx.beginPath();
-            ctx.roundRect(cx - dr, cy - dw, dr*2, 2*dw, 8)
-            ctx.roundRect(cx - dw, cy - dr, dw*2, 2*dr, 8)
+            ctx.roundRect(cx - dr, cy - dw, dr*2, 2*dw, rr)
+            ctx.roundRect(cx - dw, cy - dr, dw*2, 2*dr, rr)
             ctx.fill();
 
             ctx.save()
             ctx.beginPath();
             let region = new Path2D();
-            region.rect(cx - dr-2, cy - dw - 2, dr*2+3, 2*dw+3)
-            region.rect(cx - dw-2, cy - dr - 2, dw*2+3, 2*dr+3)
+            let _t = Math.ceil(3 / gEngine.view.scale)
+            region.rect(cx - dr-2, cy - dw - 2, dr*2+_t, 2*dw+_t)
+            region.rect(cx - dw-2, cy - dr - 2, dw*2+_t, 2*dr+_t)
             ctx.clip(region, "evenodd");
 
             ctx.beginPath();
-            ctx.roundRect(cx - dr, cy - dw, dr*2, 2*dw, 8)
-            ctx.roundRect(cx - dw, cy - dr, dw*2, 2*dr, 8)
+            ctx.roundRect(cx - dr, cy - dw, dr*2, 2*dw, rr)
+            ctx.roundRect(cx - dw, cy - dr, dw*2, 2*dr, rr)
             ctx.stroke();
             ctx.restore()
 
             ctx.strokeStyle = '#00000055';
 
-            let cxr = cx - dr + 16
-            let cxl = cx + dr - 16
-            let cyt = cy + dr - 16
-            let cyb = cy - dr + 16
-            let radius = 8
+            let cxr = cx - dr + dw
+            let cxl = cx + dr - dw
+            let cyt = cy + dr - dw
+            let cyb = cy - dr + dw
+            let radius = 8 / gEngine.view.scale
             ctx.fillStyle = (whl.vector.x<-.5)?'#FF770055':'#00000055';
             ctx.beginPath();
             ctx.arc(cxr, cy, radius, 0, 2*Math.PI);
@@ -499,9 +485,6 @@ export class TouchInput {
             ctx.arc(cx, cyt, radius, 0, 2*Math.PI);
             ctx.fill();
 
-
-
-
             if (whl.symbols != null) {
                 ctx.font = "10px";
                 ctx.fillStyle = "black"
@@ -516,6 +499,16 @@ export class TouchInput {
             } else {
 
                 ctx.fillStyle = '#000000';
+                if (gEngine.view.scale != this.scale) {
+                    this.scale = gEngine.view.scale
+                    this.arrows = {
+                        up: _arrow(-1, 0, 4/this.scale),
+                        down: _arrow(1, 0, 4/this.scale),
+                        left: _arrow(0, -1, 4/this.scale),
+                        right: _arrow(0, 1, 4/this.scale),
+                    }
+
+                }
                 _arrow_draw(ctx, this.arrows.up,    cx, cyb)
                 _arrow_draw(ctx, this.arrows.right, cxl, cy)
                 _arrow_draw(ctx, this.arrows.down,  cx, cyt)
@@ -531,21 +524,16 @@ export class TouchInput {
             ctx.fillStyle = '#888888aa';
 
             if (btn.style === 'rect') {
-                const r = btn.radius*.8
+                const r = btn.radius*.8 / gEngine.view.scale
                 ctx.beginPath();
                 ctx.rect(btn.cx-r,btn.cy-r,r*2,r*2);
                 ctx.fill();
-
-                ctx.beginPath();
-                ctx.rect(btn.cx-r,btn.cy-r,r*2,r*2);
                 ctx.stroke();
             } else {
+                const r = btn.radius*.8 / gEngine.view.scale
                 ctx.beginPath();
-                ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
+                ctx.arc(btn.cx,btn.cy,r,0,2*Math.PI);
                 ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(btn.cx,btn.cy,btn.radius*.8,0,2*Math.PI);
                 ctx.stroke();
             }
 

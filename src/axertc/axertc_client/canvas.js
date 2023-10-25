@@ -344,9 +344,17 @@ export class CanvasEngine extends DomElement {
             this.view.fullscreen = window.innerHeight == screen.height
         }
 
-        if (0 && this.settings.screen_height != 0) {
+        if (this.settings.screen_height != 0) {
             this.view.width = this.settings.screen_width
             this.view.height = this.settings.screen_height
+
+            let s = Math.min(
+                availWidth/this.view.width,
+                availHeight/this.view.height,
+            )
+            s = (Math.floor((s*100)/25)*25)/100
+
+            this.view.scale = Math.max(1, s)
         } else {
             if (daedalus.platform.isMobile) {
 
@@ -380,17 +388,19 @@ export class CanvasEngine extends DomElement {
                 }
             }
 
+            //this.view.width = Math.floor(this.view.width/2)
+            //this.view.height = Math.floor(this.view.height/2)
+            //this.view.width = Math.floor(availWidth/2/16)*16
+            //this.view.height = Math.floor(availHeight/2/16)*16
+            //this.view.scale = 2; // Math.floor(Math.max(1, Math.min(availWidth/this.view.width, availHeight/this.view.height)))
+            this.view.scale = 1
+            if (availWidth > 2*this.view.width && availHeight > 2*this.view.height) {
+                this.view.scale = 2
+            }
+
         }
 
-        //this.view.width = Math.floor(this.view.width/2)
-        //this.view.height = Math.floor(this.view.height/2)
-        //this.view.width = Math.floor(availWidth/2/16)*16
-        //this.view.height = Math.floor(availHeight/2/16)*16
-        //this.view.scale = 2; // Math.floor(Math.max(1, Math.min(availWidth/this.view.width, availHeight/this.view.height)))
-        this.view.scale = 1
-        if (availWidth > 2*this.view.width && availHeight > 2*this.view.height) {
-            this.view.scale = 2
-        }
+
 
         if (!daedalus.platform.isMobile && !this.view.rotate) {
             // center x

@@ -1,4 +1,6 @@
  
+// stages should be 15 screens wide (15*12*32 = 5760 pixels)
+// at 150 pixels per second, a flat run would clear a stage in 5760/150 ~ 38.4 seconds
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
@@ -94,42 +96,10 @@ class Bullet extends PlatformerEntity {
 
         this.physics.xspeed = 0
         this.physics.yspeed = 0
+
         this.wave_counter = 0
-        this.wave_profile = null
-
-        if (d == Direction.RIGHT) {
-            this.wave_profile = Bullet.velocity_profile_h[this.split-1].map(p => ([p.x, -p.y]))
-
-            //for (let i=0;i<bullet_h.length;i++) {
-            //    //const [dx, dy] = bullet_h[i][this.split-1]
-            //    //this.wave_profile.push([dx, -dy])
-            //}
-        }
-
-        if (d == Direction.LEFT) {
-            this.wave_profile = Bullet.velocity_profile_h[this.split-1].map(p => ([-p.x, -p.y]))
-            //for (let i=0;i<bullet_h.length;i++) {
-            //    const [dx, dy] = bullet_h[i][this.split-1]
-            //    this.wave_profile.push([-dx, -dy])
-            //}
-        }
-
-        if (d == Direction.UPRIGHT) {
-            this.wave_profile = Bullet.velocity_profile_d[this.split-1].map(p => ([p.x, -p.y]))
-            //for (let i=0;i<bullet_d.length;i++) {
-            //    const [dx, dy] = bullet_d[i][this.split-1]
-            //    this.wave_profile.push([dx, -dy])
-            //}
-        }
-
-        if (d == Direction.UPLEFT) {
-            this.wave_profile = Bullet.velocity_profile_d[this.split-1].map(p => ([-p.x, -p.y]))
-            //for (let i=0;i<bullet_d.length;i++) {
-            //    const [dx, dy] = bullet_d[i][this.split-1]
-            //    this.wave_profile.push([-dx, -dy])
-            //}
-        }
-
+        this.wave_loop = true
+        this.wave_profile = Bullet.velocity_profile_wave[d][this.split-1]
     }
 
     paint(ctx) {
@@ -146,13 +116,14 @@ class Bullet extends PlatformerEntity {
 
     update(dt) {
 
-        this.physics.xspeed = this.wave_profile[this.wave_counter][0]/dt
-        this.physics.yspeed = this.wave_profile[this.wave_counter][1]/dt
+        if (this.wave_counter < this.wave_profile.length) {
+            this.physics.xspeed = this.wave_profile[this.wave_counter].x/dt
+            this.physics.yspeed = this.wave_profile[this.wave_counter].y/dt
+            this.wave_counter += 1
+        }
         this.physics.update(dt)
 
-        this.wave_counter += 1
-
-        if (this.wave_counter >= this.wave_profile.length) {
+        if (this.wave_loop && this.wave_counter >= this.wave_profile.length) {
             this.wave_counter = 0
         }
 
@@ -165,6 +136,7 @@ class Bullet extends PlatformerEntity {
     }
 
 }
+
 function init_velocity() {
     // generate the velocity profile for a bullet moving
     // forward at a constant velocity, even if traveling in
@@ -182,11 +154,17 @@ function init_velocity() {
     const rotatelist = (seq, a) => seq.map(x => rotate(x, a))
     // get the difference for each point in the list
     const get_velocity = (seq) => seq.slice(1).map((p, i) => ({x: p.x - seq[i].x, y: p.y - seq[i].y}))
+    // mirror x coordinate
+    const flip = (seq) => seq.map(p=>({x:-p.x, y:p.y}))
 
     // the number of points to sample
-    const period = 24
-    // velocity is pixels per second
+    const period = 40
+    // velocity is pixels per frame
     const velocity = 240/60
+    // bullet will move perpendicular to the
+    // direction by +/- half the amplitude
+    const amplitude = 8
+
     // time (frame tick)
     const t = [...Array(period + 1).keys()]
     // position data. x and y position
@@ -194,9 +172,9 @@ function init_velocity() {
     // no wave motion
     const y1 = t.map(i=> 0)
     // positive sin wave
-    const y2 = t.map(i=> +8*Math.sin(i/period * Math.PI * 2))
+    const y2 = t.map(i=> +amplitude*Math.sin(i/period * Math.PI * 2))
     // negative sin wave
-    const y3 = t.map(i=> -8*Math.sin(i/period * Math.PI * 2))
+    const y3 = t.map(i=> -amplitude*Math.sin(i/period * Math.PI * 2))
 
     const p1 = x0.map((v,i)=>({x:v,y:y1[i]})) //zip
     const p2 = x0.map((v,i)=>({x:v,y:y2[i]})) //zip
@@ -206,18 +184,41 @@ function init_velocity() {
     const v2 = get_velocity(p2)
     const v3 = get_velocity(p3)
 
-    const p4 = rotatelist(p1, 45*Math.PI/180)
-    const p5 = rotatelist(p2, 45*Math.PI/180)
-    const p6 = rotatelist(p3, 45*Math.PI/180)
+    const p4 = rotatelist(p1, -45*Math.PI/180)
+    const p5 = rotatelist(p2, -45*Math.PI/180)
+    const p6 = rotatelist(p3, -45*Math.PI/180)
 
     const v4 = get_velocity(p4)
     const v5 = get_velocity(p5)
     const v6 = get_velocity(p6)
 
-    Bullet.velocity_profile_h = [v1, v2 ,v3]
-    Bullet.velocity_profile_d = [v4, v5 ,v6]
+    // profiles have the pattern [straight, wave-up, wave-down]
+    // each list is the velocity to apply in a looping fashion on each time step
+
+    // when firing one projectile, any of the splits could be used
+    // when firing two projectiles, each uses one of the second or third splits
+    // when firing three projectiles, each uses one of the splits
+
+    // this profile loops. creating a wave effect
+    Bullet.velocity_profile_wave = {
+        [Direction.RIGHT]: [v1.slice(0,1), v2, v3],
+        [Direction.UPRIGHT]: [v4.slice(0,1), v5 ,v6],
+        [Direction.LEFT]: [flip(v1.slice(0,1)), flip(v2), flip(v3)],
+        [Direction.UPLEFT]: [flip(v4.slice(0,1)), flip(v5), flip(v6)],
+    }
+
+    // this profile does not loop
+    // bullets spread apart and then fly straight
+    const spread = (seq, p) => seq.slice(0, Math.floor(seq.length/4)).concat(p)
+    Bullet.velocity_profile_spread = {
+        [Direction.RIGHT]: [v1.slice(0,1), spread(v2, v1[0]), spread(v3, v1[0])],
+        [Direction.UPRIGHT]: [v4.slice(0,1), spread(v5, v4[0]), spread(v6, v4[0])],
+        [Direction.LEFT]: [flip(v1.slice(0,1)), flip(spread(v2, v1[0])), flip(spread(v3, v1[0]))],
+        [Direction.UPLEFT]: [flip(v4.slice(0,1)), flip(spread(v5, v4[0])), flip(spread(v6, v4[0]))],
+    }
 
 }
+
 init_velocity()
 
 class Player extends PlatformerEntity {
@@ -227,8 +228,8 @@ class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
         this.physics = new Physics2dPlatform(this,{
-            xmaxspeed1: 180,
-            xmaxspeed2: 220
+            xmaxspeed1: 150,
+            xmaxspeed2: 175
         })
         this.animation = new AnimationComponent(this)
         this.visible = true
@@ -247,6 +248,10 @@ class Player extends PlatformerEntity {
 
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
+
+        this.charge_duration = 0.0
+        this.charge_timeout = 1.1
+        this.charging = false
     }
 
     buildAnimations() {
@@ -344,14 +349,19 @@ class Player extends PlatformerEntity {
         ctx.fillStyle = '#FF00007f';
         ctx.fill();
 
-        ctx.beginPath();
-        ctx.fillStyle = '#FF00007f';
+        if (this.charging) {
+            ctx.beginPath();
+            ctx.fillStyle = '#FF0000FF';
+            const p = this.charge_duration / this.charge_timeout
+            const o = this.weapon_offset[this.current_facing]
+            //ctx.rect( this.rect.x + o.x - 1, this.rect.y + o.y - 1, 5*p, 5*p);
+            ctx.arc(
+                this.rect.x + o.x + 2, this.rect.y + o.y + 2,
+                4*p,
+                0,2*Math.PI);
+            ctx.fill();
 
-
-
-        const o = this.weapon_offset[this.current_facing]
-
-        ctx.rect( this.rect.x + o.x, this.rect.y + o.y, 4, 4);
+        }
         //switch (this.current_facing) {
         //    case Direction.RIGHT:
         //        ctx.rect( this.rect.x + this.rect.w + 4, this.rect.y + 12, 4, 4);
@@ -368,7 +378,6 @@ class Player extends PlatformerEntity {
         //    default:
         //        break;
         //}
-        ctx.fill();
 
 
         //ctx.font = "bold 16px";
@@ -381,6 +390,13 @@ class Player extends PlatformerEntity {
     }
 
     update(dt) {
+
+        if (this.charging && this.charge_duration < this.charge_timeout) {
+            this.charge_duration += dt
+            if (this.charge_duration > this.charge_timeout) {
+                this.charge_duration = this.charge_timeout
+            }
+        }
 
         this.physics.update(dt)
 
@@ -459,7 +475,15 @@ class Player extends PlatformerEntity {
 
         } else if (payload.btnid === 1) {
 
-            if (!payload.pressed) {
+            if (payload.pressed) {
+                this.charging = true
+                this.charge_duration = 0.0
+            } else {
+
+                this.charging = false
+                const charge_percent = this.charge_duration / this.charge_timeout
+                console.log("charged!", charge_percent)
+
                 let d = this.physics.facing
                 if (this.looking_up) {
                     d |= Direction.UP
@@ -586,14 +610,17 @@ class MainScene extends GameScene {
         this.map.world_step = 0 // hack for single player game
         this.map.map.sendObjectCreateEvent("Player", {x: 200, y:128, playerId: "player"})
 
-        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:0, w:16, h:300})
+        const mh = 224
+        const mw = 384
+        const mwh = 192
+        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:0, w:16, h:mh})
 
-        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:300, w:640, h:32})
+        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:mh-16, w:mw, h:16})
         this.map.map.sendObjectCreateEvent("Slope", {
-                x:320-32, y:300-32, w:32, h:32, direction:Direction.UPLEFT})
-        this.map.map.sendObjectCreateEvent("Wall", {x:320, y:300-32, w:32, h:32})
+                x:mwh-24, y:mh-32, w:16, h:16, direction:Direction.UPLEFT})
+        this.map.map.sendObjectCreateEvent("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
         this.map.map.sendObjectCreateEvent("Slope", {
-                x:320+32, y:300-32, w:32, h:32, direction:Direction.UPRIGHT})
+                x:mwh+8, y:mh-32, w:16, h:16, direction:Direction.UPRIGHT})
     }
     pause(paused) {
 
@@ -655,12 +682,13 @@ class MainScene extends GameScene {
         ctx.textBaseline = "top"
 
         ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
-        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height}` , 8, 8+32);
+        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale})` , 8, 8+32);
 
     }
 
     resize() {
         Physics2dPlatform.maprect = new Rect(0, 0, gEngine.view.width, gEngine.view.height)
+        this.touch.resize()
     }
 
     handleTouches(touches) {
