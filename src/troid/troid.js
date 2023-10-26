@@ -78,6 +78,11 @@ class CspController {
     }
 }
 
+function random_choice(choices) {
+  var index = Math.floor(Math.random() * choices.length);
+  return choices[index];
+}
+
 class Bullet extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -100,9 +105,19 @@ class Bullet extends PlatformerEntity {
         this.wave_counter = 0
         this.wave_loop = true
         this.wave_profile = Bullet.velocity_profile_wave[d][this.split-1]
+
+        this.particles = [] // {x,y,dx,dy,size,color}
     }
 
     paint(ctx) {
+
+        this.particles.forEach(p => {
+            p.x += p.dx;
+            p.y += p.dy;
+            ctx.fillStyle = p.color
+            ctx.rect(p.x, p.y, p.size, p.size)
+            ctx.fill()
+        })
 
         ctx.beginPath();
         ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
@@ -112,6 +127,8 @@ class Bullet extends PlatformerEntity {
                 this.rect.y+this.rect.h/2,2,0,2*Math.PI);
         ctx.stroke();
         ctx.fill();
+
+
     }
 
     update(dt) {
@@ -122,6 +139,22 @@ class Bullet extends PlatformerEntity {
             this.wave_counter += 1
         }
         this.physics.update(dt)
+
+        this.particles.push({
+            x:this.rect.x, y:this.rect.y + 2 * (Math.random() - 0.5),
+            dx:0, dy:Math.random()-0.5,
+            size: 1,
+            color: random_choice(["#e81202", "#e85702", "#e8be02"])
+        })
+        this.particles.push({
+            x:this.rect.x, y:this.rect.y + 2 * (Math.random() - 0.5),
+            dx:0, dy:2 * (Math.random() - 0.5),
+            size:1,
+            color: random_choice(["#e81202", "#e85702", "#e8be02"])
+        })
+        while (this.particles.length > 10) {
+            this.particles.shift()
+        }
 
         if (this.wave_loop && this.wave_counter >= this.wave_profile.length) {
             this.wave_counter = 0
@@ -134,7 +167,6 @@ class Bullet extends PlatformerEntity {
             this._x_debug_map.destroyObject(this.entid)
         }
     }
-
 }
 
 function init_velocity() {
@@ -209,6 +241,8 @@ function init_velocity() {
 
     // this profile does not loop
     // bullets spread apart and then fly straight
+    // spread takes the first 25% of a wave sequence (the part where the bullet
+    // moves up or down). then concats the constant velocity from the first split
     const spread = (seq, p) => seq.slice(0, Math.floor(seq.length/4)).concat(p)
     Bullet.velocity_profile_spread = {
         [Direction.RIGHT]: [v1.slice(0,1), spread(v2, v1[0]), spread(v3, v1[0])],
@@ -220,6 +254,144 @@ function init_velocity() {
 }
 
 init_velocity()
+
+export class CameraBase {
+
+    constructor() {
+        this.dirty = true
+
+    }
+
+    resize() {
+
+    }
+
+    update(dt) {
+
+    }
+
+    activeRegion() {
+        return new Rect(0,0,0,0)
+    }
+}
+
+
+class Camera extends CameraBase {
+    constructor(map, target) {
+        super()
+        this.map = map
+        this.target = target
+
+        this.x = 0;
+        this.y = 0;
+        this.width = gEngine.view.width
+        this.height = gEngine.view.height
+
+        this.active_border = new Rect(0,0,0,0)
+        this.active_region = new Rect(0,0,0,0)
+
+        this.tile_position = {x:-1024, y:-1024}
+        this.dirty = true
+
+        //margin of 4 tiles in the direction the target is facing
+        //and 2 tiles in all other directions
+    }
+
+    setTarget(target) {
+        this.target = target
+    }
+
+    resize() {
+        this.width = gEngine.view.width
+        this.height = gEngine.view.height
+    }
+
+    update(dt) {
+
+        if (!this.target) {
+            return
+        }
+
+        //let wnd = new Rect(
+        //    Math.floor(this.target.rect.x-32-8),
+        //    Math.floor(this.target.rect.y-32-16),
+        //    3*32,
+        //    3*32)
+        //let v = Direction.vector(this.target.facing)
+        //if (v.x < 0) { wnd.x -= 32; wnd.w += 32 }
+        //if (v.x > 0) { wnd.w += 32 }
+        //if (v.y < 0) { wnd.y -= 32; wnd.h += 32 }
+        //if (v.y > 0) { wnd.h += 32 }
+        let xborder1 = Math.floor(gEngine.view.width/4)
+        let xborder2 = Math.floor(gEngine.view.width/4)
+        let yborder1 = Math.floor(gEngine.view.height/4)
+        let yborder2 = Math.floor(gEngine.view.height/4)
+        let wnd = new Rect(
+            this.x + xborder1,
+            this.y + yborder1,
+            this.width - xborder1 - xborder2,
+            this.height - yborder1 - yborder2)
+        //console.log(wnd, this.width, this.height)
+        this.active_border = wnd
+
+        let x,y;
+
+        let tcx = this.target.rect.cx()
+        let tcy = this.target.rect.cy()
+
+        if (tcx < wnd.left()) {
+            x = tcx - xborder1
+        }
+        else if (tcx > wnd.right()) {
+            x = tcx + xborder2 - this.width
+        } else {
+            x = this.x
+        }
+
+        if (tcy < wnd.top()) {
+            y = tcy - yborder1
+        }
+        else if (tcy > wnd.bottom()) {
+            y = tcy + yborder2 - this.height
+        } else {
+            y = this.y
+        }
+        // force camera to center player
+        //x = Math.floor(this.target.rect.cx() - gEngine.view.width/2)
+        //y = Math.floor(this.target.rect.cy() - gEngine.view.height/2)
+        // allow the camera to display outside of the map
+        // so that the character is never under the inputs
+        let input_border = 192
+        if (x < -input_border) { x = -input_border}
+        //if (y < -32) { y = -32 }
+
+        let mx = Physics2dPlatform.maprect.w - gEngine.view.width + input_border
+        let my = Physics2dPlatform.maprect.h - gEngine.view.height
+        if (x > mx) { x = mx }
+        if (y > my) { y = my }
+
+        this.x = Math.floor(x)
+        this.y = Math.floor(y)
+
+        let tx = Math.floor((this.x-32)/32)
+        let ty = Math.floor((this.y-32)/32)
+
+        this.active_region = new Rect(
+            tx*32,
+            ty*32,
+            this.width + 64,
+            this.height + 64)
+
+        this.dirty = this.dirty || (this.tile_position.x != tx || this.tile_position.y != ty)
+
+        this.tile_position = {x:tx, y:ty}
+
+    }
+
+    activeRegion() {
+        return this.active_region
+    }
+}
 
 class Player extends PlatformerEntity {
 
@@ -344,10 +516,10 @@ class Player extends PlatformerEntity {
         this.animation.paint(ctx)
         ctx.restore()
 
-        ctx.beginPath();
-        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        ctx.fillStyle = '#FF00007f';
-        ctx.fill();
+        //ctx.beginPath();
+        //ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        //ctx.fillStyle = '#FF00007f';
+        //ctx.fill();
 
         if (this.charging) {
             ctx.beginPath();
@@ -362,23 +534,6 @@ class Player extends PlatformerEntity {
             ctx.fill();
 
         }
-        //switch (this.current_facing) {
-        //    case Direction.RIGHT:
-        //        ctx.rect( this.rect.x + this.rect.w + 4, this.rect.y + 12, 4, 4);
-        //        break;
-        //    case Direction.UPRIGHT:
-        //        ctx.rect( this.rect.x + this.rect.w + 3, this.rect.y + 3, 4, 4);
-        //        break;
-        //    case Direction.LEFT:
-        //        ctx.rect( this.rect.x - 8, this.rect.y + 12, 4, 4);
-        //        break;
-        //    case Direction.UPLEFT:
-        //        ctx.rect( this.rect.x - 7, this.rect.y + 3, 4, 4);
-        //        break;
-        //    default:
-        //        break;
-        //}
-
 
         //ctx.font = "bold 16px";
         //ctx.fillStyle = "yellow"
@@ -493,10 +648,10 @@ class Player extends PlatformerEntity {
                 const px = this.rect.x + o.x
                 const py = this.rect.y + o.y
 
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: px, y: py, direction: d, split:1})
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: px, y: py, direction: d, split:2})
+                //this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
+                //    x: px, y: py, direction: d, split:1})
+                //this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
+                //    x: px, y: py, direction: d, split:2})
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
                     x: px, y: py, direction: d, split:3})
             }
@@ -608,19 +763,30 @@ class MainScene extends GameScene {
         this.keyboard.addButton(27) // ESC
 
         this.map.world_step = 0 // hack for single player game
-        this.map.map.sendObjectCreateEvent("Player", {x: 200, y:128, playerId: "player"})
+
+        const createObject = (t, p) => {return this.map.map.createObject(this.map.map._x_nextEntId(), t, p)}
+
+        const player = createObject("Player", {x: 200, y:128, playerId: "player"})
+
+        this.camera = new Camera(this.map.map, player)
 
         const mh = 224
         const mw = 384
         const mwh = 192
-        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:0, w:16, h:mh})
+        createObject("Wall", {x:0, y:0, w:16, h:mh})
 
-        this.map.map.sendObjectCreateEvent("Wall", {x:0, y:mh-16, w:mw, h:16})
-        this.map.map.sendObjectCreateEvent("Slope", {
+        createObject("Wall", {x:0, y:mh-16, w:mw, h:16})
+        createObject("Wall", {x:mw, y:mh-16, w:mw, h:16})
+        createObject("Wall", {x:2*mw, y:mh-16, w:mw, h:16})
+
+        createObject("Slope", {
                 x:mwh-24, y:mh-32, w:16, h:16, direction:Direction.UPLEFT})
-        this.map.map.sendObjectCreateEvent("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
-        this.map.map.sendObjectCreateEvent("Slope", {
+        createObject("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
+        createObject("Slope", {
                 x:mwh+8, y:mh-32, w:16, h:16, direction:Direction.UPRIGHT})
+
+        Physics2dPlatform.maprect = new Rect(0, 0, 3 * gEngine.view.width, gEngine.view.height)
+
     }
     pause(paused) {
 
@@ -629,8 +795,34 @@ class MainScene extends GameScene {
     update(dt) {
 
         this.map.update(dt)
+        this.camera.update(dt)
     }
 
+    _paint_status(ctx) {
+        const barHeight = 24
+
+        ctx.beginPath()
+        ctx.fillStyle = "black";
+        ctx.rect(0,0, gEngine.view.width, barHeight)
+        ctx.fill()
+
+        ctx.beginPath();
+        ctx.strokeStyle = "gold";
+        ctx.lineWidth = 3;
+        ctx.rect(gEngine.view.width/2 - 18, barHeight/2 - 9, 18, 18);
+        ctx.stroke();
+
+        for (let i=0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.fillStyle = "pink";
+            ctx.strokeStyle = "purple";
+            ctx.lineWidth = 2;
+            ctx.rect(12 + 24*i, barHeight/2 - 6, 12, 12);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+    }
     paint(ctx) {
 
         ctx.beginPath()
@@ -644,50 +836,34 @@ class MainScene extends GameScene {
         ctx.rect(0,0, gEngine.view.width, gEngine.view.height)
         ctx.stroke()
 
-        const barHeight = 48
-
-        ctx.beginPath()
-        ctx.fillStyle = "black";
-        ctx.rect(0,0, gEngine.view.width, barHeight)
-        ctx.fill()
-
-        ctx.beginPath();
-        ctx.strokeStyle = "gold";
-        ctx.lineWidth = 3;
-        ctx.rect(gEngine.view.width/2 - 18, barHeight/2 - 18, 36, 36);
-        ctx.stroke();
-
-        for (let i=0; i < 3; i++) {
-            ctx.beginPath();
-            ctx.fillStyle = "pink";
-            ctx.strokeStyle = "purple";
-            ctx.lineWidth = 2;
-            ctx.rect(48 + 48*i, barHeight/2 - 12, 24, 24);
-            ctx.fill();
-            ctx.stroke();
-        }
-
-
         ctx.lineWidth = 1;
 
-        this.map.paint(ctx)
+        ctx.save()
 
+        ctx.beginPath();
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.clip();
+        ctx.translate(-this.camera.x, -this.camera.y)
+
+        this.map.paint(ctx)
+        ctx.restore()
+
+        this._paint_status(ctx)
         this.touch.paint(ctx)
 
-
         ctx.font = "bold 16px";
-        ctx.fillStyle = "yellow"
-        ctx.strokeStyle = "yellow"
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
         ctx.textAlign = "left"
-        ctx.textBaseline = "top"
+        ctx.textBaseline = "bottom"
 
-        ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
-        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale})` , 8, 8+32);
+        //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
+        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale})` , 8, gEngine.view.height);
 
     }
 
     resize() {
-        Physics2dPlatform.maprect = new Rect(0, 0, gEngine.view.width, gEngine.view.height)
+
         this.touch.resize()
     }
 

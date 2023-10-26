@@ -677,7 +677,8 @@ export class CspMap {
         if (initial_state !== null) {
             ent.setState(initial_state)
         }
-        //return ent
+
+        return ent
     }
 
 
@@ -1035,11 +1036,11 @@ export class ClientCspMap {
             if (this.map.local_step%4==0) {
                 if (delta > this.step_delay) {
                     step_kind = STEP_CATCHUP
-                    console.log("catchup", this.map.local_step)
+                    //console.log("catchup", this.map.local_step)
                 }
                 if (delta < this.step_delay) {
                     step_kind = STEP_SKIP
-                    console.log("skip", this.map.local_step)
+                    //console.log("skip", this.map.local_step)
                 }
             }
 

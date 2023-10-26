@@ -220,7 +220,7 @@ export class Slope extends PlatformerEntity {
             }
         }
 
-        console.log(`y=${m}*x+${b}`)
+        //console.log(`y=${m}*x+${b}`)
 
     }
 
