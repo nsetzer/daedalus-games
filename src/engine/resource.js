@@ -291,6 +291,8 @@ export class ResourceLoader {
         this.sheets = {}
         this.font = {}
 
+        console.log("old loader")
+
     }
 
     addSoundEffect(resid) {

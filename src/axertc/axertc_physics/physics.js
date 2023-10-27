@@ -440,17 +440,20 @@ export class Physics2dPlatform {
             if (this.target.rect.x < Physics2dPlatform.maprect.x) {
                 this.target.rect.x = Physics2dPlatform.maprect.x
                 this.xspeed = 0
+                this.collide = true
             }
 
             let maxx = Physics2dPlatform.maprect.w - this.target.rect.w
             if (this.target.rect.x > maxx) {
                 this.target.rect.x = maxx
                 this.xspeed = 0
+                this.collide = true
             }
 
             if (this.target.rect.y < Physics2dPlatform.maprect.y) {
                 this.target.rect.y = Physics2dPlatform.maprect.y
                 this.yspeed = 0
+                this.collide = true
             }
 
             let maxy = Physics2dPlatform.maprect.h - this.target.rect.h
@@ -460,6 +463,7 @@ export class Physics2dPlatform {
                 standing = true
                 this.target.rect.y = maxy
                 this.yspeed = 0
+                this.collide = true
             }
         }
 

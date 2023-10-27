@@ -233,7 +233,8 @@ export class Font {
             this.ready = true
         }).catch(error => {
             console.error(error)
-
+            this.status = ResourceStatus.ERROR
+            this.ready = false
         })
 
     }
@@ -275,6 +276,65 @@ export class FontBuilder {
     }
 }
 
+
+export class JsonDocument {
+    constructor(path, transform=null) {
+
+        this.ready = false
+        this.status = ResourceStatus.LOADING
+        this.data = null
+
+        fetch(path)
+            .then(res=>res.json())
+            .then(json => {
+                if (transform!==null) {
+                    json = transform(json)
+                }
+                this.data = json
+                this.status = ResourceStatus.READY
+                this.ready = true
+            })
+            .catch(err => {
+                console.log(err)
+                this.status = ResourceStatus.ERROR
+                this.ready = false
+            })
+    }
+
+
+}
+
+export class JsonBuilder {
+    constructor() {
+        this._path = ""
+        this._transform = null
+    }
+
+    path(path) {
+        // resource path
+        this._path = path
+        return this
+    }
+
+    transform(fn) {
+        this._transform = fn
+    }
+
+    build() {
+
+        if (this._family === "") {
+            throw "font family not set"
+        }
+
+        if (this._path === "") {
+            throw "font path not set"
+        }
+
+        return new JsonDocument(this._path, this._transform)
+    }
+
+}
+
 export class ResourceLoader {
 
     constructor() {
@@ -289,6 +349,8 @@ export class ResourceLoader {
         this.sounds = {}
         this.sheets = {}
         this.font = {}
+        this.json = {}
+        console.log("got here 1")
 
     }
 
@@ -313,6 +375,13 @@ export class ResourceLoader {
     addFont(resid) {
         let builder = new FontBuilder()
         this.resources.push({resid, builder, instance:null, kind: "font"})
+        this.resource_count += 1
+        return builder
+    }
+
+    addJson(resid) {
+        let builder = new JsonBuilder()
+        this.resources.push({resid, builder, instance:null, kind: "json"})
         this.resource_count += 1
         return builder
     }

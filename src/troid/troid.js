@@ -111,12 +111,15 @@ class Bullet extends PlatformerEntity {
 
     paint(ctx) {
 
+        ctx.save()
         this.particles.forEach(p => {
             p.x += p.dx;
             p.y += p.dy;
             ctx.fillStyle = p.color
+            ctx.beginPath();
             ctx.rect(p.x, p.y, p.size, p.size)
             ctx.fill()
+            ctx.closePath();
         })
 
         ctx.beginPath();
@@ -127,6 +130,7 @@ class Bullet extends PlatformerEntity {
                 this.rect.y+this.rect.h/2,2,0,2*Math.PI);
         ctx.stroke();
         ctx.fill();
+        ctx.restore()
 
 
     }
@@ -255,7 +259,7 @@ function init_velocity() {
 
 init_velocity()
 
-export class CameraBase {
+class CameraBase {
 
     constructor() {
         this.dirty = true
@@ -648,10 +652,10 @@ class Player extends PlatformerEntity {
                 const px = this.rect.x + o.x
                 const py = this.rect.y + o.y
 
-                //this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                //    x: px, y: py, direction: d, split:1})
-                //this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                //    x: px, y: py, direction: d, split:2})
+                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
+                    x: px, y: py, direction: d, split:1})
+                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
+                    x: px, y: py, direction: d, split:2})
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
                     x: px, y: py, direction: d, split:3})
             }
@@ -722,6 +726,8 @@ class PlatformMap extends CspMap {
     }
 }
 
+
+
 class MainScene extends GameScene {
 
     constructor(loader) {
@@ -764,30 +770,55 @@ class MainScene extends GameScene {
 
         this.map.world_step = 0 // hack for single player game
 
+        const mapinfo = loader.json.map.data
         const createObject = (t, p) => {return this.map.map.createObject(this.map.map._x_nextEntId(), t, p)}
 
         const player = createObject("Player", {x: 200, y:128, playerId: "player"})
 
         this.camera = new Camera(this.map.map, player)
 
+        Object.entries(mapinfo.layers[0]).forEach(t => {
+            let [tid, tile] = t
+            let y = 16*(Math.floor(tid/512 - 4))
+            let x = 16*(tid%512)
+            if (tile.kind==1) {
+                createObject("Wall", {x:x, y:y, w:16, h:16})
+            } else if (tile.kind==2) {
+                createObject("Slope", {x:x, y:y, w:16, h:16, direction:tile.direction})
+            } else if (tile.kind==3) {
+                if (tile.direction&Direction.UP) {
+                    y += 8
+                }
+                createObject("Slope", {x:x, y:y, w:16, h:8, direction:tile.direction})
+            } else if (tile.kind==4) {
+                if (tile.direction&Direction.DOWN) {
+                    y += 8
+                }
+                createObject("Slope", {x:x, y:y, w:16, h:8, direction:tile.direction})
+            } else {
+                console.log(tile)
+            }
+        })
+
         const mh = 224
         const mw = 384
         const mwh = 192
-        createObject("Wall", {x:0, y:0, w:16, h:mh})
-
-        createObject("Wall", {x:0, y:mh-16, w:mw, h:16})
-        createObject("Wall", {x:mw, y:mh-16, w:mw, h:16})
-        createObject("Wall", {x:2*mw, y:mh-16, w:mw, h:16})
-
-        createObject("Slope", {
-                x:mwh-24, y:mh-32, w:16, h:16, direction:Direction.UPLEFT})
-        createObject("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
-        createObject("Slope", {
-                x:mwh+8, y:mh-32, w:16, h:16, direction:Direction.UPRIGHT})
+        //createObject("Wall", {x:0, y:0, w:16, h:mh})
+//
+        //createObject("Wall", {x:0, y:mh-16, w:mw, h:16})
+        //createObject("Wall", {x:mw, y:mh-16, w:mw, h:16})
+        //createObject("Wall", {x:2*mw, y:mh-16, w:mw, h:16})
+//
+        //createObject("Slope", {
+        //        x:mwh-24, y:mh-32, w:16, h:16, direction:Direction.UPLEFT})
+        //createObject("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
+        //createObject("Slope", {
+        //        x:mwh+8, y:mh-32, w:16, h:16, direction:Direction.UPRIGHT})
 
         Physics2dPlatform.maprect = new Rect(0, 0, 3 * gEngine.view.width, gEngine.view.height)
 
     }
+
     pause(paused) {
 
     }
@@ -882,6 +913,881 @@ class MainScene extends GameScene {
     }
 }
 
+class TileMenu {
+
+    constructor(parent) {
+
+        this.rect = new Rect(0,24,8 + 24 * 6, 8 + 24 * 3)
+        this.parent = parent
+
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (!this.rect.collidePoint(t.x, t.y)) {
+                this.parent.active_menu = null
+                return
+            }
+
+            if (!t.pressed) {
+                return
+            }
+
+
+            let tx = Math.floor((t.x -  8) / 24)
+            let ty = Math.floor((t.y - 32) / 24)
+
+            if (tx < 0) {
+                return
+            }
+
+            if (ty == 0) {
+                if (tx < 6) {
+                    this.parent.tile_property = 1 + tx
+                    console.log("set prop", 1 + tx)
+                    if (this.parent.tile_property > 4) {
+                        this.parent.tile_shape = 1
+                    }
+                    if (this.parent.tile_property > 4) {
+                        this.parent.tile_sheet = 1
+                    }
+
+                }
+            }
+
+            else if (ty == 1) {
+                if (tx < 4) {
+                    if (this.parent.tile_property <= 4) {
+                        this.parent.tile_shape = 1 + tx
+                        console.log("set shape", 1 + tx)
+                    }
+                }
+            }
+
+            else if (ty == 2) {
+                if (tx < 2) {
+                    if (this.parent.tile_property <= 4) {
+                        this.parent.tile_sheet = 1 + tx
+                        console.log("set sheet", 1 + tx)
+                    }
+                }
+            }
+        }
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+
+        let points,x,y;
+        ctx.fillStyle = "#000000"
+        ctx.strokeStyle = "#000000"
+
+        // ---------------------------------------------------------------
+        // Row 1 Style
+        x = 8
+        y = 32
+
+        let k = (this.parent.tile_property - 1)
+        ctx.beginPath();
+        ctx.strokeStyle = "gold"
+        ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
+        ctx.stroke()
+
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
+
+        // not solid
+        x += 24
+        ctx.save()
+        ctx.strokeStyle = "#000000"
+        ctx.fillStyle = "#7f7f7f"
+        ctx.beginPath();
+        ctx.setLineDash([4]);
+        ctx.rect(x,y,16,16)
+        ctx.strokeRect(x,y,16,16)
+        ctx.fill()
+        ctx.restore()
+
+        // one way
+        x += 24
+        ctx.save()
+        ctx.strokeStyle = "#000000"
+        ctx.fillStyle = "#d66d47"
+        ctx.beginPath();
+        ctx.setLineDash([4]);
+        ctx.rect(x,y,16,16)
+        ctx.strokeRect(x,y,16,16)
+        ctx.fill()
+        ctx.restore()
+
+        // ice
+        x += 24
+        ctx.fillStyle = "#36c6e3"
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
+
+        // water
+        x += 24
+        ctx.fillStyle = "#364de3"
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
+
+        // lava
+        x += 24
+        ctx.fillStyle = "#e33c36"
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
+
+        // ---------------------------------------------------------------
+        // Row 2 Shape
+        ctx.fillStyle = "#000000"
+        x = 8
+        y = 32 + 24
+
+        k = (this.parent.tile_shape - 1)
+        ctx.beginPath();
+        ctx.strokeStyle = "gold"
+        ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
+        ctx.stroke()
+
+
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
+
+        if (this.parent.tile_property <= 4) {
+            x += 24
+            points = this.parent.slopes_half[Direction.UPRIGHT]
+            ctx.beginPath();
+            ctx.moveTo(x + points[0].x, y + points[0].y);
+            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.fill()
+
+            x += 24
+            points = this.parent.slopes_onethird[Direction.UPRIGHT]
+            ctx.beginPath();
+            ctx.moveTo(x + points[0].x, y + points[0].y);
+            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.fill()
+
+            x += 24
+            points = this.parent.slopes_twothird[Direction.UPRIGHT]
+            ctx.beginPath();
+            ctx.moveTo(x + points[0].x, y + points[0].y);
+            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.fill()
+        }
+
+        // ---------------------------------------------------------------
+        // Row 3 Tile Set
+
+        x = 8
+        y = 32 + 24 + 24
+
+
+        k = (this.parent.tile_sheet - 1)
+        ctx.beginPath();
+        ctx.strokeStyle = "gold"
+        ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
+        ctx.stroke()
+
+        ctx.beginPath();
+        ctx.roundRect(x,y,16,16)
+        ctx.fill()
+
+        if (this.parent.tile_property <= 4) {
+
+            x += 24
+            ctx.beginPath();
+            ctx.roundRect(x,y,16,16)
+            ctx.fill()
+
+        }
+
+    }
+}
+
+class LevelEditScene extends GameScene {
+
+    constructor(loader) {
+        super()
+
+        this.loader = loader
+
+        this.camera = {x:-48, y:-48, scale:2}
+        this.map = {
+            width: 15*32,
+            height: 9*32,
+            layers: [{}]
+        }
+
+        this._init_slopes()
+
+        const mapinfo = loader.json.map.data
+
+        this.map.width = mapinfo.width
+        this.map.height = mapinfo.height
+        this.map.layers = mapinfo.layers
+
+        //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
+        //    const tid = (x >> 13)&0x3ffff
+        //    const kind = (x >> 10) & 0x07
+        //    const property = (x >> 7) & 0x07
+        //    const sheet = (x >> 4) & 0x07
+        //    const direction = x & 0x0F
+        //    const tile = {kind, property, sheet, direction}
+        //    return [tid, tile]
+        //}))
+
+        this.tile_shape = 1 // full, half, one third, two third
+        this.tile_property = 1 // 1: solid, 2: not solid, 3: ice (solid), 4: water (not solid), 5: lava (not solid)
+        this.tile_sheet = 1 // 1: ground, 2: pipes, 3: omake
+
+        this.active_menu = null
+        this.active_tool = 1 // 1: paint 2: erase, 3: select?
+
+        this.ygutter = 64
+    }
+
+    _init_slopes() {
+
+        const rect = new Rect(0,0,16,16)
+
+        this.slopes_half = {
+            [Direction.UPRIGHT]: [
+                {x: rect.left(),  y: rect.bottom()},
+                {x: rect.right(), y: rect.bottom()},
+                {x: rect.left(),  y: rect.top()},
+            ],
+            [Direction.UPLEFT]: [
+                {x: rect.right(), y: rect.bottom()},
+                {x: rect.left(),  y: rect.bottom()},
+                {x: rect.right(), y: rect.top()},
+            ],
+            [Direction.DOWNRIGHT]: [
+                {x: rect.left(),  y: rect.top()},
+                {x: rect.right(), y: rect.top()},
+                {x: rect.left(),  y: rect.bottom()},
+            ],
+            [Direction.DOWNLEFT]: [
+                {x: rect.right(), y: rect.top()},
+                {x: rect.left(),  y: rect.top()},
+                {x: rect.right(), y: rect.bottom()},
+            ]
+        }
+
+        this.slopes_onethird = {
+            [Direction.UPRIGHT]: [
+                {x: rect.left(),  y: rect.bottom()}, // origin
+                {x: rect.right(), y: rect.bottom()}, //
+                {x: rect.left(),  y: rect.cy()},
+            ],
+            [Direction.UPLEFT]: [
+                {x: rect.right(), y: rect.bottom()}, // origin
+                {x: rect.left(),  y: rect.bottom()},
+                {x: rect.right(), y: rect.cy()},
+            ],
+            [Direction.DOWNRIGHT]: [
+                {x: rect.left(),  y: rect.top()},
+                {x: rect.right(), y: rect.top()},
+                {x: rect.left(),  y: rect.cy()},
+            ],
+            [Direction.DOWNLEFT]: [
+                {x: rect.right(), y: rect.top()},
+                {x: rect.left(),  y: rect.top()},
+                {x: rect.right(), y: rect.cy()},
+            ]
+        }
+
+        this.slopes_twothird = {
+            [Direction.UPRIGHT]: [
+                {x: rect.left(),  y: rect.bottom()}, // origin
+                {x: rect.right(),  y: rect.bottom()},
+                {x: rect.right(),  y: rect.cy()},
+                {x: rect.left(), y: rect.top()},
+            ],
+            [Direction.UPLEFT]: [
+                {x: rect.right(), y: rect.bottom()}, // origin
+                {x: rect.left(),  y: rect.bottom()},
+                {x: rect.left(),  y: rect.cy()},
+                {x: rect.right(), y: rect.top()},
+            ],
+            [Direction.DOWNRIGHT]: [
+                {x: rect.left(),  y: rect.top()}, // origin
+                {x: rect.right(), y: rect.top()},
+                {x: rect.right(), y: rect.cy()},
+                {x: rect.left(),  y: rect.bottom()},
+            ],
+            [Direction.DOWNLEFT]: [
+                {x: rect.right(), y: rect.top()}, // origin
+                {x: rect.left(),  y: rect.top()},
+                {x: rect.left(), y: rect.cy()},
+                {x: rect.right(), y: rect.bottom()},
+            ]
+        }
+
+    }
+
+    pause(paused) {
+
+    }
+
+    update(dt) {
+
+    }
+
+    _paint_header(ctx) {
+        const barHeight = 24
+
+        ctx.beginPath()
+        ctx.fillStyle = "black";
+        ctx.rect(0,0, gEngine.view.width, barHeight)
+        ctx.fill()
+
+        // pan and
+        for (let i=0; i < 5; i++) {
+
+            ctx.beginPath();
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.rect(gEngine.view.width - 24*i - 24, barHeight/2 - 9, 18, 18);
+            ctx.stroke();
+        }
+
+        // tile editor / object editor switch
+
+        // tile picker / object picker
+        //      how to pick solid? ice? lava? water?
+        //      dialog pick
+        //          (solid, ice, lava, water)
+        //      which constrains the set of tiles to select
+        //          (full, half, onethird, twothird)
+        // erase
+        for (let i=0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.fillStyle = "#00FF00"
+            ctx.rect(6 + 24*i, barHeight/2 - 9, 18, 18);
+            ctx.closePath();
+            ctx.fill();
+
+            if (i == 1 && this.active_tool==1) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "gold"
+                ctx.stroke();
+            }
+            if (i == 2 && this.active_tool==2) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "gold"
+                ctx.stroke();
+            }
+
+
+        }
+
+        this.paint_tile(ctx, 6 + 24 + 1, barHeight/2 - 9 + 1, {
+            kind: this.tile_shape,
+            property: this.tile_property,
+            direction: Direction.UPRIGHT
+        })
+
+    }
+
+    _paint_grid(ctx) {
+        ctx.strokeStyle = "#22222233";
+        ctx.stroke.lineWidth = 1;
+
+        let gs = 16
+        const sw = gEngine.view.width * this.camera.scale
+        const sh = gEngine.view.height * this.camera.scale
+
+        // correct scaling to start drawing at first pixel in display
+        let x1 = Math.floor((this.camera.x*this.camera.scale)/gs)*gs
+        x1 = Math.max(0, x1)
+        let y1 = Math.floor((this.camera.y*this.camera.scale)/gs)*gs
+        y1 = Math.max(-this.ygutter, y1)
+
+        let x2 = Math.min(x1 + sw, this.map.width)
+        let y2 = Math.min(y1 + sh, this.map.height)
+
+        let p = []
+        for (let gx = x1; gx < x2; gx += gs) {
+            if (gx%gEngine.view.width==0) {
+                ctx.strokeStyle = "#222222aa";
+            } else {
+                ctx.strokeStyle = "#22222233";
+            }
+            p.push(gx)
+            ctx.beginPath()
+            ctx.moveTo(gx, y1)
+            ctx.lineTo(gx, y2)
+            ctx.stroke()
+        }
+
+        for (let gy = y1; gy < y2; gy += gs) {
+            if (gy%gEngine.view.height==0) {
+                ctx.strokeStyle = "#222222aa";
+            } else {
+                ctx.strokeStyle = "#22222233";
+            }
+            ctx.beginPath()
+            ctx.moveTo(x1, gy)
+            ctx.lineTo(x2, gy)
+            ctx.stroke()
+        }
+    }
+
+    paint_tile(ctx, x, y, tile) {
+        ctx.beginPath()
+
+        switch(tile.property) {
+            case 1:
+                ctx.fillStyle = "#000000";
+                break;
+            case 2:
+                ctx.fillStyle = "#7f7f7f";
+                break;
+            case 3:
+                ctx.fillStyle = "#d66d47";
+                break;
+            case 4:
+                ctx.fillStyle = "#36c6e3";
+                break;
+            case 5:
+                ctx.fillStyle = "#364de3";
+                break;
+            case 6:
+                ctx.fillStyle = "#e33c36";
+                break;
+        }
+
+        if (tile.kind > 1) {
+            ctx.beginPath();
+            let points;
+            switch (tile.kind) {
+            case 2:
+                points = this.slopes_half[tile.direction]
+                break
+            case 3:
+                points = this.slopes_onethird[tile.direction]
+                break
+            case 4:
+                points = this.slopes_twothird[tile.direction]
+                break
+            default:
+                break
+            }
+            ctx.moveTo(x + points[0].x, y + points[0].y);
+            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.fill();
+        } else {
+            ctx.rect(x,y,16,16)
+        }
+
+        ctx.fill()
+    }
+
+    paint(ctx) {
+
+        const barHeight = 24
+
+        ctx.strokeStyle = "#FF00FF";
+        ctx.beginPath()
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.stroke()
+
+        ctx.save()
+        ctx.beginPath();
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.clip();
+        ctx.translate(-this.camera.x, -(this.camera.y-barHeight))
+        ctx.scale(1/this.camera.scale,1/this.camera.scale);
+
+        ctx.beginPath()
+        ctx.fillStyle = "#477ed6";
+        ctx.strokeStyle = "#000000";
+        //const rw = Math.min(this.camera.x + gEngine.view.width, this.map.width) - this.camera.x
+        //const rh = Math.min(this.camera.y + gEngine.view.height, this.map.height) - this.camera.y
+
+        const sw = gEngine.view.width * this.camera.scale
+        const sh = gEngine.view.height * this.camera.scale
+        let x1 = Math.max(0, this.camera.x)
+        let y1 = Math.max(0, this.camera.y)
+        let x2 = Math.min(x1 + sw, this.map.width)
+        let y2 = Math.min(y1 + sh, this.map.height)
+
+        ctx.rect(
+            x1,
+            y1,
+            x2 - x1,
+            y2 - y1)
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.beginPath()
+        x1 = Math.max(0, this.camera.x)
+        y1 = -this.ygutter, this.camera.y
+        x2 = Math.min(x1 + sw, this.map.width)
+        y2 = 0
+        ctx.fillStyle = "#d66d47";
+        if (y1 < y2) {
+            ctx.rect(
+                x1,
+                y1,
+                x2 - x1,
+                y2 - y1)
+            ctx.fill()
+            ctx.stroke()
+        }
+
+        // TODO: only draw visible tiles
+        for (const [tid, tile] of Object.entries(this.map.layers[0])) {
+
+            let y = 16*Math.floor(tid/512 - 4)
+            let x = 16*tid%512
+
+            this.paint_tile(ctx, x, y, tile)
+
+        }
+
+        this._paint_grid(ctx)
+
+        //ctx.beginPath()
+        //ctx.fillStyle = "yellow"
+        //ctx.rect(0,0,16,16)
+        //ctx.fill()
+
+        ctx.restore()
+
+        if (!!this.active_menu) {
+            this.active_menu.paint(ctx)
+        }
+
+        this._paint_header(ctx)
+
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
+        let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
+        ctx.fillText(text, 8, 8);
+
+
+
+    }
+
+    resize() {
+
+    }
+
+    _getTileDirection(x,y) {
+        const tid = (y + 4)*512+x
+        const ntid_u = ((y + 4-1)*512 + x)
+        const ntid_d = ((y + 4+1)*512 + x)
+        const ntid_l = ((y + 4)*512 + (x - 1))
+        const ntid_r = ((y + 4)*512 + (x + 1))
+
+        const exists_u = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].property == this.tile_property
+        const exists_d = !!this.map.layers[0][ntid_d] && this.map.layers[0][ntid_d].property == this.tile_property
+        const exists_l = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].property == this.tile_property
+        const exists_r = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].property == this.tile_property
+
+        let d1 = Direction.NONE
+        if (exists_d && !exists_u) {
+            d1 = Direction.UP
+        } else if (!exists_d && exists_u) {
+            d1 = Direction.DOWN
+        } else {
+            d1 = random_choice([Direction.UP, Direction.DOWN])
+        }
+
+        // if the neighbor that exists is a onethird or twothird
+        // and the current kind is of the opposite kind.
+        // then this logic below should be inverted
+
+        let d2 = Direction.NONE
+        if (exists_l && !exists_r) {
+            d2 = Direction.RIGHT
+        } else if (!exists_l && exists_r) {
+            d2 = Direction.LEFT
+        } else {
+            d2 = random_choice([Direction.LEFT, Direction.RIGHT])
+        }
+
+        let direction = d1|d2
+
+        return direction
+
+    }
+
+    placeTile(x, y) {
+        console.log(x, y)
+        const tid = (y + 4)*512+x
+
+        if (tid == this.previous_tid) {
+            return
+        }
+        this.previous_tid = tid
+
+        if (!!this.map.layers[0][tid]) {
+
+            if (this.active_tool == 2) {
+                delete this.map.layers[0][tid]
+                return
+            }
+            if (this.map.layers[0][tid].kind == this.tile_shape) {
+
+                const d = [Direction.UPRIGHT,Direction.DOWNRIGHT,Direction.DOWNLEFT,Direction.UPLEFT]
+                if (this.tile_shape > 0) {
+                    this.map.layers[0][tid].direction = d[(d.indexOf(this.map.layers[0][tid].direction) + 1) % 4]
+                }
+                this.map.layers[0][tid].property = this.tile_property
+                return
+            }
+        }
+
+        if (this.active_tool == 2) {
+            return
+        }
+
+        if (this.tile_shape == 1) {
+            this.map.layers[0][tid] = {
+                kind: this.tile_shape,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+        } else if (this.tile_shape == 2) {
+            let direction = this._getTileDirection(x, y)
+            this.map.layers[0][tid] = {
+                kind: this.tile_shape,
+                direction: direction,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+        } else if (this.tile_shape == 3) {
+            let direction = this._getTileDirection(x, y)
+            this.map.layers[0][tid] = {
+                kind: this.tile_shape,
+                direction: direction,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+        } else if (this.tile_shape == 4) {
+            let direction = this._getTileDirection(x, y)
+            this.map.layers[0][tid] = {
+                kind: this.tile_shape,
+                direction: direction,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+        }
+    }
+
+    saveAs() {
+
+        // compress each tile into a 32bit integer
+        // 1 bit, the sign bit, is unused
+        const tiles0 = Object.entries(this.map.layers[0]).map((t) => {
+            const [tid, tile] = t
+            let x = 0;
+            // tid is 18 bits (two 512 bit numbers)
+            // kind, property, and sheet are each 3 bits
+            // allowing 8 different values. zero is reserved for each
+            // direction is 4 bits and optional (square tiles do not use it)
+            x |= tid << 13 // position
+            x |= tile.kind << 10
+            x |= tile.property << 7
+            x |= tile.sheet << 7
+            x |= tile?.direction??0
+            return x
+        })
+
+        const map = {
+            width: this.map.width,
+            height: this.map.height,
+            theme: 0,
+            layers: [tiles0]
+        }
+
+        let date = new Date()
+        let y = "" + date.getFullYear()
+        let m = "" + (1 + date.getMonth())
+        if (m.length < 2) { m = "0"+m; }
+        let d = "" + date.getDate()
+        if (d.length < 2) { d = "0"+d; }
+        let H = "" + date.getHours()
+        if (H.length < 2) { H = "0"+H; }
+        let M = "" + date.getMinutes()
+        if (M.length < 2) { M = "0"+M; }
+        let S = "" + date.getSeconds()
+        if (S.length < 2) { S = "0"+S; }
+
+        let fname = "map-" + y+m+d+"-"+H+M+S + ".json"
+
+        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
+        var downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href",     dataStr);
+        downloadAnchorNode.setAttribute("download", fname);
+        downloadAnchorNode.setAttribute("target", "_blank");
+        document.body.appendChild(downloadAnchorNode); // required for firefox
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    handleTouches(touches) {
+        if (touches.length > 0) {
+            // transform the touch into a tile index
+            if (touches[0].y < 24) {
+                let t = touches[0]
+
+                // buttons are 18x18 pixels.
+                // with 6 pixels between buttons
+                //
+                let ix = Math.floor((t.x - 6) / 24)
+                let iclicked = ((t.x - 6) % 24) < 18
+
+                console.log("menu clicked", ix, iclicked)
+
+                if (t.pressed) {
+
+                    if (ix == 0) {
+
+                        this.saveAs()
+                    }
+                    if (ix == 1) {
+                        this.active_tool = 1
+                        this.active_menu = new TileMenu(this)
+                    }
+                    if (ix == 2) {
+                        this.active_tool = 2
+                    }
+
+                    if (ix == 3) {
+                        if (this.camera.scale < 3) {
+                            this.camera.scale += 0.5
+                        }
+                    }
+
+                    if (ix == 4) {
+                        if (this.camera.scale > 1.0) {
+                            this.camera.scale -= 0.5
+                        }
+                    }
+                }
+
+
+            } else if (!!this.active_menu) {
+
+                this.active_menu.handleTouches(touches)
+
+            } else {
+
+                // right click or two touches to pan
+                // TODO: middle click to toggle zoom?
+                // TODO: don't place tiles  on the first click, wait for two touches
+                //       disable placing tiles if two touches occur
+                if (touches[0].buttons&2 || touches.length==2) {
+
+                    let t = touches[0]
+                    if (touches.length == 2) {
+                        t = {
+                            x: (touches[0].x + touches[1].x)/2,
+                            y: (touches[0].y + touches[1].y)/2,
+                            pressed: t.pressed,
+                            first: t.first,
+                        }
+                    }
+
+                    if (t.pressed && t.first) {
+                        this.mouse_down = {x:t.x, y:t.y, camerax:this.camera.x, cameray:this.camera.y}
+                    } else if (t.pressed) {
+                        let dx = (this.mouse_down.x - t.x) // this.camera.scale
+                        let dy = (this.mouse_down.y - t.y) // this.camera.scale
+
+                        this.camera.x = this.mouse_down.camerax + dx
+                        this.camera.y = this.mouse_down.cameray + dy
+                    }
+
+
+                } else {
+
+                    let gs = 16 / this.camera.scale
+                    touches = touches.map(t => ({
+                        x: Math.floor((t.x + this.camera.x) / gs),
+                        y: Math.floor((t.y + this.camera.y) / gs),
+                        pressed: t.pressed
+                    }))
+
+                    // TODO: if two touches pan. use the center between the two touches as the single point
+                    //       pinch to zoom. if the distance between two touches shrinks or grows past a threshold
+                    //       change the scale to either 1 or 2.
+                    const t = touches[0]
+                    if (t.pressed) {
+                        if (t.y >= -this.ygutter/16 && t.x >= 0 && t.x < this.map.width/16 && t.y < this.map.height/16) {
+                            this.placeTile(t.x, t.y)
+                        }
+                    } else {
+                        this.previous_tid = false
+                    }
+                }
+            }
+        }
+    }
+
+    handleKeyPress(keyevent) {
+    }
+
+    handleKeyRelease(keyevent) {
+
+        if (keyevent.text == 'q') {
+            this.camera.scale = (this.camera.scale==1)?2:1
+        } else if (keyevent.keyCode == 38) {
+            //up
+            this.camera.y += 8
+        } else if (keyevent.keyCode == 40) {
+            //down
+            this.camera.y -= 8
+        } else if (keyevent.keyCode == 37) {
+            //left
+            this.camera.x += 8
+        } else if (keyevent.keyCode == 39) {
+            //right
+            this.camera.x -= 8
+        } else if (keyevent.text == '1') {
+            this.tile_shape = 0
+        } else if (keyevent.text == '2') {
+            this.tile_shape = 1
+        } else if (keyevent.text == '3') {
+            this.tile_shape = 2
+        } else if (keyevent.text == '4') {
+            this.tile_shape = 3
+        } else if (keyevent.text == '5') {
+            this.tile_shape = -1
+        } else if (keyevent.text == 's') {
+            this.tile_property = 1
+        } else {
+            console.log(keyevent)
+        }
+        console.log(this.camera)
+
+    }
+
+}
+
 export default class Application extends ApplicationBase {
     constructor() {
 
@@ -895,7 +1801,8 @@ export default class Application extends ApplicationBase {
         }, () => {
 
             return new ResourceLoaderScene((loader)=> {
-                gEngine.scene = new MainScene(loader)
+                //gEngine.scene = new MainScene(loader)
+                gEngine.scene = new LevelEditScene(loader)
 
             })
         })

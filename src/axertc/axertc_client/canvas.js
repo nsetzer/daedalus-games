@@ -197,18 +197,23 @@ export class CanvasEngine extends DomElement {
         window.requestAnimationFrame(this.render.bind(this));
     }
 
-    _getMouseTouches(event, pressed) {
+    _getMouseTouches(event, pressed, first) {
         event.preventDefault();
         const rect = this.getDomNode().getBoundingClientRect();
         const x = (event.clientX - rect.left) / this.view.scale  - this.view.x
         const y = (event.clientY - rect.top) / this.view.scale  - this.view.y
         const id = 1
-        return [{x, y, id, pressed}]
+        return [{x, y, id, pressed, buttons:event.buttons, first}]
+    }
+
+    onContextMenu(event) {
+        event.preventDefault()
     }
 
     onMouseDown(event) {
-        if (event.buttons&1) {
-            const touches = this._getMouseTouches(event, true)
+        if (event.buttons&3) {
+            this._x_mouse_buttons = event.buttons
+            const touches = this._getMouseTouches(event, true, true)
             //this.touch_event = touches
             if (!this.paused) {
                 this.scene.handleTouches(touches)
@@ -218,8 +223,9 @@ export class CanvasEngine extends DomElement {
 
     onMouseMove(event) {
         //event.preventDefault();
-        if (event.buttons&1) {
-            const touches = this._getMouseTouches(event, true)
+        if (event.buttons&3) {
+            this._x_mouse_buttons = event.buttons
+            const touches = this._getMouseTouches(event, true, false)
             //this.touch_event = touches
 
             if (!this.paused) {
@@ -233,14 +239,19 @@ export class CanvasEngine extends DomElement {
             //event.preventDefault();
             //this.touch_event = []
             if (!this.paused) {
-                const touches = this._getMouseTouches(event, false)
+                const touches = this._getMouseTouches(event, false, false)
+                // mouse up does no have the button flag set for
+                // the one that was actually released. save the state
+                // for the ones that were pressed so that a mouse up
+                // for the button can be generated
+                touches[0].buttons = this._x_mouse_buttons??0
                 this.scene.handleTouches(touches)
             }
         //}
 
     }
 
-    _getTouches(event) {
+    _getTouches(event, first) {
         event.preventDefault(); // prevent emulated mouse events
 
         const rect = this.getDomNode().getBoundingClientRect();
@@ -268,6 +279,8 @@ export class CanvasEngine extends DomElement {
                     "y": this.view.height - (touch.clientX - rect.left)/this.view.scale - this.view.y,
                     "id": touch.identifier,
                     "pressed": !!pressed[touch.identifier],
+                    "buttons": 1,
+                    first,
                 }
             } else {
                 return {
@@ -275,13 +288,15 @@ export class CanvasEngine extends DomElement {
                     "y": (touch.clientY - rect.top)/this.view.scale - this.view.y,
                     "id": touch.identifier,
                     "pressed": !!pressed[touch.identifier],
+                    "buttons": 1,
+                    first,
                 }
             }
         })
     }
 
     onTouchStart(event) {
-        const touches = this._getTouches(event)
+        const touches = this._getTouches(event, true)
         if (!this.paused) {
             if (daedalus.platform.isMobile) {
                 if (window.hiddenInput.hasKeyboardFocus()) {
@@ -293,14 +308,14 @@ export class CanvasEngine extends DomElement {
     }
 
     onTouchMove(event) {
-        const touches = this._getTouches(event)
+        const touches = this._getTouches(event, false)
         if (!this.paused) {
             this.scene.handleTouches(touches)
         }
     }
 
     onTouchEnd(event) {
-        const touches = this._getTouches(event)
+        const touches = this._getTouches(event, false)
         if (!this.paused) {
             this.scene.handleTouches(touches)
         }

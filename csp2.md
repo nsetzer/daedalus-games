@@ -1,4 +1,7 @@
 
+TODO: send keyboard input on every frame
+      server needs a way to reject old inputs
+
 bendTo(state, step):
     where step is in the future
     on each update bend the object some amount so that it has exactly the future state
@@ -131,6 +134,50 @@ demo features
     adjust latency between client<->server
     adjust input delay (constant at 6 normally)
     adjust % packet loss (webrtc is reliable)
+
+ltmps = 3.33564e-9
+299792458 meters per second
+0.29979245800000004
+0.0006671280012458482
+
+## 0) Notes On Latency
+
+
+Network Latency is the delay from sending and receiving a packet of data.
+To calculate latency the time from sending a packet, and the receiving
+the reply from the server is measured. This gives the round trip time (RTT)
+The latency in one direction can be estimated to be half of the RTT, as there
+is no guarantee the packet took the same route from the client to the server, as
+from the server to the client.
+
+The speed of light is roughly 1/3rd of a meter per nanosecond.
+Latency is not just the speed of electricity through the wires.
+If that were the case the RTT from Boston to New York City would be on the order of 1ms.
+Passing through various switches and routers increases the time it takes for
+the packet to be sent.
+
+The reality is that the time for a packet to travel from Boston to New York City
+is closer to 8ms. This is close to half of the frame time at 60FPS. If this held
+true in reality, every input could be sent to the server on every frame allowing the
+client and server to be in lock step synchronization.
+
+However every packet is not created equally. Network congestion among other things
+can slow down some packets. Some packets may take 2x the amount of time, others
+may take 10x as long to travel the distance.
+
+Latency follows something like a [poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution).
+Where most packets arrive somewhere close to the minimum time, but there is a long unbounded maximum time.
+
+
+latency
+
+there is a minimum delay between the server and the client.
+add up the distance for each hop and and any delay constants for each switch along the way
+model jitter as a minimum + a poisson random number
+model jitter as a random variable `(max_delay)*x^2`
+This biases the packet latency to be closer to the target latency
+(half of the packets will have a latency of `target_latency+maxdelay/4` or less)
+
 
 
 ## 1) Synchronized Clock
@@ -458,7 +505,6 @@ clients should send a special object-input message with a lag compensation flag
 the message indicates that the server should perform lag compensation when processing
 the message
 e.g. if its a collision, look at the state history for the two characters
-
 
 ## 10) other notes
 

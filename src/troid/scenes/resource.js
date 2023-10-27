@@ -1,11 +1,9 @@
  
-from module engine import {
-    randomRange, randomNumber, randomChoice, shuffle,
-    SoundEffect, SpriteSheetBuilder, SpriteSheet,
-    ResourceStatus, ResourceLoader, CameraBase
-    Direction, TouchInput, KeyboardInput
-    Rect, Entity, CharacterComponent, GameScene
-}
+ $import("axertc_client", {
+    GameScene,
+    ResourceLoader, ResourceStatus
+
+})
 
 const RES_ROOT = "static"
 
@@ -35,7 +33,25 @@ export class ResourceLoaderScene extends GameScene {
             .layout(6, 17)
             .offset(1, 1)
             .spacing(1, 1)
-            .build()
+
+        this.loader.addJson("map")
+            .path(RES_ROOT + "/maps/map-20231027-150234.json")
+            .transform(json => {
+
+                json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
+
+                    const tid = (x >> 13)&0x3ffff
+                    const kind = (x >> 10) & 0x07
+                    const property = (x >> 7) & 0x07
+                    const sheet = (x >> 4) & 0x07
+                    const direction = x & 0x0F
+                    const tile = {kind, property, sheet, direction}
+
+                    return [tid, tile]
+                }))
+
+                return json
+            })
     }
 
 
