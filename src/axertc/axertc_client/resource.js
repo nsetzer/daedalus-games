@@ -192,6 +192,7 @@ export class SpriteSheet {
     }
 
     tile(tid) {
+        // where tid is the tile index
         return new SpriteTile(this, tid)
     }
 

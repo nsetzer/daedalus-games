@@ -1,6 +1,20 @@
  
 // stages should be 15 screens wide (15*12*32 = 5760 pixels)
 // at 150 pixels per second, a flat run would clear a stage in 5760/150 ~ 38.4 seconds
+
+// as for objects
+// every map needs a spawn point and an exit point
+// spawn:
+//   warp pipe (player jumps out of it)
+//   secret entrance (from some other maps secret exit)
+// exit point
+//   flag pole
+//   secret exit (goes to a target maps secret entrance or default spawn)
+// doors
+//   up to N doors each named A,B,C
+//   like a secret exit/entrzance pair. doors warp to the corresponding named
+//   door of another map.
+// when using the map editor: all exits kick you back to the editor
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
@@ -196,7 +210,7 @@ function init_velocity() {
     // the number of points to sample
     const period = 40
     // velocity is pixels per frame
-    const velocity = 240/60
+    const velocity = 300/60
     // bullet will move perpendicular to the
     // direction by +/- half the amplitude
     const amplitude = 8
@@ -773,7 +787,7 @@ class MainScene extends GameScene {
         const mapinfo = loader.json.map.data
         const createObject = (t, p) => {return this.map.map.createObject(this.map.map._x_nextEntId(), t, p)}
 
-        const player = createObject("Player", {x: 200, y:128, playerId: "player"})
+        const player = createObject("Player", {x: 200-64, y:128, playerId: "player"})
 
         this.camera = new Camera(this.map.map, player)
 
@@ -781,16 +795,16 @@ class MainScene extends GameScene {
             let [tid, tile] = t
             let y = 16*(Math.floor(tid/512 - 4))
             let x = 16*(tid%512)
-            if (tile.kind==1) {
+            if (tile.shape==1) {
                 createObject("Wall", {x:x, y:y, w:16, h:16})
-            } else if (tile.kind==2) {
+            } else if (tile.shape==2) {
                 createObject("Slope", {x:x, y:y, w:16, h:16, direction:tile.direction})
-            } else if (tile.kind==3) {
+            } else if (tile.shape==3) {
                 if (tile.direction&Direction.UP) {
                     y += 8
                 }
                 createObject("Slope", {x:x, y:y, w:16, h:8, direction:tile.direction})
-            } else if (tile.kind==4) {
+            } else if (tile.shape==4) {
                 if (tile.direction&Direction.DOWN) {
                     y += 8
                 }
@@ -1120,6 +1134,22 @@ class TileMenu {
     }
 }
 
+const TileShape = {}
+TileShape.RESERVED = 0
+TileShape.FULL = 1
+TileShape.HALF = 2
+TileShape.ONETHIRD = 3
+TileShape.TWOTHIRD = 4
+
+const TileProperty = {}
+TileShape.RESERVED = 0
+TileProperty.SOLID = 1
+TileProperty.NOTSOLID = 2
+TileProperty.ONEWAY = 3
+TileProperty.ICE = 4
+TileProperty.WATER = 5
+TileProperty.LAVA = 6
+
 class LevelEditScene extends GameScene {
 
     constructor(loader) {
@@ -1134,6 +1164,8 @@ class LevelEditScene extends GameScene {
             layers: [{}]
         }
 
+        this.theme_sheets = [null, this.loader.sheets.zone_01_sheet_01]
+
         this._init_slopes()
 
         const mapinfo = loader.json.map.data
@@ -1141,18 +1173,29 @@ class LevelEditScene extends GameScene {
         this.map.width = mapinfo.width
         this.map.height = mapinfo.height
         this.map.layers = mapinfo.layers
+        console.log(this.map.layers)
+
+        let t0 = performance.now()
+        Object.entries(this.map.layers[0]).map(t => {
+            const [tid, tile] = t;
+            let y = Math.floor(tid/512 - 4)
+            let x = tid%512
+            this._updateTileImpl(x, y, tile)
+        })
+        let t1 = performance.now()
+        console.log("loaded tiles in ", t1 - t0)
 
         //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
         //    const tid = (x >> 13)&0x3ffff
-        //    const kind = (x >> 10) & 0x07
+        //    const shape = (x >> 10) & 0x07
         //    const property = (x >> 7) & 0x07
         //    const sheet = (x >> 4) & 0x07
         //    const direction = x & 0x0F
-        //    const tile = {kind, property, sheet, direction}
+        //    const tile = {shape, property, sheet, direction}
         //    return [tid, tile]
         //}))
 
-        this.tile_shape = 1 // full, half, one third, two third
+        this.tile_shape = TileShape.FULL // full, half, one third, two third
         this.tile_property = 1 // 1: solid, 2: not solid, 3: ice (solid), 4: water (not solid), 5: lava (not solid)
         this.tile_sheet = 1 // 1: ground, 2: pipes, 3: omake
 
@@ -1297,8 +1340,8 @@ class LevelEditScene extends GameScene {
 
         }
 
-        this.paint_tile(ctx, 6 + 24 + 1, barHeight/2 - 9 + 1, {
-            kind: this.tile_shape,
+        this.paintTile(ctx, 6 + 24 + 1, barHeight/2 - 9 + 1, {
+            shape: this.tile_shape,
             property: this.tile_property,
             direction: Direction.UPRIGHT
         })
@@ -1349,7 +1392,7 @@ class LevelEditScene extends GameScene {
         }
     }
 
-    paint_tile(ctx, x, y, tile) {
+    paintTile(ctx, x, y, tile) {
         ctx.beginPath()
 
         switch(tile.property) {
@@ -1373,27 +1416,53 @@ class LevelEditScene extends GameScene {
                 break;
         }
 
-        if (tile.kind > 1) {
-            ctx.beginPath();
-            let points;
-            switch (tile.kind) {
-            case 2:
-                points = this.slopes_half[tile.direction]
-                break
-            case 3:
-                points = this.slopes_onethird[tile.direction]
-                break
-            case 4:
-                points = this.slopes_twothird[tile.direction]
-                break
-            default:
-                break
+        if (tile.shape > TileShape.FULL) {
+
+            if (!!tile.tile) {
+                ctx.save()
+                if (tile.property == TileProperty.NOTSOLID) {
+                    ctx.filter = "brightness(50%) hue-rotate(-90deg)";
+                }
+                if (tile.property == TileProperty.ONEWAY) {
+                    ctx.filter = "brightness(50%) hue-rotate(90deg)";
+                }
+                tile.tile.draw(ctx,x,y)
+                ctx.restore()
+            } else {
+                ctx.beginPath();
+                let points;
+                switch (tile.shape) {
+                case TileShape.HALF:
+                    points = this.slopes_half[tile.direction]
+                    break
+                case TileShape.ONETHIRD:
+                    points = this.slopes_onethird[tile.direction]
+                    break
+                case TileShape.TWOTHIRD:
+                    points = this.slopes_twothird[tile.direction]
+                    break
+                default:
+                    break
+                }
+                ctx.moveTo(x + points[0].x, y + points[0].y);
+                points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+                ctx.fill();
             }
-            ctx.moveTo(x + points[0].x, y + points[0].y);
-            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
-            ctx.fill();
         } else {
-            ctx.rect(x,y,16,16)
+
+            if (!!tile.tile) {
+                ctx.save()
+                if (tile.property == TileProperty.NOTSOLID) {
+                    ctx.filter = "brightness(50%) hue-rotate(-90deg)";
+                }
+                if (tile.property == TileProperty.ONEWAY) {
+                    ctx.filter = "brightness(50%) hue-rotate(90deg)";
+                }
+                tile.tile.draw(ctx,x,y)
+                ctx.restore()
+            } else {
+                ctx.rect(x,y,16,16)
+            }
         }
 
         ctx.fill()
@@ -1458,7 +1527,7 @@ class LevelEditScene extends GameScene {
             let y = 16*Math.floor(tid/512 - 4)
             let x = 16*tid%512
 
-            this.paint_tile(ctx, x, y, tile)
+            this.paintTile(ctx, x, y, tile)
 
         }
 
@@ -1485,13 +1554,9 @@ class LevelEditScene extends GameScene {
         //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
         let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
         ctx.fillText(text, 8, 8);
-
-
-
     }
 
     resize() {
-
     }
 
     _getTileDirection(x,y) {
@@ -1516,7 +1581,7 @@ class LevelEditScene extends GameScene {
         }
 
         // if the neighbor that exists is a onethird or twothird
-        // and the current kind is of the opposite kind.
+        // and the current shape is of the opposite shape.
         // then this logic below should be inverted
 
         let d2 = Direction.NONE
@@ -1534,46 +1599,296 @@ class LevelEditScene extends GameScene {
 
     }
 
-    placeTile(x, y) {
-        console.log(x, y)
-        const tid = (y + 4)*512+x
+    _updateTileImpl(x, y, tile) {
+        // return true if the tile was updated.
+        // update neighbors
+        // loop until no more tiles are changed
 
-        if (tid == this.previous_tid) {
+        const tile_before = tile.tile
+
+        if (tile.sheet == 0) {
+            tile.sheet = 1
+        }
+
+        if (tile.shape == TileShape.FULL) {
+
+            const ntid = ((y + 4)*512 + x)
+            const ntid_u = ((y + 4-1)*512 + x)
+            const ntid_d = ((y + 4+1)*512 + x)
+            const ntid_l = ((y + 4)*512 + (x - 1))
+            const ntid_r = ((y + 4)*512 + (x + 1))
+
+            const eu = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].property == this.map.layers[0][ntid].property
+            const ed = !!this.map.layers[0][ntid_d] && this.map.layers[0][ntid_d].property == this.map.layers[0][ntid].property
+            const el = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].property == this.map.layers[0][ntid].property
+            const er = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].property == this.map.layers[0][ntid].property
+
+            let tid = -1
+            let n = (eu+ed+el+er)
+
+            if (n == 0) {
+                tid = 0
+            }
+
+            if (n==1) {
+                if (eu) { tid = 1*11 + 3 }
+                if (ed) { tid = 0*11 + 3 }
+                if (el) { tid = 1*11 + 4 }
+                if (er) { tid = 0*11 + 4 }
+            }
+
+            if (n==2) {
+
+                let q = (er<<3)|(el<<2)|(ed<<1)|(eu)
+
+                // the top right and bottom left correspond to
+                // three in a row
+                // the group in the middle handle the cases
+                // for the 4 rotations of an 'L' shape
+                // other cases (like eu and eu) are not possible
+                // only entries with exactly 2 bits set are given
+                // (" ".join([bin(i) for i in range(16)])).replace("0b","")
+                //                   3         5    6              9   10        11
+                // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
+                let t = [
+                           -1,       -1,       -1, 2*11 + 0,
+                           -1, 1*11 + 2, 0*11 + 2,       -1,
+                           -1, 1*11 + 1, 0*11 + 1,       -1,
+                     2*11 + 0,       -1,       -1,       -1,
+                ]
+                if (t < 0) {
+                    console.log("!! n==2 not set", q)
+                }
+                tid = t[q]
+            }
+
+            if (n==3) {
+                if (!eu) { tid = 0*11 + 3 }
+                if (!ed) { tid = 1*11 + 3 }
+                if (!el) { tid = 0*11 + 4 }
+                if (!er) { tid = 1*11 + 4 }
+            }
+
+            //check for air on the diagonal up,  left and right
+            //change this tile to close off the grass
+            if (n==4) {
+                tid = 2*11 + 0
+
+
+            }
+
+            if (this.map.layers[0][ntid].property == TileProperty.SOLID) {
+
+                if (n==4) {
+                    const tiddl = ((y + 4 - 1)*512 + (x-1))
+                    const tiddr = ((y + 4 - 1)*512 + (x+1))
+                    const dl = !this.map.layers[0][tiddl]
+                    const dr = !this.map.layers[0][tiddr]
+                    if (dl) {tid = 3*11 + 7}
+                    if (dr) {tid = 3*11 + 8}
+                }
+                // fill the corners when there are neighbor diagonal slopes
+                if (n >= 2) {
+                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileShape.HALF
+                    const dl = !!this.map.layers[0][ntid_l] && (this.map.layers[0][ntid_l].shape == TileShape.HALF || this.map.layers[0][ntid_l].shape == TileShape.FULL)
+                    const dr = !!this.map.layers[0][ntid_r] && (this.map.layers[0][ntid_r].shape == TileShape.HALF || this.map.layers[0][ntid_r].shape == TileShape.FULL)
+                    if (du && dl) { tid = 3*11 + 10 }
+                    if (du && dr) { tid = 3*11 + 9 }
+                }
+
+                // fill the corners when there are neighbor diagonal slopes
+                if (n >= 2) {
+
+                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileShape.ONETHIRD
+                    const dl = !!this.map.layers[0][ntid_l] && (this.map.layers[0][ntid_l].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_l].shape == TileShape.FULL)
+                    const dr = !!this.map.layers[0][ntid_r] && (this.map.layers[0][ntid_r].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_r].shape == TileShape.FULL)
+                    if (du && dl) { tid = 2*11 + 8 }
+                    if (du && dr) { tid = 2*11 + 7 }
+                }
+            }
+
+            // fix for diagonal oneway platforms (smw style)
+            if (this.map.layers[0][ntid].property == TileProperty.NOTSOLID) {
+                if (n >= 2) {
+                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileProperty.HALF && this.map.layers[0][ntid_u].property != TileProperty.NOTSOLID
+                    const dl = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].shape == TileProperty.HALF && this.map.layers[0][ntid_l].property != TileProperty.NOTSOLID
+                    const dr = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].shape == TileProperty.HALF && this.map.layers[0][ntid_r].property != TileProperty.NOTSOLID
+                    if (du && dl) { tid = 3*11 +10 }
+                    if (du && dr) { tid = 3*11 + 9 }
+                }
+            }
+
+            if (tid >= 0) {
+                tile.tile = this.theme_sheets[tile.sheet].tile(tid)
+            }
+
+        } else if (tile.shape == TileShape.HALF) {
+            let tid = -1
+
+            if (tile.property == TileProperty.NOTSOLID) {
+                if (tile.direction == Direction.UPRIGHT) { tid = 2*11 + 6}
+                if (tile.direction == Direction.UPLEFT)  { tid = 2*11 + 5}
+            } else {
+                if (tile.direction == Direction.UPRIGHT) { tid = 0*11 + 6}
+                if (tile.direction == Direction.UPLEFT)  { tid = 0*11 + 5}
+            }
+
+            if (tile.direction == Direction.DOWNRIGHT) { tid = 3*11 + 6}
+            if (tile.direction == Direction.DOWNLEFT)  { tid = 3*11 + 5}
+
+            if (tid >= 0) {
+                tile.tile = this.theme_sheets[tile.sheet].tile(tid)
+            }
+
+        } else if (tile.shape == TileShape.ONETHIRD) {
+
+            let tid = -1
+
+            if (tile.property == TileProperty.NOTSOLID) {
+                if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 0} // invalid, no tile
+                if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 0} // invalid, no tile
+            } else {
+                if (tile.direction == Direction.UPRIGHT) { tid = 0*11 + 8}
+                if (tile.direction == Direction.UPLEFT)  { tid = 0*11 + 7}
+            }
+
+            if (tile.direction == Direction.DOWNRIGHT) { tid = 0*11 + 10}
+            if (tile.direction == Direction.DOWNLEFT)  { tid = 0*11 + 9}
+
+            if (tid >= 0) {
+                tile.tile = this.theme_sheets[tile.sheet].tile(tid)
+            }
+
+        } else if (tile.shape == TileShape.TWOTHIRD) {
+
+            let tid = -1
+
+            if (tile.property == TileProperty.NOTSOLID) {
+                if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 0} // invalid, no tile
+                if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 0} // invalid, no tile
+            } else {
+                if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 8}
+                if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 7}
+            }
+
+            if (tile.direction == Direction.DOWNRIGHT) { tid = 1*11 + 10}
+            if (tile.direction == Direction.DOWNLEFT)  { tid = 1*11 + 9}
+
+            if (tid >= 0) {
+                tile.tile = this.theme_sheets[tile.sheet].tile(tid)
+            }
+
+        } else {
+            console.log("error shape", tile.shape)
+        }
+
+        // check to see if any changes were made
+        if (!!tile_before && !!tile.tile) {
+            return tile_before.sheet != tile.tile.sheet || tile_before.tid != tile.tile.tid
+        }
+
+        return (!!tile_before) !== (!!tile.tile)
+    }
+
+    _updateTile(x, y, tile) {
+        // return true if the tile was updated.
+        // update neighbors
+        // loop until no more tiles are changed
+
+        let queue = [[x,y]]
+
+        while (queue.length > 0) {
+            let [qx,qy] = queue.shift()
+            const tid = (qy + 4)*512+qx
+
+            let delta = false
+            if (!!this.map.layers[0][tid]) {
+                delta = this._updateTileImpl(qx, qy, this.map.layers[0][tid])
+            }
+
+            if (delta) {
+                queue.push([x-1, y])
+                queue.push([x+1, y])
+                queue.push([x, y-1])
+                queue.push([x, y+1])
+            }
+
+        }
+
+        /*
+        if (y > -4) {
+            const tid = (y - 1 + 4)*512+x
+            const tile = this.map.layers[0][tid]
+            if (!!tile) {this._updateTileImpl(x, y-1, tile)}
+        }
+
+        if (y < 511) {
+            const tid = (y + 1 + 4)*512+x
+            const tile = this.map.layers[0][tid]
+            if (!!tile) {this._updateTileImpl(x, y+1, tile)}
+        }
+
+        if (x > 0) {
+            const tid = (y + 4)*512+(x-1)
+            const tile = this.map.layers[0][tid]
+            if (!!tile) {this._updateTileImpl(x-1, y, tile)}
+        }
+
+        if (x < 511) {
+            const tid = (y + 4)*512+(x+1)
+            const tile = this.map.layers[0][tid]
+            if (!!tile) {this._updateTileImpl(x+1, y, tile)}
+        }
+        */
+
+
+    }
+
+    placeTile(x, y) {
+
+        const tid = (y + 4)*512+x
+        if (tid === this.previous_tid) {
             return
         }
         this.previous_tid = tid
 
         if (!!this.map.layers[0][tid]) {
 
+            // erase the tile
             if (this.active_tool == 2) {
                 delete this.map.layers[0][tid]
                 return
             }
-            if (this.map.layers[0][tid].kind == this.tile_shape) {
+
+            // rotate the tile or change the property
+            if (this.map.layers[0][tid].shape == this.tile_shape) {
 
                 const d = [Direction.UPRIGHT,Direction.DOWNRIGHT,Direction.DOWNLEFT,Direction.UPLEFT]
-                if (this.tile_shape > 0) {
+                if (this.tile_shape > 1) {
                     this.map.layers[0][tid].direction = d[(d.indexOf(this.map.layers[0][tid].direction) + 1) % 4]
                 }
                 this.map.layers[0][tid].property = this.tile_property
+
+                this._updateTile(x,y,this.map.layers[0][tid])
                 return
             }
         }
 
-        if (this.active_tool == 2) {
+        // if not painting exit
+        if (this.active_tool != 1) {
             return
         }
 
         if (this.tile_shape == 1) {
             this.map.layers[0][tid] = {
-                kind: this.tile_shape,
+                shape: this.tile_shape,
                 property: this.tile_property,
                 sheet: this.tile_sheet,
             }
         } else if (this.tile_shape == 2) {
             let direction = this._getTileDirection(x, y)
             this.map.layers[0][tid] = {
-                kind: this.tile_shape,
+                shape: this.tile_shape,
                 direction: direction,
                 property: this.tile_property,
                 sheet: this.tile_sheet,
@@ -1581,7 +1896,7 @@ class LevelEditScene extends GameScene {
         } else if (this.tile_shape == 3) {
             let direction = this._getTileDirection(x, y)
             this.map.layers[0][tid] = {
-                kind: this.tile_shape,
+                shape: this.tile_shape,
                 direction: direction,
                 property: this.tile_property,
                 sheet: this.tile_sheet,
@@ -1589,12 +1904,14 @@ class LevelEditScene extends GameScene {
         } else if (this.tile_shape == 4) {
             let direction = this._getTileDirection(x, y)
             this.map.layers[0][tid] = {
-                kind: this.tile_shape,
+                shape: this.tile_shape,
                 direction: direction,
                 property: this.tile_property,
                 sheet: this.tile_sheet,
             }
         }
+
+        this._updateTile(x,y,this.map.layers[0][tid])
     }
 
     saveAs() {
@@ -1605,13 +1922,13 @@ class LevelEditScene extends GameScene {
             const [tid, tile] = t
             let x = 0;
             // tid is 18 bits (two 512 bit numbers)
-            // kind, property, and sheet are each 3 bits
+            // shape, property, and sheet are each 3 bits
             // allowing 8 different values. zero is reserved for each
             // direction is 4 bits and optional (square tiles do not use it)
             x |= tid << 13 // position
-            x |= tile.kind << 10
+            x |= tile.shape << 10
             x |= tile.property << 7
-            x |= tile.sheet << 7
+            x |= tile.sheet << 4
             x |= tile?.direction??0
             return x
         })
@@ -1728,7 +2045,7 @@ class LevelEditScene extends GameScene {
                     let gs = 16 / this.camera.scale
                     touches = touches.map(t => ({
                         x: Math.floor((t.x + this.camera.x) / gs),
-                        y: Math.floor((t.y + this.camera.y) / gs),
+                        y: Math.floor((t.y + this.camera.y - 24) / gs),
                         pressed: t.pressed
                     }))
 
@@ -1741,7 +2058,7 @@ class LevelEditScene extends GameScene {
                             this.placeTile(t.x, t.y)
                         }
                     } else {
-                        this.previous_tid = false
+                        this.previous_tid = -1
                     }
                 }
             }

@@ -330,6 +330,7 @@ export class CanvasEngine extends DomElement {
         // TODO: if a specific resolution is given, use a float scale factor to make it fit
         // TODO: touch inputs that are not scaled?
 
+
         // width x height [height/32] (width/height) description
         //  640 x  480 [15] (1.333) full screen
         //  384 x  224 [ 7] (1.714) wide screen nes

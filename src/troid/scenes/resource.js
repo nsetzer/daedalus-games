@@ -34,18 +34,25 @@ export class ResourceLoaderScene extends GameScene {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("zone_01_sheet_01")
+            .path(RES_ROOT + "/sprites/tile_ground_01.png")
+            .dimensions(16, 16)
+            .layout(4, 11)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addJson("map")
-            .path(RES_ROOT + "/maps/map-20231027-150234.json")
+            .path(RES_ROOT + "/maps/map-20231027-210343.json")
             .transform(json => {
 
                 json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
 
                     const tid = (x >> 13)&0x3ffff
-                    const kind = (x >> 10) & 0x07
+                    const shape = (x >> 10) & 0x07
                     const property = (x >> 7) & 0x07
                     const sheet = (x >> 4) & 0x07
                     const direction = x & 0x0F
-                    const tile = {kind, property, sheet, direction}
+                    const tile = {shape, property, sheet, direction}
 
                     return [tid, tile]
                 }))
