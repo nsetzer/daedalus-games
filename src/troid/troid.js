@@ -1606,6 +1606,8 @@ class LevelEditScene extends GameScene {
 
         const tile_before = tile.tile
 
+        const solid = (p) => p == TileProperty.SOLID
+
         if (tile.sheet == 0) {
             tile.sheet = 1
         }
@@ -1618,10 +1620,10 @@ class LevelEditScene extends GameScene {
             const ntid_l = ((y + 4)*512 + (x - 1))
             const ntid_r = ((y + 4)*512 + (x + 1))
 
-            const eu = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].property == this.map.layers[0][ntid].property
-            const ed = !!this.map.layers[0][ntid_d] && this.map.layers[0][ntid_d].property == this.map.layers[0][ntid].property
-            const el = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].property == this.map.layers[0][ntid].property
-            const er = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].property == this.map.layers[0][ntid].property
+            const eu = !!this.map.layers[0][ntid_u] && solid(this.map.layers[0][ntid_u].property) == solid(this.map.layers[0][ntid].property)
+            const ed = !!this.map.layers[0][ntid_d] && solid(this.map.layers[0][ntid_d].property) == solid(this.map.layers[0][ntid].property)
+            const el = !!this.map.layers[0][ntid_l] && solid(this.map.layers[0][ntid_l].property) == solid(this.map.layers[0][ntid].property)
+            const er = !!this.map.layers[0][ntid_r] && solid(this.map.layers[0][ntid_r].property) == solid(this.map.layers[0][ntid].property)
 
             let tid = -1
             let n = (eu+ed+el+er)
@@ -1660,6 +1662,13 @@ class LevelEditScene extends GameScene {
                     console.log("!! n==2 not set", q)
                 }
                 tid = t[q]
+
+                // non solid walls should join with the solid floor
+                if (!solid(this.map.layers[0][ntid].property) && solid(this.map.layers[0][ntid_d]?.property)) {
+                    if (tid == 1*11 + 1) { tid = 0*11 + 4}
+                    if (tid == 1*11 + 2) { tid = 1*11 + 4}
+                }
+
             }
 
             if (n==3) {
@@ -1667,6 +1676,12 @@ class LevelEditScene extends GameScene {
                 if (!ed) { tid = 1*11 + 3 }
                 if (!el) { tid = 0*11 + 4 }
                 if (!er) { tid = 1*11 + 4 }
+
+                // non solid walls should join with the solid floor
+                if (!solid(this.map.layers[0][ntid].property) && solid(this.map.layers[0][ntid_d]?.property)) {
+                    tid = 2*11 + 0
+                }
+
             }
 
             //check for air on the diagonal up,  left and right
@@ -1687,11 +1702,12 @@ class LevelEditScene extends GameScene {
                     if (dl) {tid = 3*11 + 7}
                     if (dr) {tid = 3*11 + 8}
                 }
+
                 // fill the corners when there are neighbor diagonal slopes
                 if (n >= 2) {
-                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileShape.HALF
-                    const dl = !!this.map.layers[0][ntid_l] && (this.map.layers[0][ntid_l].shape == TileShape.HALF || this.map.layers[0][ntid_l].shape == TileShape.FULL)
-                    const dr = !!this.map.layers[0][ntid_r] && (this.map.layers[0][ntid_r].shape == TileShape.HALF || this.map.layers[0][ntid_r].shape == TileShape.FULL)
+                    const du = !!this.map.layers[0][ntid_u] && solid(this.map.layers[0][ntid_u].property) == solid(this.map.layers[0][ntid].property) && this.map.layers[0][ntid_u].shape == TileShape.HALF
+                    const dl = !!this.map.layers[0][ntid_l] && solid(this.map.layers[0][ntid_l].property) == solid(this.map.layers[0][ntid].property) && (this.map.layers[0][ntid_l].shape == TileShape.HALF || this.map.layers[0][ntid_l].shape == TileShape.FULL)
+                    const dr = !!this.map.layers[0][ntid_r] && solid(this.map.layers[0][ntid_r].property) == solid(this.map.layers[0][ntid].property) && (this.map.layers[0][ntid_r].shape == TileShape.HALF || this.map.layers[0][ntid_r].shape == TileShape.FULL)
                     if (du && dl) { tid = 3*11 + 10 }
                     if (du && dr) { tid = 3*11 + 9 }
                 }
@@ -1699,9 +1715,9 @@ class LevelEditScene extends GameScene {
                 // fill the corners when there are neighbor diagonal slopes
                 if (n >= 2) {
 
-                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileShape.ONETHIRD
-                    const dl = !!this.map.layers[0][ntid_l] && (this.map.layers[0][ntid_l].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_l].shape == TileShape.FULL)
-                    const dr = !!this.map.layers[0][ntid_r] && (this.map.layers[0][ntid_r].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_r].shape == TileShape.FULL)
+                    const du = !!this.map.layers[0][ntid_u] && solid(this.map.layers[0][ntid_u].property) == solid(this.map.layers[0][ntid].property) && this.map.layers[0][ntid_u].shape == TileShape.ONETHIRD
+                    const dl = !!this.map.layers[0][ntid_l] && solid(this.map.layers[0][ntid_l].property) == solid(this.map.layers[0][ntid].property) && (this.map.layers[0][ntid_l].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_l].shape == TileShape.FULL)
+                    const dr = !!this.map.layers[0][ntid_r] && solid(this.map.layers[0][ntid_r].property) == solid(this.map.layers[0][ntid].property) && (this.map.layers[0][ntid_r].shape == TileShape.TWOTHIRD || this.map.layers[0][ntid_r].shape == TileShape.FULL)
                     if (du && dl) { tid = 2*11 + 8 }
                     if (du && dr) { tid = 2*11 + 7 }
                 }
@@ -1710,9 +1726,9 @@ class LevelEditScene extends GameScene {
             // fix for diagonal oneway platforms (smw style)
             if (this.map.layers[0][ntid].property == TileProperty.NOTSOLID) {
                 if (n >= 2) {
-                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileProperty.HALF && this.map.layers[0][ntid_u].property != TileProperty.NOTSOLID
-                    const dl = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].shape == TileProperty.HALF && this.map.layers[0][ntid_l].property != TileProperty.NOTSOLID
-                    const dr = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].shape == TileProperty.HALF && this.map.layers[0][ntid_r].property != TileProperty.NOTSOLID
+                    const du = !!this.map.layers[0][ntid_u] && this.map.layers[0][ntid_u].shape == TileShape.HALF && this.map.layers[0][ntid_u].property != TileProperty.NOTSOLID
+                    const dl = !!this.map.layers[0][ntid_l] && this.map.layers[0][ntid_l].shape == TileShape.HALF && this.map.layers[0][ntid_l].property != TileProperty.NOTSOLID
+                    const dr = !!this.map.layers[0][ntid_r] && this.map.layers[0][ntid_r].shape == TileShape.HALF && this.map.layers[0][ntid_r].property != TileProperty.NOTSOLID
                     if (du && dl) { tid = 3*11 +10 }
                     if (du && dr) { tid = 3*11 + 9 }
                 }
