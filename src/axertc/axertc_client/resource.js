@@ -351,7 +351,6 @@ export class ResourceLoader {
         this.sheets = {}
         this.font = {}
         this.json = {}
-        console.log("got here 1")
 
     }
 

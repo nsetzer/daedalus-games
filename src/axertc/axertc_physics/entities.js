@@ -381,3 +381,47 @@ export class Slope extends PlatformerEntity {
         this.init()
     }
 }
+
+export class OneWayWall extends PlatformerEntity {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, props?.w??0, props?.h??0)
+
+        this.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.playerId})
+        }
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+
+        console.log("oneway!")
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            // return a rectangle that does not collide
+            let update = rect.copy()
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        return null
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = "#c05f10";
+        ctx.strokeStyle = "#green";
+        ctx.beginPath();
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+    }
+}
