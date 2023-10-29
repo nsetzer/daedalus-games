@@ -243,12 +243,16 @@ export class Physics2dPlatform {
             // apply x acceleration
 
             if ((this.direction & Direction.LEFT) > 0) {
+                this.facing = Direction.LEFT
                 if (this.xspeed > -this.xmaxspeed1) {
                     this.xspeed -= this.xacceleration * dt
+                    //console.log(this.facing, this.xspeed)
                 }
             } else if ((this.direction & Direction.RIGHT) > 0) {
+                this.facing = Direction.RIGHT
                 if (this.xspeed < this.xmaxspeed1) {
                     this.xspeed += this.xacceleration * dt
+                    //console.log(this.facing, this.xspeed)
                 }
             } else /*if (this.standing)*/ {
                 // apply friction while standing

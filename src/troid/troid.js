@@ -431,6 +431,63 @@ class MainScene extends GameScene {
     }
 }
 
+class FileMenu {
+    constructor(parent) {
+
+        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 2)
+        this.parent = parent
+
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (t.pressed) { // prevent drag firing multiple times
+                return
+            }
+
+            if (!this.rect.collidePoint(t.x, t.y)) {
+                this.parent.active_menu = null
+                return
+            }
+
+            let tx = Math.floor((t.x -  8) / 24)
+            let ty = Math.floor((t.y - 32) / 24)
+
+            if (tx < 0) {
+                return
+            }
+
+            if (tx == 0 && ty == 0) {
+
+                this.parent.saveAs()
+            }
+        }
+    }
+
+    paint(ctx) {
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+
+        let x = 8
+        let y = 32
+
+        this.parent.editor_icons.brush.draw(ctx, x, y)
+
+        y += 24
+        this.parent.editor_icons.brush.draw(ctx, x, y)
+
+    }
+
+
+}
+
 class TileMenu {
 
     constructor(parent) {
@@ -446,14 +503,15 @@ class TileMenu {
 
             let t = touches[0]
 
+            if (t.pressed) { // prevent drag firing multiple times
+                return
+            }
+
             if (!this.rect.collidePoint(t.x, t.y)) {
                 this.parent.active_menu = null
                 return
             }
 
-            if (!t.pressed) {
-                return
-            }
 
 
             let tx = Math.floor((t.x -  8) / 24)
@@ -493,7 +551,7 @@ class TileMenu {
             }
 
             else if (ty == 2) {
-                if (tx < 2) {
+                if (tx < this.parent.theme_sheets.length - 1) {
                     if (this.parent.tile_property <= 4) {
                         this.parent.tile_sheet = 1 + tx
                         console.log("set sheet", 1 + tx)
@@ -620,11 +678,12 @@ class TileMenu {
         }
 
         x = 8 + 4*24
-        points = this.parent.slopes_twothird[Direction.UPRIGHT]
-        ctx.beginPath();
-        ctx.moveTo(x + points[0].x, y + points[0].y);
-        points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
-        ctx.fill()
+        this.parent.editor_icons.brush.draw(ctx, x, y)
+        //points = this.parent.slopes_twothird[Direction.UPRIGHT]
+        //ctx.beginPath();
+        //ctx.moveTo(x + points[0].x, y + points[0].y);
+        //points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+        //ctx.fill()
 
         // ---------------------------------------------------------------
         // Row 3 Tile Set
@@ -639,18 +698,10 @@ class TileMenu {
         ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
         ctx.stroke()
 
-        ctx.beginPath();
-        ctx.roundRect(x,y,16,16)
-        ctx.fill()
-
-        if (this.parent.tile_property <= 4) {
-
+        this.parent.theme_sheets_icon.slice(1).forEach(t => {
+            t.draw(ctx, x,y)
             x += 24
-            ctx.beginPath();
-            ctx.roundRect(x,y,16,16)
-            ctx.fill()
-
-        }
+        })
 
     }
 }
@@ -673,6 +724,16 @@ class LevelEditScene extends GameScene {
 
         this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
 
+        this.theme_sheets_icon = [null, gAssets.sheets.zone_01_sheet_01.tile(0)]
+
+        this.editor_icons = {
+            "pencil": gAssets.sheets.editor.tile(0),
+            "erase": gAssets.sheets.editor.tile(1),
+            "zoom_in": gAssets.sheets.editor.tile(2),
+            "zoom_out": gAssets.sheets.editor.tile(3),
+            "brush": gAssets.sheets.editor.tile(5),
+        }
+
         this._init_slopes()
 
         const mapinfo = gAssets.mapinfo
@@ -680,16 +741,6 @@ class LevelEditScene extends GameScene {
         this.map.width = mapinfo.width
         this.map.height = mapinfo.height
         this.map.layers = mapinfo.layers
-
-        let t0 = performance.now()
-        Object.entries(this.map.layers[0]).map(t => {
-            const [tid, tile] = t;
-            let y = Math.floor(tid/512 - 4)
-            let x = tid%512
-            updateTile(this.map.layers[0], this.theme_sheets, x, y, tile)
-        })
-        let t1 = performance.now()
-        console.log("loaded tiles in ", t1 - t0)
 
         //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
         //    const tid = (x >> 13)&0x3ffff
@@ -806,16 +857,6 @@ class LevelEditScene extends GameScene {
         ctx.rect(0,0, gEngine.view.width, barHeight)
         ctx.fill()
 
-        // pan and
-        for (let i=0; i < 5; i++) {
-
-            ctx.beginPath();
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 3;
-            ctx.rect(gEngine.view.width - 24*i - 24, barHeight/2 - 9, 18, 18);
-            ctx.stroke();
-        }
-
         // tile editor / object editor switch
 
         // tile picker / object picker
@@ -825,32 +866,63 @@ class LevelEditScene extends GameScene {
         //      which constrains the set of tiles to select
         //          (full, half, onethird, twothird)
         // erase
-        for (let i=0; i < 5; i++) {
+
+        const y = barHeight/2 - 9
+
+        for (let i=0; i < 7; i++) {
             ctx.beginPath();
             ctx.fillStyle = "#00FF00"
             ctx.rect(6 + 24*i, barHeight/2 - 9, 18, 18);
             ctx.closePath();
             ctx.fill();
 
-            if (i == 1 && this.active_tool==1) {
+            if (i == 3 && (this.active_tool==1 || this.active_tool==3)) {
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = "gold"
                 ctx.stroke();
             }
-            if (i == 2 && this.active_tool==2) {
+            if (i == 4 && this.active_tool==2) {
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = "gold"
                 ctx.stroke();
             }
-
-
         }
 
-        paintTile(ctx, 6 + 24 + 1, barHeight/2 - 9 + 1, {
-            shape: this.tile_shape,
-            property: this.tile_property,
-            direction: Direction.UPRIGHT
-        })
+        this.editor_icons.pencil.draw(ctx, 6+24*0+1, y+1)
+        this.editor_icons.pencil.draw(ctx, 6+24*1+1, y+1)
+        this.editor_icons.erase.draw(ctx, 6+24*4+1, y+1)
+        this.editor_icons.zoom_out.draw(ctx, 6+24*5+1, y+1)
+        this.editor_icons.zoom_in.draw(ctx, 6+24*6+1, y+1)
+
+        let points;
+        switch (this.tile_shape) {
+        case TileShape.HALF:
+            points = this.slopes_half[Direction.UPRIGHT]
+            break
+        case TileShape.ONETHIRD:
+            points = this.slopes_onethird[Direction.UPRIGHT]
+            break
+        case TileShape.TWOTHIRD:
+            points = this.slopes_twothird[Direction.UPRIGHT]
+            break
+        default:
+            break
+        }
+
+        if (this.active_tool == 3) {
+
+
+            this.editor_icons.brush.draw(ctx, 6 + 24*3 + 1, y + 1)
+        } else {
+            const tile = {
+                shape: this.tile_shape,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+                direction: Direction.UPRIGHT,
+                points: points,
+            }
+            paintTile(ctx, 6 + 24*3 + 1, y + 1, tile)
+        }
 
     }
 
@@ -929,6 +1001,7 @@ class LevelEditScene extends GameScene {
         let x2 = Math.min(x1 + sw, this.map.width)
         let y2 = Math.min(y1 + sh, this.map.height)
 
+        // draw blue for the background
         ctx.rect(
             x1,
             y1,
@@ -937,6 +1010,7 @@ class LevelEditScene extends GameScene {
         ctx.fill()
         ctx.stroke()
 
+        // draw orange for the -y gutter
         ctx.beginPath()
         x1 = Math.max(0, this.camera.x)
         y1 = -this.ygutter, this.camera.y
@@ -957,7 +1031,7 @@ class LevelEditScene extends GameScene {
         for (const [tid, tile] of Object.entries(this.map.layers[0])) {
 
             let y = 16*Math.floor(tid/512 - 4)
-            let x = 16*tid%512
+            let x = 16*(tid%512)
 
             paintTile(ctx, x, y, tile)
 
@@ -978,14 +1052,14 @@ class LevelEditScene extends GameScene {
 
         this._paint_header(ctx)
 
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "yellow"
-        ctx.strokeStyle = "yellow"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-        //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
-        let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
-        ctx.fillText(text, 8, 8);
+        //ctx.font = "bold 16px";
+        //ctx.fillStyle = "yellow"
+        //ctx.strokeStyle = "yellow"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        ////let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
+        //let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
+        //ctx.fillText(text, 8, 8);
     }
 
     resize() {
@@ -1028,9 +1102,7 @@ class LevelEditScene extends GameScene {
         let direction = d1|d2
 
         return direction
-
     }
-
 
     _updateTile(x, y, tile) {
         // return true if the tile was updated.
@@ -1045,7 +1117,7 @@ class LevelEditScene extends GameScene {
 
             let delta = false
             if (!!this.map.layers[0][tid]) {
-                delta = updateTile(this.map.layers[0], this.theme_sheets, qx, qy, this.map.layers[0][tid])
+                delta = updateTile(this.map.layers[0], this.map.width, this.map.height, this.theme_sheets, qx, qy, this.map.layers[0][tid])
             }
 
             if (delta) {
@@ -1067,33 +1139,6 @@ class LevelEditScene extends GameScene {
             }
 
         }
-
-        /*
-        if (y > -4) {
-            const tid = (y - 1 + 4)*512+x
-            const tile = this.map.layers[0][tid]
-            if (!!tile) {this._updateTileImpl(x, y-1, tile)}
-        }
-
-        if (y < 511) {
-            const tid = (y + 1 + 4)*512+x
-            const tile = this.map.layers[0][tid]
-            if (!!tile) {this._updateTileImpl(x, y+1, tile)}
-        }
-
-        if (x > 0) {
-            const tid = (y + 4)*512+(x-1)
-            const tile = this.map.layers[0][tid]
-            if (!!tile) {this._updateTileImpl(x-1, y, tile)}
-        }
-
-        if (x < 511) {
-            const tid = (y + 4)*512+(x+1)
-            const tile = this.map.layers[0][tid]
-            if (!!tile) {this._updateTileImpl(x+1, y, tile)}
-        }
-        */
-
 
     }
 
@@ -1241,27 +1286,41 @@ class LevelEditScene extends GameScene {
 
                 console.log("menu clicked", ix, iclicked)
 
-                if (t.pressed) {
+                if (!t.pressed) {
 
                     if (ix == 0) {
 
-                        this.saveAs()
+                        if (!!this.active_menu) {
+                            this.active_menu = null
+                        } else {
+                            this.active_menu = new FileMenu(this)
+                        }
                     }
-                    if (ix == 1) {
+                    if (ix == 3) {
                         this.active_tool = 1
-                        this.active_menu = new TileMenu(this)
+                        if (!!this.active_menu) {
+                            this.active_menu = null
+                        } else {
+                            this.active_menu = new TileMenu(this)
+                        }
                     }
-                    if (ix == 2) {
+                    if (ix == 4) {
+                        // erase tool
+                        // TODO: move this into the tile menu?
+                        //       have separate object and tile erase
+                        this.active_menu = null
                         this.active_tool = 2
                     }
 
-                    if (ix == 3) {
+                    if (ix == 5) {
+                        this.active_menu = null
                         if (this.camera.scale < 3) {
                             this.camera.scale += 0.5
                         }
                     }
 
-                    if (ix == 4) {
+                    if (ix == 6) {
+                        this.active_menu = null
                         if (this.camera.scale > 1.0) {
                             this.camera.scale -= 0.5
                         }
@@ -1380,7 +1439,7 @@ export default class Application extends ApplicationBase {
         }, () => {
 
             const edit = true
-            const mapid = "map-20231027-210343"
+            const mapid = "map-20231029-155050"
             return new LevelLoaderScene(mapid, edit, ()=>{
 
                 if (edit) {
@@ -1391,10 +1450,6 @@ export default class Application extends ApplicationBase {
 
                 console.log("done!")
             })
-            //return new ResourceLoaderScene((loader)=> {
-            //    gEngine.scene = new MainScene(loader)
-            //    //gEngine.scene =
-            //})
         })
     }
 }

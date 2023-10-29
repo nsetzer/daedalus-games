@@ -221,6 +221,8 @@ export class Player extends PlatformerEntity {
         this.charge_duration = 0.0
         this.charge_timeout = 1.1
         this.charging = false
+
+        this._x_input = {x:0,y:0}
     }
 
     buildAnimations() {
@@ -339,6 +341,14 @@ export class Player extends PlatformerEntity {
         //ctx.textBaseline = "top"
         //ctx.fillText(`${this.physics.action}`, this.rect.x, this.rect.y);
 
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
+
+
     }
 
     update(dt) {
@@ -393,7 +403,15 @@ export class Player extends PlatformerEntity {
     onInput(payload) {
 
         if ("whlid" in payload) {
+
+            this._x_input = payload.vector
             //this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
+
+            // dead zone on mobile
+            if (Math.abs(payload.vector.x) < 0.3535) {
+                payload.vector.x = 0
+            }
+
             this.physics.direction = Direction.fromVector(payload.vector.x, 0)
             //console.log(payload.vector.x, payload.vector.y)
             //if (this.physics.direction&Direction.UP) {
@@ -403,19 +421,31 @@ export class Player extends PlatformerEntity {
                 this.looking_up = false
             }
 
-            if (payload.vector.x > 0.3535) {
-                this.physics.xspeed = 90
-                this.physics.facing = Direction.RIGHT
-            }
+            // const maxspeed = 90
 
-            else if (payload.vector.x < -0.3535) {
-                this.physics.xspeed = -90
-                this.physics.facing = Direction.LEFT
-            }
+            //if (payload.vector.x > 0.3535) {
+            //    this.physics.facing = Direction.RIGHT
+            //    if (this.physics.xspeed < maxspeed) {
+            //        this.physics.xspeed += maxspeed/10.0
+            //        if (this.physics.xspeed > maxspeed) {
+            //            this.physics.xspeed = maxspeed
+            //        }
+            //    }
+            //}
 
-            else {
-                this.physics.xspeed = 0
-            }
+            //else if (payload.vector.x < -0.3535) {
+            //    this.physics.facing = Direction.LEFT
+            //    if (this.physics.xspeed > -maxspeed) {
+            //        this.physics.xspeed -= maxspeed/10.0
+            //        if (this.physics.xspeed < -maxspeed) {
+            //            this.physics.xspeed = -maxspeed
+            //        }
+            //    }
+            //}
+
+            //else {
+            //    this.physics.xspeed = 0
+            //}
 
         } else if (payload.btnid === 0) {
 

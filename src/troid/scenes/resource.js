@@ -240,6 +240,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("editor")
+            .path(RES_ROOT + "/sprites/editor.png")
+            .dimensions(16, 16)
+            .layout(1, 6)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("zone_01_sheet_01")
             .path(RES_ROOT + "/sprites/tile_ground_01.png")
             .dimensions(16, 16)
@@ -293,9 +300,9 @@ class LevelTileBuilder {
 
             const [tid, tile] = this.work_queue.shift()
             let y = Math.floor(tid/512 - 4)
-            let x = tid%512
+            let x = (tid%512)
 
-            updateTile(this.map.layers[0], this.theme_sheets, x, y, tile)
+            updateTile(this.map.layers[0], this.map.width, this.map.height, this.theme_sheets, x, y, tile)
 
             this.num_jobs_completed += 1
         }
@@ -368,7 +375,7 @@ class LevelChunkBuilder {
         Object.entries(this.map.layers[0]).forEach(t => {
             let [tid, tile] = t
             let y = Math.floor(tid/512 - 4)
-            let x = tid%512
+            let x = (tid%512)
 
             // don't need to build chunks for tiles that can't be drawn
             if (y < 0) {
@@ -410,7 +417,7 @@ class LevelChunkBuilder {
         Object.entries(chunk.tiles).forEach(t => {
             let [tid, tile] = t
             let y = Math.floor(tid/512 - 4)
-            let x = tid%512
+            let x = (tid%512)
 
             x -= chunk.x
             y -= chunk.y
