@@ -20,6 +20,7 @@ export class Wall extends PlatformerEntity {
         this.solid = 1
         this.rect = new Rect(props?.x??0, props?.y??0, props?.w??0, props?.h??0)
         this.direction = 1
+        this.visible = props?.visible??true
 
         this.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.playerId})
@@ -120,6 +121,7 @@ export class Slope extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(0,0,0,0)
+        this.visible = props?.visible??true
 
         if (!!props.direction) {
             this.rect = new Rect(props.x, props.y, props.w, props.h)
@@ -387,6 +389,7 @@ export class OneWayWall extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, props?.w??0, props?.h??0)
+        this.visible = props?.visible??true
 
         this.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.playerId})
@@ -395,8 +398,6 @@ export class OneWayWall extends PlatformerEntity {
         this.breakable = 0
         this.alive = 1
         this.solid = 1
-
-        console.log("oneway!")
     }
 
     collide(other, dx, dy) {

@@ -5,7 +5,7 @@ export class MapInfo {
 
         this.width = 0
         this.height = 0
-        this.layers = []
+        this.layers = [{}]
         this.chunks = {}
         this.objects = {}
     }

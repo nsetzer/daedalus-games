@@ -15,7 +15,11 @@ const RES_ROOT = "static"
 
 $import("store", {MapInfo, gAssets})
 $import("maps", {PlatformMap})
+$import("entities", {Player})
 
+$import("axertc_physics", {
+    Physics2dPlatform
+})
 export class ResourceLoaderScene extends GameScene {
 
     constructor(success_cbk) {
@@ -23,7 +27,7 @@ export class ResourceLoaderScene extends GameScene {
 
         this.success_cbk = success_cbk
 
-        this.build_loader()
+        //this.build_loader()
 
         this.timer = 0;
         this.timeout = 0; // how long to show the loading bar after it finished loading
@@ -172,11 +176,9 @@ if (!('createImageBitmap' in window)) {
 
 class AssetLoader {
 
-    constructor(info_loader) {
+    constructor() {
         this.status = ResourceStatus.LOADING
         this.ready = false
-
-
 
         this.loader = null
 
@@ -191,6 +193,10 @@ class AssetLoader {
 
     update(dt) {
 
+        if (this.ready) {
+            return
+        }
+
         if (this.loader === null) {
             this._init()
             return
@@ -198,6 +204,15 @@ class AssetLoader {
 
         if (!this.loader.ready) {
             this.loader.update()
+        }
+
+        if (this.loader.ready) {
+            gAssets.music = {... gAssets.music, ... this.loader.music}
+            gAssets.sounds = {... gAssets.sounds, ... this.loader.sounds}
+            gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
+            gAssets.font = {... gAssets.font, ... this.loader.font}
+
+            Player.sheet = gAssets.sheets.player
         }
 
         this.status = this.loader.status
@@ -236,11 +251,9 @@ class AssetLoader {
 
 class LevelTileBuilder {
 
-    constructor(asset_loader) {
+    constructor() {
         this.status = ResourceStatus.LOADING
         this.ready = false
-
-        this.asset_loader = asset_loader
 
         this.work_queue = null
         this.num_jobs = 0
@@ -291,10 +304,9 @@ class LevelTileBuilder {
     _init() {
         this.map = gAssets.mapinfo
 
-        const loader = this.asset_loader.loader
         // TODO: parse the map data to figure out theme info
 
-        this.theme_sheets = [null, loader.sheets.zone_01_sheet_01]
+        this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
 
         this.work_queue = Object.entries(this.map.layers[0])
         this.num_jobs = this.work_queue.length
@@ -391,7 +403,6 @@ class LevelChunkBuilder {
         if (this.num_jobs_submitted >= this.work_queue.length) {
             return
         }
-        console.log("job", this.num_jobs_submitted, this.work_queue.length)
 
         const chunk = this.work_queue[this.num_jobs_submitted]
 
@@ -412,7 +423,6 @@ class LevelChunkBuilder {
 
         createImageBitmap(chunk_image)
             .then(image => {
-                console.log("image finished")
                 chunk.image = image;
                 this.num_jobs_completed += 1
             })
@@ -439,6 +449,10 @@ class MapBuilder {
 
     update(dt) {
 
+       if (this.ready) {
+            return
+        }
+
         if (this.map === null) {
             this._init()
         }
@@ -450,10 +464,71 @@ class MapBuilder {
     _init() {
 
         this.map = new PlatformMap()
+
+        gAssets.map = this.map
+
+        // TODO 4 tile gutter in the -y direction
+        Physics2dPlatform.maprect = new Rect(0, 0, gAssets.mapinfo.width, gAssets.mapinfo.height)
+        console.log(gAssets.mapinfo.width, gAssets.mapinfo.height,Physics2dPlatform.maprect)
+
+        this.createObject = (t, p) => {return this.map.createObject(this.map._x_nextEntId(), t, p)}
+
+        this.map._x_player = this.createObject("Player", {x: 200-64, y:128, playerId: "player"})
+
     }
 
     _build_step() {
 
+        const mapinfo = gAssets.mapinfo
+
+        Object.entries(mapinfo.layers[0]).forEach(t => {
+            let [tid, tile] = t
+            let y = 16*(Math.floor(tid/512 - 4))
+            let x = 16*(tid%512)
+            let objname = null
+            let objprops = null
+
+            if (tile.shape==TileShape.FULL) {
+                objname = "Wall"
+                objprops = {x:x, y:y, w:16, h:16}
+            } else if (tile.shape==TileShape.HALF) {
+                objname = "Slope"
+                objprops = {x:x, y:y, w:16, h:16, direction:tile.direction}
+            } else if (tile.shape==TileShape.ONETHIRD) {
+                if (tile.direction&Direction.UP) {
+                    y += 8
+                }
+                objname = "Slope"
+                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
+            } else if (tile.shape==TileShape.TWOTHIRD) {
+                if (tile.direction&TileShape.DOWN) {
+                    y += 8
+                }
+                objname = "Slope"
+                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
+            } else {
+                console.log(tile)
+            }
+
+            if (objname !== null) {
+                if (tile.property == TileProperty.SOLID) {
+                    objprops.visible = false
+                    this.createObject(objname, objprops)
+                }
+
+                else if (tile.property == TileProperty.ONEWAY) {
+                    objprops.visible = false
+                    this.createObject("OneWayWall", objprops)
+                }
+
+                else if (tile.property == TileProperty.ONEWAY) {
+                    objprops.visible = false
+                    this.createObject(objname, objprops)
+                }
+            }
+        })
+
+        this.ready = true
     }
 
 }
@@ -468,16 +543,23 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
     // tile chunks are 4 * 7 tiles
 
-    constructor(success_cbk) {
+    constructor(mapid, edit, success_cbk) {
+
         super(success_cbk);
 
+        this.mapid = mapid
+        this.task_edit = edit
+
         this.index = 0
-        this.timer = 0
+
+        this.build_loader()
+        //this.timer = 0
     }
 
     paint(ctx) {
         super.paint(ctx)
 
+        /*
         if (this.chunk_builder.ready) {
             let chunk = this.chunk_builder.work_queue[this.index]
 
@@ -500,11 +582,13 @@ export class LevelLoaderScene extends ResourceLoaderScene {
             //ctx.putImageData(chunk.image,0,0);
 
         }
+        */
     }
 
     update(dt) {
         super.update(dt)
 
+        /*
         if (this.chunk_builder.ready) {
             this.timer += dt
 
@@ -516,55 +600,69 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                 }
             }
         }
+        */
     }
 
     build_loader() {
 
-        console.log("building loader")
-        this.info_loader = new ResourceLoader()
-
         gAssets.mapinfo = new MapInfo()
 
-        this.info_loader.addJson("map")
-            .path(RES_ROOT + "/maps/map-20231027-210343.json")
-            .transform(json => {
+        gAssets.mapinfo.width = 24*16
+        gAssets.mapinfo.height = 14*16
 
-                json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
+        console.log("building loader")
 
-                    x = x&0x7FFFFFFF
+        this.pipeline = []
 
-                    const tid = (x >> 13)&0x3ffff
-                    const shape = (x >> 10) & 0x07
-                    const property = (x >> 7) & 0x07
-                    const sheet = (x >> 4) & 0x07
-                    const direction = x & 0x0F
-                    const tile = {shape, property, sheet, direction}
+        if (!!this.mapid) {
+            const info_loader = new ResourceLoader()
 
-                    return [tid, tile]
-                }))
+            info_loader.addJson("map")
+                .path(RES_ROOT + "/maps/" + this.mapid + ".json")
+                .transform(json => {
 
-                console.log("json loaded")
+                    json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
 
-                gAssets.mapinfo.width = Math.min(json.width, 16*12*16)
-                gAssets.mapinfo.height = Math.min(json.height, 16*7*16)
-                gAssets.mapinfo.theme = json.theme
-                gAssets.mapinfo.layers = json.layers
+                        x = x&0x7FFFFFFF
 
-                return json
-            })
+                        const tid = (x >> 13)&0x3ffff
+                        const shape = (x >> 10) & 0x07
+                        const property = (x >> 7) & 0x07
+                        const sheet = (x >> 4) & 0x07
+                        const direction = x & 0x0F
+                        const tile = {shape, property, sheet, direction}
 
-        this.asset_loader = new AssetLoader(this.info_loader)
-        this.tile_builder = new LevelTileBuilder(this.asset_loader)
-        this.chunk_builder = new LevelChunkBuilder()
-        this.map_builder = new MapBuilder()
+                        return [tid, tile]
+                    }))
 
-        this.pipeline = [
-            this.info_loader,
-            this.asset_loader,
-            this.tile_builder,
-            this.chunk_builder,
-            this.map_builder,
-        ]
+                    console.log("json loaded")
+
+                    let w = Math.min(json.width, 16*12*32)
+                    let h = Math.min(json.height, 16*7*32)
+
+                    // TODO: limit maps to maximum of 16 screens
+
+                    gAssets.mapinfo.width = w
+                    gAssets.mapinfo.height = h
+                    gAssets.mapinfo.theme = json.theme
+                    gAssets.mapinfo.layers = json.layers
+
+                    return json
+                })
+
+            this.pipeline.push(info_loader)
+        } else if (!this.task_edit) {
+            throw {"error": "mapid is null", "mapid": this.mapid, "edit":this.task_edit}
+        }
+
+        this.pipeline.push(new AssetLoader())
+        this.pipeline.push(new LevelTileBuilder())
+
+        if (!this.task_edit) {
+            this.pipeline.push(new LevelChunkBuilder())
+            this.pipeline.push(new MapBuilder())
+        }
+
         this.pipeline_index = 0
     }
 }

@@ -32,6 +32,7 @@ $import("axertc_physics", {
 })
 
 $import("scenes", {ResourceLoaderScene, LevelLoaderScene})
+$import("store", {MapInfo, gAssets})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
 $import("entities", {Player})
@@ -86,7 +87,7 @@ class CspController {
     handleButtonRelease(btnid){
 
         if (btnid == 3) {
-            gEngine.scene = new LevelEditScene(gEngine.scene.loader)
+            gEngine.scene = new LevelEditScene()
             return
         }
 
@@ -250,17 +251,16 @@ class MainScene extends GameScene {
 
         this.loader = loader
 
-        Player.sheet = this.loader.sheets.player
-
-        this.map = new ClientCspMap(new PlatformMap())
+        this.map = new ClientCspMap(gAssets.map)
+        // hack for single player game
+        this.map.world_step = 0
         this.map.setPlayerId("player")
         this.map.map.instanceId = "player1"
+
         this.controller = new CspController(this.map);
 
         this.touch = new TouchInput(this.controller)
         this.keyboard = new KeyboardInput(this.controller)
-
-        Physics2dPlatform.maprect = new Rect(0, 0, gEngine.view.width, gEngine.view.height)
 
         this.touch.addWheel(64, -64, 48, {
             align: Alignment.LEFT|Alignment.BOTTOM,
@@ -283,85 +283,13 @@ class MainScene extends GameScene {
         this.keyboard.addButton(67) // C
         this.keyboard.addButton(27) // ESC
 
-        this.map.world_step = 0 // hack for single player game
-
-        const mapinfo = loader.json.map.data
-        const createObject = (t, p) => {return this.map.map.createObject(this.map.map._x_nextEntId(), t, p)}
-
-        const player = createObject("Player", {x: 200-64, y:128, playerId: "player"})
-
-        this.camera = new Camera(this.map.map, player)
-
-        Object.entries(mapinfo.layers[0]).forEach(t => {
-            let [tid, tile] = t
-            let y = 16*(Math.floor(tid/512 - 4))
-            let x = 16*(tid%512)
-            let objname = null
-            let objprops = null
-
-            if (tile.shape==TileShape.FULL) {
-                objname = "Wall"
-                objprops = {x:x, y:y, w:16, h:16}
-            } else if (tile.shape==TileShape.HALF) {
-                objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:16, direction:tile.direction}
-            } else if (tile.shape==TileShape.ONETHIRD) {
-                if (tile.direction&Direction.UP) {
-                    y += 8
-                }
-                objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
-            } else if (tile.shape==TileShape.TWOTHIRD) {
-                if (tile.direction&TileShape.DOWN) {
-                    y += 8
-                }
-                objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
-            } else {
-                console.log(tile)
-            }
-
-            if (objname !== null) {
-                if (tile.property == TileProperty.SOLID) {
-                    createObject(objname, objprops)
-                }
-
-                else if (tile.property == TileProperty.ONEWAY) {
-                    console.log("making oneway wal", objprops)
-                    createObject("OneWayWall", objprops)
-                }
-
-                else if (tile.property == TileProperty.ONEWAY) {
-                    createObject(objname, objprops)
-                }
-            }
-        })
-
-        const mh = 224
-        const mw = 384
-        const mwh = 192
-        //createObject("Wall", {x:0, y:0, w:16, h:mh})
-//
-        //createObject("Wall", {x:0, y:mh-16, w:mw, h:16})
-        //createObject("Wall", {x:mw, y:mh-16, w:mw, h:16})
-        //createObject("Wall", {x:2*mw, y:mh-16, w:mw, h:16})
-//
-        //createObject("Slope", {
-        //        x:mwh-24, y:mh-32, w:16, h:16, direction:Direction.UPLEFT})
-        //createObject("Wall", {x:mwh-8, y:mh-32, w:16, h:16})
-        //createObject("Slope", {
-        //        x:mwh+8, y:mh-32, w:16, h:16, direction:Direction.UPRIGHT})
-
-        Physics2dPlatform.maprect = new Rect(0, 0, 3 * gEngine.view.width, gEngine.view.height)
-
+        this.camera = new Camera(this.map.map, this.map.map._x_player)
     }
 
     pause(paused) {
-
     }
 
     update(dt) {
-
         this.map.update(dt)
         this.camera.update(dt)
     }
@@ -393,27 +321,77 @@ class MainScene extends GameScene {
     }
     paint(ctx) {
 
+        // screen boundary
+        ctx.lineWidth = 1;
         ctx.beginPath()
         ctx.fillStyle = "#477ed6";
         ctx.rect(0,0, gEngine.view.width, gEngine.view.height)
         ctx.fill()
 
-        ctx.lineWidth = 1;
-        ctx.beginPath()
-        ctx.strokeStyle = "blue";
-        ctx.rect(0,0, gEngine.view.width, gEngine.view.height)
-        ctx.stroke()
-
-        ctx.lineWidth = 1;
-
         ctx.save()
 
+        // camera
         ctx.beginPath();
         ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
         ctx.clip();
         ctx.translate(-this.camera.x, -this.camera.y)
 
+        // blue sky background
+        ctx.beginPath()
+        ctx.fillStyle = "#477ed6";
+        ctx.rect(0,0, gAssets.mapinfo.width, gAssets.mapinfo.height)
+        ctx.closePath()
+        ctx.fill()
+
+        // gutter
+        ctx.beginPath()
+        ctx.fillStyle = "#FF0000";
+        ctx.rect(0,-64, gAssets.mapinfo.width, 64)
+        ctx.closePath()
+        ctx.fill()
+
+        // paint chunks
+        let tx = Math.floor(this.camera.x / 16 / 4)
+        let ty = Math.floor(this.camera.y / 16 / 7)
+
+        // the map is 6 chunks wide and 1 chunk tall
+        for (let i = 0; i < 8; i++) {
+
+            let cx = tx + i
+
+            if (cx < 0) {
+                continue;
+            }
+
+            if (cx >= 127) {
+                break;
+            }
+
+            for (let j = 0; j < 3; j++) {
+
+                let cy = ty + j
+
+                if (cy < 0) {
+                    continue;
+                }
+
+                if (cy >= 127) {
+                    break;
+                }
+
+                let chunkid = cy * 128 + cx
+
+                let chunk = gAssets.mapinfo.chunks[chunkid]
+
+                if (!!chunk) {
+                    ctx.drawImage(chunk.image, chunk.x*16, chunk.y*16)
+                }
+
+            }
+        }
+
         this.map.paint(ctx)
+
         ctx.restore()
 
         this._paint_status(ctx)
@@ -425,8 +403,11 @@ class MainScene extends GameScene {
         ctx.textAlign = "left"
         ctx.textBaseline = "bottom"
 
+
+
+
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
-        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale})` , 8, gEngine.view.height);
+        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
 
     }
 
@@ -683,8 +664,6 @@ class LevelEditScene extends GameScene {
     constructor(loader) {
         super()
 
-        this.loader = loader
-
         this.camera = {x:-48, y:-48, scale:2}
         this.map = {
             width: 15*32,
@@ -692,11 +671,11 @@ class LevelEditScene extends GameScene {
             layers: [{}]
         }
 
-        this.theme_sheets = [null, this.loader.sheets.zone_01_sheet_01]
+        this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
 
         this._init_slopes()
 
-        const mapinfo = loader.json.map.data
+        const mapinfo = gAssets.mapinfo
 
         this.map.width = mapinfo.width
         this.map.height = mapinfo.height
@@ -1400,11 +1379,22 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            //return new LevelLoaderScene(()=>{console.log("done!")})
-            return new ResourceLoaderScene((loader)=> {
-                gEngine.scene = new MainScene(loader)
-                //gEngine.scene = new LevelEditScene(loader)
+            const edit = true
+            const mapid = "map-20231027-210343"
+            return new LevelLoaderScene(mapid, edit, ()=>{
+
+                if (edit) {
+                    gEngine.scene = new LevelEditScene()
+                } else {
+                    gEngine.scene = new MainScene()
+                }
+
+                console.log("done!")
             })
+            //return new ResourceLoaderScene((loader)=> {
+            //    gEngine.scene = new MainScene(loader)
+            //    //gEngine.scene =
+            //})
         })
     }
 }
