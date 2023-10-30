@@ -18,7 +18,7 @@ $import("axertc_physics", {
 $import("store", {MapInfo, gAssets})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {Player})
+$import("entities", {editorEntities})
 $import("maps", {PlatformMap})
 
 function random_choice(choices) {
@@ -33,6 +33,7 @@ EditorTool.PAINT_TILE = 3
 EditorTool.SELECT_TILE = 4
 EditorTool.PLACE_OBJECT = 5
 EditorTool.ERASE_OBJECT = 6
+EditorTool.SELECT_OBJECT = 7
 
 
 class FileMenu {
@@ -75,8 +76,11 @@ class FileMenu {
     paint(ctx) {
         ctx.beginPath();
         ctx.fillStyle = "#a2baa2"
-
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.closePath()
+        ctx.stroke()
         ctx.fill()
 
         let x = 8
@@ -94,7 +98,7 @@ class TileMenu {
 
     constructor(parent) {
 
-        this.rect = new Rect(0,24,8 + 24 * 6, 8 + 24 * 3)
+        this.rect = new Rect(0,24,8 + 24 * 6, 8 + 24 * 4)
         this.parent = parent
 
     }
@@ -114,8 +118,6 @@ class TileMenu {
                 return
             }
 
-
-
             let tx = Math.floor((t.x -  8) / 24)
             let ty = Math.floor((t.y - 32) / 24)
 
@@ -124,6 +126,14 @@ class TileMenu {
             }
 
             if (ty == 0) {
+                if (tx < this.parent.theme_sheets.length - 1) {
+                    if (this.parent.tile_property <= 4) {
+                        this.parent.tile_sheet = 1 + tx
+                        console.log("set sheet", 1 + tx)
+                    }
+                }
+            }
+            else if (ty == 1) {
                 if (tx < 6) {
                     this.parent.tile_property = 1 + tx
                     console.log("set prop", 1 + tx)
@@ -136,30 +146,37 @@ class TileMenu {
 
                 }
             }
-
-            else if (ty == 1) {
+            else if (ty == 2) {
                 if (tx < 4) {
                     if (this.parent.tile_property <= 4) {
                         this.parent.tile_shape = 1 + tx
                         console.log("set shape", 1 + tx)
                     }
+                    this.parent.active_tool = EditorTool.PLACE_TILE
+                    this.parent.active_menu = null
                 }
 
                 if (tx == 4) {
-                    this.parent.active_tool = EditorTool.PAINT_TILE
+
                 } else {
-                    this.parent.active_tool = EditorTool.PLACE_TILE
+
                 }
+            }
+            else if (ty == 3) {
+                console.log("boo")
+
+                if (tx == 0) {
+                    this.parent.active_tool = EditorTool.PAINT_TILE
+                    this.parent.active_menu = null
+                }
+
+                if (tx == 1) {
+                    this.parent.active_tool = EditorTool.ERASE_TILE
+                    this.parent.active_menu = null
+                }
+
             }
 
-            else if (ty == 2) {
-                if (tx < this.parent.theme_sheets.length - 1) {
-                    if (this.parent.tile_property <= 4) {
-                        this.parent.tile_sheet = 1 + tx
-                        console.log("set sheet", 1 + tx)
-                    }
-                }
-            }
         }
     }
 
@@ -167,20 +184,42 @@ class TileMenu {
 
         ctx.beginPath();
         ctx.fillStyle = "#a2baa2"
-
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.closePath()
+        ctx.stroke()
         ctx.fill()
 
-        let points,x,y;
+        let points,x,y,k;
         ctx.fillStyle = "#000000"
         ctx.strokeStyle = "#000000"
+
+
+        // ---------------------------------------------------------------
+        // Row 3 Tile Set
+
+        x = 8
+        y = 32
+
+
+        k = (this.parent.tile_sheet - 1)
+        ctx.beginPath();
+        ctx.strokeStyle = "gold"
+        ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
+        ctx.stroke()
+
+        this.parent.theme_sheets_icon.slice(1).forEach(t => {
+            t.draw(ctx, x,y)
+            x += 24
+        })
 
         // ---------------------------------------------------------------
         // Row 1 Style
         x = 8
-        y = 32
+        y = 32 + 24
 
-        let k = (this.parent.tile_property - 1)
+        k = (this.parent.tile_property - 1)
         ctx.beginPath();
         ctx.strokeStyle = "gold"
         ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
@@ -239,7 +278,7 @@ class TileMenu {
         // Row 2 Shape
         ctx.fillStyle = "#000000"
         x = 8
-        y = 32 + 24
+        y = 32 + 24 + 24
 
         if (this.parent.active_tool == EditorTool.PAINT_TILE) {
             k = 4
@@ -279,31 +318,23 @@ class TileMenu {
             ctx.fill()
         }
 
-        x = 8 + 4*24
+        // ---------------------------------------------------------------
+        // Row 4 Shape
+        ctx.fillStyle = "#000000"
+        x = 8
+        y = 32 + 24 + 24 + 24
+
         this.parent.editor_icons.brush.draw(ctx, x, y)
+
+        x += 24
+        this.parent.editor_icons.erase.draw(ctx, x, y)
         //points = this.parent.slopes_twothird[Direction.UPRIGHT]
         //ctx.beginPath();
         //ctx.moveTo(x + points[0].x, y + points[0].y);
         //points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
         //ctx.fill()
 
-        // ---------------------------------------------------------------
-        // Row 3 Tile Set
 
-        x = 8
-        y = 32 + 24 + 24
-
-
-        k = (this.parent.tile_sheet - 1)
-        ctx.beginPath();
-        ctx.strokeStyle = "gold"
-        ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
-        ctx.stroke()
-
-        this.parent.theme_sheets_icon.slice(1).forEach(t => {
-            t.draw(ctx, x,y)
-            x += 24
-        })
 
     }
 }
@@ -337,8 +368,11 @@ class SettingsMenu {
 
         ctx.beginPath();
         ctx.fillStyle = "#a2baa2"
-
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
         ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.closePath()
+        ctx.stroke()
         ctx.fill()
 
 
@@ -419,7 +453,6 @@ class ObjectMenu {
         ctx.beginPath();
         ctx.fillStyle = "#a2baa2"
         ctx.strokeStyle = "#526a52"
-
         ctx.lineWidth = 2
         ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
         ctx.closePath()
@@ -471,6 +504,8 @@ class ObjectMenu {
         x = 8
         y = 32
 
+        const page = this.parent.object_pages[this.parent.objmenu_current_page]
+
         let n = 0;
         for (let j=0; j < 5; j++) {
 
@@ -478,7 +513,8 @@ class ObjectMenu {
 
             for (let i=0; i < 4; i++) {
 
-                if (n >= this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
+
+                if (n >= page.objects.length) {
                     break
                 }
 
@@ -494,6 +530,12 @@ class ObjectMenu {
                 ctx.rect(x,y,16,16)
                 ctx.closePath()
                 ctx.fill()
+
+                if (page.objects[n]?.ctor?.icon) {
+                    let icon = page.objects[n]?.ctor?.icon
+                    icon.draw(ctx, x, y)
+                }
+
                 x += 24
                 n += 1
             }
@@ -554,23 +596,135 @@ export class LevelEditScene extends GameScene {
             "load": gAssets.sheets.editor.tile(1*8+1),
             "trash": gAssets.sheets.editor.tile(1*8+2),
             "gear": gAssets.sheets.editor.tile(1*8+3),
+            "hand": gAssets.sheets.editor.tile(1*8+5),
+            "undo": gAssets.sheets.editor.tile(1*8+6),
+            "redo": gAssets.sheets.editor.tile(1*8+7),
         }
+
+        this.editor_objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
 
         this.object_pages = [
 
             {
                 icon: gAssets.sheets.editor.tile(1),
-                objects: [
-                    {name: "brick"},
-                    {name: "coin"},
-                    {name: "monster"},
-                ]
+                objects: [...editorEntities]
             },
         ]
         this.objmenu_current_page = 0
         this.objmenu_current_object = 0
         this.objmenu_page_scroll_index = 0
         this.objmenu_object_scroll_index = 0
+
+        this.actions = [
+            {
+                name: "file",
+                icon: this.editor_icons.save,
+                action: () => {
+                    this.active_menu = new FileMenu(this)
+                },
+                selected: null,
+            },
+            {
+                name: "settings",
+                icon: this.editor_icons.gear,
+                action: () => {
+                    this.active_menu = new SettingsMenu(this)
+                },
+                selected: null,
+            },
+            {
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
+            },
+            {
+                name: "object-place",
+                icon: this.editor_icons.hand,
+                action: () => {
+                    this.active_tool = EditorTool.PLACE_OBJECT;
+                    this.active_menu = new ObjectMenu(this)
+                },
+                selected: () => this.active_tool == EditorTool.PLACE_OBJECT,
+            },
+            {
+                name: "object-move",
+                icon: this.editor_icons.hand,
+                action: () => {
+                    this.active_tool = EditorTool.SELECT_OBJECT;
+                    //this.active_menu = new ObjectMenu(this)
+                },
+                selected: () => this.active_tool == EditorTool.SELECT_OBJECT,
+            },
+            {
+                name: "tile-place",
+                icon: this.editor_icons.hand,
+                action: () => {
+                    this.active_tool = EditorTool.PLACE_TILE;
+                    this.active_menu = new TileMenu(this)
+                },
+                selected: () => {
+                    return [EditorTool.PLACE_TILE,EditorTool.ERASE_TILE,EditorTool.PAINT_TILE].indexOf(this.active_tool) >= 0
+                }
+            },
+            {
+                name: "tile-select",
+                icon: this.editor_icons.hand,
+                action: () => {
+                    this.active_tool = EditorTool.SELECT_TILE;
+                    //this.active_menu = new TileMenu(this)
+                },
+                selected: () => this.active_tool == EditorTool.SELECT_TILE,
+            },
+            {
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
+            },
+            {
+                name: "undo",
+                icon: this.editor_icons.undo,
+                action: () => {
+                    console.log("undo")
+                },
+                selected: null,
+            },
+            {
+                name: "redo",
+                icon: this.editor_icons.redo,
+                action: () => {
+                    console.log("redo")
+                },
+                selected: null,
+            },
+            {
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
+            },
+            {
+                name: "zoom-in",
+                icon: this.editor_icons.zoom_in,
+                action: () => {
+                    if (this.camera.scale < 3) {
+                        this.camera.scale += 0.5
+                    }
+                },
+                selected: null,
+            },
+            {
+                name: "zoom-out",
+                icon: this.editor_icons.zoom_out,
+                action: () => {
+                    if (this.camera.scale > 1.0) {
+                        this.camera.scale -= 0.5
+                    }
+                },
+                selected: null,
+            },
+        ]
 
         this._init_slopes()
 
@@ -705,8 +859,77 @@ export class LevelEditScene extends GameScene {
         //          (full, half, onethird, twothird)
         // erase
 
-        const y = barHeight/2 - 9
 
+        this.actions.forEach((action, index) => {
+
+            if (!!action.selected) {
+                if (action.selected()) {
+                    ctx.beginPath();
+                    ctx.fillStyle = "gold"
+                    const x = 6 + 24*index
+                    const y = barHeight/2 - 9
+                    ctx.rect(x-2, y-2, 18+4, 18+4);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            if (!!action.action) {
+
+
+                ctx.beginPath();
+                ctx.fillStyle = "#00FF00"
+                const x = 6 + 24*index
+                const y = barHeight/2 - 9
+                ctx.rect(x, y, 18, 18);
+                ctx.closePath();
+                ctx.fill();
+
+                if (action.name == "tile-place") {
+
+                    let points;
+                    switch (this.tile_shape) {
+                    case TileShape.HALF:
+                        points = this.slopes_half[Direction.UPRIGHT]
+                        break
+                    case TileShape.ONETHIRD:
+                        points = this.slopes_onethird[Direction.UPRIGHT]
+                        break
+                    case TileShape.TWOTHIRD:
+                        points = this.slopes_twothird[Direction.UPRIGHT]
+                        break
+                    default:
+                        break
+                    }
+
+                    if (this.active_tool == EditorTool.ERASE_TILE) {
+
+                        this.editor_icons.erase.draw(ctx, x+1, y+1)
+
+                    } else if (this.active_tool == EditorTool.PAINT_TILE) {
+
+                        this.editor_icons.brush.draw(ctx, x+1, y+1)
+                    } else {
+                        const tile = {
+                            shape: this.tile_shape,
+                            property: this.tile_property,
+                            sheet: this.tile_sheet,
+                            direction: Direction.UPRIGHT,
+                            points: points,
+                        }
+                        paintTile(ctx, x+1, y+1, tile)
+                    }
+                }
+                else if (action.name == "object-place") {
+
+                }
+                else if (!!action.icon) {
+                    action.icon.draw(ctx, x+1, y+1)
+                }
+            }
+        })
+
+        /*
         for (let i=0; i < 7; i++) {
             ctx.beginPath();
             ctx.fillStyle = "#00FF00"
@@ -737,36 +960,8 @@ export class LevelEditScene extends GameScene {
         this.editor_icons.erase.draw(ctx, 6+24*4+1, y+1)
         this.editor_icons.zoom_out.draw(ctx, 6+24*5+1, y+1)
         this.editor_icons.zoom_in.draw(ctx, 6+24*6+1, y+1)
+        */
 
-        let points;
-        switch (this.tile_shape) {
-        case TileShape.HALF:
-            points = this.slopes_half[Direction.UPRIGHT]
-            break
-        case TileShape.ONETHIRD:
-            points = this.slopes_onethird[Direction.UPRIGHT]
-            break
-        case TileShape.TWOTHIRD:
-            points = this.slopes_twothird[Direction.UPRIGHT]
-            break
-        default:
-            break
-        }
-
-        if (this.active_tool == EditorTool.PAINT_TILE) {
-
-
-            this.editor_icons.brush.draw(ctx, 6 + 24*3 + 1, y + 1)
-        } else {
-            const tile = {
-                shape: this.tile_shape,
-                property: this.tile_property,
-                sheet: this.tile_sheet,
-                direction: Direction.UPRIGHT,
-                points: points,
-            }
-            paintTile(ctx, 6 + 24*3 + 1, y + 1, tile)
-        }
 
     }
 
@@ -888,7 +1083,12 @@ export class LevelEditScene extends GameScene {
             let y = 16*Math.floor(oid/512 - 4)
             let x = 16*(oid%512)
 
+
             //let objinfo = this.object_registry[obj.name]
+
+            if (!!this.editor_objects[obj.name]) {
+                this.editor_objects[obj.name].icon.draw(ctx, x, y)
+            }
 
             ctx.beginPath()
             ctx.strokeStyle = "blue"
@@ -1181,59 +1381,13 @@ export class LevelEditScene extends GameScene {
 
                 if (!t.pressed) {
 
-                    if (ix == 0) {
-
-                        if (!!this.active_menu) {
-                            this.active_menu = null
-                        } else {
-                            this.active_menu = new FileMenu(this)
-                        }
-                    }
-                    if (ix == 1) {
-
-                        if (!!this.active_menu) {
-                            this.active_menu = null
-                        } else {
-                            this.active_menu = new SettingsMenu(this)
-                        }
-                    }
-                    if (ix == 2) {
-
-                        this.active_tool = EditorTool.PLACE_OBJECT
-                        if (!!this.active_menu) {
-                            this.active_menu = null
-                        } else {
-                            this.active_menu = new ObjectMenu(this)
-                        }
-                    }
-
-                    if (ix == 3) {
-                        this.active_tool = EditorTool.PLACE_TILE
-                        if (!!this.active_menu) {
-                            this.active_menu = null
-                        } else {
-                            this.active_menu = new TileMenu(this)
-                        }
-                    }
-                    if (ix == 4) {
-                        // erase tool
-                        // TODO: move this into the tile menu?
-                        //       have separate object and tile erase
+                    if (!!this.active_menu) {
                         this.active_menu = null
-                        this.active_tool = EditorTool.ERASE_TILE
-                    }
-
-                    if (ix == 5) {
-                        this.active_menu = null
-                        if (this.camera.scale < 3) {
-                            this.camera.scale += 0.5
-                        }
-                    }
-
-                    if (ix == 6) {
-                        this.active_menu = null
-                        if (this.camera.scale > 1.0) {
-                            this.camera.scale -= 0.5
+                    } else {
+                        if (ix >= 0 && ix < this.actions.length) {
+                            if (!!this.actions[ix].action) {
+                                this.actions[ix].action()
+                            }
                         }
                     }
                 }

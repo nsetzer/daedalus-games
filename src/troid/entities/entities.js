@@ -9,6 +9,8 @@ $import("axertc_physics", {
     AnimationComponent
 })
 
+$import("store", {gAssets})
+
 function random_choice(choices) {
   var index = Math.floor(Math.random() * choices.length);
   return choices[index];
@@ -520,3 +522,58 @@ export class Player extends PlatformerEntity {
     }
 }
 Player.sheet = null
+
+export class Brick extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+    }
+
+    paint(ctx) {
+        Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+    }
+
+    update(dt) {
+
+    }
+}
+Brick.sheet = null
+Brick.size = [16, 16]
+Brick.icon = null
+
+export class Coin extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+    }
+
+    paint(ctx) {
+
+        Coin.icon.draw(ctx, this.rect.x, this.rect.y)
+    }
+
+    update(dt) {
+
+    }
+}
+Coin.sheet = null
+Coin.size = [16, 16]
+Coin.icon = null
+
+
+export const editorEntities = [
+    {name:"Coin", ctor: Coin}
+    {name:"Brick", ctor: Brick}
+]
+
+export function registerEntities() {
+    Player.sheet = gAssets.sheets.player
+
+    Brick.sheet = gAssets.sheets.brick
+    Brick.icon = gAssets.sheets.brick.tile(0)
+
+    Coin.sheet = gAssets.sheets.coin
+    Coin.icon = gAssets.sheets.coin.tile(0)
+
+
+}

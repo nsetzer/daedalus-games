@@ -438,8 +438,8 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = true
-            const mapid = "map-20231029-205051"
+            const edit = false
+            const mapid = "map-20231030-164613"
             return new LevelLoaderScene(mapid, edit, ()=>{
 
                 if (edit) {

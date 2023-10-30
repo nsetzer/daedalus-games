@@ -15,11 +15,25 @@ const RES_ROOT = "static"
 
 $import("store", {MapInfo, gAssets})
 $import("maps", {PlatformMap})
-$import("entities", {Player})
+$import("entities", {registerEntities, editorEntities})
 
 $import("axertc_physics", {
     Physics2dPlatform
 })
+
+//https://gist.github.com/nektro/84654b5183ddd1ccb7489607239c982d
+if (!('createImageBitmap' in window)) {
+    window.createImageBitmap = async function(blob) {
+        return new Promise((resolve,reject) => {
+            let img = document.createElement('img');
+            img.addEventListener('load', function() {
+                resolve(this);
+            });
+            img.src = URL.createObjectURL(blob);
+        });
+    }
+}
+
 export class ResourceLoaderScene extends GameScene {
 
     constructor(success_cbk) {
@@ -33,51 +47,6 @@ export class ResourceLoaderScene extends GameScene {
         this.timeout = 0; // how long to show the loading bar after it finished loading
         this.finished = false
     }
-
-
-    build_loader() {
-
-        this.loader = new ResourceLoader()
-
-        //this.loader.addSoundEffect("hit").path(RES_ROOT + "/sound/LOZ_Enemy_Hit.wav")
-
-        this.loader.addSpriteSheet("player")
-            .path(RES_ROOT + "/sprites/player.png")
-            .dimensions(32, 32)
-            .layout(6, 17)
-            .offset(1, 1)
-            .spacing(1, 1)
-
-        this.loader.addSpriteSheet("zone_01_sheet_01")
-            .path(RES_ROOT + "/sprites/tile_ground_01.png")
-            .dimensions(16, 16)
-            .layout(4, 11)
-            .offset(1, 1)
-            .spacing(1, 1)
-
-        this.loader.addJson("map")
-            .path(RES_ROOT + "/maps/map-20231027-210343.json")
-            .transform(json => {
-
-                json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
-
-                    const tid = (x >> 13)&0x3ffff
-                    const shape = (x >> 10) & 0x07
-                    const property = (x >> 7) & 0x07
-                    const sheet = (x >> 4) & 0x07
-                    const direction = x & 0x0F
-                    const tile = {shape, property, sheet, direction}
-
-                    return [tid, tile]
-                }))
-
-                return json
-            })
-
-        this.pipeline = [this.loader]
-        this.pipeline_index = 0
-    }
-
 
     update(dt) {
 
@@ -160,20 +129,6 @@ export class ResourceLoaderScene extends GameScene {
     }
 }
 
-//https://gist.github.com/nektro/84654b5183ddd1ccb7489607239c982d
-if (!('createImageBitmap' in window)) {
-    window.createImageBitmap = async function(blob) {
-        return new Promise((resolve,reject) => {
-            let img = document.createElement('img');
-            img.addEventListener('load', function() {
-                resolve(this);
-            });
-            img.src = URL.createObjectURL(blob);
-        });
-    }
-}
-
-
 class AssetLoader {
 
     constructor() {
@@ -212,7 +167,14 @@ class AssetLoader {
             gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
             gAssets.font = {... gAssets.font, ... this.loader.font}
 
-            Player.sheet = gAssets.sheets.player
+            registerEntities()
+
+            const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
+
+            // filter objects which do not exist
+            gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
+
+
         }
 
         this.status = this.loader.status
@@ -239,6 +201,20 @@ class AssetLoader {
             .layout(6, 17)
             .offset(1, 1)
             .spacing(1, 1)
+
+        this.loader.addSpriteSheet("brick")
+            .path(RES_ROOT + "/sprites/brick.png")
+            .dimensions(16, 16)
+            .layout(1, 1)
+            .offset(0, 0)
+            .spacing(0, 0)
+
+        this.loader.addSpriteSheet("coin")
+            .path(RES_ROOT + "/sprites/coin.png")
+            .dimensions(16, 16)
+            .layout(1, 8)
+            .offset(0, 0)
+            .spacing(0, 0)
 
         this.loader.addSpriteSheet("editor")
             .path(RES_ROOT + "/sprites/editor.png")
@@ -544,8 +520,8 @@ class MapBuilder {
             let y = 16*(Math.floor(obj.oid/512 - 4))
             let x = 16*(obj.oid%512)
 
-            let objname = "Wall"
-            let objprops = {x:x, y:y, w:16, h:16}
+            let objname = obj.name
+            let objprops = {x:x, y:y}
             this.createObject(objname, objprops)
         })
 
