@@ -22,12 +22,39 @@ TileProperty.LAVA = 6
 // a tile is a {shape, property, sheet}
 // it may have a `tile` property which is the image to draw
 
+let TT_0_04 = 0*11 +  4
+
+let TT_1_00 = 1*11 +  0 // invalid
+let TT_1_01 = 1*11 +  1
+let TT_1_02 = 1*11 +  2
+let TT_1_04 = 1*11 +  4
+
+let TT_2_00 = 2*11 +  0
 let TT_2_07 = 2*11 +  7
 let TT_2_08 = 2*11 +  8
+
 let TT_3_07 = 3*11 +  7
 let TT_3_08 = 3*11 +  9
 let TT_3_09 = 3*11 +  9
 let TT_3_10 = 3*11 + 10
+
+let TT_0_05 = 0*11 +  5 // half
+let TT_0_06 = 0*11 +  6 // half
+let TT_2_05 = 2*11 +  5 // half
+let TT_2_06 = 2*11 +  6 // half
+let TT_3_05 = 3*11 +  5 // half
+let TT_3_06 = 3*11 +  6 // half
+
+let TT_0_07 = 0*11 +  7 // onethird
+let TT_0_08 = 0*11 +  8 // onethird
+let TT_0_09 = 0*11 +  9 // onethird
+let TT_0_10 = 0*11 + 10 // onethird
+
+let TT_1_07 = 1*11 +  7 // twothird
+let TT_1_08 = 1*11 +  8 // twothird
+let TT_1_09 = 1*11 +  9 // twothird
+let TT_1_10 = 1*11 + 10 // twothird
+
 
 export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
     // TODO: one more optimization for tile sheets
@@ -72,6 +99,12 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if ((y + 1)*16 >= map_height) {
             ed = true
         }
+        if ((x + 1)*16 >= map_width) {
+            er = true
+        }
+        if ((x - 1)*16 <= 0) {
+            el = true
+        }
 
         let tid = -1
         // count the number of neighbors
@@ -104,8 +137,8 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (n==2) {
             // non solid walls should join with the solid floor
             if (!solid(layer[ntid].property) && solid(layer[ntid_d]?.property)) {
-                if (tid == 1*11 + 1) { tid = 0*11 + 4}
-                if (tid == 1*11 + 2) { tid = 1*11 + 4}
+                if (tid == TT_1_01) { tid = TT_0_04}
+                if (tid == TT_1_02) { tid = TT_1_04}
             }
 
         }
@@ -113,14 +146,15 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (n==3) {
             // non solid walls should join with the solid floor
             if (!solid(layer[ntid].property) && solid(layer[ntid_d]?.property)) {
-                tid = 2*11 + 0
+                tid = TT_2_00
             }
         }
 
         if (layer[ntid].property == TileProperty.SOLID) {
 
             // fix stair case / zig zags
-            if (n==4) {
+            // check bounds to create the illusion the map tile extends past the visible are
+            if (n==4 && x > 0 && ((x+1)*16) < map_width) {
                 const tiddl = ((y + 4 - 1)*512 + (x-1))
                 const tiddr = ((y + 4 - 1)*512 + (x+1))
                 const dl = !layer[tiddl]
@@ -167,16 +201,18 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
     } else if (tile.shape == TileShape.HALF) {
         let tid = -1
 
+
+
         if (tile.property == TileProperty.NOTSOLID) {
-            if (tile.direction == Direction.UPRIGHT) { tid = 2*11 + 6}
-            if (tile.direction == Direction.UPLEFT)  { tid = 2*11 + 5}
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_2_06}
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_2_05}
         } else {
-            if (tile.direction == Direction.UPRIGHT) { tid = 0*11 + 6}
-            if (tile.direction == Direction.UPLEFT)  { tid = 0*11 + 5}
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_0_06}
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_0_05}
         }
 
-        if (tile.direction == Direction.DOWNRIGHT) { tid = 3*11 + 6}
-        if (tile.direction == Direction.DOWNLEFT)  { tid = 3*11 + 5}
+        if (tile.direction == Direction.DOWNRIGHT) { tid = TT_3_06}
+        if (tile.direction == Direction.DOWNLEFT)  { tid = TT_3_05}
 
         if (tid >= 0) {
             tile.tile = sheets[tile.sheet].tile(tid)
@@ -187,15 +223,15 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         let tid = -1
 
         if (tile.property == TileProperty.NOTSOLID) {
-            if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 0} // invalid, no tile
-            if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 0} // invalid, no tile
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_1_00} // invalid, no tile
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_1_00} // invalid, no tile
         } else {
-            if (tile.direction == Direction.UPRIGHT) { tid = 0*11 + 8}
-            if (tile.direction == Direction.UPLEFT)  { tid = 0*11 + 7}
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_0_08}
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_0_07}
         }
 
-        if (tile.direction == Direction.DOWNRIGHT) { tid = 0*11 + 10}
-        if (tile.direction == Direction.DOWNLEFT)  { tid = 0*11 + 9}
+        if (tile.direction == Direction.DOWNRIGHT) { tid = TT_0_10}
+        if (tile.direction == Direction.DOWNLEFT)  { tid = TT_0_09}
 
         if (tid >= 0) {
             tile.tile = sheets[tile.sheet].tile(tid)
@@ -206,15 +242,15 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         let tid = -1
 
         if (tile.property == TileProperty.NOTSOLID) {
-            if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 0} // invalid, no tile
-            if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 0} // invalid, no tile
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_1_00} // invalid, no tile
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_1_00} // invalid, no tile
         } else {
-            if (tile.direction == Direction.UPRIGHT) { tid = 1*11 + 8}
-            if (tile.direction == Direction.UPLEFT)  { tid = 1*11 + 7}
+            if (tile.direction == Direction.UPRIGHT) { tid = TT_1_08}
+            if (tile.direction == Direction.UPLEFT)  { tid = TT_1_07}
         }
 
-        if (tile.direction == Direction.DOWNRIGHT) { tid = 1*11 + 10}
-        if (tile.direction == Direction.DOWNLEFT)  { tid = 1*11 + 9}
+        if (tile.direction == Direction.DOWNRIGHT) { tid = TT_1_10}
+        if (tile.direction == Direction.DOWNLEFT)  { tid = TT_1_09}
 
         if (tid >= 0) {
             tile.tile = sheets[tile.sheet].tile(tid)

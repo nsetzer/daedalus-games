@@ -102,11 +102,6 @@ class CspController {
     }
 }
 
-function random_choice(choices) {
-  var index = Math.floor(Math.random() * choices.length);
-  return choices[index];
-}
-
 class CameraBase {
 
     constructor() {
@@ -431,8 +426,6 @@ class MainScene extends GameScene {
     }
 }
 
-
-
 export default class Application extends ApplicationBase {
     constructor() {
 
@@ -446,7 +439,7 @@ export default class Application extends ApplicationBase {
         }, () => {
 
             const edit = true
-            const mapid = "map-20231029-155050"
+            const mapid = "map-20231029-205051"
             return new LevelLoaderScene(mapid, edit, ()=>{
 
                 if (edit) {

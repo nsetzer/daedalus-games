@@ -83,7 +83,7 @@ export class Physics2dPlatform {
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
          // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
 
-        this.jumpheight = 96 + 8
+        this.jumpheight = 64 + 8
         //this.jumpduration = .1875 // total duration divided by 4?
         this.jumpduration = .22 // total duration divided by 4?
         this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
@@ -353,15 +353,24 @@ export class Physics2dPlatform {
             }
         }
 
-        // require a move_x(...) => {dx, dy}
-        // require a move_y(...) => {dx, dy}
-
         /////////////////////////////////////////////////////////////
         // move y
         this.yaccum += dt*this.yspeed
         //console.log(this.target.entid, dt, this.yspeed, this.yaccum)
         dy = Math.trunc(this.yaccum)
         this.yaccum -= dy
+
+        // if traveling at maximum speed, add an extra sensor infront
+        // this sensor will prevent falling when there is a gap of 1
+        let sensor_floorc = {x: this.target.rect.left() + 17, y: this.target.rect.bottom() + 1}
+        if (dy > 0 && this.xcollisions.length ==0 && Math.abs(this.xspeed) > .6*this.xmaxspeed1) {
+            for (const ent of solids) {
+                if (!standing && (ent.collidePoint(sensor_floorc.x, sensor_floorc.y))) {
+                    dy = 0
+                }
+            }
+        }
+
         if (dy != 0) {
 
             const dd = this._move_y(solids, dy)
@@ -394,8 +403,13 @@ export class Physics2dPlatform {
         this.collisions = [...this.xcollisions, ...this.ycollisions]
         this.collide = this.collisions.length > 0
 
+
+
         let sensor_floora = {x: this.target.rect.left(), y: this.target.rect.bottom() + 1}
         let sensor_floorb = {x: this.target.rect.right()-1, y: this.target.rect.bottom() + 1}
+
+
+
         let sensor_ceiling = {x: this.target.rect.cx(), y: this.target.rect.top() - 1}
         let sensor_pressing;
         if (this.facing == Direction.RIGHT) {
@@ -403,6 +417,9 @@ export class Physics2dPlatform {
         } else {
             sensor_pressing = {x: this.target.rect.left()-1, y: this.target.rect.cy()}
         }
+
+
+
 
         let pressing = false
         for (const ent of solids) {

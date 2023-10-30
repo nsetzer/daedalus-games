@@ -243,7 +243,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("editor")
             .path(RES_ROOT + "/sprites/editor.png")
             .dimensions(16, 16)
-            .layout(1, 6)
+            .layout(2, 8)
             .offset(1, 1)
             .spacing(1, 1)
 
@@ -340,11 +340,15 @@ class LevelChunkBuilder {
             return
         }
 
-
-
         if (this.work_queue === null) {
             this._init()
         } else {
+            // for 4x7 chunks, there are 12 per screen
+            // it would take 2 seconds to build chunks 1 per frame
+            // build 4 at a time
+            this._build_one()
+            this._build_one()
+            this._build_one()
             this._build_one()
 
             if (this.num_jobs_completed == this.num_jobs) {
@@ -352,7 +356,6 @@ class LevelChunkBuilder {
                 return
             }
         }
-
 
     }
 
@@ -535,6 +538,17 @@ class MapBuilder {
             }
         })
 
+        console.log(mapinfo.objects)
+
+        mapinfo.objects.forEach(obj => {
+            let y = 16*(Math.floor(obj.oid/512 - 4))
+            let x = 16*(obj.oid%512)
+
+            let objname = "Wall"
+            let objprops = {x:x, y:y, w:16, h:16}
+            this.createObject(objname, objprops)
+        })
+
         this.ready = true
     }
 
@@ -651,8 +665,9 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
                     gAssets.mapinfo.width = w
                     gAssets.mapinfo.height = h
-                    gAssets.mapinfo.theme = json.theme
-                    gAssets.mapinfo.layers = json.layers
+                    gAssets.mapinfo.theme = json?.theme??0
+                    gAssets.mapinfo.layers = json?.layers??[{}]
+                    gAssets.mapinfo.objects = json?.objects??[]
 
                     return json
                 })
