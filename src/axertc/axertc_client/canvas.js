@@ -180,6 +180,8 @@ export class CanvasEngine extends DomElement {
         this.paused = false
 
         this.spt = 1/60
+
+        this.frameIndex = 0
     }
 
     elementMounted() {
@@ -587,6 +589,7 @@ export class CanvasEngine extends DomElement {
                 while (this.delta_accum > dt) {
                     this.delta_accum -= dt
                     this.spt_b = this.updateTimer()
+                    this.frameIndex += 1
                     this.scene.update(dt)
                     n += 1;
                 }

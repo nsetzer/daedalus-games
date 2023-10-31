@@ -212,7 +212,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("coin")
             .path(RES_ROOT + "/sprites/coin.png")
             .dimensions(16, 16)
-            .layout(1, 8)
+            .layout(1, 7)
             .offset(0, 0)
             .spacing(0, 0)
 
@@ -550,68 +550,27 @@ export class LevelLoaderScene extends ResourceLoaderScene {
         this.index = 0
 
         this.build_loader()
-        //this.timer = 0
     }
 
     paint(ctx) {
         super.paint(ctx)
-
-        /*
-        if (this.chunk_builder.ready) {
-            let chunk = this.chunk_builder.work_queue[this.index]
-
-            //console.log(chunk.image)
-
-            ctx.save()
-            ctx.fillStyle = "blue"
-            ctx.beginPath()
-            ctx.rect(0,0,4*16,7*16)
-            ctx.closePath()
-            ctx.fill()
-
-            if (!!chunk.image) {
-                ctx.drawImage(chunk.image, 0, 0)
-            }
-
-            ctx.restore()
-
-            //ctx.drawImage(chunk.image.data, 0, 0)
-            //ctx.putImageData(chunk.image,0,0);
-
-        }
-        */
     }
 
     update(dt) {
         super.update(dt)
-
-        /*
-        if (this.chunk_builder.ready) {
-            this.timer += dt
-
-            if (this.timer > 0.5) {
-                this.timer = 0
-                this.index += 1
-                if (this.index >= this.chunk_builder.work_queue.length) {
-                    this.index = 0
-                }
-            }
-        }
-        */
     }
 
     build_loader() {
 
-        gAssets.mapinfo = new MapInfo()
-
-        gAssets.mapinfo.width = 24*16
-        gAssets.mapinfo.height = 14*16
-
-        console.log("building loader")
-
         this.pipeline = []
 
-        if (!!this.mapid) {
+        if (this.mapid == gAssets.mapinfo.mapid) {
+            console.log("load current level")
+        } else if (!!this.mapid) {
+
+            gAssets.mapinfo = new MapInfo()
+            gAssets.mapinfo.mapid = this.mapid
+
             const info_loader = new ResourceLoader()
 
             info_loader.addJson("map")

@@ -2,7 +2,7 @@
 
 export class MapInfo {
     constructor() {
-
+        this.mapid = null
         this.width = 0
         this.height = 0
         this.layers = [{}]

@@ -42,6 +42,7 @@ troid:
 build:
 	mkdir -p build
 	daedalus build --minify --onefile --sourcemap --htmlname maze.html     --paths=./src --static src/maze/resource src/maze/app.js ./build/games
+	daedalus build --minify --onefile --sourcemap --htmlname troid.html     --paths="./src:./src/axertc" --static src/troid/resource src/troid/troid.js ./build/games
 	#daedalus build --minify --htmlname breakout.html --onefile --paths=./src src/breakout/breakout2.js ./build
 	#daedalus build --minify --htmlname jumpwar.html --onefile --paths=./src --env backend=mock --static src/jumpwar/static src/jumpwar/app.js ./build
 	daedalus build --minify --onefile --sourcemap --htmlname axedemo.html  --paths="./src:./src/axertc"  src/axedemo/client_entry.js ./build/games

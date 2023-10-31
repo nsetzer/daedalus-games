@@ -527,6 +527,39 @@ export class Brick extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            this.destroy()
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
     }
 
     paint(ctx) {
@@ -541,19 +574,123 @@ Brick.sheet = null
 Brick.size = [16, 16]
 Brick.icon = null
 
-export class Coin extends PlatformerEntity {
+export class Creeper extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+
+        console.log("!creerper made")
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            console.log("jump")
+            other._jump()
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            //this.destroy()
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
     }
 
     paint(ctx) {
-
-        Coin.icon.draw(ctx, this.rect.x, this.rect.y)
+        //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+        ctx.fillStyle = "red"
+        ctx.beginPath()
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.closePath()
+        ctx.fill()
     }
 
     update(dt) {
 
+    }
+}
+Creeper.sheet = null
+Creeper.size = [16, 16]
+Creeper.icon = null
+
+export class Coin extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+
+
+        if (!Coin.tiles) {
+            Coin.tiles = Coin.sheet.tiles()
+        }
+    }
+
+    paint(ctx) {
+
+        let i = Math.floor(gEngine.frameIndex / 6) % Coin.tiles.length
+        Coin.sheet.drawTile(ctx, Coin.tiles[i], this.rect.x, this.rect.y)
+        //Coin.icon.draw(ctx, this.rect.x, this.rect.y)
+
+    }
+
+    update(dt) {
+
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            let player = objs[0]
+
+            let x1 = player.rect.cx()
+            let x2 = this.rect.cx()
+
+            let y1 = player.rect.cy()
+            let y2 = this.rect.cy()
+
+            let d = Math.sqrt(Math.pow(x1 - x2,2) + Math.pow(y1 - y2, 2))
+
+            if (d < 16 * 7) {
+                if (this.rect.collideRect(player.rect)) {
+                    this.destroy()
+                }
+
+                const p = player.charge_duration / player.charge_timeout
+
+                if (p > .9) {
+
+
+                    let dx = Math.sign(x1 - x2)
+                    let dy = Math.sign(y1 - y2)
+
+                    this.rect.x += dx
+                    this.rect.y += dy
+
+                }
+
+            }
+
+
+
+        }
+        console.log()
     }
 }
 Coin.sheet = null
@@ -564,6 +701,7 @@ Coin.icon = null
 export const editorEntities = [
     {name:"Coin", ctor: Coin}
     {name:"Brick", ctor: Brick}
+    {name:"Creeper", ctor: Creeper}
 ]
 
 export function registerEntities() {

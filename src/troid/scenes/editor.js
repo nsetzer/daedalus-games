@@ -597,6 +597,8 @@ export class LevelEditScene extends GameScene {
             "trash": gAssets.sheets.editor.tile(1*8+2),
             "gear": gAssets.sheets.editor.tile(1*8+3),
             "hand": gAssets.sheets.editor.tile(1*8+5),
+            "pointer": gAssets.sheets.editor.tile(2*8+1),
+            "play": gAssets.sheets.editor.tile(2*8+0),
             "undo": gAssets.sheets.editor.tile(1*8+6),
             "redo": gAssets.sheets.editor.tile(1*8+7),
         }
@@ -669,7 +671,7 @@ export class LevelEditScene extends GameScene {
             },
             {
                 name: "tile-select",
-                icon: this.editor_icons.hand,
+                icon: this.editor_icons.pointer,
                 action: () => {
                     this.active_tool = EditorTool.SELECT_TILE;
                     //this.active_menu = new TileMenu(this)
@@ -721,6 +723,26 @@ export class LevelEditScene extends GameScene {
                     if (this.camera.scale > 1.0) {
                         this.camera.scale -= 0.5
                     }
+                },
+                selected: null,
+            },
+            {
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
+            },
+            {
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
+            },
+            {
+                name: "test",
+                icon: this.editor_icons.play,
+                action: () => {
+                    this.playTest()
                 },
                 selected: null,
             },
@@ -866,7 +888,7 @@ export class LevelEditScene extends GameScene {
                 if (action.selected()) {
                     ctx.beginPath();
                     ctx.fillStyle = "gold"
-                    const x = 6 + 24*index
+                    const x = 3 + 24*index
                     const y = barHeight/2 - 9
                     ctx.rect(x-2, y-2, 18+4, 18+4);
                     ctx.closePath();
@@ -879,7 +901,7 @@ export class LevelEditScene extends GameScene {
 
                 ctx.beginPath();
                 ctx.fillStyle = "#00FF00"
-                const x = 6 + 24*index
+                const x = 3 + 24*index
                 const y = barHeight/2 - 9
                 ctx.rect(x, y, 18, 18);
                 ctx.closePath();
@@ -922,46 +944,18 @@ export class LevelEditScene extends GameScene {
                 }
                 else if (action.name == "object-place") {
 
+                    let page = this.object_pages[this.objmenu_current_page]
+                    let obj = page.objects[this.objmenu_current_object]
+                    let icon = obj?.ctor?.icon
+                    if (!!icon) {
+                        icon.draw(ctx, x+1, y+1)
+                    }
                 }
                 else if (!!action.icon) {
                     action.icon.draw(ctx, x+1, y+1)
                 }
             }
         })
-
-        /*
-        for (let i=0; i < 7; i++) {
-            ctx.beginPath();
-            ctx.fillStyle = "#00FF00"
-            ctx.rect(6 + 24*i, barHeight/2 - 9, 18, 18);
-            ctx.closePath();
-            ctx.fill();
-
-            if (i == 2 && this.active_tool==EditorTool.PLACE_OBJECT) {
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "gold"
-                ctx.stroke();
-            }
-
-            if (i == 3 && (this.active_tool==EditorTool.PAINT_TILE || this.active_tool== EditorTool.PLACE_TILE)) {
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "gold"
-                ctx.stroke();
-            }
-            if (i == 4 && this.active_tool==EditorTool.ERASE_TILE) {
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "gold"
-                ctx.stroke();
-            }
-        }
-
-        this.editor_icons.save.draw(ctx, 6+24*0+1, y+1)
-        this.editor_icons.gear.draw(ctx, 6+24*1+1, y+1)
-        this.editor_icons.erase.draw(ctx, 6+24*4+1, y+1)
-        this.editor_icons.zoom_out.draw(ctx, 6+24*5+1, y+1)
-        this.editor_icons.zoom_in.draw(ctx, 6+24*6+1, y+1)
-        */
-
 
     }
 
@@ -1086,7 +1080,7 @@ export class LevelEditScene extends GameScene {
 
             //let objinfo = this.object_registry[obj.name]
 
-            if (!!this.editor_objects[obj.name]) {
+            if (!!this.editor_objects[obj.name]?.icon) {
                 this.editor_objects[obj.name].icon.draw(ctx, x, y)
             }
 
@@ -1306,6 +1300,29 @@ export class LevelEditScene extends GameScene {
         this._updateTile(x,y,this.map.layers[0][tid])
     }
 
+    playTest() {
+
+        gAssets.mapinfo.mapid = "editor-playtest"
+
+        gAssets.mapinfo.width = this.map.width
+        gAssets.mapinfo.height = this.map.height
+        gAssets.mapinfo.theme = 0
+
+        gAssets.mapinfo.layers = this.map.layers
+
+        const objects0 = Object.entries(this.map.objects)
+            .filter( t => !!t[1].name )
+            .map(t => ({oid: t[0], name: t[1].name}))
+
+        gAssets.mapinfo.objects = objects0
+
+        const edit = false
+        gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
+            gEngine.scene = new LevelLoaderScene.scenes.main()
+        })
+
+    }
+
     saveAs() {
 
         // compress each tile into a 32bit integer
@@ -1374,8 +1391,8 @@ export class LevelEditScene extends GameScene {
                 // buttons are 18x18 pixels.
                 // with 6 pixels between buttons
                 //
-                let ix = Math.floor((t.x - 6) / 24)
-                let iclicked = ((t.x - 6) % 24) < 18
+                let ix = Math.floor((t.x - 3) / 24)
+                let iclicked = ((t.x - 3) % 24) < 18
 
                 console.log("menu clicked", ix, iclicked)
 

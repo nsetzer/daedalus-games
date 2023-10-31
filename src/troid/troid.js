@@ -87,7 +87,11 @@ class CspController {
     handleButtonRelease(btnid){
 
         if (btnid == 3) {
-            gEngine.scene = new LevelEditScene()
+
+            const edit = true
+            gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
+                gEngine.scene = new LevelEditScene()
+            })
             return
         }
 
@@ -438,8 +442,12 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = false
-            const mapid = "map-20231030-164613"
+            const edit = true
+            const mapid = "map-20231030-204847"
+
+            // hack to avoid importing the main scene in the editor
+            LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
+
             return new LevelLoaderScene(mapid, edit, ()=>{
 
                 if (edit) {
