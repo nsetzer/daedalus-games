@@ -3,6 +3,7 @@ $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
     Direction, Alignment, Rect,
 })
+$import("axertc_client", {SpriteSheet})
 
 $import("axertc_physics", {
     Physics2dPlatform, PlatformerEntity, Wall, Slope, OneWayWall,
@@ -223,6 +224,8 @@ export class Player extends PlatformerEntity {
         this.charge_duration = 0.0
         this.charge_timeout = 1.1
         this.charging = false
+
+        this.jump_pressed = false
 
         this._x_input = {x:0,y:0}
     }
@@ -451,6 +454,8 @@ export class Player extends PlatformerEntity {
 
         } else if (payload.btnid === 0) {
 
+            this.jump_pressed = payload.pressed
+
             if (payload.pressed) {
                 this._jump()
             } else {
@@ -488,6 +493,18 @@ export class Player extends PlatformerEntity {
             console.log(payload)
         }
 
+    }
+
+    _bounce() {
+
+        if (this.jump_pressed) {
+            this.physics.yspeed = this.physics.jumpspeed
+        } else {
+            this.physics.yspeed = this.physics.jumpspeed*.75
+        }
+        this.physics.yaccum = 0
+        this.physics.gravityboost = false
+        this.physics.doublejump = true
     }
 
     _jump() {
@@ -577,13 +594,64 @@ Brick.icon = null
 export class Creeper extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.rect = new Rect(props?.x??0, props?.y??0, 12, 12)
+
+        this.animation = new AnimationComponent(this)
+        this.visible = true
 
         this.breakable = 0
         this.alive = 1
         this.solid = 1
 
-        console.log("!creerper made")
+        this.physics = new Physics2dPlatform(this,{
+            xmaxspeed1: 35,
+            xmaxspeed2: 35, // 35 seems right
+        })
+
+        this.physics.direction = Direction.LEFT
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+
+        this.buildAnimations()
+    }
+
+    buildAnimations() {
+
+        let spf = 1/8
+        let xoffset = - 6
+        let yoffset = - 4
+
+        this.animations = {
+            "idle":{},
+            "run":{},
+            "wall_slide":{},
+            "jump":{},
+            "fall":{},
+            "hit":{},
+            "ball":{},
+        }
+
+        let ncols = 3
+        let nrows = 3
+        let aid;
+        let sheet = Creeper.sheet
+
+        aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.RIGHT] = aid
+
+        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.RIGHT] = aid
+
+        this.animation.setAnimationById(this.animations.run[Direction.LEFT])
+
     }
 
     collide(other, dx, dy) {
@@ -602,8 +670,11 @@ export class Creeper extends PlatformerEntity {
         }
 
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
-            console.log("jump")
-            other._jump()
+
+            if (other instanceof Player) {
+                other._bounce()
+                return null
+            }
             update.set_bottom(this.rect.top())
             return update
         }
@@ -624,15 +695,157 @@ export class Creeper extends PlatformerEntity {
         ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
         ctx.closePath()
         ctx.fill()
+
+        this.animation.paint(ctx)
+
+        //ctx.font = "bold 16px";
+        //ctx.fillStyle = "yellow"
+        //ctx.strokeStyle = "yellow"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        //ctx.fillText(`${this.physics.xspeed} ${this.physics.direction}`, this.rect.x, this.rect.y);
     }
 
     update(dt) {
+        this.physics.update(dt)
+        if (this.physics.xcollide) {
+            //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
+            this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+            this.animation.setAnimationById(this.animations.run[this.physics.direction])
+            this.physics.xspeed = 0
+            this.physics.xaccum = 0
+        }
+        this.animation.update(dt)
 
     }
 }
 Creeper.sheet = null
 Creeper.size = [16, 16]
 Creeper.icon = null
+
+export class Shredder extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+
+        this.animation = new AnimationComponent(this)
+        this.visible = true
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+
+        this.physics = new Physics2dPlatform(this,{
+            xmaxspeed1: 35,
+            xmaxspeed2: 35, // 35 seems right
+            gravity: 0,
+        })
+
+        this.physics.direction = Direction.LEFT
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+        this.buildAnimations()
+    }
+
+    buildAnimations() {
+
+        let spf = 1/8
+        let xoffset = - 4
+        let yoffset = 0
+
+        this.animations = {
+            "idle":{},
+            "run":{},
+            "wall_slide":{},
+            "jump":{},
+            "fall":{},
+            "hit":{},
+            "ball":{},
+        }
+
+        let ncols = 3
+        let nrows = 3
+        let aid;
+        let sheet = Shredder.sheet
+
+        aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.RIGHT] = aid
+
+        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.RIGHT] = aid
+
+        this.animation.setAnimationById(this.animations.run[Direction.LEFT])
+
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            if (other instanceof Player) {
+                other._bounce()
+                return null
+            }
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            //this.destroy()
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    paint(ctx) {
+        //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+        ctx.fillStyle = "red"
+        ctx.beginPath()
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.closePath()
+        ctx.fill()
+
+        this.animation.paint(ctx)
+    }
+
+    update(dt) {
+        this.physics.update(dt)
+        if (this.physics.xcollide) {
+            //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
+            this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+            this.animation.setAnimationById(this.animations.run[this.physics.direction])
+            this.physics.xspeed = 0
+            this.physics.xaccum = 0
+        }
+        this.animation.update(dt)
+
+    }
+}
+Shredder.sheet = null
+Shredder.size = [16, 16]
+Shredder.icon = null
 
 export class Coin extends PlatformerEntity {
     constructor(entid, props) {
@@ -676,21 +889,20 @@ export class Coin extends PlatformerEntity {
 
                 if (p > .9) {
 
+                    let dx = x1 - x2
+                    let dy = y1 - y2
+                    let dm = Math.max(Math.abs(dx), Math.abs(dy))
 
-                    let dx = Math.sign(x1 - x2)
-                    let dy = Math.sign(y1 - y2)
+                    let sx = Math.sign(dx) * (Math.abs(dx) / dm)
+                    let sy = Math.sign(dy) * (Math.abs(dy) / dm)
 
-                    this.rect.x += dx
-                    this.rect.y += dy
+                    this.rect.x += sx
+                    this.rect.y += sy
 
                 }
 
             }
-
-
-
         }
-        console.log()
     }
 }
 Coin.sheet = null
@@ -702,6 +914,7 @@ export const editorEntities = [
     {name:"Coin", ctor: Coin}
     {name:"Brick", ctor: Brick}
     {name:"Creeper", ctor: Creeper}
+    {name:"Shredder", ctor: Shredder}
 ]
 
 export function registerEntities() {
@@ -713,5 +926,25 @@ export function registerEntities() {
     Coin.sheet = gAssets.sheets.coin
     Coin.icon = gAssets.sheets.coin.tile(0)
 
+    // for any mob, the first row should contain
+    // the 16x16 editor icon
+    let editorIcon = (sheet) => {
+        let icon = new SpriteSheet()
+        icon.tw = 16
+        icon.th = 16
+        icon.rows = 1
+        icon.cols = 1
+        icon.xspacing = 1
+        icon.yspacing = 1
+        icon.xoffset = 1
+        icon.yoffset = 1
+        icon.image = sheet.image
+        return icon.tile(0)
+    }
 
+    Creeper.sheet = gAssets.sheets.creeper
+    Creeper.icon = editorIcon(Creeper.sheet)
+
+    Shredder.sheet = gAssets.sheets.shredder
+    Shredder.icon = editorIcon(Shredder.sheet)
 }

@@ -86,7 +86,14 @@ export class Physics2dPlatform {
         this.jumpheight = 64 + 8
         //this.jumpduration = .1875 // total duration divided by 4?
         this.jumpduration = .22 // total duration divided by 4?
-        this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
+
+        if (config?.gravity===0) {
+            this.gravity = 0
+        } else {
+            this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
+        }
+        console.log("grav", config?.gravity, this.gravity)
+
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 
         //const dt = 1/16
@@ -116,7 +123,7 @@ export class Physics2dPlatform {
     }
 
     _move_x(solids, dx) {
-        this.xcollisions = []
+
 
         let rect = new Rect(
             this.target.rect.x + dx,
@@ -171,7 +178,6 @@ export class Physics2dPlatform {
 
     _move_y(solids, dy) {
 
-        this.ycollisions = []
 
         let rect = new Rect(
             this.target.rect.x,
@@ -317,6 +323,8 @@ export class Physics2dPlatform {
 
         }
 
+        this.xcollisions = []
+        this.ycollisions = []
 
         let dx, dy;
 
@@ -371,6 +379,7 @@ export class Physics2dPlatform {
             }
         }
 
+
         if (dy != 0) {
 
             const dd = this._move_y(solids, dy)
@@ -396,13 +405,12 @@ export class Physics2dPlatform {
                 }
 
             } else {
+
+
+
                 this.target.rect.y += dy
             }
         }
-
-        this.collisions = [...this.xcollisions, ...this.ycollisions]
-        this.collide = this.collisions.length > 0
-
 
 
         let sensor_floora = {x: this.target.rect.left(), y: this.target.rect.bottom() + 1}
@@ -454,6 +462,10 @@ export class Physics2dPlatform {
 
         }
 
+        this.collisions = [...this.xcollisions, ...this.ycollisions]
+
+        this.xcollide = this.xcollisions.length > 0
+        this.ycollide = this.ycollisions.length > 0
 
         /////////////////////////////////////////////////////////////
         // bounds check
@@ -461,20 +473,20 @@ export class Physics2dPlatform {
             if (this.target.rect.x < Physics2dPlatform.maprect.x) {
                 this.target.rect.x = Physics2dPlatform.maprect.x
                 this.xspeed = 0
-                this.collide = true
+                this.xcollide = true
             }
 
             let maxx = Physics2dPlatform.maprect.w - this.target.rect.w
             if (this.target.rect.x > maxx) {
                 this.target.rect.x = maxx
                 this.xspeed = 0
-                this.collide = true
+                this.xcollide = true
             }
 
             if (this.target.rect.y < Physics2dPlatform.maprect.y) {
                 this.target.rect.y = Physics2dPlatform.maprect.y
                 this.yspeed = 0
-                this.collide = true
+                this.ycollide = true
             }
 
             let maxy = Physics2dPlatform.maprect.h - this.target.rect.h
@@ -484,9 +496,11 @@ export class Physics2dPlatform {
                 standing = true
                 this.target.rect.y = maxy
                 this.yspeed = 0
-                this.collide = true
+                this.ycollide = true
             }
         }
+
+        this.collide = this.xcollide || this.ycollide
 
         /////////////////////////////////////////////////////////////
         // update state

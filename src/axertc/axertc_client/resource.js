@@ -143,18 +143,21 @@ export class SpriteSheetBuilder {
 export class SpriteSheet {
 
     constructor(path) {
-        this.image = new Image();
-        this.ready = false;
-        this.status = ResourceStatus.LOADING
-        this.image.onload = () => {
-            this.ready = true;
-            this.status = ResourceStatus.READY
+
+        if (!!path) {
+            this.image = new Image();
+            this.ready = false;
+            this.status = ResourceStatus.LOADING
+            this.image.onload = () => {
+                this.ready = true;
+                this.status = ResourceStatus.READY
+            }
+            this.image.onerror = () => {
+                console.warn("error loading: " + path)
+                this.status = ResourceStatus.ERROR
+            }
+            this.image.src = path
         }
-        this.image.onerror = () => {
-            console.warn("error loading: " + path)
-            this.status = ResourceStatus.ERROR
-        }
-        this.image.src = path
 
         this.tw = 0
         this.th = 0

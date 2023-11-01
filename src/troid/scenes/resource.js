@@ -223,6 +223,20 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("creeper")
+            .path(RES_ROOT + "/sprites/creeper.png")
+            .dimensions(24, 16)
+            .layout(3, 3)
+            .offset(1, 18)
+            .spacing(1, 1)
+
+        this.loader.addSpriteSheet("shredder")
+            .path(RES_ROOT + "/sprites/shredder.png")
+            .dimensions(24, 16)
+            .layout(3, 3)
+            .offset(1, 18)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("zone_01_sheet_01")
             .path(RES_ROOT + "/sprites/tile_ground_01.png")
             .dimensions(16, 16)
