@@ -243,6 +243,145 @@ class Camera extends CameraBase {
     }
 }
 
+class PauseScreen {
+
+    // todo: keyboard interation
+    //       actions indicate tab order
+    //       up/down skip to next row
+    //       left/right move within a row
+    //
+    constructor(parent) {
+        this.parent = parent
+
+
+        this.actions = []
+        this._buildActions()
+
+
+
+    }
+
+
+
+    _addAction(x,y,w,h,icon,fn) {
+        this.actions.push({rect: new Rect(x,y,w,h), icon, fn})
+    }
+
+    _buildActions() {
+
+        let rect1 = new Rect(16, 16*2, 8*16, 10*16)
+        let rect2 = new Rect(gEngine.view.width - 10*16 + 16, 16*2, 8*16, 10*16)
+
+        let x1 = rect1.x + 8
+        let y1 = rect1.y + 12 + 6
+
+        // power, fire, water, ice, bubble
+        this._addAction(x1+0*24, y1, 16, 16, null, ()=>{})
+        this._addAction(x1+1*24, y1, 16, 16, null, ()=>{})
+        this._addAction(x1+2*24, y1, 16, 16, null, ()=>{})
+        this._addAction(x1+3*24, y1, 16, 16, null, ()=>{})
+        this._addAction(x1+4*24, y1, 16, 16, null, ()=>{})
+
+        // wave beam, normal, bounce beam
+        // wave - pass through walls
+        // normal - break on contact
+        // bounce - bounce off walls (bubbles bounce player)
+        this._addAction(x1+1*24, y1+24, 16, 16, null, ()=>{})
+        this._addAction(x1+2*24, y1+24, 16, 16, null, ()=>{})
+        this._addAction(x1+3*24, y1+24, 16, 16, null, ()=>{})
+
+        // single, double, triple
+        // power, ice: 1,2,3 bullets
+        // fire, normal: 1,3,5 bullets at 0,22,45 degrees
+        // water: wider stream
+        // bubble: more
+        this._addAction(x1+1*24, y1+48, 16, 16, null, ()=>{})
+        this._addAction(x1+2*24, y1+48, 16, 16, null, ()=>{})
+        this._addAction(x1+3*24, y1+48, 16, 16, null, ()=>{})
+
+        // charge beam, normal, rapid shot
+        // water, charge: larger orbs
+        // water, rapid: stream
+        this._addAction(x1+1*24, y1+3*24, 16, 16, null, ()=>{})
+        this._addAction(x1+2*24, y1+3*24, 16, 16, null, ()=>{})
+        this._addAction(x1+3*24, y1+3*24, 16, 16, null, ()=>{})
+
+        // missile, super, homing
+        this._addAction(x1+1*24, y1+12+4*24, 16, 16, null, ()=>{})
+        this._addAction(x1+2*24, y1+12+4*24, 16, 16, null, ()=>{})
+        this._addAction(x1+3*24, y1+12+4*24, 16, 16, null, ()=>{})
+
+        let x2 = rect2.x + 8
+        let y2 = rect2.y + 12 + 6
+
+        // suits
+        // diving helmet
+        this._addAction(x2+1*24, y2, 16, 16, null, ()=>{})
+        this._addAction(x2+2*24, y2, 16, 16, null, ()=>{})
+        this._addAction(x2+3*24, y2, 16, 16, null, ()=>{})
+
+        // space jump, spin jump
+        this._addAction(x2+12+1*24, y2+12+4*24, 16, 16, null, ()=>{})
+        this._addAction(x2+12+2*24, y2+12+4*24, 16, 16, null, ()=>{})
+
+    }
+
+    paint(ctx) {
+
+        let rect0 = new Rect(0, 24, gEngine.view.width, gEngine.view.height-24)
+        ctx.lineWidth = 1
+        ctx.fillStyle = "#000000dd"
+        ctx.beginPath()
+        ctx.rect(rect0.x, rect0.y, rect0.w, rect0.h)
+        ctx.closePath()
+        ctx.fill()
+
+        let x = gEngine.view.width/2 - 80/2
+        let y = gEngine.view.height/2 - 128/2
+        gAssets.sheets.pause_suit.drawTile(ctx, 0, x, y)
+
+        ctx.lineWidth = 1
+        ctx.strokeStyle = "#88e810"
+        ctx.beginPath()
+        let rect1 = new Rect(16, 16*2, 8*16, 10*16)
+        ctx.roundRect(rect1.x, rect1.y, rect1.w, rect1.h, 8)
+        ctx.closePath()
+        ctx.stroke()
+
+        ctx.strokeStyle = "#88e810"
+        ctx.beginPath()
+        let rect2 = new Rect(gEngine.view.width - 10*16 + 16, 16*2, 8*16, 10*16)
+        ctx.roundRect(rect2.x, rect2.y, rect2.w, rect2.h, 8)
+        ctx.closePath()
+        ctx.stroke()
+
+        ctx.beginPath()
+        ctx.fillStyle = "#0000FF"
+        this.actions.forEach(act => {
+            ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+        })
+        ctx.fill()
+
+
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0 && !touches[0].pressed) {
+
+            const t = touches[0]
+            this.actions.forEach((act,i) => {
+                if (act.rect.collidePoint(t.x, t.y)) {
+                    console.log("action",i)
+                }
+            })
+        }
+    }
+    update(dt) {
+
+    }
+}
+
 class MainScene extends GameScene {
 
     constructor(loader) {
@@ -283,6 +422,8 @@ class MainScene extends GameScene {
         this.keyboard.addButton(27) // ESC
 
         this.camera = new Camera(this.map.map, this.map.map._x_player)
+        this.screen = null // new PauseScreen()
+
     }
 
     pause(paused) {
@@ -318,6 +459,7 @@ class MainScene extends GameScene {
         }
 
     }
+
     paint(ctx) {
 
         // screen boundary
@@ -394,19 +536,21 @@ class MainScene extends GameScene {
         ctx.restore()
 
         this._paint_status(ctx)
-        this.touch.paint(ctx)
 
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "black"
-        ctx.strokeStyle = "black"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "bottom"
+        if (!!this.screen) {
+            this.screen.paint(ctx)
+        } else {
+            this.touch.paint(ctx)
+        }
 
-
-
+        //ctx.font = "bold 16px";
+        //ctx.fillStyle = "black"
+        //ctx.strokeStyle = "black"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "bottom"
 
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
-        ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
+        //ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
 
     }
 
@@ -416,16 +560,29 @@ class MainScene extends GameScene {
     }
 
     handleTouches(touches) {
-        touches = this.touch.handleTouches(touches)
+        if (!!this.screen) {
+            this.screen.handleTouches(touches)
+        } else {
+            touches = this.touch.handleTouches(touches)
+
+        }
         //gEngine.setFullScreen(true)
     }
 
     handleKeyPress(keyevent) {
-        this.keyboard.handleKeyPress(keyevent);
+        if (!!this.screen) {
+        } else {
+            this.keyboard.handleKeyPress(keyevent);
+
+        }
     }
 
     handleKeyRelease(keyevent) {
-        this.keyboard.handleKeyRelease(keyevent);
+        if (!!this.screen) {
+        } else {
+            this.keyboard.handleKeyRelease(keyevent);
+
+        }
 
     }
 }

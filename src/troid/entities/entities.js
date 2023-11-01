@@ -788,6 +788,8 @@ export class Shredder extends PlatformerEntity {
 
     collide(other, dx, dy) {
 
+
+
         let rect = other.rect
         let update = rect.copy()
 
