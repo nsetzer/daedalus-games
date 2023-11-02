@@ -472,12 +472,12 @@ export class Player extends PlatformerEntity {
         //ctx.textBaseline = "top"
         //ctx.fillText(`${this.physics.action}`, this.rect.x, this.rect.y);
 
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "yellow"
-        ctx.strokeStyle = "yellow"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-        ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
+        //ctx.font = "bold 16px";
+        //ctx.fillStyle = "yellow"
+        //ctx.strokeStyle = "yellow"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        //ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
 
 
     }

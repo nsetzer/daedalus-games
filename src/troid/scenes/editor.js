@@ -1115,8 +1115,8 @@ export class LevelEditScene extends GameScene {
         ctx.textBaseline = "top"
         //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
         //let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
-        let text = `n=${this?.num_touches??0}`
-        ctx.fillText(text, 8, 24);
+        //let text = `n=${this?.num_touches??0}`
+        //ctx.fillText(text, 8, 24);
     }
 
     resize() {
@@ -1433,7 +1433,7 @@ export class LevelEditScene extends GameScene {
                         this.disable_place = false
                     }
                 }
-                this.num_touches = this.disable_place + "|" +touches.map(t=> t.pressed).join()
+                //this.num_touches = this.disable_place + "|" +touches.map(t=> t.pressed).join()
 
                 // right click or two touches to scroll the screen
                 if (touches[0].buttons&2 || touches.length==2) {
