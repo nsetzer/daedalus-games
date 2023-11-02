@@ -40,7 +40,15 @@ export class Bullet extends PlatformerEntity {
 
         this.wave_counter = 0
         this.wave_loop = !!(props?.wave)
-        let profile = props?.wave?Bullet.velocity_profile_wave:Bullet.velocity_profile_spread
+
+        let profile
+        if (props?.wave == 2) {
+            profile = Bullet.velocity_profile_spread2
+        } else if (props?.wave == 1) {
+            profile = Bullet.velocity_profile_wave
+        } else {
+            profile = Bullet.velocity_profile_spread
+        }
         this.wave_profile = profile[d][this.split-1]
 
         this.bounce = !!(props?.bounce)
@@ -179,6 +187,19 @@ function init_velocity() {
     const v5 = get_velocity(p5)
     const v6 = get_velocity(p6)
 
+
+    const vspread2_h_00 = v1
+    const vspread2_h_22a = get_velocity(rotatelist(p1, -15*Math.PI/180))
+    const vspread2_h_22b = get_velocity(rotatelist(p1,  15*Math.PI/180))
+    const vspread2_h_45a = get_velocity(rotatelist(p1, -30*Math.PI/180))
+    const vspread2_h_45b = get_velocity(rotatelist(p1,  30*Math.PI/180))
+
+    const vspread2_d_00 = v4
+    const vspread2_d_22a = get_velocity(rotatelist(p4, -15*Math.PI/180))
+    const vspread2_d_22b = get_velocity(rotatelist(p4,  15*Math.PI/180))
+    const vspread2_d_45a = get_velocity(rotatelist(p4, -30*Math.PI/180))
+    const vspread2_d_45b = get_velocity(rotatelist(p4,  30*Math.PI/180))
+
     // profiles have the pattern [straight, wave-up, wave-down]
     // each list is the velocity to apply in a looping fashion on each time step
 
@@ -193,6 +214,8 @@ function init_velocity() {
         [Direction.LEFT]: [flip(v1.slice(0,1)), flip(v2), flip(v3)],
         [Direction.UPLEFT]: [flip(v4.slice(0,1)), flip(v5), flip(v6)],
     }
+    Bullet.velocity_profile_wave[Direction.LEFT] = Bullet.velocity_profile_wave[Direction.RIGHT].map(x => flip(x))
+    Bullet.velocity_profile_wave[Direction.UPLEFT] = Bullet.velocity_profile_wave[Direction.UPRIGHT].map(x => flip(x))
 
     // this profile does not loop
     // bullets spread apart and then fly straight
@@ -202,9 +225,18 @@ function init_velocity() {
     Bullet.velocity_profile_spread = {
         [Direction.RIGHT]: [v1.slice(0,1), spread(v2, v1[0]), spread(v3, v1[0])],
         [Direction.UPRIGHT]: [v4.slice(0,1), spread(v5, v4[0]), spread(v6, v4[0])],
-        [Direction.LEFT]: [flip(v1.slice(0,1)), flip(spread(v2, v1[0])), flip(spread(v3, v1[0]))],
-        [Direction.UPLEFT]: [flip(v4.slice(0,1)), flip(spread(v5, v4[0])), flip(spread(v6, v4[0]))],
     }
+    Bullet.velocity_profile_spread[Direction.LEFT] = Bullet.velocity_profile_spread[Direction.RIGHT].map(x => flip(x))
+    Bullet.velocity_profile_spread[Direction.UPLEFT] = Bullet.velocity_profile_spread[Direction.UPRIGHT].map(x => flip(x))
+
+
+    // up to 5 projectiles covering 60 degrees.
+    Bullet.velocity_profile_spread2 = {
+        [Direction.RIGHT]:   [vspread2_h_00.slice(0,1), vspread2_h_22a.slice(0,1), vspread2_h_22b.slice(0,1), vspread2_h_45a.slice(0,1), vspread2_h_45b.slice(0,1)],
+        [Direction.UPRIGHT]: [vspread2_d_00.slice(0,1), vspread2_d_22a.slice(0,1), vspread2_d_22b.slice(0,1), vspread2_d_45a.slice(0,1), vspread2_d_45b.slice(0,1)],
+    }
+    Bullet.velocity_profile_spread2[Direction.LEFT] = Bullet.velocity_profile_spread2[Direction.RIGHT].map(x => flip(x))
+    Bullet.velocity_profile_spread2[Direction.UPLEFT] = Bullet.velocity_profile_spread2[Direction.UPRIGHT].map(x => flip(x))
 
     console.log("spread", Bullet.velocity_profile_spread[Direction.RIGHT])
 
@@ -236,8 +268,10 @@ function generateProjectiles(x,y,direction) {
         break;
     }
 
-    let wave = gCharacterInfo.beam === WeaponType.BEAM.WAVE
+    let wave = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
     let bounce = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
+
+    let normal = gCharacterInfo.modifier = WeaponType.MODIFIER.NORMAL
 
     let level = gCharacterInfo.level
 
@@ -248,7 +282,23 @@ function generateProjectiles(x,y,direction) {
     // bubble + charge : large bubbles that can be jumped on
 
 
-    if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+    if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && wave && normal) {
+
+        wave = 2
+        console.log("spread@")
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
+        if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL2) {
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+        }
+        if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL3) {
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:4}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:5}})
+        }
+
+    }
+
+    else if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
         projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
     }
     else if (bounce || gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {

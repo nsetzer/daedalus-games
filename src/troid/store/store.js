@@ -1,5 +1,35 @@
  
 
+// __________
+// | Normal |_________________________________
+// |--------| NORMAL   | WAVE     | BOUNCE   |
+// | POWER  |          |          |          |
+// | FIRE   |          | spread   | fireball |
+// | WATER  |          |          |          |
+// | ICE    |          |          | iceball  |
+// | BUBBLE | small    | small    | small    |
+//--------------------------------------------
+
+// __________
+// | CHARGE |_________________________________
+// |--------| NORMAL   | WAVE     | BOUNCE   |
+// | POWER  |          |          |          |
+// | FIRE   |          |          |          |
+// | WATER  |          |          |          |
+// | ICE    |          |          |          |
+// | BUBBLE | big      | big      | big      |
+//--------------------------------------------
+
+// __________
+// | RAPID  |_________________________________
+// |--------| NORMAL   | WAVE     | BOUNCE   |
+// | POWER  |          |          |          |
+// | FIRE   |          | flame    |          |
+// | WATER  | squirt   | squirt   | squirt   |
+// | ICE    |          |          |          |
+// | BUBBLE | many     | many     | many     |
+//--------------------------------------------
+
 const WeaponElementType = {}
 WeaponElementType.POWER = 1
 WeaponElementType.FIRE = 2
@@ -31,10 +61,10 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.ICE
-        this.beam = WeaponType.BEAM.BOUNCE
-        this.level = WeaponType.LEVEL.LEVEL1
-        this.modifier = WeaponType.MODIFIER.CHARGE
+        this.element = WeaponType.ELEMENT.FIRE
+        this.beam = WeaponType.BEAM.WAVE
+        this.level = WeaponType.LEVEL.LEVEL3
+        this.modifier = WeaponType.MODIFIER.NORMAL
     }
 }
 
