@@ -230,6 +230,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("pause_items")
+            .path(RES_ROOT + "/sprites/pause_items.png")
+            .dimensions(16, 16)
+            .layout(9, 6)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("creeper")
             .path(RES_ROOT + "/sprites/creeper.png")
             .dimensions(24, 16)

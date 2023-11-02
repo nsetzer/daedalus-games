@@ -92,7 +92,6 @@ export class Physics2dPlatform {
         } else {
             this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
         }
-        console.log("grav", config?.gravity, this.gravity)
 
         this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
 

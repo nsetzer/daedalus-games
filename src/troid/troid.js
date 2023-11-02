@@ -32,7 +32,7 @@ $import("axertc_physics", {
 })
 
 $import("scenes", {LevelLoaderScene, LevelEditScene})
-$import("store", {MapInfo, gAssets})
+$import("store", {MapInfo, gAssets, gCharacterInfo, WeaponType})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
 $import("entities", {Player})
@@ -88,10 +88,8 @@ class CspController {
 
         if (btnid == 3) {
 
-            const edit = true
-            gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
-                gEngine.scene = new LevelEditScene()
-            })
+            gEngine.scene.screen = new PauseScreen(gEngine.scene)
+
             return
         }
 
@@ -257,14 +255,10 @@ class PauseScreen {
         this.actions = []
         this._buildActions()
 
-
-
     }
 
-
-
-    _addAction(x,y,w,h,icon,fn) {
-        this.actions.push({rect: new Rect(x,y,w,h), icon, fn})
+    _addAction(x,y,w,h,icon, on_action) {
+        this.actions.push({rect: new Rect(x,y,w,h), icon, on_action})
     }
 
     _buildActions() {
@@ -275,36 +269,40 @@ class PauseScreen {
         let x1 = rect1.x + 8
         let y1 = rect1.y + 12 + 6
 
+        const fn_icon = (index, state) => {
+            return gAssets.sheets.pause_items.tile((index * 3) + state)
+        }
+
         // power, fire, water, ice, bubble
-        this._addAction(x1+0*24, y1, 16, 16, null, ()=>{})
-        this._addAction(x1+1*24, y1, 16, 16, null, ()=>{})
-        this._addAction(x1+2*24, y1, 16, 16, null, ()=>{})
-        this._addAction(x1+3*24, y1, 16, 16, null, ()=>{})
-        this._addAction(x1+4*24, y1, 16, 16, null, ()=>{})
+        this._addAction(x1+0*24, y1, 16, 16, ()=>fn_icon(0,gCharacterInfo.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.POWER})
+        this._addAction(x1+1*24, y1, 16, 16, ()=>fn_icon(1,gCharacterInfo.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.FIRE})
+        this._addAction(x1+2*24, y1, 16, 16, ()=>fn_icon(2,gCharacterInfo.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.WATER})
+        this._addAction(x1+3*24, y1, 16, 16, ()=>fn_icon(3,gCharacterInfo.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.ICE})
+        this._addAction(x1+4*24, y1, 16, 16, ()=>fn_icon(4,gCharacterInfo.element===WeaponType.ELEMENT.BUBBLE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE})
 
         // wave beam, normal, bounce beam
         // wave - pass through walls
         // normal - break on contact
         // bounce - bounce off walls (bubbles bounce player)
-        this._addAction(x1+1*24, y1+24, 16, 16, null, ()=>{})
-        this._addAction(x1+2*24, y1+24, 16, 16, null, ()=>{})
-        this._addAction(x1+3*24, y1+24, 16, 16, null, ()=>{})
+        this._addAction(x1+1*24, y1+24, 16, 16, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.WAVE})
+        this._addAction(x1+2*24, y1+24, 16, 16, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.NORMAL})
+        this._addAction(x1+3*24, y1+24, 16, 16, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.BOUNCE})
 
         // single, double, triple
         // power, ice: 1,2,3 bullets
         // fire, normal: 1,3,5 bullets at 0,22,45 degrees
         // water: wider stream
         // bubble: more
-        this._addAction(x1+1*24, y1+48, 16, 16, null, ()=>{})
-        this._addAction(x1+2*24, y1+48, 16, 16, null, ()=>{})
-        this._addAction(x1+3*24, y1+48, 16, 16, null, ()=>{})
+        this._addAction(x1+1*24, y1+48, 16, 16, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL1})
+        this._addAction(x1+2*24, y1+48, 16, 16, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL2})
+        this._addAction(x1+3*24, y1+48, 16, 16, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL3})
 
         // charge beam, normal, rapid shot
         // water, charge: larger orbs
         // water, rapid: stream
-        this._addAction(x1+1*24, y1+3*24, 16, 16, null, ()=>{})
-        this._addAction(x1+2*24, y1+3*24, 16, 16, null, ()=>{})
-        this._addAction(x1+3*24, y1+3*24, 16, 16, null, ()=>{})
+        this._addAction(x1+1*24, y1+3*24, 16, 16, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.CHARGE})
+        this._addAction(x1+2*24, y1+3*24, 16, 16, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL})
+        this._addAction(x1+3*24, y1+3*24, 16, 16, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.RAPID })
 
         // missile, super, homing
         this._addAction(x1+1*24, y1+12+4*24, 16, 16, null, ()=>{})
@@ -323,6 +321,17 @@ class PauseScreen {
         // space jump, spin jump
         this._addAction(x2+12+1*24, y2+12+4*24, 16, 16, null, ()=>{})
         this._addAction(x2+12+2*24, y2+12+4*24, 16, 16, null, ()=>{})
+
+        let x3 = gEngine.view.width/2 - 16
+        let y3 = rect2.bottom() + 8
+        this._addAction(x3, y3, 32, 16, null, ()=>{this.parent.screen = null})
+        this._addAction(x3 + 32 + 12, y3, 32, 16, null, ()=>{
+            const edit = true
+            gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
+                gEngine.scene = new LevelEditScene()
+            })
+
+        })
 
     }
 
@@ -358,7 +367,11 @@ class PauseScreen {
         ctx.beginPath()
         ctx.fillStyle = "#0000FF"
         this.actions.forEach(act => {
-            ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+            if (!!act.icon) {
+                act.icon().draw(ctx, act.rect.x, act.rect.y)
+            } else {
+                ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+            }
         })
         ctx.fill()
 
@@ -372,6 +385,7 @@ class PauseScreen {
             const t = touches[0]
             this.actions.forEach((act,i) => {
                 if (act.rect.collidePoint(t.x, t.y)) {
+                    act.on_action()
                     console.log("action",i)
                 }
             })
@@ -422,7 +436,7 @@ class MainScene extends GameScene {
         this.keyboard.addButton(27) // ESC
 
         this.camera = new Camera(this.map.map, this.map.map._x_player)
-        this.screen = null // new PauseScreen()
+        this.screen =  null //  new PauseScreen(this)
 
     }
 

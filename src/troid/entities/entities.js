@@ -10,7 +10,7 @@ $import("axertc_physics", {
     AnimationComponent
 })
 
-$import("store", {gAssets})
+$import("store", {gAssets, gCharacterInfo, WeaponType})
 
 function random_choice(choices) {
   var index = Math.floor(Math.random() * choices.length);
@@ -22,9 +22,11 @@ export class Bullet extends PlatformerEntity {
         super(entid, props)
         this.rect = new Rect(props?.x??0 - 1, props?.y??0 - 1, 2, 2)
         this.split = props?.split??1
+        this.color = props?.color??"black"
         this.physics = new Physics2dPlatform(this)
         this.physics.gravity = 0
         this.physics.xfriction = 0
+
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
@@ -37,8 +39,13 @@ export class Bullet extends PlatformerEntity {
         this.physics.yspeed = 0
 
         this.wave_counter = 0
-        this.wave_loop = true
-        this.wave_profile = Bullet.velocity_profile_wave[d][this.split-1]
+        this.wave_loop = !!(props?.wave)
+        let profile = props?.wave?Bullet.velocity_profile_wave:Bullet.velocity_profile_spread
+        this.wave_profile = profile[d][this.split-1]
+
+        this.bounce = !!(props?.bounce)
+        this.bounce_max = props?.level??1
+        this.bounce_counter = 0
 
         this.particles = [] // {x,y,dx,dy,size,color}
     }
@@ -58,8 +65,8 @@ export class Bullet extends PlatformerEntity {
 
         ctx.beginPath();
         ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        ctx.strokeStyle = 'purple';
-        ctx.fillStyle = 'purple';
+        ctx.strokeStyle = this.color;
+        ctx.fillStyle = this.color;
         ctx.arc(this.rect.x+this.rect.w/2,
                 this.rect.y+this.rect.h/2,2,0,2*Math.PI);
         ctx.stroke();
@@ -99,11 +106,21 @@ export class Bullet extends PlatformerEntity {
         }
 
         if (!!this.physics.collide) {
-            this._x_debug_map.destroyObject(this.entid)
+            if (this.bounce && this.bounce_counter < this.bounce_max) {
+                let sx = this.physics.xcollide?-1:1
+                let sy = this.physics.ycollide?-1:1
+                this.physics.xspeed *= sx
+                this.physics.yspeed *= sy
+                this.wave_profile = this.wave_profile.map(v => ({x:sx*v.x,y:sy*v.y}))
+                this.bounce_counter += 1
+            } else {
+                this._x_debug_map.destroyObject(this.entid)
+            }
+
         }
-        if (this.physics.xspeed == 0 && this.physics.yspeed == 0) {
-            this._x_debug_map.destroyObject(this.entid)
-        }
+        //if (this.physics.xspeed == 0 && this.physics.yspeed == 0) {
+        //    this._x_debug_map.destroyObject(this.entid)
+        //}
     }
 }
 
@@ -189,9 +206,68 @@ function init_velocity() {
         [Direction.UPLEFT]: [flip(v4.slice(0,1)), flip(spread(v5, v4[0])), flip(spread(v6, v4[0]))],
     }
 
+    console.log("spread", Bullet.velocity_profile_spread[Direction.RIGHT])
+
 }
 
 init_velocity()
+
+function generateProjectiles(x,y,direction) {
+
+    let projectiles = []
+
+    let color = "black"
+
+    switch (gCharacterInfo.element) {
+    case WeaponType.ELEMENT.POWER:
+        color = "yellow"
+        break;
+    case WeaponType.ELEMENT.FIRE:
+        color = "red"
+        break;
+    case WeaponType.ELEMENT.WATER:
+        color = "blue"
+        break;
+    case WeaponType.ELEMENT.ICE:
+        color = "cyan"
+        break;
+    case WeaponType.ELEMENT.BUBBLE:
+        color = "pink"
+        break;
+    }
+
+    let wave = gCharacterInfo.beam === WeaponType.BEAM.WAVE
+    let bounce = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
+
+    let level = gCharacterInfo.level
+
+    // ice should generate 1 projectile, which may animate with a split profile
+    // fire + wave + any level + no modifier : spread gun 1,3,5 bullets
+    // fire + bounce + any level + no modifier : bouncy fire ball
+    // water + any beam + any level + rapid : squirt gun
+    // bubble + charge : large bubbles that can be jumped on
+
+
+    if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+    }
+    else if (bounce || gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
+    }
+    else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+    }
+    else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+    } else {
+        throw {error: "invalid level", level: gCharacterInfo.level}
+    }
+
+    return projectiles
+}
 
 export class Player extends PlatformerEntity {
 
@@ -482,12 +558,11 @@ export class Player extends PlatformerEntity {
                 const px = this.rect.x + o.x
                 const py = this.rect.y + o.y
 
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: px, y: py, direction: d, split:1})
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: px, y: py, direction: d, split:2})
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Bullet", {
-                    x: px, y: py, direction: d, split:3})
+                generateProjectiles(px, py, d).forEach(obj => {
+                    this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
+                })
+
+
             }
         } else {
             console.log(payload)
