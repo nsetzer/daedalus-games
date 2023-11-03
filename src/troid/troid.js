@@ -130,6 +130,8 @@ class Camera extends CameraBase {
         this.map = map
         this.target = target
 
+        this.header_height = 24
+
         this.x = 0;
         this.y = 0;
         this.width = gEngine.view.width
@@ -217,6 +219,8 @@ class Camera extends CameraBase {
         let my = Physics2dPlatform.maprect.h - gEngine.view.height
         if (x > mx) { x = mx }
         if (y > my) { y = my }
+
+        if (y < -this.header_height) {y = -this.header_height}
 
         this.x = Math.floor(x)
         this.y = Math.floor(y)
@@ -477,11 +481,11 @@ class MainScene extends GameScene {
     paint(ctx) {
 
         // screen boundary
-        ctx.lineWidth = 1;
-        ctx.beginPath()
-        ctx.fillStyle = "#477ed6";
-        ctx.rect(0,0, gEngine.view.width, gEngine.view.height)
-        ctx.fill()
+        //ctx.lineWidth = 1;
+        //ctx.beginPath()
+        //ctx.fillStyle = "#477ed6";
+        //ctx.rect(0,0, gEngine.view.width, gEngine.view.height)
+        //ctx.fill()
 
         ctx.save()
 
@@ -492,18 +496,23 @@ class MainScene extends GameScene {
         ctx.translate(-this.camera.x, -this.camera.y)
 
         // blue sky background
+        // this rect defines the visible region of the game world
         ctx.beginPath()
         ctx.fillStyle = "#477ed6";
-        ctx.rect(0,0, gAssets.mapinfo.width, gAssets.mapinfo.height)
+        ctx.rect(
+            Math.max(0, this.camera.x),
+            Math.max(0, this.camera.y),
+            Math.min(gAssets.mapinfo.width - this.camera.x, gEngine.view.width),
+            Math.min(gAssets.mapinfo.height - this.camera.y, gEngine.view.height))
         ctx.closePath()
         ctx.fill()
 
         // gutter
-        ctx.beginPath()
-        ctx.fillStyle = "#FF0000";
-        ctx.rect(0,-64, gAssets.mapinfo.width, 64)
-        ctx.closePath()
-        ctx.fill()
+        //ctx.beginPath()
+        //ctx.fillStyle = "#FF0000";
+        //ctx.rect(0,-64, gAssets.mapinfo.width, 64)
+        //ctx.closePath()
+        //ctx.fill()
 
         // paint chunks
         let tx = Math.floor(this.camera.x / 16 / 4)
@@ -614,7 +623,7 @@ export default class Application extends ApplicationBase {
         }, () => {
 
             const edit = false
-            const mapid = "map-20231031-211926"
+            const mapid = "map-20231103-141833"
 
             // hack to avoid importing the main scene in the editor
             LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}

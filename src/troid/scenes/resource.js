@@ -531,27 +531,32 @@ class MapBuilder {
                 }
 
                 else if (tile.property == TileProperty.ONEWAY) {
-                    objprops.visible = false
-                    this.createObject("OneWayWall", objprops)
-                }
-
-                else if (tile.property == TileProperty.ONEWAY) {
-                    objprops.visible = false
+                    objprops.visible = true
+                    if (objname == 'Slope') {
+                        objprops.oneway = true
+                    } else {
+                        objname = "OneWayWall"
+                        objprops.h = 8
+                    }
+                    console.log("ONEWAY", objname, objprops)
                     this.createObject(objname, objprops)
                 }
+
+                //else if (tile.property == TileProperty.ONEWAY) {
+                //    objprops.visible = false
+                //    this.createObject(objname, objprops)
+                //}
             }
         })
 
-        console.log(mapinfo.objects)
-
-        mapinfo.objects.forEach(obj => {
-            let y = 16*(Math.floor(obj.oid/512 - 4))
-            let x = 16*(obj.oid%512)
-
-            let objname = obj.name
-            let objprops = {x:x, y:y}
-            this.createObject(objname, objprops)
-        })
+        // spawn map objects
+        //mapinfo.objects.forEach(obj => {
+        //    let y = 16*(Math.floor(obj.oid/512 - 4))
+        //    let x = 16*(obj.oid%512)
+        //    let objname = obj.name
+        //    let objprops = {x:x, y:y}
+        //    this.createObject(objname, objprops)
+        //})
 
         this.ready = true
     }

@@ -122,6 +122,9 @@ export class Slope extends PlatformerEntity {
         super(entid, props)
         this.rect = new Rect(0,0,0,0)
         this.visible = props?.visible??true
+        this.oneway = props?.oneway??false
+
+        console.log(`"Slope(oneway=${this.oneway})"`)
 
         if (!!props.direction) {
             this.rect = new Rect(props.x, props.y, props.w, props.h)
@@ -188,6 +191,7 @@ export class Slope extends PlatformerEntity {
         const m = (p2.y - p1.y) / (p2.x-p1.x)
         const b = p1.y - m *p1.x
 
+        // compute y position, given an x position
         this.f = (x) => {
             if (x >= this.rect.left() && x <= this.rect.right()) {
                 return m*x + b
@@ -195,6 +199,7 @@ export class Slope extends PlatformerEntity {
             return null;
         }
 
+        // compute x position, given a y position
         this.g = (y) => {
             if (y >= this.rect.top() && y <= this.rect.bottom()) {
                 return (y - b) / m
@@ -207,7 +212,7 @@ export class Slope extends PlatformerEntity {
             this._fx = (x,y) => {
                 if (x >= this.rect.left() && x <= this.rect.right()) {
                     const yp = m*x + b
-                    return Math.max(yp)
+                    return Math.ceil(yp)
                 }
                 return null;
             }
@@ -227,6 +232,32 @@ export class Slope extends PlatformerEntity {
     }
 
     collide(other, dx, dy) {
+
+
+
+        if (this.oneway) {
+            const top = applyfnull(Math.min, this.f(other.rect.left()), this.f(other.rect.right()))
+            let rect = other.rect
+
+            if (!!top && dy >= 0 && rect.bottom() <= top + 4) {
+                // return a rectangle that does not collide
+                //let update = rect.copy()
+                //update.set_bottom(top)
+                //return update
+                return this._collide_impl(other, dx, dy)
+            }
+
+            //console.log(this.entid, gEngine.frameIndex, "speed:", (dy>0)?1:0, rect.bottom(), ":",
+            //    this.rect.left() >= other.rect.cx() , other.rect.cx() <= this.rect.right(), ":",
+            //    this.rect.top(), top)
+            return null
+        } else {
+            return this._collide_impl(other, dx, dy)
+        }
+
+    }
+
+    _collide_impl(other, dx, dy) {
         // TODO: the api could return up to two two options
         // {dx, 0} or {0, dy}
         // {dx, dy}
@@ -370,6 +401,14 @@ export class Slope extends PlatformerEntity {
         ctx.lineTo(this.points[1].x, this.points[1].y);
         ctx.lineTo(this.points[2].x, this.points[2].y);
         ctx.fill();
+
+        ctx.font = "bold 8";
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+
+        ctx.fillText(`${this.entid}`, this.rect.x, this.rect.y);
 
     }
 

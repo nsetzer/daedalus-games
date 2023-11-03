@@ -244,7 +244,7 @@ function init_velocity() {
 
 init_velocity()
 
-function generateProjectiles(x,y,direction) {
+function generateProjectiles(x,y,direction, power) {
 
     let projectiles = []
 
@@ -271,7 +271,7 @@ function generateProjectiles(x,y,direction) {
     let wave = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
     let bounce = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
 
-    let normal = gCharacterInfo.modifier = WeaponType.MODIFIER.NORMAL
+    let normal = gCharacterInfo.modifier == WeaponType.MODIFIER.NORMAL
 
     let level = gCharacterInfo.level
 
@@ -285,33 +285,33 @@ function generateProjectiles(x,y,direction) {
     if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && wave && normal) {
 
         wave = 2
-        console.log("spread@")
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
         if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL2) {
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
         }
         if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL3) {
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:4}})
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:5}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:4}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:5}})
         }
 
     }
 
     else if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+        // a single bullet the waves
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
     }
     else if (bounce || gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
     }
     else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
     }
     else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:1}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:2}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,split:3}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
     } else {
         throw {error: "invalid level", level: gCharacterInfo.level}
     }
@@ -489,6 +489,17 @@ export class Player extends PlatformerEntity {
             if (this.charge_duration > this.charge_timeout) {
                 this.charge_duration = this.charge_timeout
             }
+
+            if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
+                let timeout = this.charge_timeout*.6
+                // TODO: timeout should depend on element (power faster, ice slower)
+                //       or special weapon. lazer types don't need this feature
+                if (this.charge_duration > timeout) {
+                    this._shoot(0)
+                    this.charge_duration -= timeout
+                }
+            }
+
         }
 
         this.physics.update(dt)
@@ -591,33 +602,43 @@ export class Player extends PlatformerEntity {
         } else if (payload.btnid === 1) {
 
             if (payload.pressed) {
-                this.charging = true
+                this.charging = gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL
                 this.charge_duration = 0.0
-            } else {
 
-                this.charging = false
-                const charge_percent = this.charge_duration / this.charge_timeout
-                console.log("charged!", charge_percent)
-
-                let d = this.physics.facing
-                if (this.looking_up) {
-                    d |= Direction.UP
+                if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                    this._shoot(0)
                 }
-
-                const o = this.weapon_offset[this.current_facing]
-                const px = this.rect.x + o.x
-                const py = this.rect.y + o.y
-
-                generateProjectiles(px, py, d).forEach(obj => {
-                    this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
-                })
-
+            } else {
+                let power = this.charge_duration / this.charge_timeout
+                this.charge_duration = 0.0
+                this.charging = false
+                if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
+                    this._shoot(power)
+                }
 
             }
         } else {
             console.log(payload)
         }
 
+    }
+
+    _shoot(power) {
+
+
+        let d = this.physics.facing
+        if (this.looking_up) {
+            d |= Direction.UP
+        }
+
+        const o = this.weapon_offset[this.current_facing]
+        const px = this.rect.x + o.x
+        const py = this.rect.y + o.y
+
+        generateProjectiles(px, py, d, power).forEach(obj => {
+
+            this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
+        })
     }
 
     _bounce() {

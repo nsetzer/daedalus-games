@@ -482,8 +482,9 @@ export class Physics2dPlatform {
                 this.xcollide = true
             }
 
-            if (this.target.rect.y < Physics2dPlatform.maprect.y) {
-                this.target.rect.y = Physics2dPlatform.maprect.y
+            // TODO: troid gutter
+            if (this.target.rect.y < Physics2dPlatform.maprect.y - 96) {
+                this.target.rect.y = Physics2dPlatform.maprect.y - 96
                 this.yspeed = 0
                 this.ycollide = true
             }

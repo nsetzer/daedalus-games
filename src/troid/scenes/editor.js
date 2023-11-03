@@ -345,6 +345,53 @@ class SettingsMenu {
         this.rect = new Rect(0,24,8 + 24 * 5, 8 + 24 * 3)
         this.parent = parent
 
+        this.actions = []
+
+        let x = this.rect.x + 8
+        let y = this.rect.y + 8
+
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{
+            this.changeMapSize(1, 0)
+        }})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.width / 16 / 24)}`, x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{
+            this.changeMapSize(-1, 0)
+        }})
+
+        y += 24
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{
+            this.changeMapSize(0, 1)
+        }})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.height / 16 / 14)}`, x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{
+            this.changeMapSize(0, -1)
+        }})
+
+        y += 24
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{}})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText("0", x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{}})
+
+    }
+
+    changeMapSize(dx, dy) {
+
+        let w = Math.floor(this.parent.map.width / 16 / 24)
+        let h = Math.floor(this.parent.map.height / 16 / 14)
+        console.log(this.parent.map.width,this.parent.map.height)
+        console.log(w,h)
+
+        w += dx
+        h += dy
+
+        console.log(w,h)
+        if (w < 0 || h < 0 || w*h > 16) {
+            return
+        }
+
+        this.parent.map.width = w * 16 * 24
+        this.parent.map.height = h * 16 * 14
+
     }
 
     handleTouches(touches) {
@@ -361,6 +408,15 @@ class SettingsMenu {
                 this.parent.active_menu = null
                 return
             }
+
+            this.actions.forEach(action => {
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                    }
+                }
+            })
         }
     }
 
@@ -384,22 +440,32 @@ class SettingsMenu {
         //ctx.strokeStyle = "gold"
         //ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
         //ctx.stroke()
-        ctx.fillStyle = "#0000FF"
+        //ctx.fillStyle = "#0000FF"
+        //for (let j=0; j < 3; j++) {
+        //    x = 8 + 24*2
+        //    for (let i=0; i < 3; i++) {
+        //        ctx.beginPath()
+        //        ctx.rect(x,y,16,16)
+        //        ctx.closePath()
+        //        ctx.fill()
+        //        x += 24
+        //    }
+        //    y += 24
+        //}
 
-        for (let j=0; j < 3; j++) {
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
 
-            x = 8 + 24*2
-
-            for (let i=0; i < 3; i++) {
-                ctx.beginPath()
-                ctx.rect(x,y,16,16)
-                ctx.closePath()
-                ctx.fill()
-                x += 24
+        this.actions.forEach(action => {
+            if (!!action.render) {
+                action.render(ctx,action.x, action.y)
+            } else {
+                action.icon.draw(ctx, action.x, action.y)
             }
-
-            y += 24
-        }
+        })
 
     }
 
@@ -556,6 +622,109 @@ class ObjectMenu {
 
 }
 
+class ObjectEditMenu {
+    constructor(parent) {
+
+        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 2)
+        this.parent = parent
+
+        this.actions = []
+
+        let x = this.rect.x + 8
+        let y = this.rect.y + 8
+
+        this.actions.push({x,y,icon:this.parent.editor_icons.hand, action: ()=>{
+            this.parent.active_tool = EditorTool.SELECT_OBJECT
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({x,y,icon:this.parent.editor_icons.erase, action: ()=>{
+            this.parent.active_tool = EditorTool.ERASE_OBJECT
+            this.parent.active_menu = null
+        }})
+
+
+    }
+
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (t.pressed) { // prevent drag firing multiple times
+                return
+            }
+
+            if (!this.rect.collidePoint(t.x, t.y)) {
+                this.parent.active_menu = null
+                return
+            }
+
+            this.actions.forEach(action => {
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                    }
+                }
+            })
+        }
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+
+        let x = 8
+        let y = 32
+
+        //let k = (this.parent.tile_property - 1)
+        //ctx.beginPath();
+        //ctx.strokeStyle = "gold"
+        //ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
+        //ctx.stroke()
+        //ctx.fillStyle = "#0000FF"
+        //for (let j=0; j < 3; j++) {
+        //    x = 8 + 24*2
+        //    for (let i=0; i < 3; i++) {
+        //        ctx.beginPath()
+        //        ctx.rect(x,y,16,16)
+        //        ctx.closePath()
+        //        ctx.fill()
+        //        x += 24
+        //    }
+        //    y += 24
+        //}
+
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+
+        this.actions.forEach(action => {
+            if (!!action.render) {
+                action.render(ctx,action.x, action.y)
+            } else {
+                action.icon.draw(ctx, action.x, action.y)
+            }
+        })
+
+    }
+}
+
 export class LevelEditScene extends GameScene {
 
     // TODO: optimize: only do a full paint if something changed
@@ -651,12 +820,13 @@ export class LevelEditScene extends GameScene {
             },
             {
                 name: "object-move",
-                icon: this.editor_icons.hand,
+                icon2: ()=> {return (this.active_tool == EditorTool.ERASE_OBJECT)?this.editor_icons.erase:this.editor_icons.hand},
                 action: () => {
-                    this.active_tool = EditorTool.SELECT_OBJECT;
+                    //this.active_tool = EditorTool.SELECT_OBJECT;
                     //this.active_menu = new ObjectMenu(this)
+                    this.active_menu = new ObjectEditMenu(this)
                 },
-                selected: () => this.active_tool == EditorTool.SELECT_OBJECT,
+                selected: () => this.active_tool == EditorTool.SELECT_OBJECT || this.active_tool == EditorTool.ERASE_OBJECT,
             },
             {
                 name: "tile-place",
@@ -707,18 +877,18 @@ export class LevelEditScene extends GameScene {
                 selected: null,
             },
             {
-                name: "zoom-in",
-                icon: this.editor_icons.zoom_in,
+                name: "zoom-out",
+                icon: this.editor_icons.zoom_out,
                 action: () => {
-                    if (this.camera.scale < 3) {
+                    if (this.camera.scale < 4) {
                         this.camera.scale += 0.5
                     }
                 },
                 selected: null,
             },
             {
-                name: "zoom-out",
-                icon: this.editor_icons.zoom_out,
+                name: "zoom-in",
+                icon: this.editor_icons.zoom_in,
                 action: () => {
                     if (this.camera.scale > 1.0) {
                         this.camera.scale -= 0.5
@@ -951,6 +1121,9 @@ export class LevelEditScene extends GameScene {
                         icon.draw(ctx, x+1, y+1)
                     }
                 }
+                else if (!!action.icon2) {
+                    action.icon2().draw(ctx, x+1, y+1)
+                }
                 else if (!!action.icon) {
                     action.icon.draw(ctx, x+1, y+1)
                 }
@@ -959,9 +1132,47 @@ export class LevelEditScene extends GameScene {
 
     }
 
+    _paint_background(ctx) {
+        ctx.beginPath()
+        ctx.fillStyle = "#477ed6";
+        ctx.strokeStyle = "#000000";
+        //const rw = Math.min(this.camera.x + gEngine.view.width, this.map.width) - this.camera.x
+        //const rh = Math.min(this.camera.y + gEngine.view.height, this.map.height) - this.camera.y
+
+        const sw = gEngine.view.width * this.camera.scale
+        const sh = gEngine.view.height * this.camera.scale
+        let x1 = Math.max(0, this.camera.x)
+        let y1 = Math.max(0, this.camera.y)
+        let x2 = Math.min((this.camera.x + gEngine.view.width) * this.camera.scale, this.map.width)
+        let y2 = Math.min((this.camera.y + gEngine.view.height) * this.camera.scale, this.map.height)
+        ctx.rect(
+            x1,
+            y1,
+            x2 - x1,
+            y2 - y1)
+        ctx.fill()
+        ctx.stroke()
+
+        // draw orange for the -y gutter
+        ctx.beginPath()
+        x1 = Math.max(0, this.camera.x)
+        y1 = -this.ygutter//Math.max(-this.ygutter, this.camera.y)
+        x2 = Math.min((this.camera.x + gEngine.view.width) * this.camera.scale, this.map.width)
+        y2 = Math.min((this.camera.y + gEngine.view.height) * this.camera.scale, 0)
+        ctx.fillStyle = "#d66d47";
+        if (y1 < y2) {
+            ctx.rect(
+                x1,
+                y1,
+                x2 - x1,
+                y2 - y1)
+            ctx.fill()
+            ctx.stroke()
+        }
+    }
     _paint_grid(ctx) {
         ctx.strokeStyle = "#22222233";
-        ctx.stroke.lineWidth = 1;
+        ctx.lineWidth = 1;
 
         let gs = 16
         const sw = gEngine.view.width * this.camera.scale
@@ -973,11 +1184,13 @@ export class LevelEditScene extends GameScene {
         let y1 = Math.floor((this.camera.y*this.camera.scale)/gs)*gs
         y1 = Math.max(-this.ygutter, y1)
 
-        let x2 = Math.min(x1 + sw, this.map.width)
-        let y2 = Math.min(y1 + sh, this.map.height)
+        //let x2 = Math.min(x1 + sw, this.map.width)
+        //let y2 = Math.min(y1 + sh, this.map.height)
+        let x2 = Math.min((this.camera.x + gEngine.view.width) * this.camera.scale, this.map.width)
+        let y2 = Math.min((this.camera.y + gEngine.view.height) * this.camera.scale, this.map.height)
 
         let p = []
-        for (let gx = x1; gx < x2; gx += gs) {
+        for (let gx = x1; gx < x2 + gs; gx += gs) {
             if (gx%gEngine.view.width==0) {
                 ctx.strokeStyle = "#222222aa";
             } else {
@@ -1003,8 +1216,6 @@ export class LevelEditScene extends GameScene {
         }
     }
 
-
-
     paint(ctx) {
 
         const barHeight = 24
@@ -1021,44 +1232,7 @@ export class LevelEditScene extends GameScene {
         ctx.translate(-this.camera.x, -(this.camera.y-barHeight))
         ctx.scale(1/this.camera.scale,1/this.camera.scale);
 
-        ctx.beginPath()
-        ctx.fillStyle = "#477ed6";
-        ctx.strokeStyle = "#000000";
-        //const rw = Math.min(this.camera.x + gEngine.view.width, this.map.width) - this.camera.x
-        //const rh = Math.min(this.camera.y + gEngine.view.height, this.map.height) - this.camera.y
-
-        const sw = gEngine.view.width * this.camera.scale
-        const sh = gEngine.view.height * this.camera.scale
-        let x1 = Math.max(0, this.camera.x)
-        let y1 = Math.max(0, this.camera.y)
-        let x2 = Math.min(x1 + sw, this.map.width)
-        let y2 = Math.min(y1 + sh, this.map.height)
-
-        // draw blue for the background
-        ctx.rect(
-            x1,
-            y1,
-            x2 - x1,
-            y2 - y1)
-        ctx.fill()
-        ctx.stroke()
-
-        // draw orange for the -y gutter
-        ctx.beginPath()
-        x1 = Math.max(0, this.camera.x)
-        y1 = -this.ygutter, this.camera.y
-        x2 = Math.min(x1 + sw, this.map.width)
-        y2 = 0
-        ctx.fillStyle = "#d66d47";
-        if (y1 < y2) {
-            ctx.rect(
-                x1,
-                y1,
-                x2 - x1,
-                y2 - y1)
-            ctx.fill()
-            ctx.stroke()
-        }
+        this._paint_background(ctx)
 
         // TODO: only draw visible tiles
         for (const [tid, tile] of Object.entries(this.map.layers[0])) {
@@ -1199,11 +1373,51 @@ export class LevelEditScene extends GameScene {
 
     }
 
+    eraseObject(x, y, onpress) {
+        const oid = (y + 4)*512+x
+
+        if (!!this.map.objects[oid]) {
+            delete this.map.objects[oid]
+            return true
+        }
+        return false
+    }
+
+    moveObject(x, y, onpress) {
+        const oid = (y + 4)*512+x
+        if (onpress) {
+
+            if (!!this.map.objects[oid]) {
+                this.selected_object = this.map.objects[oid]
+                this.selected_object.oid = oid
+            } else {
+                this.selected_object = null
+            }
+        } else {
+
+            // check to see if there is a selected object
+            // and the current mouse position does not match the object position
+            if (!!this.selected_object && this.selected_object.oid != oid) {
+                // check that the new mouse position is empty
+                if (!this.map.objects[oid]) {
+                    // move the object
+                    delete this.map.objects[this.selected_object.oid]
+                    this.selected_object.oid = oid
+                    this.map.objects[oid] = this.selected_object
+
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
     placeObject(x, y) {
 
         const oid = (y + 4)*512+x
         if (oid === this.previous_oid) {
-            return
+            return false
         }
         this.previous_oid = oid
 
@@ -1217,15 +1431,18 @@ export class LevelEditScene extends GameScene {
             this.map.objects[oid] = {
                 name: obj.name,
             }
+
+            return true
         }
+
+        return false
 
     }
 
-    placeTile(x, y) {
-
+    eraseTile(x, y) {
         const tid = (y + 4)*512+x
         if (tid === this.previous_tid) {
-            return
+            return false
         }
         this.previous_tid = tid
 
@@ -1234,13 +1451,27 @@ export class LevelEditScene extends GameScene {
             // erase the tile
             if (this.active_tool == EditorTool.ERASE_TILE) {
                 delete this.map.layers[0][tid]
-                return
+                return true
             }
+
+        }
+        return false
+    }
+
+    placeTile(x, y) {
+
+        const tid = (y + 4)*512+x
+        if (tid === this.previous_tid) {
+            return false
+        }
+        this.previous_tid = tid
+
+        if (!!this.map.layers[0][tid]) {
 
             if (this.active_tool == EditorTool.PAINT_TILE) {
                 this.map.layers[0][tid].property = this.tile_property
                 this.map.layers[0][tid].sheet = this.tile_sheet
-                return
+                return true
             }
 
             // rotate the tile or change the property
@@ -1256,13 +1487,13 @@ export class LevelEditScene extends GameScene {
                 this.map.layers[0][tid].sheet = this.tile_sheet
 
                 this._updateTile(x,y,this.map.layers[0][tid])
-                return
+                return true
             }
         }
 
         // if not placing exit
         if (this.active_tool != EditorTool.PLACE_TILE) {
-            return
+            return false
         }
 
         if (this.tile_shape == 1) {
@@ -1298,6 +1529,8 @@ export class LevelEditScene extends GameScene {
         }
 
         this._updateTile(x,y,this.map.layers[0][tid])
+
+        return true
     }
 
     playTest() {
@@ -1456,20 +1689,29 @@ export class LevelEditScene extends GameScene {
 
                         this.camera.x = this.mouse_down.camerax + dx
                         this.camera.y = this.mouse_down.cameray + dy
+
+                        // this is arbitrary
+                        // restrict the field of view to always display at least 4 tiles
+                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+
+                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
                     }
 
 
                 } else if (!this.disable_place) {
 
-                    if (touches[0].first) {
-                        return
-                    }
+                    //if (touches[0].first) {
+                    //    return
+                    //}
 
                     let gs = 16 / this.camera.scale
                     touches = touches.map(t => ({
                         x: Math.floor((t.x + this.camera.x) / gs),
                         y: Math.floor((t.y + this.camera.y - 24) / gs),
-                        pressed: t.pressed
+                        pressed: t.pressed,
+                        first: t.first
                     }))
 
 
@@ -1478,17 +1720,57 @@ export class LevelEditScene extends GameScene {
                     //       change the scale to either 1 or 2.
                     const t = touches[0]
 
+                    let change_tile = false
+                    let change_object = false
                     if (t.y >= -this.ygutter/16 && t.x >= 0 && t.x < this.map.width/16 && t.y < this.map.height/16) {
-                        if (this.active_tool === EditorTool.PLACE_OBJECT) {
-                            this.placeObject(t.x, t.y)
-                        } else {
-                            this.placeTile(t.x, t.y)
+
+                        if (this.active_tool === EditorTool.SELECT_OBJECT) {
+                            // first touch required to select the object to drag
+                            change_object = this.moveObject(t.x, t.y, t.first)
+                        }
+
+                        else if (this.active_tool === EditorTool.ERASE_OBJECT) {
+                            if (!t.first) {
+                                change_object = this.eraseObject(t.x, t.y)
+                            }
+
+                        }
+
+                        else if (this.active_tool === EditorTool.PLACE_OBJECT) {
+                            if (!t.first) {
+                                change_object = this.placeObject(t.x, t.y)
+                            }
+
+                        }
+                        else if (this.active_tool === EditorTool.ERASE_TILE) {
+                            if (!t.first) {
+                                change_tile = this.eraseTile(t.x, t.y)
+                            }
+
+                        }
+                        else if (this.active_tool === EditorTool.PLACE_TILE || this.active_tool === EditorTool.PAINT_TILE) {
+                            if (!t.first) {
+                                change_tile = this.placeTile(t.x, t.y)
+                            }
+
                         }
                     }
 
                     if (!t.pressed) {
                         this.previous_tid = -1
                         this.previous_oid = -1
+                    }
+
+                    // push a history state on touch release
+                    if (!t.pressed) {
+                        console.log("changes", this.change_tile, this.change_object)
+                        // TODO: do something with this.map.layers[0] and this.map.objects
+                        // if there was a change to either, push a history state
+                        this.change_tile = false //reset
+                        this.change_object = false //reset
+                    } else {
+                        this.change_tile = this.change_tile||change_tile
+                        this.change_object = this.change_object||change_object
                     }
                 }
             }
