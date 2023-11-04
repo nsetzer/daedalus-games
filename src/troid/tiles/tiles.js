@@ -195,7 +195,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         }
 
         if (tid >= 0) {
-            tile.tile = sheets[tile.sheet].tile(tid)
+            tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
     } else if (tile.shape == TileShape.HALF) {
@@ -215,7 +215,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (tile.direction == Direction.DOWNLEFT)  { tid = TT_3_05}
 
         if (tid >= 0) {
-            tile.tile = sheets[tile.sheet].tile(tid)
+            tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
     } else if (tile.shape == TileShape.ONETHIRD) {
@@ -234,7 +234,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (tile.direction == Direction.DOWNLEFT)  { tid = TT_0_09}
 
         if (tid >= 0) {
-            tile.tile = sheets[tile.sheet].tile(tid)
+            tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
     } else if (tile.shape == TileShape.TWOTHIRD) {
@@ -253,7 +253,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (tile.direction == Direction.DOWNLEFT)  { tid = TT_1_09}
 
         if (tid >= 0) {
-            tile.tile = sheets[tile.sheet].tile(tid)
+            tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
     } else {
@@ -268,7 +268,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
     return (!!tile_before) !== (!!tile.tile)
 }
 
-export function paintTile(ctx, x, y, tile) {
+export function paintTile(ctx, x, y, tile, sheets) {
 
     switch(tile.property) {
         case 1:
@@ -291,7 +291,7 @@ export function paintTile(ctx, x, y, tile) {
             break;
     }
 
-    if (!!tile.tile) {
+    if (tile.tile !== undefined) {
         ctx.save()
         if (tile.property == TileProperty.NOTSOLID) {
             ctx.filter = "brightness(50%) hue-rotate(-90deg)";
@@ -299,7 +299,8 @@ export function paintTile(ctx, x, y, tile) {
         if (tile.property == TileProperty.ONEWAY) {
             ctx.filter = "brightness(50%) hue-rotate(90deg)";
         }
-        tile.tile.draw(ctx,x,y)
+        sheets[tile.sheet].drawTile(ctx, tile.tile, x, y)
+        //tile.tile.draw(ctx,x,y)
         ctx.restore()
     } else if (tile.points) {
 

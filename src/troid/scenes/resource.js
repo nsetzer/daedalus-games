@@ -426,6 +426,8 @@ class LevelChunkBuilder {
                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}}
             }
 
+            this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
+
             this.map.chunks[chunkid].tiles[tid] = tile
         })
 
@@ -458,7 +460,8 @@ class LevelChunkBuilder {
             y -= chunk.y
 
             //paintTile(this.ctx, x, y, tile)
-            tile.tile.draw(this.ctx, x*16, y*16)
+            //tile.tile.draw(this.ctx, x*16, y*16)
+            this.theme_sheets[tile.sheet].drawTile(this.ctx, tile.tile, x*16, y*16)
         })
 
         let chunk_image = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)

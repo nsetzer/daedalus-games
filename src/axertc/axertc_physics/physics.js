@@ -76,8 +76,8 @@ export class Physics2dPlatform {
 
         this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
         this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
-        this.xfriction = this.xmaxspeed1 / .1 // stop moving in .1 seconds
-        this.xacceleration = this.xmaxspeed1 / .2 // get up to max speed in .2 seconds
+        this.xfriction = this.xmaxspeed1 / .5 // stop moving in .1 seconds
+        this.xacceleration = this.xmaxspeed1 / .5 // get up to max speed in .2 seconds
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
@@ -340,6 +340,11 @@ export class Physics2dPlatform {
                 // TODO: if y component is not valid do not move at all
                 this.target.rect.x += dd.dx
                 this.target.rect.y += dd.dy
+
+                //if (dd.dx == 0) {
+                //    this.xspeed = 0
+                //    this.xaccum= 0
+                //}
             } else {
                 this.target.rect.x += dx
             }
@@ -501,6 +506,15 @@ export class Physics2dPlatform {
         }
 
         this.collide = this.xcollide || this.ycollide
+
+        //if (this.xcollide) {
+        //    this.xspeed = 0
+        //    this.xaccum = 0
+        //}
+        //if (this.ycollide) {
+        //    this.yspeed = 0
+        //    this.yaccum = 0
+        //}
 
         /////////////////////////////////////////////////////////////
         // update state

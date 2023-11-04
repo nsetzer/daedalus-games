@@ -169,8 +169,10 @@ export class Bullet extends PlatformerEntity {
                         mobs.push(obj.ent)
                     }
 
-                    if (obj.ent instanceof PlatformBase) {
+                    else if (obj.ent instanceof PlatformBase) {
                         wall = true
+                    } else {
+                        destroy = true
                     }
                 })
 
@@ -881,7 +883,9 @@ export class Brick extends PlatformerEntity {
         }
 
         if (dy < 0 && rect.top() >= this.rect.top()) {
-            this.destroy()
+            if (other instanceof Player) {
+                this.destroy()
+            }
             update.set_top(this.rect.bottom())
             return update
         }

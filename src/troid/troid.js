@@ -628,8 +628,8 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = false
-            const mapid = "map-20231103-141833"
+            const edit = true
+            const mapid = "map-20231104-135223"
 
             // hack to avoid importing the main scene in the editor
             LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}

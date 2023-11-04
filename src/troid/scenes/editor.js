@@ -350,27 +350,27 @@ class SettingsMenu {
         let x = this.rect.x + 8
         let y = this.rect.y + 8
 
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{
-            this.changeMapSize(1, 0)
-        }})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.width / 16 / 24)}`, x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeMapSize(-1, 0)
         }})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.width / 16 / 24)}`, x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+            this.changeMapSize(1, 0)
+        }})
 
         y += 24
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{
-            this.changeMapSize(0, 1)
-        }})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.height / 16 / 14)}`, x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeMapSize(0, -1)
         }})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.height / 16 / 14)}`, x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+            this.changeMapSize(0, 1)
+        }})
 
         y += 24
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_up, action: ()=>{}})
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{}})
         this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText("0", x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_down, action: ()=>{}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{}})
 
     }
 
@@ -734,6 +734,9 @@ export class LevelEditScene extends GameScene {
     constructor(loader) {
         super()
 
+        this.history = []
+        this.history_index = 0
+
         this.camera = {x:-48, y:-48, scale:2}
         this.map = {
             width: 15*32,
@@ -760,6 +763,8 @@ export class LevelEditScene extends GameScene {
             "brush": gAssets.sheets.editor.tile(5),
             "arrow_up": gAssets.sheets.editor.tile(6),
             "arrow_down": gAssets.sheets.editor.tile(7),
+            "arrow_left": gAssets.sheets.editor.tile(1*8+6),
+            "arrow_right": gAssets.sheets.editor.tile(1*8+7),
 
             "save": gAssets.sheets.editor.tile(1*8+0),
             "load": gAssets.sheets.editor.tile(1*8+1),
@@ -768,8 +773,8 @@ export class LevelEditScene extends GameScene {
             "hand": gAssets.sheets.editor.tile(1*8+5),
             "pointer": gAssets.sheets.editor.tile(2*8+1),
             "play": gAssets.sheets.editor.tile(2*8+0),
-            "undo": gAssets.sheets.editor.tile(1*8+6),
-            "redo": gAssets.sheets.editor.tile(1*8+7),
+            "undo": gAssets.sheets.editor.tile(2*8+6),
+            "redo": gAssets.sheets.editor.tile(2*8+7),
         }
 
         this.editor_objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
@@ -858,7 +863,7 @@ export class LevelEditScene extends GameScene {
                 name: "undo",
                 icon: this.editor_icons.undo,
                 action: () => {
-                    console.log("undo")
+                    this.historyPop()
                 },
                 selected: null,
             },
@@ -866,7 +871,7 @@ export class LevelEditScene extends GameScene {
                 name: "redo",
                 icon: this.editor_icons.redo,
                 action: () => {
-                    console.log("redo")
+                    this.historyUnPop()
                 },
                 selected: null,
             },
@@ -981,6 +986,9 @@ export class LevelEditScene extends GameScene {
         this.active_tool = EditorTool.PLACE_TILE
 
         this.ygutter = 64
+
+        // init history to the current state
+        this.historyPush(true, true)
     }
 
     _init_slopes() {
@@ -1277,7 +1285,7 @@ export class LevelEditScene extends GameScene {
             let y = 16*Math.floor(tid/512 - 4)
             let x = 16*(tid%512)
 
-            paintTile(ctx, x, y, tile)
+            paintTile(ctx, x, y, tile, this.theme_sheets)
 
         }
 
@@ -1566,7 +1574,6 @@ export class LevelEditScene extends GameScene {
         }
 
         this._updateTile(x,y,this.map.layers[0][tid])
-
         return true
     }
 
@@ -1798,18 +1805,102 @@ export class LevelEditScene extends GameScene {
                         this.previous_oid = -1
                     }
 
+                    this.change_tile = this.change_tile||change_tile
+                    this.change_object = this.change_object||change_object
+
                     // push a history state on touch release
                     if (!t.pressed) {
-                        console.log("changes", this.change_tile, this.change_object)
+
+                        this.historyPush(this.change_tile, this.change_object)
+
                         // TODO: do something with this.map.layers[0] and this.map.objects
                         // if there was a change to either, push a history state
                         this.change_tile = false //reset
                         this.change_object = false //reset
-                    } else {
-                        this.change_tile = this.change_tile||change_tile
-                        this.change_object = this.change_object||change_object
                     }
                 }
+            }
+        }
+    }
+
+    historyPush(change_tile, change_object) {
+
+        // remove old entries that were discarded by the user
+        while (this.history_index > 0) {
+            console.log("remove events")
+            this.history.pop()
+            this.history_index -= 1
+        }
+
+        // use json to easily create an immutable structure
+        // only save the layer or set of objects that were changed
+        event = {}
+
+        // for now both tiles and objects must be saved
+        // in the future to save memory only save the thing that changed
+        // and have a pointer to the last saved state for other layers or
+        // unchanged objects
+        // if the history is [tile, object, tile]
+        // an undo should effectivley go back to the previous tile state
+        // maybe it needs separate history streams?
+        if (change_tile || change_object) {
+            event.layer_id = 0
+            event.layer = JSON.stringify(this.map.layers[0])
+            event.objects = JSON.stringify(this.map.objects)
+        }
+
+        console.log('history push', change_tile, change_object)
+        this.history.push(event)
+
+        // enforce maximum number of entries
+        while (this.history.length > 10) {
+            this.history.shift()
+        }
+
+        // log the size
+        let history_size = this.history.map(h => (h?.layer??"").length + (h?.objects??"").length).reduce((a,b)=>a+b,0)
+        console.log(`history index=${this.history_index} num_entries=${this.history.length} size=${(history_size/1024).toFixed(1)}kb`)
+
+    }
+
+    historyPop() {
+        // history_index always points at the most recent event
+        // a pop should apply the previous state
+        // an unpop should reapply the most recently popped state
+
+        if (this.history_index < this.history.length-1) {
+            this.history_index += 1
+            let idx = (this.history.length - 1) - this.history_index
+            console.log("pop", idx, this.history.length, this.history_index)
+            this._historyApplyIndex(idx)
+        } else {
+            console.log("pop empty")
+        }
+    }
+
+    historyUnPop() {
+
+        if (this.history_index > 0) {
+            this.history_index -= 1
+            let idx = (this.history.length - 1) - this.history_index
+            console.log("unpop", idx, this.history.length, this.history_index)
+            this._historyApplyIndex(idx)
+        }
+    }
+
+    _historyApplyIndex(idx) {
+        if (idx >= 0 && idx < this.history.length) {
+            console.log("apply event ", idx, this.history.length)
+            let event = this.history[idx]
+
+            if (Object.hasOwn(event, 'layer_id')) {
+                console.log("history apply tiles")
+                this.map.layers[event.layer_id] = JSON.parse(event.layer)
+            }
+
+            if (Object.hasOwn(event, 'objects')) {
+                console.log("history apply object")
+                this.map.objects = JSON.parse(event.objects)
             }
         }
     }
