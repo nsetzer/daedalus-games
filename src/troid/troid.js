@@ -596,7 +596,13 @@ class MainScene extends GameScene {
         if (!!this.screen) {
         } else {
             this.keyboard.handleKeyPress(keyevent);
+        }
 
+        if (keyevent.text == "d") {
+            let objs = this.map.map.queryObjects({"className": "Player"})
+            if (objs.length > 0) {
+                objs[0]._hurt()
+            }
         }
     }
 

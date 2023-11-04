@@ -46,24 +46,44 @@ export class ResourceLoaderScene extends GameScene {
         this.timer = 0;
         this.timeout = 0; // how long to show the loading bar after it finished loading
         this.finished = false
+
+        // total elapsed time spent loading (wall clock time)
+        // elapsed: time spent calling the update function for each pipeline stage
+        // nupates: the number of calls to update for each pipeline stage
+        this.stats = {total_elapsed: 0, elapsed:[0], nupdates: [0]}
     }
 
     update(dt) {
 
         if (this.pipeline_index < this.pipeline.length) {
-
+            this.stats.total_elapsed += dt
             const loader = this.pipeline[this.pipeline_index]
             if (!loader.ready) {
+                let t0 = performance.now()
                 loader.update()
+                let elapsed = performance.now() - t0
+                this.stats.elapsed[this.stats.elapsed.length - 1] += elapsed
+                this.stats.nupdates[this.stats.nupdates.length - 1] += 1
             } else {
                 this.pipeline_index += 1
+                this.stats.elapsed.push(0)
+                this.stats.nupdates.push(0)
             }
 
         } else if (!this.finished) {
+            this.stats.total_elapsed += dt
+
             this.timer += dt
             if (this.timer > this.timeout) {
                 this.success_cbk(this.pipeline[this.pipeline.length-1])
                 this.finished = true
+
+                // log the total time spent loading
+                // with the time spent in each pipeline stage
+                console.log("load complete",
+                    Math.floor(this.stats.total_elapsed*1000), "ms",
+                    this.stats.elapsed,
+                    this.stats.nupdates)
             }
         }
 
@@ -199,6 +219,13 @@ class AssetLoader {
             .path(RES_ROOT + "/sprites/player.png")
             .dimensions(32, 32)
             .layout(6, 17)
+            .offset(1, 1)
+            .spacing(1, 1)
+
+        this.loader.addSpriteSheet("beams16")
+            .path(RES_ROOT + "/sprites/beams16_export.png")
+            .dimensions(16, 16)
+            .layout(5, 4)
             .offset(1, 1)
             .spacing(1, 1)
 
@@ -348,12 +375,13 @@ class LevelChunkBuilder {
             this._init()
         } else {
             // for 4x7 chunks, there are 12 per screen
-            // it would take 2 seconds to build chunks 1 per frame
-            // build 4 at a time
-            this._build_one()
-            this._build_one()
-            this._build_one()
-            this._build_one()
+            // for a 16 screen map (192 chunks)
+            // it would take 3200 ms to build chunks 1 per frame
+            if (this.num_jobs_submitted < this.work_queue.length) {
+                for (let i =0; i < 24; i++) {
+                    this._build_one()
+                }
+            }
 
             if (this.num_jobs_completed == this.num_jobs) {
                 this.ready = true
@@ -488,7 +516,6 @@ class MapBuilder {
         this.createObject = (t, p) => {return this.map.createObject(this.map._x_nextEntId(), t, p)}
 
         this.map._x_player = this.createObject("Player", {x: 200-64, y:128, playerId: "player"})
-
     }
 
     _build_step() {
@@ -531,7 +558,7 @@ class MapBuilder {
                 }
 
                 else if (tile.property == TileProperty.ONEWAY) {
-                    objprops.visible = true
+                    objprops.visible = false
                     if (objname == 'Slope') {
                         objprops.oneway = true
                     } else {
@@ -550,13 +577,13 @@ class MapBuilder {
         })
 
         // spawn map objects
-        //mapinfo.objects.forEach(obj => {
-        //    let y = 16*(Math.floor(obj.oid/512 - 4))
-        //    let x = 16*(obj.oid%512)
-        //    let objname = obj.name
-        //    let objprops = {x:x, y:y}
-        //    this.createObject(objname, objprops)
-        //})
+        mapinfo.objects.forEach(obj => {
+            let y = 16*(Math.floor(obj.oid/512 - 4))
+            let x = 16*(obj.oid%512)
+            let objname = obj.name
+            let objprops = {x:x, y:y}
+            this.createObject(objname, objprops)
+        })
 
         this.ready = true
     }

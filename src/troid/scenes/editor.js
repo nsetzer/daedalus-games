@@ -881,7 +881,30 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_icons.zoom_out,
                 action: () => {
                     if (this.camera.scale < 4) {
-                        this.camera.scale += 0.5
+                        // comput the transform to zoom in/out at a point px,py
+                        let px = gEngine.view.width/2
+                        let py = gEngine.view.height/2
+                        let cx = (this.camera.x + px) * this.camera.scale
+                        let cy = (this.camera.y + py) * this.camera.scale
+
+                        this.camera.scale = Math.min(4.0, this.camera.scale + 0.5)
+
+                        this.camera.x = (cx / this.camera.scale) - px
+                        this.camera.y = (cy / this.camera.scale) - py
+
+                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+
+
+                        // max 0
+                        // min this.map.width
+                        // rhs: (this.camera.x + gEngine.view.width) * this.camera.scale
+                        // lhs: this.camera.x
+
+
+                        //this.camera.x -= (24 * 16)/this.camera.scale/2
                     }
                 },
                 selected: null,
@@ -891,7 +914,21 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_icons.zoom_in,
                 action: () => {
                     if (this.camera.scale > 1.0) {
-                        this.camera.scale -= 0.5
+                        // comput the transform to zoom in/out at a point px,py
+                        let px = gEngine.view.width/2
+                        let py = gEngine.view.height/2
+                        let cx = (this.camera.x + px) * this.camera.scale
+                        let cy = (this.camera.y + py) * this.camera.scale
+
+                        this.camera.scale = Math.max(1.0, this.camera.scale - 0.5)
+
+                        this.camera.x = (cx / this.camera.scale) - px
+                        this.camera.y = (cy / this.camera.scale) - py
+
+                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
                     }
                 },
                 selected: null,
@@ -1288,9 +1325,9 @@ export class LevelEditScene extends GameScene {
         ctx.textAlign = "left"
         ctx.textBaseline = "top"
         //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
-        //let text = `${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
+        let text = `${this.camera.scale}, ${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
         //let text = `n=${this?.num_touches??0}`
-        //ctx.fillText(text, 8, 24);
+        ctx.fillText(text, 8, 24);
     }
 
     resize() {

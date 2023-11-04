@@ -6,7 +6,7 @@ $import("axertc_common", {
 $import("axertc_client", {SpriteSheet})
 
 $import("axertc_physics", {
-    Physics2dPlatform, PlatformerEntity, Wall, Slope, OneWayWall,
+    Physics2dPlatform, PlatformerEntity, PlatformBase, Wall, Slope, OneWayWall,
     AnimationComponent
 })
 
@@ -22,15 +22,26 @@ export class Bullet extends PlatformerEntity {
         super(entid, props)
         this.rect = new Rect(props?.x??0 - 1, props?.y??0 - 1, 2, 2)
         this.split = props?.split??1
-        this.color = props?.color??"black"
+        this.color = props?.color??0
         this.physics = new Physics2dPlatform(this)
         this.physics.gravity = 0
         this.physics.xfriction = 0
 
+        this.level = props?.level??1
 
-        this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        this.trail = []
+
+        if (!!props?.wave) {
+            // don't collide with platforms
+            this.physics.group = () => {
+                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && !(ent instanceof PlatformBase)})
+            }
+        } else {
+            this.physics.group = () => {
+                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+            }
         }
+
 
         const d = props?.direction??Direction.RIGHT
         const v = Direction.vector(props?.direction??Direction.RIGHT)
@@ -60,38 +71,65 @@ export class Bullet extends PlatformerEntity {
 
     paint(ctx) {
 
-        ctx.save()
-        this.particles.forEach(p => {
-            p.x += p.dx;
-            p.y += p.dy;
-            ctx.fillStyle = p.color
-            ctx.beginPath();
-            ctx.rect(p.x, p.y, p.size, p.size)
-            ctx.fill()
-            ctx.closePath();
+        //ctx.save()
+        //this.particles.forEach(p => {
+        //    p.x += p.dx;
+        //    p.y += p.dy;
+        //    ctx.fillStyle = p.color
+        //    ctx.beginPath();
+        //    ctx.rect(p.x, p.y, p.size, p.size)
+        //    ctx.fill()
+        //    ctx.closePath();
+        //})
+
+        gAssets.sheets.beams16.drawTile(ctx, this.color*4, this.rect.x - 8, this.rect.y - 8)
+        //ctx.strokeStyle = this.color;
+        //ctx.fillStyle = this.color;
+        //ctx.beginPath();
+        //ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        //ctx.arc(this.rect.x+this.rect.w/2,
+        //        this.rect.y+this.rect.h/2,2,0,2*Math.PI);
+        //ctx.stroke();
+        //ctx.fill();
+        //ctx.restore()
+
+        this.trail.forEach((p,i) => {
+            gAssets.sheets.beams16.drawTile(ctx, this.color*4 + 1 + i, p.x - 8, p.y - 8)
         })
 
-        ctx.beginPath();
-        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        ctx.strokeStyle = this.color;
-        ctx.fillStyle = this.color;
-        ctx.arc(this.rect.x+this.rect.w/2,
-                this.rect.y+this.rect.h/2,2,0,2*Math.PI);
-        ctx.stroke();
-        ctx.fill();
-        ctx.restore()
-
+        //this.trail.forEach((p,i) => {
+        //    ctx.beginPath();
+        //    ctx.fillStyle = this.color;
+        //    ctx.moveTo(p.x, p.y)
+        //    ctx.arc(
+        //        p.x+this.rect.w/2,
+        //        p.y+this.rect.h/2,
+        //        2,
+        //        0,2*Math.PI);
+        //    ctx.closePath()
+        //    ctx.fill();
+        //})
 
     }
 
     update(dt) {
 
-        if (this.wave_counter < this.wave_profile.length) {
-            this.physics.xspeed = this.wave_profile[this.wave_counter].x/dt
-            this.physics.yspeed = this.wave_profile[this.wave_counter].y/dt
-            this.wave_counter += 1
+        if (gEngine.frameIndex&1) {
+            if (this.wave_counter < this.wave_profile.length) {
+                this.physics.xspeed = this.wave_profile[this.wave_counter].x/dt
+                this.physics.yspeed = this.wave_profile[this.wave_counter].y/dt
+                this.wave_counter += 1
+            }
+
+            if (this.level > 1) {
+                this.trail.unshift({x:this.rect.x, y:this.rect.y})
+                while (this.trail.length > 2) {
+                    this.trail.pop()
+                }
+            }
+
+            this.physics.update(dt)
         }
-        this.physics.update(dt)
 
         this.particles.push({
             x:this.rect.x, y:this.rect.y + 2 * (Math.random() - 0.5),
@@ -126,6 +164,8 @@ export class Bullet extends PlatformerEntity {
             }
 
         }
+
+
         //if (this.physics.xspeed == 0 && this.physics.yspeed == 0) {
         //    this._x_debug_map.destroyObject(this.entid)
         //}
@@ -153,9 +193,9 @@ function init_velocity() {
     const flip = (seq) => seq.map(p=>({x:-p.x, y:p.y}))
 
     // the number of points to sample
-    const period = 40
+    const period = 20
     // velocity is pixels per frame
-    const velocity = 300/60
+    const velocity = 300/60 * 1.25
     // bullet will move perpendicular to the
     // direction by +/- half the amplitude
     const amplitude = 8
@@ -248,23 +288,23 @@ function generateProjectiles(x,y,direction, power) {
 
     let projectiles = []
 
-    let color = "black"
+    let color = 0
 
     switch (gCharacterInfo.element) {
     case WeaponType.ELEMENT.POWER:
-        color = "yellow"
+        color = 1 // yellow
         break;
     case WeaponType.ELEMENT.FIRE:
-        color = "red"
+        color = 0  // red
         break;
     case WeaponType.ELEMENT.WATER:
-        color = "blue"
+        color = 3  // red
         break;
     case WeaponType.ELEMENT.ICE:
-        color = "cyan"
+        color = 2
         break;
     case WeaponType.ELEMENT.BUBBLE:
-        color = "pink"
+        color = 4
         break;
     }
 
@@ -319,6 +359,72 @@ function generateProjectiles(x,y,direction, power) {
     return projectiles
 }
 
+export class CharacterComponent {
+
+    constructor(target) {
+        this.target = target
+        this.alive = true
+        this.health = 3
+
+        this.hurt_timer = 0
+        this.hurt_cooldown = 0
+
+        this.animation_timer = 0
+        this.animation_duration = 0.4
+        this.hurt_period = this.animation_duration * 3
+
+    }
+
+    update(dt) {
+
+        if (this.hurt_timer > 0) {
+            this.hurt_timer -= dt
+            this.animation_timer += dt
+
+            if (this.animation_timer > this.animation_duration) {
+                this.animation_timer -= this.animation_duration
+            }
+
+            if (this.hurt_timer < 0 && this.health <= 0) {
+                this.alive = false
+            }
+        }
+
+        if (this.hurt_cooldown > 0) {
+            this.hurt_cooldown -= dt
+        }
+
+    }
+
+    hit() {
+        if (this.hurt_cooldown > 0 || this.health <= 0) {
+            return
+        }
+
+        this.hurt_cooldown = this.hurt_period + .25
+        this.hurt_timer = this.hurt_period
+        this.animation_timer = 0
+
+        this.target.animation.effect = (ctx) => {
+
+            if (this.hurt_timer <= 0) {
+                this.target.animation.effect = null
+            }
+            let x;
+            let d = this.animation_duration / 2
+            x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
+            ctx.filter = `brightness(${Math.floor(100 + 100*x)}%) hue-rotate(-${90*(1-x)}deg)`
+
+        }
+
+        //if (this.health <= 0 && !!this.target.sound_death) {
+        //    this.target.sound_death.play()
+        //} else {
+        //    this.target.sound_hit.play()
+        //}
+    }
+}
+
 export class Player extends PlatformerEntity {
 
     constructor(entid, props) {
@@ -339,6 +445,8 @@ export class Player extends PlatformerEntity {
         if (Player.sheets === null) {
             throw {"error": "sprite sheet not set"}
         }
+
+        this.character = new CharacterComponent(this)
 
         this.looking_up = false
 
@@ -491,7 +599,17 @@ export class Player extends PlatformerEntity {
             }
 
             if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
-                let timeout = this.charge_timeout*.6
+                let factor = 0.6
+                if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+                    factor = 0.1
+                }
+                if (gCharacterInfo.element == WeaponType.ELEMENT.POWER) {
+                    factor = 0.33
+                }
+                if (gCharacterInfo.element == WeaponType.ELEMENT.ICE) {
+                    factor = 0.75
+                }
+                let timeout = this.charge_timeout*factor
                 // TODO: timeout should depend on element (power faster, ice slower)
                 //       or special weapon. lazer types don't need this feature
                 if (this.charge_duration > timeout) {
@@ -503,6 +621,7 @@ export class Player extends PlatformerEntity {
         }
 
         this.physics.update(dt)
+        this.character.update(dt)
 
         let pfacing = this.physics.facing
         if (this.looking_up) {
@@ -682,6 +801,10 @@ export class Player extends PlatformerEntity {
         } else {
             console.log(`jump standing=${standing} pressing=${pressing}`)
         }
+    }
+
+    _hurt() {
+        this.character.hit()
     }
 }
 Player.sheet = null

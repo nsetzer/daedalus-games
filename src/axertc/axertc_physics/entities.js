@@ -14,7 +14,13 @@ export class PlatformerEntity extends Entity {
     }
 }
 
-export class Wall extends PlatformerEntity {
+export class PlatformBase extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+    }
+}
+
+export class Wall extends PlatformBase {
     constructor(entid, props) {
         super(entid, props)
         this.solid = 1
@@ -117,7 +123,7 @@ function applyfnull(f, a,b) {
     return r
 }
 
-export class Slope extends PlatformerEntity {
+export class Slope extends PlatformBase {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(0,0,0,0)
@@ -233,7 +239,9 @@ export class Slope extends PlatformerEntity {
 
     collide(other, dx, dy) {
 
-
+        // TODO: something to handle the floating issue
+        //       either only every consider the cx position
+        //       or make the true top 1 pixel lower than the line
 
         if (this.oneway) {
             const top = applyfnull(Math.min, this.f(other.rect.left()), this.f(other.rect.right()))
@@ -423,7 +431,7 @@ export class Slope extends PlatformerEntity {
     }
 }
 
-export class OneWayWall extends PlatformerEntity {
+export class OneWayWall extends PlatformBase {
 
     constructor(entid, props) {
         super(entid, props)
