@@ -29,6 +29,8 @@ export class Bullet extends PlatformerEntity {
 
         this.level = props?.level??1
 
+        this.element = props?.element??WeaponType.ELEMENT.POWER
+
         this.trail = []
 
         if (!!props?.wave) {
@@ -152,16 +154,54 @@ export class Bullet extends PlatformerEntity {
         }
 
         if (!!this.physics.collide) {
-            if (this.bounce && this.bounce_counter < this.bounce_max) {
-                let sx = this.physics.xcollide?-1:1
-                let sy = this.physics.ycollide?-1:1
-                this.physics.xspeed *= sx
-                this.physics.yspeed *= sy
-                this.wave_profile = this.wave_profile.map(v => ({x:sx*v.x,y:sy*v.y}))
-                this.bounce_counter += 1
-            } else {
+
+            // collided with map boundary
+            if (this.physics.collisions.length == 0) {
                 this._x_debug_map.destroyObject(this.entid)
+            } else {
+
+                let mobs = []
+                let wall = false
+                let destroy = false
+
+                this.physics.collisions.forEach(obj => {
+                    if (obj.ent instanceof MobBase) {
+                        mobs.push(obj.ent)
+                    }
+
+                    if (obj.ent instanceof PlatformBase) {
+                        wall = true
+                    }
+                })
+
+                if (mobs.length > 0) {
+
+                    mobs.forEach(mob => {
+                        mob.character.hit({element: this.element, level:this.level})
+                    })
+                    destroy = true
+                }
+
+                if (wall) {
+                    if (this.bounce && this.bounce_counter < this.bounce_max) {
+                        let sx = this.physics.xcollide?-1:1
+                        let sy = this.physics.ycollide?-1:1
+                        this.physics.xspeed *= sx
+                        this.physics.yspeed *= sy
+                        this.wave_profile = this.wave_profile.map(v => ({x:sx*v.x,y:sy*v.y}))
+                        this.bounce_counter += 1
+                    } else {
+                        destroy = true
+                    }
+                }
+
+                if (destroy) {
+                    this._x_debug_map.destroyObject(this.entid)
+                }
+
             }
+
+
 
         }
 
@@ -195,7 +235,7 @@ function init_velocity() {
     // the number of points to sample
     const period = 20
     // velocity is pixels per frame
-    const velocity = 300/60 * 1.25
+    const velocity = 300/60 * 2
     // bullet will move perpendicular to the
     // direction by +/- half the amplitude
     const amplitude = 8
@@ -308,6 +348,7 @@ function generateProjectiles(x,y,direction, power) {
         break;
     }
 
+    let element = gCharacterInfo.element
     let wave = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
     let bounce = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
 
@@ -325,33 +366,33 @@ function generateProjectiles(x,y,direction, power) {
     if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && wave && normal) {
 
         wave = 2
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
         if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL2) {
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
         }
         if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL3) {
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:4}})
-            projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:5}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:4}})
+            projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:5}})
         }
 
     }
 
     else if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
         // a single bullet the waves
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
     else if (bounce || gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
     }
     else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
     else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:1}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:2}})
-        projectiles.push({name: "Bullet", props: {x,y,direction,color,wave,bounce,level,power,split:3}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
+        projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     } else {
         throw {error: "invalid level", level: gCharacterInfo.level}
     }
@@ -860,7 +901,116 @@ Brick.sheet = null
 Brick.size = [16, 16]
 Brick.icon = null
 
-export class Creeper extends PlatformerEntity {
+export class MobCharacterComponent {
+
+    constructor(target) {
+        this.target = target
+        this.alive = true
+        this.health = 300
+
+        this.frozen = false
+
+        this.hurt_timer = 0
+        this.hurt_cooldown = 0
+
+        this.freeze_timer = 0
+        this.freeze_duration = 10
+
+        this.animation_timer = 0
+        this.animation_duration = 0.4
+        this.hurt_period = this.animation_duration * 1
+
+    }
+
+    update(dt) {
+
+        if (this.freeze_timer > 0) {
+            this.freeze_timer -= dt
+            if (this.freeze_timer <= 0) {
+                this.freeze_timer = 0
+                this.frozen = false
+                this.target.animation.paused = false
+            }
+        }
+
+        if (this.hurt_timer > 0) {
+            this.hurt_timer -= dt
+            this.animation_timer += dt
+
+            if (this.animation_timer > this.animation_duration) {
+                this.animation_timer -= this.animation_duration
+            }
+
+            if (this.hurt_timer < 0 && this.health <= 0) {
+                this.alive = false
+            }
+        }
+
+        if (this.hurt_cooldown > 0) {
+            this.hurt_cooldown -= dt
+        }
+
+    }
+
+    hit(attrs) {
+        //if (this.hurt_cooldown > 0 || this.health <= 0) {
+        //    return
+        //}
+
+        if (attrs?.element == WeaponType.ELEMENT.ICE) {
+            this.frozen = true
+            this.target.animation.paused = true
+            this.freeze_timer = this.freeze_duration
+
+            this.hurt_cooldown = .25
+            this.hurt_timer = this.hurt_period
+
+        } else {
+            this.hurt_cooldown = this.hurt_period + .25
+            this.hurt_timer = this.hurt_period
+            this.animation_timer = 0
+        }
+
+        this.target.animation.effect = (ctx) => {
+
+            if (this.frozen) {
+                let x;
+                let d = this.animation_duration / 2
+                x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
+                ctx.filter = `brightness(75%) hue-rotate(-90deg)`
+            } else {
+                if (this.hurt_timer <= 0) {
+                    this.target.animation.effect = null
+                }
+
+                let x;
+                let d = this.animation_duration / 2
+                x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
+                ctx.filter = `brightness(${Math.floor(100 + 100*x)}%) hue-rotate(${90*(1-x)}deg)`
+
+            }
+
+
+
+        }
+
+        //if (this.health <= 0 && !!this.target.sound_death) {
+        //    this.target.sound_death.play()
+        //} else {
+        //    this.target.sound_hit.play()
+        //}
+    }
+}
+
+export class MobBase extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+
+        this.character = new MobCharacterComponent(this)
+    }
+}
+
+export class Creeper extends MobBase {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 12, 12)
@@ -940,9 +1090,11 @@ export class Creeper extends PlatformerEntity {
 
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
 
-            if (other instanceof Player) {
-                other._bounce()
-                return null
+            if (!this.character.frozen) {
+                if (other instanceof Player) {
+                    other._bounce()
+                    return null
+                }
             }
             update.set_bottom(this.rect.top())
             return update
@@ -976,7 +1128,10 @@ export class Creeper extends PlatformerEntity {
     }
 
     update(dt) {
-        this.physics.update(dt)
+        if (!this.character.frozen) {
+            this.physics.update(dt)
+        }
+        this.character.update(dt)
         if (this.physics.xcollide) {
             //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
             this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
@@ -992,7 +1147,7 @@ Creeper.sheet = null
 Creeper.size = [16, 16]
 Creeper.icon = null
 
-export class Shredder extends PlatformerEntity {
+export class Shredder extends MobBase {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
@@ -1073,9 +1228,12 @@ export class Shredder extends PlatformerEntity {
         }
 
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
-            if (other instanceof Player) {
-                other._bounce()
-                return null
+
+            if (!this.character.frozen) {
+                if (other instanceof Player) {
+                    other._bounce()
+                    return null
+                }
             }
             update.set_bottom(this.rect.top())
             return update
@@ -1102,7 +1260,10 @@ export class Shredder extends PlatformerEntity {
     }
 
     update(dt) {
-        this.physics.update(dt)
+        if (!this.character.frozen) {
+            this.physics.update(dt)
+        }
+        this.character.update(dt)
         if (this.physics.xcollide) {
             //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
             this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT

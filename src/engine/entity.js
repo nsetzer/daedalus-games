@@ -197,7 +197,7 @@ export class AnimationComponent {
 
     update(dt) {
 
-        if (this.animation && this.paused===0) {
+        if (this.animation && !this.paused) {
             //console.log(this.animation, this.pause)
             this.timer += dt
             if (this.timer > this.animation.frame_duration) {

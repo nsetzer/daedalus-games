@@ -63,7 +63,7 @@ export class CharacterInfo {
     constructor() {
         this.element = WeaponType.ELEMENT.ICE
         this.beam = WeaponType.BEAM.WAVE
-        this.level = WeaponType.LEVEL.LEVEL1
+        this.level = WeaponType.LEVEL.LEVEL3
         this.modifier = WeaponType.MODIFIER.RAPID
     }
 }
