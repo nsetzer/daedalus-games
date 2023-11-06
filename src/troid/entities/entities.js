@@ -90,7 +90,7 @@ export class Bullet extends PlatformerEntity {
         //    ctx.closePath();
         //})
 
-        gAssets.sheets.beams16.drawTile(ctx, this.color*4, this.rect.x - 8, this.rect.y - 8)
+        gAssets.sheets.beams16.drawTile(ctx, this.color*7, this.rect.x - 8, this.rect.y - 8)
         //ctx.strokeStyle = this.color;
         //ctx.fillStyle = this.color;
         //ctx.beginPath();
@@ -102,7 +102,7 @@ export class Bullet extends PlatformerEntity {
         //ctx.restore()
 
         this.trail.forEach((p,i) => {
-            gAssets.sheets.beams16.drawTile(ctx, this.color*4 + 1 + i, p.x - 8, p.y - 8)
+            gAssets.sheets.beams16.drawTile(ctx, this.color*7 + 1 + i, p.x - 8, p.y - 8)
         })
 
         //this.trail.forEach((p,i) => {
@@ -493,6 +493,7 @@ export class BeamBase {
 
         this.strength = 6
         this.final_maximum = (20 + this.strength * 2)
+        this.dx = 4
 
     }
 
@@ -527,11 +528,11 @@ export class BeamBase {
             }
         }
 
-        let dx = this.parent.current_facing&Direction.LEFT?-4:4
+        let dx = this.parent.current_facing&Direction.LEFT?-this.dx:this.dx
         let dy = 0
 
         if (this.parent.current_facing&Direction.UP) {
-            dy = -2.8284
+            dy = - this.dx * .7071
             dx *= .7071
         }
 
@@ -539,7 +540,6 @@ export class BeamBase {
 
         this._calc_influence(this.strength, this.final_maximum, dx, dy)
         this._calc_beam(this.strength, maximum, dx, dy)
-
 
     }
 
@@ -550,7 +550,7 @@ export class BeamBase {
             this.targets = []
 
             // add 32 for the size of the parent sprite
-            let w = ((maximum-strength) * Math.abs(dx)) + (strength/2*Math.abs(dx)) 32
+            let w = ((maximum-strength) * Math.abs(dx) / 2) + ((1 + strength)*Math.abs(dx))
             let h = maximum * Math.abs((dy || dx)) + 32 + 32 // plus an extra 32
             let x = this.parent.rect.cx()
             if (this.parent.current_facing&Direction.LEFT) {
@@ -569,32 +569,51 @@ export class BeamBase {
         let p = this.parent.weapon_offset[this.parent.current_facing]
         let x = this.parent.rect.x + p.x
         let y = this.parent.rect.y + p.y
+        let d = ((dy<0)?Direction.UP:Direction.NONE) | ((dx<0)?Direction.LEFT:Direction.RIGHT)
 
-        this.points.push({x,y})
+        this.points.push({x,y,d})
 
         for (let i=0; i< maximum; i++) {
             if (i < strength) {
                 x += dx
                 y += dy
+                d = ((dy<0)?Direction.UP:Direction.NONE) | ((dx<0)?Direction.LEFT:Direction.RIGHT)
             } else {
                 x += dx/2
-                y += 2.8284
+                y += (4 * .7071)
+
+                d = Direction.DOWN | ((dx<0)?Direction.LEFT:Direction.RIGHT)
+
             }
 
-            this.points.push({x,y})
+
+
+            this.points.push({x,y,d})
 
             if (this.targets.map(ent => ent.rect.collidePoint(x,y)).reduce((a,b)=>a+b, 0)>0) {
                 break
             }
         }
+
     }
 }
 
 export class WaterStream extends BeamBase {
     constructor(parent) {
         super(parent)
+        // TODO: wave beam should not have gravity
         this.strength = 6
         this.final_maximum = (20 + this.strength * 2)
+
+        this.tiles = {}
+
+        this.tiles[Direction.RIGHT]     = [7*7+0, 7*7+1, 7*7+2]
+        this.tiles[Direction.LEFT]      = [7*7+4, 7*7+5, 7*7+6]
+        this.tiles[Direction.UPRIGHT]   = [9*7+0, 9*7+1, 9*7+2]
+        this.tiles[Direction.DOWNRIGHT] = [9*7+4, 9*7+5, 9*7+6]
+        this.tiles[Direction.UPLEFT]    = [11*7+0, 11*7+1, 11*7+2]
+        this.tiles[Direction.DOWNLEFT]  = [11*7+4, 11*7+5, 11*7+6]
+
     }
 
     paint(ctx) {
@@ -610,12 +629,22 @@ export class WaterStream extends BeamBase {
 
         for (let i=0; i < this.points.length; i++) {
             let p = this.points[i]
-            let color = (i%2==0)?"orange":"blue"
-            ctx.fillStyle = color
-            ctx.beginPath()
-            ctx.rect(p.x-4, p.y-1,8,6)
-            ctx.closePath()
-            ctx.fill()
+            //let color = (i%2==0)?"orange":"blue"
+            //ctx.fillStyle = color
+            //ctx.beginPath()
+            //ctx.rect(p.x-4, p.y-1,8,6)
+            //ctx.closePath()
+            //ctx.fill()
+            if (i==0) {
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][0], p.x-8, p.y-8)
+            }
+            else if (i==this.points.length-1) {
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][2], p.x-8, p.y-8)
+            }
+            else {
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][1], p.x-8, p.y-8)
+            }
+
         }
     }
 
@@ -624,8 +653,28 @@ export class WaterStream extends BeamBase {
 export class FireStream extends BeamBase {
     constructor(parent) {
         super(parent)
-        this.strength = 6
-        this.final_maximum = 6
+        this.strength = 5
+        this.final_maximum = 5
+        this.dx = 10
+        this.charge_duration = .5
+
+        this.tiles_a = []
+        this.tiles_b = []
+
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7))
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7))
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7+1))
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7+1))
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7+2))
+        this.tiles_a.push(gAssets.sheets.beams16.tile(5*7+3))
+
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7))
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7))
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+1))
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+1))
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+2))
+        this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+3))
+
     }
 
     paint(ctx) {
@@ -638,18 +687,22 @@ export class FireStream extends BeamBase {
             ctx.fill()
         }
 
+        let tiles = (Math.floor(gEngine.frameIndex/15)%2==0)?this.tiles_a:this.tiles_b
         for (let i=0; i < this.points.length; i++) {
             let p = this.points[i]
+            let r = Math.floor(2 + 3 * ((i+1)/this.final_maximum))
             let color = (i%2==0)?"orange":"blue"
-            ctx.fillStyle = color
-            ctx.beginPath()
-            ctx.arc(
-                p.x-4,
-                p.y-1,
-                Math.floor(3 + 7 * ((i+1)/this.final_maximum)),
-                0,2*Math.PI)
-            ctx.closePath()
-            ctx.fill()
+
+            tiles[i].draw(ctx, p.x-8+2,p.y-12+2)
+            //ctx.fillStyle = color
+            //ctx.beginPath()
+            //ctx.arc(
+            //    p.x-4,
+            //    p.y-1 + r,
+            //    r,
+            //    0,2*Math.PI)
+            //ctx.closePath()
+            //ctx.fill()
         }
     }
 
@@ -802,7 +855,7 @@ export class Player extends PlatformerEntity {
         //ctx.fillStyle = '#FF00007f';
         //ctx.fill();
 
-        if (this.charging) {
+        if (!this._beam && this.charging) {
             ctx.beginPath();
             ctx.fillStyle = '#FF0000FF';
             const p = this.charge_duration / this.charge_timeout
