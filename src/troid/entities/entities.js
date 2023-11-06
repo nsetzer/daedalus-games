@@ -26,6 +26,8 @@ export class Bullet extends PlatformerEntity {
         this.physics = new Physics2dPlatform(this)
         this.physics.gravity = 0
         this.physics.xfriction = 0
+        this.solid = 0
+        this.collide = 1
 
         this.level = props?.level??1
 
@@ -42,6 +44,10 @@ export class Bullet extends PlatformerEntity {
             this.physics.group = () => {
                 return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
             }
+        }
+
+        this.targets = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
         }
 
 
@@ -153,6 +159,12 @@ export class Bullet extends PlatformerEntity {
             this.wave_counter = 0
         }
 
+        for (const ent of this.targets()) {
+            if (this.rect.collideRect(ent.rect)) {
+                ent.character.hit({element: this.element, level:this.level})
+            }
+        }
+
         if (!!this.physics.collide) {
 
             // collided with map boundary
@@ -175,14 +187,12 @@ export class Bullet extends PlatformerEntity {
                         destroy = true
                     }
                 })
-
-                if (mobs.length > 0) {
-
-                    mobs.forEach(mob => {
-                        mob.character.hit({element: this.element, level:this.level})
-                    })
-                    destroy = true
-                }
+                //if (mobs.length > 0) {
+                //    mobs.forEach(mob => {
+                //        mob.character.hit({element: this.element, level:this.level})
+                //    })
+                //    destroy = true
+                //}
 
                 if (wall) {
                     if (this.bounce && this.bounce_counter < this.bounce_max) {
@@ -468,6 +478,183 @@ export class CharacterComponent {
     }
 }
 
+export class BeamBase {
+    constructor(parent) {
+        this.parent = parent
+        this.group = this.parent.physics.group
+
+        this.points = []
+
+        this.targets = []
+        this.influence = null
+
+        this.charge_amount = 0
+        this.charge_duration = .8
+
+        this.strength = 6
+        this.final_maximum = (20 + this.strength * 2)
+
+    }
+
+    paint(ctx) {
+
+        if (!!this.influence) {
+            ctx.beginPath()
+            ctx.fillStyle = "#00FF0022"
+            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+            ctx.closePath()
+            ctx.fill()
+        }
+
+
+        for (let i=0; i < this.points.length; i++) {
+            let p = this.points[i]
+            let color = (i%2==0)?"orange":"blue"
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.rect(p.x-4, p.y-1,8,6)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+    update(dt) {
+
+        if (this.charge_amount < this.charge_duration) {
+            this.charge_amount += dt
+            if (this.charge_amount > this.charge_duration) {
+                this.charge_amount = this.charge_duration
+            }
+        }
+
+        let dx = this.parent.current_facing&Direction.LEFT?-4:4
+        let dy = 0
+
+        if (this.parent.current_facing&Direction.UP) {
+            dy = -2.8284
+            dx *= .7071
+        }
+
+        let maximum = Math.ceil(this.final_maximum * (this.charge_amount/this.charge_duration))
+
+        this._calc_influence(this.strength, this.final_maximum, dx, dy)
+        this._calc_beam(this.strength, maximum, dx, dy)
+
+
+    }
+
+    _calc_influence(strength, maximum, dx, dy) {
+        // infrequently determine the area of influence for the beam
+        // objects that the beam could collide with
+        if (gEngine.frameIndex%3==0) {
+            this.targets = []
+
+            // add 32 for the size of the parent sprite
+            let w = ((maximum-strength) * Math.abs(dx)) + (strength/2*Math.abs(dx)) 32
+            let h = maximum * Math.abs((dy || dx)) + 32 + 32 // plus an extra 32
+            let x = this.parent.rect.cx()
+            if (this.parent.current_facing&Direction.LEFT) {
+                x -= w
+            }
+            let y = this.parent.rect.cy() - (maximum * Math.abs(dy) / 2) - 32 // subtract extra 32
+            this.influence = new Rect(x,y,w,h)
+
+            this.targets = this.group().filter(ent => ent.rect.collideRect(this.influence))
+        }
+    }
+
+    _calc_beam(strength, maximum, dx, dy) {
+
+        this.points = []
+        let p = this.parent.weapon_offset[this.parent.current_facing]
+        let x = this.parent.rect.x + p.x
+        let y = this.parent.rect.y + p.y
+
+        this.points.push({x,y})
+
+        for (let i=0; i< maximum; i++) {
+            if (i < strength) {
+                x += dx
+                y += dy
+            } else {
+                x += dx/2
+                y += 2.8284
+            }
+
+            this.points.push({x,y})
+
+            if (this.targets.map(ent => ent.rect.collidePoint(x,y)).reduce((a,b)=>a+b, 0)>0) {
+                break
+            }
+        }
+    }
+}
+
+export class WaterStream extends BeamBase {
+    constructor(parent) {
+        super(parent)
+        this.strength = 6
+        this.final_maximum = (20 + this.strength * 2)
+    }
+
+    paint(ctx) {
+
+        if (!!this.influence) {
+            ctx.beginPath()
+            ctx.fillStyle = "#00FF0022"
+            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+            ctx.closePath()
+            ctx.fill()
+        }
+
+
+        for (let i=0; i < this.points.length; i++) {
+            let p = this.points[i]
+            let color = (i%2==0)?"orange":"blue"
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.rect(p.x-4, p.y-1,8,6)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+}
+
+export class FireStream extends BeamBase {
+    constructor(parent) {
+        super(parent)
+        this.strength = 6
+        this.final_maximum = 6
+    }
+
+    paint(ctx) {
+
+        if (!!this.influence) {
+            ctx.beginPath()
+            ctx.fillStyle = "#00FF0022"
+            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+            ctx.closePath()
+            ctx.fill()
+        }
+
+        for (let i=0; i < this.points.length; i++) {
+            let p = this.points[i]
+            let color = (i%2==0)?"orange":"blue"
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.arc(
+                p.x-4,
+                p.y-1,
+                Math.floor(3 + 7 * ((i+1)/this.final_maximum)),
+                0,2*Math.PI)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+}
+
 export class Player extends PlatformerEntity {
 
     constructor(entid, props) {
@@ -505,13 +692,19 @@ export class Player extends PlatformerEntity {
         this.jump_pressed = false
 
         this._x_input = {x:0,y:0}
+
+        this.morphed = false
+
+        this._beam = null
     }
 
     buildAnimations() {
 
         let spf = 1/8
+        let spf2 = 1/12
         let xoffset = - 12
         let yoffset = - 7
+        let yoffset2 = - 19
 
         this.animations = {
             "idle":{},
@@ -520,7 +713,7 @@ export class Player extends PlatformerEntity {
             "jump":{},
             "fall":{},
             "hit":{},
-            "ball":{},
+            "morphed":{"idle": {}, "run": {}},
         }
 
         let ncols = 17
@@ -573,11 +766,18 @@ export class Player extends PlatformerEntity {
         this.animations["hit"][Direction.UPRIGHT] = aid
         this.animations["hit"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf, {xoffset, yoffset})
-        this.animations["ball"][Direction.RIGHT] = aid
+        aid = this.animation.register(Player.sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf, {xoffset, yoffset})
-        this.animations["ball"][Direction.LEFT] = aid
+        aid = this.animation.register(Player.sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['idle'][Direction.LEFT] = aid
+
+        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf2, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['run'][Direction.LEFT] = aid
+
+        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['run'][Direction.RIGHT] = aid
+
 
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
 
@@ -629,10 +829,29 @@ export class Player extends PlatformerEntity {
         //ctx.textAlign = "left"
         //ctx.textBaseline = "top"
         //ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
-
+        if (!!this._beam) {
+            this._beam.paint(ctx)
+        }
 
     }
 
+    _updateAnimation() {
+
+        let aid;
+        if (this.morphed) {
+            let mfacing = this.current_facing&Direction.LEFTRIGHT
+            let maction =(this.current_action != "idle")?"run":"idle"
+            aid = this.animations["morphed"][maction][mfacing]
+        } else {
+            aid = this.animations[this.current_action][this.current_facing]
+        }
+
+        if (!aid) {
+            console.error(this.physics)
+            throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
+        }
+        this.animation.setAnimationById(aid)
+    }
     update(dt) {
 
         if (this.charging && this.charge_duration < this.charge_timeout) {
@@ -641,7 +860,7 @@ export class Player extends PlatformerEntity {
                 this.charge_duration = this.charge_timeout
             }
 
-            if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
+            if (!this._beam && gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
                 let factor = 0.6
                 if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
                     factor = 0.1
@@ -665,6 +884,9 @@ export class Player extends PlatformerEntity {
 
         this.physics.update(dt)
         this.character.update(dt)
+        if (!!this._beam) {
+            this._beam.update(dt)
+        }
 
         let pfacing = this.physics.facing
         if (this.looking_up) {
@@ -688,16 +910,9 @@ export class Player extends PlatformerEntity {
 
         if (pfacing != this.current_facing ||
             paction != this.current_action) {
-
             this.current_facing = pfacing
             this.current_action = paction
-
-            let aid = this.animations[this.current_action][this.current_facing]
-            if (!aid) {
-                console.error(this.physics)
-                throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
-            }
-            this.animation.setAnimationById(aid)
+            this._updateAnimation()
 
         }
 
@@ -763,22 +978,52 @@ export class Player extends PlatformerEntity {
 
         } else if (payload.btnid === 1) {
 
-            if (payload.pressed) {
-                this.charging = gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL
-                this.charge_duration = 0.0
+            if (!this.morphed) {
+                if (payload.pressed) {
+                    this.charging = gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL
+                    this.charge_duration = 0.0
 
-                if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
-                    this._shoot(0)
-                }
-            } else {
-                let power = this.charge_duration / this.charge_timeout
-                this.charge_duration = 0.0
-                this.charging = false
-                if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
-                    this._shoot(power)
-                }
+                    if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
 
+                        if (gCharacterInfo.element == WeaponType.ELEMENT.WATER) {
+                            this._beam = new WaterStream(this)
+                        } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE) {
+                            this._beam = new FireStream(this)
+                        } else {
+                            this._shoot(0)
+                        }
+
+                    }
+                } else {
+                    let power = this.charge_duration / this.charge_timeout
+                    this.charge_duration = 0.0
+                    this.charging = false
+                    if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
+                        this._shoot(power)
+                    } else {
+                        if (!!this._beam) {
+                            this._beam = null
+                        }
+                    }
+
+                }
             }
+
+        } else if (payload.btnid === 2) {
+            if (!payload.pressed) {
+                if (this.morphed) {
+                    this.rect.h = 24
+                    this.rect.y -= 12
+                    this.morphed = false
+
+                } else {
+                    this.rect.h = 12
+                    this.rect.y += 12
+                    this.morphed = true
+                }
+                this._updateAnimation()
+            }
+
         } else {
             console.log(payload)
         }
@@ -1082,15 +1327,15 @@ export class Creeper extends MobBase {
         let rect = other.rect
         let update = rect.copy()
 
-        if (dx > 0 && rect.right() <= this.rect.left()) {
-            update.set_right(this.rect.left())
-            return update
-        }
+        //if (dx > 0 && rect.right() <= this.rect.left()) {
+        //    update.set_right(this.rect.left())
+        //    return update
+        //}
 
-        if (dx < 0 && rect.left() >= this.rect.right()) {
-            update.set_left(this.rect.right())
-            return update
-        }
+        //if (dx < 0 && rect.left() >= this.rect.right()) {
+        //    update.set_left(this.rect.right())
+        //    return update
+        //}
 
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
 
@@ -1104,11 +1349,11 @@ export class Creeper extends MobBase {
             return update
         }
 
-        if (dy < 0 && rect.top() >= this.rect.top()) {
-            //this.destroy()
-            update.set_top(this.rect.bottom())
-            return update
-        }
+        //if (dy < 0 && rect.top() >= this.rect.top()) {
+        //    //this.destroy()
+        //    update.set_top(this.rect.bottom())
+        //    return update
+        //}
 
         return null
     }

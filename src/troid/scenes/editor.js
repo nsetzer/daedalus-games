@@ -1,4 +1,9 @@
  
+// todo: implement stamps as objects
+//       stamps are special tiles that can be any size or shape
+//       during chunking, they are painted on top of layer zero
+//       after all other tiles are painted.
+
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
@@ -899,15 +904,13 @@ export class LevelEditScene extends GameScene {
 
                         this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
                         this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
-                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
                         this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
-
 
                         // max 0
                         // min this.map.width
                         // rhs: (this.camera.x + gEngine.view.width) * this.camera.scale
                         // lhs: this.camera.x
-
 
                         //this.camera.x -= (24 * 16)/this.camera.scale/2
                     }
@@ -932,7 +935,7 @@ export class LevelEditScene extends GameScene {
 
                         this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
                         this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
-                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
                         this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
                     }
                 },
@@ -1175,6 +1178,16 @@ export class LevelEditScene extends GameScene {
             }
         })
 
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
+        //  ${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)
+        let text = `${this.camera.scale}x`
+        //let text = `n=${this?.num_touches??0}`
+        ctx.fillText(text, 3+13*24, 12);
     }
 
     _paint_background(ctx) {
@@ -1327,15 +1340,7 @@ export class LevelEditScene extends GameScene {
             this.active_menu.paint(ctx)
         }
 
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "yellow"
-        ctx.strokeStyle = "yellow"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-        //let text = `${-this.ygutter}, ${-Math.ceil(this.camera.y/16)*16}`
-        let text = `${this.camera.scale}, ${Math.floor(this.camera.x)}, ${Math.floor(this.camera.y)}`
-        //let text = `n=${this?.num_touches??0}`
-        ctx.fillText(text, 8, 24);
+
     }
 
     resize() {
@@ -1647,7 +1652,10 @@ export class LevelEditScene extends GameScene {
         let S = "" + date.getSeconds()
         if (S.length < 2) { S = "0"+S; }
 
-        let fname = "map-" + y+m+d+"-"+H+M+S + ".json"
+        let tw = Math.floor(this.map.width/24/16)
+        let th = Math.floor(this.map.height/14/16)
+
+        let fname = "map-" + tw + "x" + th + "-" + y+m+d+"-"+H+M+S + ".json"
 
         var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
         var downloadAnchorNode = document.createElement('a');
@@ -1739,7 +1747,8 @@ export class LevelEditScene extends GameScene {
                         this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
                         this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
 
-                        this.camera.y = Math.max(-(gEngine.view.height - 48/this.camera.scale), this.camera.y)
+
+                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
                         this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
                     }
 

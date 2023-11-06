@@ -425,6 +425,15 @@ class MainScene extends GameScene {
         this.touch.addButton(120, -40, 32, {})
         this.touch.addButton(40, -120, 32, {})
         this.touch.addButton(40, -40, 32, {})
+        //this.touch.addButton(240 - 32, -24, 32, {
+        //    align: Alignment.LEFT|Alignment.BOTTOM,
+        //    style: 'rect',
+        //})
+        //this.touch.addButton(240 - 32, -24, 32, {
+        //    align: Alignment.RIGHT|Alignment.BOTTOM,
+        //    style: 'rect',
+        //})
+
         this.touch.addButton(24, 24, 20, {
             align: Alignment.RIGHT|Alignment.TOP,
             style: 'rect',
@@ -628,8 +637,9 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = true
-            const mapid = "map-20231104-135223"
+            const edit = false
+            // mapid can be null or a filename
+            const mapid = "map-1x1-20231105-162707"
 
             // hack to avoid importing the main scene in the editor
             LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}

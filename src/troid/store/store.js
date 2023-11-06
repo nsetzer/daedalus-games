@@ -61,7 +61,7 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.ICE
+        this.element = WeaponType.ELEMENT.WATER
         this.beam = WeaponType.BEAM.WAVE
         this.level = WeaponType.LEVEL.LEVEL3
         this.modifier = WeaponType.MODIFIER.RAPID
@@ -73,11 +73,11 @@ export const gCharacterInfo = new CharacterInfo()
 export class MapInfo {
     constructor() {
         this.mapid = null
-        this.width = 0
-        this.height = 0
+        this.width = 24 * 16
+        this.height = 14 * 16
         this.layers = [{}]
         this.chunks = {}
-        this.objects = {}
+        this.objects = []
     }
 }
 

@@ -189,10 +189,9 @@ class AssetLoader {
 
             registerEntities()
 
-            const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
 
-            // filter objects which do not exist
-            gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
+
+
 
 
         }
@@ -667,12 +666,20 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     gAssets.mapinfo.layers = json?.layers??[{}]
                     gAssets.mapinfo.objects = json?.objects??[]
 
+                    // filter objects which do not exist
+                    const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
+                    gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
+
                     return json
                 })
 
             this.pipeline.push(info_loader)
         } else if (!this.task_edit) {
             throw {"error": "mapid is null", "mapid": this.mapid, "edit":this.task_edit}
+        } else {
+            console.log("create new map")
+            gAssets.mapinfo = new MapInfo()
+            gAssets.mapinfo.mapid = "map"
         }
 
         this.pipeline.push(new AssetLoader())

@@ -341,6 +341,13 @@ export class Physics2dPlatform {
                 this.target.rect.x += dd.dx
                 this.target.rect.y += dd.dy
 
+
+                //console.log(dd.dx, dd.dy, this.xcollisions)
+
+                if (dd.dx != 0 || dd.dy != 0) {
+                    this.xcollisions = []
+                }
+
                 //if (dd.dx == 0) {
                 //    this.xspeed = 0
                 //    this.xaccum= 0

@@ -2,6 +2,26 @@
 $import("axertc_common", {
     Direction, Rect
 })
+
+
+/**
+ * A tile is a sequence of integers which can be encoded as a 31 bit number
+ * 18 + 3 + 3 + 3 + 4
+ *
+ * maximum map size is 511 tiles or 21 screens wide or 36 screens tall
+ *
+ * using 1024, instead of 512, would double the max width and half the max height
+ * without using any more bits
+ */
+interface Tile {
+    tid: number        // (18 bits) encoded position ((y+4)*512 + x)
+    shape: number,     // ( 3 bits) shape enum
+    property: number,  // ( 3 bits) tile property enum
+    sheet: number,     // ( 3 bits) index for the sheet to render this tile
+    direction: number, // ( 4 bits) direction enum for slopes
+    tile: number,      // -------- tile index for the sheet assigned to this tile
+                       // assigned by updateTile and depends on neighbors
+}
  
 export const TileShape = {}
 TileShape.RESERVED = 0
@@ -153,7 +173,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         if (layer[ntid].property == TileProperty.SOLID) {
 
             // fix stair case / zig zags
-            // check bounds to create the illusion the map tile extends past the visible are
+            // check bounds to create the illusion the map tile extends past the visible area
             if (n==4 && x > 0 && ((x+1)*16) < map_width) {
                 const tiddl = ((y + 4 - 1)*512 + (x-1))
                 const tiddr = ((y + 4 - 1)*512 + (x+1))
@@ -166,8 +186,12 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
             // fill the corners when there are neighbor diagonal slopes
             if (n >= 2) {
                 const du = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape == TileShape.HALF
-                const dl = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && (layer[ntid_l].shape == TileShape.HALF || layer[ntid_l].shape == TileShape.FULL)
-                const dr = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && (layer[ntid_r].shape == TileShape.HALF || layer[ntid_r].shape == TileShape.FULL)
+                const tiddl = ((y + 4 - 1)*512 + (x-1))
+                const tiddr = ((y + 4 - 1)*512 + (x+1))
+                const dl = !layer[tiddl]
+                const dr = !layer[tiddr]
+                //const dl = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && (layer[ntid_l].shape == TileShape.HALF || layer[ntid_l].shape == TileShape.FULL)
+                //const dr = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && (layer[ntid_r].shape == TileShape.HALF || layer[ntid_r].shape == TileShape.FULL)
                 if (du && dl) { tid = TT_3_10 }
                 if (du && dr) { tid = TT_3_09 }
             }
@@ -176,10 +200,14 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
             if (n >= 2) {
 
                 const du = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape == TileShape.ONETHIRD
-                const dl = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && (layer[ntid_l].shape == TileShape.TWOTHIRD || layer[ntid_l].shape == TileShape.FULL)
-                const dr = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && (layer[ntid_r].shape == TileShape.TWOTHIRD || layer[ntid_r].shape == TileShape.FULL)
-                if (du && dl) { tid = TT_2_08 }
-                if (du && dr) { tid = TT_2_07 }
+                const tiddl = ((y + 4 - 1)*512 + (x-1))
+                const tiddr = ((y + 4 - 1)*512 + (x+1))
+                const dl = !layer[tiddl]
+                const dr = !layer[tiddr]
+                //const dl = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && (layer[ntid_l].shape == TileShape.TWOTHIRD || layer[ntid_l].shape == TileShape.FULL)
+                //const dr = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && (layer[ntid_r].shape == TileShape.TWOTHIRD || layer[ntid_r].shape == TileShape.FULL)
+                if (du && dl) { tid = TT_2_07 }
+                if (du && dr) { tid = TT_2_08 }
             }
         }
 

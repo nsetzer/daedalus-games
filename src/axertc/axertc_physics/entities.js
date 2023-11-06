@@ -265,6 +265,10 @@ export class Slope extends PlatformBase {
 
     }
 
+    _ceil_away(x) {
+        return (x<0)?-Math.ceil(-x):Math.ceil(x)
+    }
+
     _collide_impl(other, dx, dy) {
         // TODO: the api could return up to two two options
         // {dx, 0} or {0, dy}
@@ -274,6 +278,7 @@ export class Slope extends PlatformBase {
 
         const original_rect = rect
         rect = rect.copy()
+        //rect.translate(this._ceil_away(dx*.7071), this._ceil_away(dy*.7071))
         rect.translate(dx, dy)
 
 
