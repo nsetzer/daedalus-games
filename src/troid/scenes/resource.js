@@ -228,6 +228,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("pipes32")
+            .path(RES_ROOT + "/sprites/pipes32.png")
+            .dimensions(32, 32)
+            .layout(1, 4)
+            .offset(1, 18)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("brick")
             .path(RES_ROOT + "/sprites/brick.png")
             .dimensions(16, 16)
@@ -283,6 +290,12 @@ class AssetLoader {
             .layout(4, 11)
             .offset(1, 1)
             .spacing(1, 1)
+
+        this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
+        this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
+        this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
+
+
     }
 }
 

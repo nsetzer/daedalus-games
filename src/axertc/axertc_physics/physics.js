@@ -35,6 +35,7 @@ export class Physics2dPlatform {
         this.doublejump_position = {x:0, y: 0} // animation center
         this.doublejump_timer = 0 // for the animation duration
 
+
         // computed states
         this.action = "idle"
         this.facing = Direction.RIGHT
@@ -74,10 +75,18 @@ export class Physics2dPlatform {
         // this will ensure the maximum height is as calculated
         // and that when the user releases, they will go a little higher and drop normally
 
+        // two xaccelerations and two max speeds (1 and 1a)
+        // quickly ramp up to the first max speed
+        // slowly accelerate to the second max speed
+        // allow for higher jumps and running over gaps at the second speed
         this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
+        this.xmaxspeed1a = this.xmaxspeed1*(2/3)
+
         this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
         this.xfriction = this.xmaxspeed1 / .5 // stop moving in .1 seconds
-        this.xacceleration = this.xmaxspeed1 / .5 // get up to max speed in .2 seconds
+        this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
+        this.xacceleration2 = (this.xmaxspeed1 - this.xmaxspeed1a) / 1
+
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
@@ -102,6 +111,7 @@ export class Physics2dPlatform {
         this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
+        this.checkbounds = true
 
         // log velocity over time
         //let speeds = []
@@ -250,13 +260,22 @@ export class Physics2dPlatform {
             if ((this.direction & Direction.LEFT) > 0) {
                 this.facing = Direction.LEFT
                 if (this.xspeed > -this.xmaxspeed1) {
-                    this.xspeed -= this.xacceleration * dt
+                    if (this.xspeed > -this.xmaxspeed1a) {
+                        this.xspeed -= this.xacceleration * dt
+                    } else {
+                        this.xspeed -= this.xacceleration2 * dt
+                    }
+
                     //console.log(this.facing, this.xspeed)
                 }
             } else if ((this.direction & Direction.RIGHT) > 0) {
                 this.facing = Direction.RIGHT
                 if (this.xspeed < this.xmaxspeed1) {
-                    this.xspeed += this.xacceleration * dt
+                    if (this.xspeed < this.xmaxspeed1a) {
+                        this.xspeed += this.xacceleration * dt
+                    } else {
+                        this.xspeed += this.xacceleration2 * dt
+                    }
                     //console.log(this.facing, this.xspeed)
                 }
             } else /*if (this.standing)*/ {
@@ -382,7 +401,8 @@ export class Physics2dPlatform {
         // if traveling at maximum speed, add an extra sensor infront
         // this sensor will prevent falling when there is a gap of 1
         let sensor_floorc = {x: this.target.rect.left() + 17, y: this.target.rect.bottom() + 1}
-        if (dy > 0 && this.xcollisions.length ==0 && Math.abs(this.xspeed) > .6*this.xmaxspeed1) {
+        let xpt = (this.xmaxspeed1 + this.xmaxspeed1a)/2
+        if (dy > 0 && this.xcollisions.length == 0 && Math.abs(this.xspeed) > xpt) {
             for (const ent of solids) {
                 if (!standing && (ent.collidePoint(sensor_floorc.x, sensor_floorc.y))) {
                     dy = 0
@@ -480,7 +500,7 @@ export class Physics2dPlatform {
 
         /////////////////////////////////////////////////////////////
         // bounds check
-        if (Physics2dPlatform.maprect.w > 0) {
+        if (this.checkbounds && Physics2dPlatform.maprect.w > 0) {
             if (this.target.rect.x < Physics2dPlatform.maprect.x) {
                 this.target.rect.x = Physics2dPlatform.maprect.x
                 this.xspeed = 0

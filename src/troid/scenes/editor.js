@@ -801,6 +801,7 @@ export class LevelEditScene extends GameScene {
                 name: "file",
                 icon: this.editor_icons.save,
                 action: () => {
+                    gAssets.sounds.click1.play()
                     this.active_menu = new FileMenu(this)
                 },
                 selected: null,
@@ -809,6 +810,7 @@ export class LevelEditScene extends GameScene {
                 name: "settings",
                 icon: this.editor_icons.gear,
                 action: () => {
+                    gAssets.sounds.click1.play()
                     this.active_menu = new SettingsMenu(this)
                 },
                 selected: null,
@@ -823,6 +825,7 @@ export class LevelEditScene extends GameScene {
                 name: "object-place",
                 icon: this.editor_icons.hand,
                 action: () => {
+                    gAssets.sounds.click1.play()
                     this.active_tool = EditorTool.PLACE_OBJECT;
                     this.active_menu = new ObjectMenu(this)
                 },
@@ -832,6 +835,7 @@ export class LevelEditScene extends GameScene {
                 name: "object-move",
                 icon2: ()=> {return (this.active_tool == EditorTool.ERASE_OBJECT)?this.editor_icons.erase:this.editor_icons.hand},
                 action: () => {
+                    gAssets.sounds.click1.play()
                     //this.active_tool = EditorTool.SELECT_OBJECT;
                     //this.active_menu = new ObjectMenu(this)
                     this.active_menu = new ObjectEditMenu(this)
@@ -842,6 +846,7 @@ export class LevelEditScene extends GameScene {
                 name: "tile-place",
                 icon: this.editor_icons.hand,
                 action: () => {
+                    gAssets.sounds.click1.play()
                     this.active_tool = EditorTool.PLACE_TILE;
                     this.active_menu = new TileMenu(this)
                 },
@@ -853,6 +858,7 @@ export class LevelEditScene extends GameScene {
                 name: "tile-select",
                 icon: this.editor_icons.pointer,
                 action: () => {
+                    gAssets.sounds.click1.play()
                     this.active_tool = EditorTool.SELECT_TILE;
                     //this.active_menu = new TileMenu(this)
                 },
@@ -868,6 +874,7 @@ export class LevelEditScene extends GameScene {
                 name: "undo",
                 icon: this.editor_icons.undo,
                 action: () => {
+
                     this.historyPop()
                 },
                 selected: null,
@@ -890,7 +897,9 @@ export class LevelEditScene extends GameScene {
                 name: "zoom-out",
                 icon: this.editor_icons.zoom_out,
                 action: () => {
+
                     if (this.camera.scale < 4) {
+                        gAssets.sounds.click1.play()
                         // comput the transform to zoom in/out at a point px,py
                         let px = gEngine.view.width/2
                         let py = gEngine.view.height/2
@@ -913,6 +922,8 @@ export class LevelEditScene extends GameScene {
                         // lhs: this.camera.x
 
                         //this.camera.x -= (24 * 16)/this.camera.scale/2
+                    } else {
+                        gAssets.sounds.click2.play()
                     }
                 },
                 selected: null,
@@ -922,6 +933,7 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_icons.zoom_in,
                 action: () => {
                     if (this.camera.scale > 1.0) {
+                        gAssets.sounds.click1.play()
                         // comput the transform to zoom in/out at a point px,py
                         let px = gEngine.view.width/2
                         let py = gEngine.view.height/2
@@ -937,6 +949,8 @@ export class LevelEditScene extends GameScene {
                         this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
                         this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
                         this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+                    } else {
+                        gAssets.sounds.click2.play()
                     }
                 },
                 selected: null,
@@ -1228,6 +1242,7 @@ export class LevelEditScene extends GameScene {
             ctx.stroke()
         }
     }
+
     _paint_grid(ctx) {
         ctx.strokeStyle = "#22222233";
         ctx.lineWidth = 1;
@@ -1274,6 +1289,49 @@ export class LevelEditScene extends GameScene {
         }
     }
 
+    _paint_tiles(ctx) {
+        // TODO: only draw visible tiles
+        for (const [tid, tile] of Object.entries(this.map.layers[0])) {
+
+            let y = 16*Math.floor(tid/512 - 4)
+            let x = 16*(tid%512)
+
+            paintTile(ctx, x, y, tile, this.theme_sheets)
+
+        }
+    }
+
+    _paint_objects(ctx) {
+        ctx.save()
+        ctx.setLineDash([3]);
+        for (const [oid, obj] of Object.entries(this.map.objects)) {
+
+            let y = 16*Math.floor(oid/512 - 4)
+            let x = 16*(oid%512)
+
+
+            //let objinfo = this.object_registry[obj.name]
+            let ctor = this.editor_objects[obj.name]
+
+            // icon2 is a temporary hack
+            // require a function (editor props) => icon
+            // or default to icon
+            if (!!ctor?.editorIcon) {
+                ctor.editorIcon(obj).draw(ctx, x, y)
+            } else if (!!ctor?.icon) {
+                ctor.icon.draw(ctx, x, y)
+            }
+
+            ctx.beginPath()
+            ctx.strokeStyle = "blue"
+            ctx.rect(x,y,ctor.size[0],ctor.size[1])
+            ctx.closePath()
+            ctx.stroke()
+
+        }
+        ctx.restore()
+    }
+
     paint(ctx) {
 
         const barHeight = 24
@@ -1292,45 +1350,11 @@ export class LevelEditScene extends GameScene {
 
         this._paint_background(ctx)
 
-        // TODO: only draw visible tiles
-        for (const [tid, tile] of Object.entries(this.map.layers[0])) {
+        this._paint_tiles(ctx)
 
-            let y = 16*Math.floor(tid/512 - 4)
-            let x = 16*(tid%512)
-
-            paintTile(ctx, x, y, tile, this.theme_sheets)
-
-        }
-
-        ctx.save()
-        ctx.setLineDash([3]);
-        for (const [oid, obj] of Object.entries(this.map.objects)) {
-
-            let y = 16*Math.floor(oid/512 - 4)
-            let x = 16*(oid%512)
-
-
-            //let objinfo = this.object_registry[obj.name]
-
-            if (!!this.editor_objects[obj.name]?.icon) {
-                this.editor_objects[obj.name].icon.draw(ctx, x, y)
-            }
-
-            ctx.beginPath()
-            ctx.strokeStyle = "blue"
-            ctx.rect(x,y,16,16)
-            ctx.closePath()
-            ctx.stroke()
-
-        }
-        ctx.restore()
+        this._paint_objects(ctx)
 
         this._paint_grid(ctx)
-
-        //ctx.beginPath()
-        //ctx.fillStyle = "yellow"
-        //ctx.rect(0,0,16,16)
-        //ctx.fill()
 
         ctx.restore()
 
@@ -1882,8 +1906,9 @@ export class LevelEditScene extends GameScene {
             let idx = (this.history.length - 1) - this.history_index
             console.log("pop", idx, this.history.length, this.history_index)
             this._historyApplyIndex(idx)
+            gAssets.sounds.click1.play()
         } else {
-            console.log("pop empty")
+            gAssets.sounds.click2.play()
         }
     }
 
@@ -1894,6 +1919,9 @@ export class LevelEditScene extends GameScene {
             let idx = (this.history.length - 1) - this.history_index
             console.log("unpop", idx, this.history.length, this.history_index)
             this._historyApplyIndex(idx)
+            gAssets.sounds.click1.play()
+        } else {
+            gAssets.sounds.click2.play()
         }
     }
 
@@ -1948,7 +1976,6 @@ export class LevelEditScene extends GameScene {
         } else {
             console.log(keyevent)
         }
-        console.log(this.camera)
 
     }
 

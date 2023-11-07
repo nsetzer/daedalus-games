@@ -224,6 +224,7 @@ export class Bullet extends PlatformerEntity {
     }
 }
 
+
 function init_velocity() {
     // generate the velocity profile for a bullet moving
     // forward at a constant velocity, even if traveling in
@@ -335,6 +336,15 @@ function init_velocity() {
 }
 
 init_velocity()
+
+export class BounceBullet extends PlatformerEntity {
+    // a bounce bullet is only animate to appear as if it is bouncing
+    // the bullet actually walks on the ground like a normal entity
+    // if standing bounce the animation, otherwise do not animate the y direction
+    constructor(entid, props) {
+        super(entid, props)
+    }
+}
 
 function generateProjectiles(x,y,direction, power) {
 
@@ -495,6 +505,12 @@ export class BeamBase {
         this.final_maximum = (20 + this.strength * 2)
         this.dx = 4
 
+        this.oddonly = false
+
+        this.targets2 = () => {
+            return Object.values(this.parent._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+        }
+
     }
 
     paint(ctx) {
@@ -541,6 +557,15 @@ export class BeamBase {
         this._calc_influence(this.strength, this.final_maximum, dx, dy)
         this._calc_beam(this.strength, maximum, dx, dy)
 
+
+        let p = this.points[this.points.length-1]
+        let rect = new Rect(p.x - 4, p.y - 4, 8, 8)
+        for (const ent of this.targets2()) {
+            if (rect.collideRect(ent.rect)) {
+                ent.character.hit({element: WeaponType.ELEMENT.POWER, level: 1, dot: true})
+            }
+        }
+
     }
 
     _calc_influence(strength, maximum, dx, dy) {
@@ -550,8 +575,8 @@ export class BeamBase {
             this.targets = []
 
             // add 32 for the size of the parent sprite
-            let w = ((maximum-strength) * Math.abs(dx) / 2) + ((1 + strength)*Math.abs(dx))
-            let h = maximum * Math.abs((dy || dx)) + 32 + 32 // plus an extra 32
+            let w = ((maximum-strength) * Math.abs(dx) / 2) + ((1 + strength)*Math.abs(dx)) + 32
+            let h = (maximum-strength) * Math.abs((dy || dx)) + 32 + 32 // plus an extra 32
             let x = this.parent.rect.cx()
             if (this.parent.current_facing&Direction.LEFT) {
                 x -= w
@@ -586,12 +611,14 @@ export class BeamBase {
 
             }
 
+            if (!this.oddonly || (this.oddonly && i%2==1)) {
+                this.points.push({x,y,d})
+            }
 
-
-            this.points.push({x,y,d})
-
-            if (this.targets.map(ent => ent.rect.collidePoint(x,y)).reduce((a,b)=>a+b, 0)>0) {
-                break
+            if (this.points.length > 1) {
+                if (this.targets.map(ent => ent.rect.collidePoint(x,y)).reduce((a,b)=>a+b, 0)>0) {
+                    break
+                }
             }
         }
 
@@ -607,12 +634,12 @@ export class WaterStream extends BeamBase {
 
         this.tiles = {}
 
-        this.tiles[Direction.RIGHT]     = [7*7+0, 7*7+1, 7*7+2]
-        this.tiles[Direction.LEFT]      = [7*7+4, 7*7+5, 7*7+6]
-        this.tiles[Direction.UPRIGHT]   = [9*7+0, 9*7+1, 9*7+2]
-        this.tiles[Direction.DOWNRIGHT] = [9*7+4, 9*7+5, 9*7+6]
-        this.tiles[Direction.UPLEFT]    = [11*7+0, 11*7+1, 11*7+2]
-        this.tiles[Direction.DOWNLEFT]  = [11*7+4, 11*7+5, 11*7+6]
+        this.tiles[Direction.RIGHT]     = [[ 7*7+0,  7*7+1,  7*7+2], [ 8*7+0,  8*7+1,  8*7+2]]
+        this.tiles[Direction.LEFT]      = [[ 7*7+4,  7*7+5,  7*7+6], [ 8*7+4,  8*7+5,  8*7+6]]
+        this.tiles[Direction.UPRIGHT]   = [[ 9*7+0,  9*7+1,  9*7+2], [10*7+0, 10*7+1, 10*7+2]]
+        this.tiles[Direction.DOWNRIGHT] = [[ 9*7+4,  9*7+5,  9*7+6], [10*7+4, 10*7+5, 10*7+6]]
+        this.tiles[Direction.UPLEFT]    = [[11*7+0, 11*7+1, 11*7+2], [12*7+0, 12*7+1, 12*7+2]]
+        this.tiles[Direction.DOWNLEFT]  = [[11*7+4, 11*7+5, 11*7+6], [12*7+4, 12*7+5, 12*7+6]]
 
     }
 
@@ -635,14 +662,17 @@ export class WaterStream extends BeamBase {
             //ctx.rect(p.x-4, p.y-1,8,6)
             //ctx.closePath()
             //ctx.fill()
+            // alternate j between 0 and 1 on every 1/4 second
+            // and for every other component of the stream
+            let j = (Math.floor(gEngine.frameIndex/6)+i)%2
             if (i==0) {
-                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][0], p.x-8, p.y-8)
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][j][0], p.x-8, p.y-8)
             }
             else if (i==this.points.length-1) {
-                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][2], p.x-8, p.y-8)
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][j][2], p.x-8, p.y-8)
             }
             else {
-                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][1], p.x-8, p.y-8)
+                gAssets.sheets.beams16.drawTile(ctx, this.tiles[p.d][j][1], p.x-8, p.y-8)
             }
 
         }
@@ -653,10 +683,14 @@ export class WaterStream extends BeamBase {
 export class FireStream extends BeamBase {
     constructor(parent) {
         super(parent)
-        this.strength = 5
-        this.final_maximum = 5
-        this.dx = 10
-        this.charge_duration = .5
+
+        // only draws every other point
+        // this improves the collision detection
+        this.strength = 10
+        this.final_maximum = 10
+        this.oddonly = true
+        this.dx = 5
+        this.charge_duration = .2
 
         this.tiles_a = []
         this.tiles_b = []
@@ -693,7 +727,12 @@ export class FireStream extends BeamBase {
             let r = Math.floor(2 + 3 * ((i+1)/this.final_maximum))
             let color = (i%2==0)?"orange":"blue"
 
-            tiles[i].draw(ctx, p.x-8+2,p.y-12+2)
+            if (i==this.points.length-1) {
+                tiles[5].draw(ctx, p.x-8+2,p.y-12+2)
+            } else {
+                tiles[i].draw(ctx, p.x-8+2,p.y-12+2)
+            }
+
             //ctx.fillStyle = color
             //ctx.beginPath()
             //ctx.arc(
@@ -749,6 +788,9 @@ export class Player extends PlatformerEntity {
         this.morphed = false
 
         this._beam = null
+
+        this.alive = true
+
     }
 
     buildAnimations() {
@@ -881,7 +923,8 @@ export class Player extends PlatformerEntity {
         //ctx.strokeStyle = "yellow"
         //ctx.textAlign = "left"
         //ctx.textBaseline = "top"
-        //ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
+        ////ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
+        //ctx.fillText(`${Math.abs(this.physics.xspeed).toFixed(1)}/${this.physics.xmaxspeed1}/${this.physics.xmaxspeed1a}`, this.rect.x, this.rect.y);
         if (!!this._beam) {
             this._beam.paint(ctx)
         }
@@ -905,7 +948,16 @@ export class Player extends PlatformerEntity {
         }
         this.animation.setAnimationById(aid)
     }
+
     update(dt) {
+
+        this.physics.update(dt)
+        this.character.update(dt)
+
+        if (!this.alive) {
+
+            return
+        }
 
         if (this.charging && this.charge_duration < this.charge_timeout) {
             this.charge_duration += dt
@@ -935,8 +987,6 @@ export class Player extends PlatformerEntity {
 
         }
 
-        this.physics.update(dt)
-        this.character.update(dt)
         if (!!this._beam) {
             this._beam.update(dt)
         }
@@ -973,6 +1023,10 @@ export class Player extends PlatformerEntity {
     }
 
     onInput(payload) {
+
+        if (!this.alive) {
+            return
+        }
 
         if ("whlid" in payload) {
 
@@ -1038,9 +1092,9 @@ export class Player extends PlatformerEntity {
 
                     if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
 
-                        if (gCharacterInfo.element == WeaponType.ELEMENT.WATER) {
+                        if (gCharacterInfo.element == WeaponType.ELEMENT.WATER && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
                             this._beam = new WaterStream(this)
-                        } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE) {
+                        } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
                             this._beam = new FireStream(this)
                         } else {
                             this._shoot(0)
@@ -1145,7 +1199,41 @@ export class Player extends PlatformerEntity {
     }
 
     _hurt() {
-        this.character.hit()
+        //this.character.hit()
+        this._kill()
+    }
+
+    _kill() {
+        this.alive =  false
+        this.physics.group = () => []
+
+        let aid = this.animations["hit"][Direction.RIGHT]
+        this.animation.setAnimationById(aid)
+
+        this.physics.direction = Direction.NONE
+        this.physics.xaccum = 0
+        this.physics.yspeed = this.physics.jumpspeed
+        this.physics.yaccum = 0
+        this.physics.gravityboost = false
+        this.physics.doublejump = false
+        this.physics.checkbounds = false
+    }
+
+    _revive() {
+
+        this.alive =  true
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+        this.rect.x = 32
+        this.rect.y = 128
+
+        let aid = this.animations["idle"][Direction.RIGHT]
+        this.animation.setAnimationById(aid)
+
+        this.physics.checkbounds = true
     }
 }
 Player.sheet = null
@@ -1207,8 +1295,8 @@ export class MobCharacterComponent {
 
     constructor(target) {
         this.target = target
-        this.alive = true
         this.health = 300
+        this.alive = true
 
         this.frozen = false
 
@@ -1219,7 +1307,7 @@ export class MobCharacterComponent {
         this.freeze_duration = 10
 
         this.animation_timer = 0
-        this.animation_duration = 0.4
+        this.animation_duration = 0.2
         this.hurt_period = this.animation_duration * 1
 
     }
@@ -1243,9 +1331,12 @@ export class MobCharacterComponent {
                 this.animation_timer -= this.animation_duration
             }
 
-            if (this.hurt_timer < 0 && this.health <= 0) {
-                this.alive = false
-            }
+            //if (this.hurt_timer < 0 && this.health <= 0) {
+            //    this.alive = false
+            //    console.log("set animation", this.target.animations["dead"][Direction.NONE])
+            //    this.target.setAnimationById(this.target.animations["dead"][Direction.NONE])
+            //    //this.target.destroy()
+            //}
         }
 
         if (this.hurt_cooldown > 0) {
@@ -1255,9 +1346,15 @@ export class MobCharacterComponent {
     }
 
     hit(attrs) {
-        //if (this.hurt_cooldown > 0 || this.health <= 0) {
-        //    return
-        //}
+
+        // dot for attacks that deal damage over time
+        // allow every individual beam to deal damage
+        // prevent water stream from dealing damage every frame
+        if (attrs.dot) {
+            if (this.hurt_cooldown > 0 || this.health <= 0) {
+                return
+            }
+        }
 
         if (attrs?.element == WeaponType.ELEMENT.ICE) {
             this.frozen = true
@@ -1267,10 +1364,21 @@ export class MobCharacterComponent {
             this.hurt_cooldown = .25
             this.hurt_timer = this.hurt_period
 
+        } else if (attrs.dot) {
+            // dot should have a per source cooldown
+            this.hurt_cooldown = 0.2
+            this.hurt_timer = 0.2
+            this.animation_timer = 0
         } else {
             this.hurt_cooldown = this.hurt_period + .25
             this.hurt_timer = this.hurt_period
             this.animation_timer = 0
+        }
+
+        this.health -= 100
+
+        if (this.health <= 0) {
+            this.target._kill()
         }
 
         this.target.animation.effect = (ctx) => {
@@ -1310,7 +1418,99 @@ export class MobBase extends PlatformerEntity {
 
         this.character = new MobCharacterComponent(this)
     }
+
+    _kill() {
+        this.character.alive = false
+    }
 }
+
+export class Spawn extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
+        this.solid = 1
+
+        this.spawn_timer = 0
+        this.spawn_timeout = 2
+        this.spawn_target = null
+        this.spawning = false
+    }
+
+    paint(ctx) {
+
+        if (this.spawn_target) {
+            this.spawn_target.paint(ctx)
+        }
+
+        Spawn.sheet.drawTile(ctx, 1, this.rect.x, this.rect.y)
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    update(dt) {
+
+        if (!this.spawn_target) {
+            this.spawn_timer += dt
+            if (this.spawn_timer > this.spawn_timeout) {
+                this.spawn_timer = 0
+
+                let objs = this._x_debug_map.queryObjects({"className": "Creeper"})
+
+                if (objs.length < 3) {
+
+                    // create a dummy object
+                    const props = {x: this.rect.x + 8, y:this.rect.y}
+                    this.spawn_target = new Creeper(-1, props)
+                }
+
+            }
+        } else {
+
+            this.spawn_target.rect.y -= 20 * dt
+            if (this.spawn_target.rect.bottom() < this.rect.top()) {
+                let rect = this.spawn_target.rect
+                const props = {x: rect.x, y: rect.y}
+                // replace the dummy with a real object
+                // this is closer to the correct behavior in multiplayer
+                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
+                this.spawn_target = null
+            }
+
+        }
+
+
+    }
+}
+Spawn.sheet = null
+Spawn.size = [32, 32]
+Spawn.icon = null
+Spawn.editorIcon = (props) => { return gAssets.sheets.pipes32.tile(1) }
 
 export class Creeper extends MobBase {
     constructor(entid, props) {
@@ -1321,7 +1521,6 @@ export class Creeper extends MobBase {
         this.visible = true
 
         this.breakable = 0
-        this.alive = 1
         this.solid = 1
 
         this.physics = new Physics2dPlatform(this,{
@@ -1353,6 +1552,7 @@ export class Creeper extends MobBase {
             "fall":{},
             "hit":{},
             "ball":{},
+            "dead":{}
         }
 
         let ncols = 3
@@ -1370,6 +1570,11 @@ export class Creeper extends MobBase {
         this.animations["run"][Direction.LEFT] = aid
         aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2], spf, {xoffset, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
+
+        this.animations["dead"][Direction.NONE] = this.animation.register(
+            gAssets.sheets.beams16,
+            [16*7+0, 16*7+1, 16*7+2, 16*7+3],
+            spf, {xoffset:-2, yoffset:-2, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
 
         this.animation.setAnimationById(this.animations.run[Direction.LEFT])
 
@@ -1390,11 +1595,13 @@ export class Creeper extends MobBase {
         //    return update
         //}
 
+        //TODO: wider collision on head the head
         if (dy > 0 && rect.bottom() <= this.rect.top()) {
 
             if (!this.character.frozen) {
                 if (other instanceof Player) {
                     other._bounce()
+                    this._kill()
                     return null
                 }
             }
@@ -1413,11 +1620,11 @@ export class Creeper extends MobBase {
 
     paint(ctx) {
         //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
-        ctx.fillStyle = "red"
-        ctx.beginPath()
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.closePath()
-        ctx.fill()
+        //ctx.fillStyle = "red"
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.closePath()
+        //ctx.fill()
 
         this.animation.paint(ctx)
 
@@ -1430,7 +1637,7 @@ export class Creeper extends MobBase {
     }
 
     update(dt) {
-        if (!this.character.frozen) {
+        if (!this.character.frozen && this.character.alive) {
             this.physics.update(dt)
         }
         this.character.update(dt)
@@ -1443,6 +1650,16 @@ export class Creeper extends MobBase {
         }
         this.animation.update(dt)
 
+    }
+
+    _kill() {
+        this.character.alive = false
+        this.animation.setAnimationById(this.animations["dead"][Direction.NONE])
+    }
+
+    onDeathAnimationEnd() {
+        console.log("death animation end")
+        this.destroy()
     }
 }
 Creeper.sheet = null
@@ -1586,7 +1803,6 @@ export class Coin extends PlatformerEntity {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
 
-
         if (!Coin.tiles) {
             Coin.tiles = Coin.sheet.tiles()
         }
@@ -1649,6 +1865,7 @@ export const editorEntities = [
     {name:"Brick", ctor: Brick}
     {name:"Creeper", ctor: Creeper}
     {name:"Shredder", ctor: Shredder}
+    {name:"Spawn", ctor: Spawn}
 ]
 
 export function registerEntities() {
@@ -1681,4 +1898,7 @@ export function registerEntities() {
 
     Shredder.sheet = gAssets.sheets.shredder
     Shredder.icon = editorIcon(Shredder.sheet)
+
+    Spawn.sheet = gAssets.sheets.pipes32
+    Spawn.icon = editorIcon(Spawn.sheet)
 }

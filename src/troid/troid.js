@@ -158,7 +158,7 @@ class Camera extends CameraBase {
 
     update(dt) {
 
-        if (!this.target) {
+        if (!this.target || !this.target.alive) {
             return
         }
 
@@ -459,6 +459,12 @@ class MainScene extends GameScene {
     update(dt) {
         this.map.update(dt)
         this.camera.update(dt)
+
+        if (!this.map.map._x_player.alive) {
+            if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
+                this.map.map._x_player._revive()
+            }
+        }
     }
 
     _paint_status(ctx) {
@@ -639,7 +645,7 @@ export default class Application extends ApplicationBase {
 
             const edit = false
             // mapid can be null or a filename
-            const mapid = "map-1x1-20231105-162707"
+            const mapid = "map-2x1-20231107-182505"
 
             // hack to avoid importing the main scene in the editor
             LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
