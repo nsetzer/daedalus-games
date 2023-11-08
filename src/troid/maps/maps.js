@@ -11,7 +11,7 @@ $import("axertc_physics", {
 })
 
 $import("entities", {
-    Player, Bullet, Coin, Brick, Creeper, Shredder, Spawn
+    Player, Bullet, Coin, Brick, Creeper, Shredder, Spawn, BubbleBullet
 })
 
 export class PlatformMap extends CspMap {
@@ -22,6 +22,7 @@ export class PlatformMap extends CspMap {
         // misc / non-editor entities
         this.registerClass("Player", Player)
         this.registerClass("Bullet", Bullet)
+        this.registerClass("BubbleBullet", BubbleBullet)
 
         // tiles
         this.registerClass("Wall", Wall)

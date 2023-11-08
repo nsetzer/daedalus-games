@@ -228,6 +228,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("beams32")
+            .path(RES_ROOT + "/sprites/beams32_export.png")
+            .dimensions(32, 32)
+            .layout(2, 3)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("pipes32")
             .path(RES_ROOT + "/sprites/pipes32.png")
             .dimensions(32, 32)

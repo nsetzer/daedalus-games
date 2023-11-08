@@ -37,9 +37,7 @@ export class Bullet extends PlatformerEntity {
 
         if (!!props?.wave) {
             // don't collide with platforms
-            this.physics.group = () => {
-                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && !(ent instanceof PlatformBase)})
-            }
+            this.physics.group = () => {return []}
         } else {
             this.physics.group = () => {
                 return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
@@ -224,6 +222,140 @@ export class Bullet extends PlatformerEntity {
     }
 }
 
+export class BubbleBullet extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+
+        let base_speed = 100
+        if (props?.power < .8) {
+            this.rect = new Rect((props?.x??0) - 8, (props?.y??0) - 8, 16, 16)
+            this.bubble_size = 1
+        } else {
+            this.rect = new Rect((props?.x??0) - 16, (props?.y??0) - 16, 32, 32)
+            this.bubble_size = 2
+            base_speed = 60
+        }
+
+        this.physics = new Physics2dPlatform(this)
+        this.physics.gravity = 0
+        this.physics.xfriction = 0
+        this.physics.group = () => {return []}
+        this.solid = 0
+        this.collide = 1
+        this.visible = 1
+
+        this.animation = new AnimationComponent(this)
+
+
+        switch (props?.direction??0) {
+        case Direction.LEFT:
+            this.physics.xspeed = -(base_speed + Math.random()*this.rect.w*1.5)
+            break;
+        case Direction.RIGHT:
+            this.physics.xspeed = base_speed + Math.random()*this.rect.w*1.5
+            break;
+        case Direction.UPLEFT:
+            this.physics.xspeed = -(base_speed + Math.random()*this.rect.w*1.5)
+            this.physics.xspeed = .7071 * this.physics.xspeed
+            this.physics.yspeed = this.physics.xspeed
+            break;
+        case Direction.UPRIGHT:
+            this.physics.xspeed = base_speed + Math.random()*this.rect.w*1.5
+            this.physics.xspeed = .7071 * this.physics.xspeed
+            this.physics.yspeed = -this.physics.xspeed
+            break;
+        default:
+            break;
+        }
+
+        this.buildAnimations()
+
+        this.targets = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+        }
+
+
+    }
+
+    buildAnimations() {
+
+        let spf = 1/8
+        let xoffset = 0
+        let yoffset = 0
+
+        this.animations = {
+            "idle": null,
+        }
+
+        let ncols = 7
+        let nrows = 17
+        let aid;
+
+
+
+        if (this.bubble_size == 1) {
+            this.animations["idle"] = this.animation.register(gAssets.sheets.beams16,
+                [14*ncols+0,14*ncols+1,14*ncols+2,14*ncols+1], spf, {xoffset, yoffset})
+        } else {
+            this.animations["idle"] = this.animation.register(gAssets.sheets.beams32,
+                [0,1,2,1], spf, {xoffset, yoffset})
+        }
+
+
+        this.animation.setAnimationById(this.animations["idle"])
+
+    }
+
+    paint(ctx) {
+
+        //ctx.fillStyle = "red"
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.closePath()
+        //ctx.fill()
+
+        this.animation.paint(ctx)
+
+        //gAssets.sheets.beams16.drawTile(ctx, 99, this.rect.x, this.rect.y)
+
+
+    }
+
+    update(dt) {
+
+        this.physics.update(dt)
+        this.animation.update(dt)
+
+        if (this.physics.xspeed >= 0) {
+            this.physics.xspeed -= 50 * dt
+            this.physics.yspeed -= 10 * dt
+
+            // todo use timer to destroy
+            if (this.physics.xspeed < 5) {
+                this.destroy()
+            }
+        }
+
+        if (this.physics.xspeed <= 0) {
+            this.physics.xspeed += 50 * dt
+            this.physics.yspeed -= 10 * dt
+            // todo use timer to destroy
+            if (this.physics.xspeed > -5) {
+                this.destroy()
+            }
+        }
+
+
+        for (const ent of this.targets()) {
+            if (this.rect.collideRect(ent.rect)) {
+                ent.character.hit({element: this.element, level:this.level})
+            }
+        }
+
+    }
+
+}
+
 
 function init_velocity() {
     // generate the velocity profile for a bullet moving
@@ -399,7 +531,9 @@ function generateProjectiles(x,y,direction, power) {
         }
 
     }
-
+    else if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+        projectiles.push({name: "BubbleBullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
+    }
     else if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
         // a single bullet the waves
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})

@@ -66,7 +66,6 @@ export class AnimationComponent {
                 if (this.frame_index >= this.animation.tids.length) {
 
                     if (!!this.animation.onend) {
-                        console.log("calling")
                         this.animation.onend()
                     }
 
