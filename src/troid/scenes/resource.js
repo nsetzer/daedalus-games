@@ -298,6 +298,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("zone_01_sheet_02")
+            .path(RES_ROOT + "/sprites/tile_ground_02.png")
+            .dimensions(16, 16)
+            .layout(4, 11)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
@@ -363,7 +370,11 @@ class LevelTileBuilder {
 
         // TODO: parse the map data to figure out theme info
 
-        this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
+        this.theme_sheets = [
+            null,
+            gAssets.sheets.zone_01_sheet_01,
+            gAssets.sheets.zone_01_sheet_02,
+            ]
 
         this.work_queue = Object.entries(this.map.layers[0])
         this.num_jobs = this.work_queue.length
@@ -445,7 +456,11 @@ class LevelChunkBuilder {
                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}}
             }
 
-            this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
+            this.theme_sheets = [
+                null,
+                gAssets.sheets.zone_01_sheet_01,
+                gAssets.sheets.zone_01_sheet_02,
+            ]
 
             this.map.chunks[chunkid].tiles[tid] = tile
         })

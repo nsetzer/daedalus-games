@@ -756,9 +756,17 @@ export class LevelEditScene extends GameScene {
             }
         })
 
-        this.theme_sheets = [null, gAssets.sheets.zone_01_sheet_01]
+        this.theme_sheets = [
+            null,
+            gAssets.sheets.zone_01_sheet_01,
+            gAssets.sheets.zone_01_sheet_02
+        ]
 
-        this.theme_sheets_icon = [null, gAssets.sheets.zone_01_sheet_01.tile(0)]
+        this.theme_sheets_icon = [
+            null,
+            gAssets.sheets.zone_01_sheet_01.tile(0),
+            gAssets.sheets.zone_01_sheet_02.tile(0),
+        ]
 
         this.editor_icons = {
             "pencil": gAssets.sheets.editor.tile(0),

@@ -145,11 +145,19 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         // if 1 bit is set. that bit indicates the direction of the neighbor
         // if 3 bits are set. the free bit indicates the direction of a free cell
 
+        // number of bits set
+        //             || R L D U
+        //  0, 1, 1, 2 || 0000 0001 0010 0011
+        //  1, 2, 2, 3 || 0100 0101 0110 0111
+        //  1, 2, 2, 3 || 1000 1001 1010 1011
+        //  2, 3, 3, 4 || 1100 1101 1110 1111
+
+
         let tt = [
-             0*11 + 0, 1*11 + 4, 0*11 + 3, 2*11 + 0,
-             1*11 + 4, 1*11 + 2, 0*11 + 2, 1*11 + 4,
-             0*11 + 4, 1*11 + 1, 0*11 + 1, 0*11 + 4,
-             2*11 + 0, 1*11 + 3, 0*11 + 3, 2*11 + 0,
+             0*11 + 0, 3*11 + 1, 3*11 + 2, 2*11 + 2,
+             4*11 + 2, 1*11 + 2, 0*11 + 2, 1*11 + 4,
+             4*11 + 1, 1*11 + 1, 0*11 + 1, 0*11 + 4,
+             2*11 + 1, 1*11 + 3, 0*11 + 3, 2*11 + 0,
         ]
 
         tid = tt[q]
