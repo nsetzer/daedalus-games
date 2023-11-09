@@ -29,7 +29,9 @@ export class Bullet extends ProjectileBase {
         this.rect = new Rect(props?.x??0 - 1, props?.y??0 - 1, 2, 2)
         this.split = props?.split??1
         this.color = props?.color??0
-        this.physics = new Physics2dPlatform(this)
+        this.physics = new Physics2dPlatform(this,{
+            slope_walk: false,
+        })
         this.physics.gravity = 0
         this.physics.xfriction = 0
         this.solid = 0
@@ -179,7 +181,7 @@ export class Bullet extends ProjectileBase {
         }
 
         for (const ent of this.targets()) {
-            if (this.rect.collideRect(ent.rect)) {
+            if (ent.character.alive && this.rect.collideRect(ent.rect)) {
                 ent.character.hit({element: this.element, level:this.level})
                 this._kill()
             }

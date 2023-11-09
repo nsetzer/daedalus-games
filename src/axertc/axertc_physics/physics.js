@@ -54,7 +54,10 @@ export class Physics2dPlatform {
         this.pressing_frame = 0     // last frame pressing on a wall
         this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
 
+        // if set true, running at full speed can cover small gaps
         this.enable_oneblock_walk = config?.oneblock_walk??false
+        // if set to false, walking on slopes is not allowed, collide instead
+        this.enable_slope_walk = config?.slope_walk??true
 
         // the duration that gives some specified maximum velocity v'
         //      t = sqrt(H^2 / v'^2)
@@ -359,14 +362,16 @@ export class Physics2dPlatform {
 
             if (dd != null) {
                 // TODO: if y component is not valid do not move at all
-                this.target.rect.x += dd.dx
-                this.target.rect.y += dd.dy
-
 
                 //console.log(dd.dx, dd.dy, this.xcollisions)
-
-                if (dd.dx != 0 || dd.dy != 0) {
-                    this.xcollisions = []
+                if (this.enable_slope_walk) {
+                    this.target.rect.x += dd.dx
+                    this.target.rect.y += dd.dy
+                    if (dd.dx != 0 || dd.dy != 0) {
+                        this.xcollisions = []
+                    }
+                } else {
+                    this.target.rect.x += dd.dx
                 }
 
                 //if (dd.dx == 0) {
