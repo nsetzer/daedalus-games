@@ -61,8 +61,8 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.BUBBLE
-        this.beam = WeaponType.BEAM.BOUNCE
+        this.element = WeaponType.ELEMENT.POWER
+        this.beam = WeaponType.BEAM.NORMAL
         this.level = WeaponType.LEVEL.LEVEL1
         this.modifier = WeaponType.MODIFIER.RAPID
     }

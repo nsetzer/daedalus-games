@@ -34,6 +34,7 @@ export class Bullet extends ProjectileBase {
         this.physics.xfriction = 0
         this.solid = 0
         this.collide = 1
+        this.visible = 1
 
         this.level = props?.level??1
 
@@ -54,6 +55,10 @@ export class Bullet extends ProjectileBase {
             return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
         }
 
+        this.alive = true
+
+        this.animation = new AnimationComponent(this)
+        this.buildAnimations()
 
         const d = props?.direction??Direction.RIGHT
         const v = Direction.vector(props?.direction??Direction.RIGHT)
@@ -94,7 +99,8 @@ export class Bullet extends ProjectileBase {
         //    ctx.closePath();
         //})
 
-        gAssets.sheets.beams16.drawTile(ctx, this.color*7, this.rect.x - 8, this.rect.y - 8)
+        this.animation.paint(ctx)
+        //gAssets.sheets.beams16.drawTile(ctx, this.color*7, this.rect.x - 8, this.rect.y - 8)
         //ctx.strokeStyle = this.color;
         //ctx.fillStyle = this.color;
         //ctx.beginPath();
@@ -105,9 +111,11 @@ export class Bullet extends ProjectileBase {
         //ctx.fill();
         //ctx.restore()
 
-        this.trail.forEach((p,i) => {
-            gAssets.sheets.beams16.drawTile(ctx, this.color*7 + 1 + i, p.x - 8, p.y - 8)
-        })
+        if (this.alive) {
+            this.trail.forEach((p,i) => {
+                gAssets.sheets.beams16.drawTile(ctx, this.color*7 + 1 + i, p.x - 8, p.y - 8)
+            })
+        }
 
         //this.trail.forEach((p,i) => {
         //    ctx.beginPath();
@@ -125,6 +133,12 @@ export class Bullet extends ProjectileBase {
     }
 
     update(dt) {
+
+        this.animation.update(dt)
+
+        if (!this.alive) {
+            return
+        }
 
         if (gEngine.frameIndex&1) {
             if (this.wave_counter < this.wave_profile.length) {
@@ -155,6 +169,7 @@ export class Bullet extends ProjectileBase {
             size:1,
             color: random_choice(["#e81202", "#e85702", "#e8be02"])
         })
+
         while (this.particles.length > 10) {
             this.particles.shift()
         }
@@ -166,66 +181,54 @@ export class Bullet extends ProjectileBase {
         for (const ent of this.targets()) {
             if (this.rect.collideRect(ent.rect)) {
                 ent.character.hit({element: this.element, level:this.level})
+                this._kill()
             }
         }
 
         if (!!this.physics.collide) {
-
-            // collided with map boundary
-            if (this.physics.collisions.length == 0) {
-                this._x_debug_map.destroyObject(this.entid)
-            } else {
-
-                let mobs = []
-                let wall = false
-                let destroy = false
-
-                this.physics.collisions.forEach(obj => {
-                    if (obj.ent instanceof MobBase) {
-                        mobs.push(obj.ent)
-                    }
-
-                    else if (obj.ent instanceof PlatformBase) {
-                        wall = true
-                    } else {
-                        destroy = true
-                    }
-                })
-                //if (mobs.length > 0) {
-                //    mobs.forEach(mob => {
-                //        mob.character.hit({element: this.element, level:this.level})
-                //    })
-                //    destroy = true
-                //}
-
-                if (wall) {
-                    if (this.bounce && this.bounce_counter < this.bounce_max) {
-                        let sx = this.physics.xcollide?-1:1
-                        let sy = this.physics.ycollide?-1:1
-                        this.physics.xspeed *= sx
-                        this.physics.yspeed *= sy
-                        this.wave_profile = this.wave_profile.map(v => ({x:sx*v.x,y:sy*v.y}))
-                        this.bounce_counter += 1
-                    } else {
-                        destroy = true
-                    }
-                }
-
-                if (destroy) {
-                    this._x_debug_map.destroyObject(this.entid)
-                }
-
-            }
-
-
-
+            this._kill()
         }
 
-
-        //if (this.physics.xspeed == 0 && this.physics.yspeed == 0) {
-        //    this._x_debug_map.destroyObject(this.entid)
-        //}
     }
+
+    buildAnimations() {
+
+        let spf = 1/8
+        let xoffset = -8
+        let yoffset = -8
+
+        this.animations = {
+            "idle": null,
+            "dead": null,
+        }
+
+        let ncols = 7
+        let nrows = 17
+        let aid;
+
+        this.animations["idle"] = this.animation.register(gAssets.sheets.beams16,
+            [this.color*7 + 0,], spf, {xoffset, yoffset})
+
+        this.animations["dead"] = this.animation.register(
+            gAssets.sheets.beams16,
+            [19*7+0, 19*7+1, 19*7+2, 19*7+3],
+            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+
+        this.animation.setAnimationById(this.animations["idle"])
+
+    }
+
+
+    _kill() {
+        this.animation.setAnimationById(this.animations["dead"])
+        this.physics.xspeed = 0
+        this.physics.yspeed = 0
+        this.alive = false
+    }
+    onDeathAnimationEnd() {
+        this.destroy()
+    }
+
 }
 
 function init_velocity() {
@@ -345,13 +348,14 @@ export class BubbleBullet extends ProjectileBase {
 
         this.wave = (!!props?.wave)??0
         this.bounce = (!!props?.wave)??0
+        this.element = props?.element??WeaponType.ELEMENT.POWER
 
         let base_speed = 100
         if (props?.power < .8) {
             this.rect = new Rect((props?.x??0) - 8, (props?.y??0) - 8, 16, 16)
             this.bubble_size = 1
         } else {
-            this.rect = new Rect((props?.x??0) - 16, (props?.y??0) - 16, 32, 32)
+            this.rect = new Rect((props?.x??0) - 16, (props?.y??0) - 16 - 5, 32, 32)
             this.bubble_size = 2
             base_speed = 60
         }
@@ -364,7 +368,7 @@ export class BubbleBullet extends ProjectileBase {
             this.physics.group = () => {return []}
         } else {
             this.physics.group = () => {
-                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent instanceof PlatformBase})
             }
         }
 
@@ -377,6 +381,7 @@ export class BubbleBullet extends ProjectileBase {
         this.alive_duration = 3.0
 
         this.animation = new AnimationComponent(this)
+        this.buildAnimations()
 
 
         switch (props?.direction??0) {
@@ -400,7 +405,6 @@ export class BubbleBullet extends ProjectileBase {
             break;
         }
 
-        this.buildAnimations()
 
         this.targets = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
@@ -499,7 +503,7 @@ export class BubbleBullet extends ProjectileBase {
 
             if (!this.bounce && this.physics.collide) {
                 this._kill()
-                console.log("blag")
+                console.log("collision with ground")
             }
 
 
@@ -532,6 +536,7 @@ export class BounceBullet extends ProjectileBase {
 
         this.rect = new Rect((props?.x??0) - 2, (props?.y??0) - 2, 4, 4)
         this.color = props?.color??0
+        this.element = props?.element??WeaponType.ELEMENT.POWER
 
         this.physics = new Physics2dPlatform(this,{
             xmaxspeed1: 200,
@@ -2043,7 +2048,6 @@ export class Creeper extends MobBase {
     }
 
     onDeathAnimationEnd() {
-        console.log("death animation end")
         this.destroy()
     }
 }
