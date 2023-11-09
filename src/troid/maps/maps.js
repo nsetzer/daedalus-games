@@ -53,8 +53,9 @@ export class PlatformMap extends CspMap {
 
         for (const obj of Object.values(this.objects)) {
 
-            if (obj.visible !== false)
-            obj.paint(ctx)
+            if (obj.visible !== false) { // explicit check for false, allow undefined
+                obj.paint(ctx)
+            }
         }
 
     }

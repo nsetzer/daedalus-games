@@ -13,7 +13,7 @@ $import("axertc_physics", {
 $import("store", {gAssets, gCharacterInfo, WeaponType})
 
 function random_choice(choices) {
-  var index = Math.floor(Math.random() * choices.length);
+  let index = Math.floor(Math.random() * choices.length);
   return choices[index];
 }
 

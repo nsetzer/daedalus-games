@@ -27,7 +27,7 @@ $import("entities", {editorEntities})
 $import("maps", {PlatformMap})
 
 function random_choice(choices) {
-  var index = Math.floor(Math.random() * choices.length);
+  let index = Math.floor(Math.random() * choices.length);
   return choices[index];
 }
 
@@ -1689,8 +1689,8 @@ export class LevelEditScene extends GameScene {
 
         let fname = "map-" + tw + "x" + th + "-" + y+m+d+"-"+H+M+S + ".json"
 
-        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
-        var downloadAnchorNode = document.createElement('a');
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
+        let downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href",     dataStr);
         downloadAnchorNode.setAttribute("download", fname);
         downloadAnchorNode.setAttribute("target", "_blank");

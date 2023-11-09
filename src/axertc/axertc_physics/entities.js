@@ -239,6 +239,14 @@ export class Slope extends PlatformBase {
 
     collide(other, dx, dy) {
 
+        // TODO: this needs to be re-written
+        //       check the direction
+        //          only one of dx or dy should be non-zero
+        //       determine which edge handles that direction
+        //          moving left is handled by the right edge
+        //       support walking on walls by changing gravity direction
+        //          object collision should behave the same in all orientations
+
         // TODO: something to handle the floating issue
         //       either only every consider the cx position
         //       or make the true top 1 pixel lower than the line
