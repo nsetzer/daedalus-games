@@ -267,69 +267,70 @@ class PauseScreen {
 
     _buildActions() {
 
-        let rect1 = new Rect(16, 16*2, 8*16, 10*16)
-        let rect2 = new Rect(gEngine.view.width - 10*16 + 16, 16*2, 8*16, 10*16)
+        this.rect1 = new Rect(16, 16*2, 5*24+4, 10*16)
+        this.rect2 = new Rect(gEngine.view.width - (this.rect1.x + this.rect1.w), this.rect1.y, this.rect1.w, this.rect1.h)
 
-        let x1 = rect1.x + 8
-        let y1 = rect1.y + 12 + 6
+        let x1 = this.rect1.x + 2 + 2
+        let y1 = this.rect1.y + 12 + 6
 
         const fn_icon = (index, state) => {
             return gAssets.sheets.pause_items.tile((index * 3) + state)
         }
 
+
         // power, fire, water, ice, bubble
-        this._addAction(x1+0*24, y1, 16, 16, ()=>fn_icon(0,gCharacterInfo.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.POWER})
-        this._addAction(x1+1*24, y1, 16, 16, ()=>fn_icon(1,gCharacterInfo.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.FIRE})
-        this._addAction(x1+2*24, y1, 16, 16, ()=>fn_icon(2,gCharacterInfo.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.WATER})
-        this._addAction(x1+3*24, y1, 16, 16, ()=>fn_icon(3,gCharacterInfo.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.ICE})
-        this._addAction(x1+4*24, y1, 16, 16, ()=>fn_icon(4,gCharacterInfo.element===WeaponType.ELEMENT.BUBBLE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE})
+        this._addAction(x1+0*24, y1, 20, 18, ()=>fn_icon(0,gCharacterInfo.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.POWER})
+        this._addAction(x1+1*24, y1, 20, 18, ()=>fn_icon(1,gCharacterInfo.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.FIRE})
+        this._addAction(x1+2*24, y1, 20, 18, ()=>fn_icon(2,gCharacterInfo.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.WATER})
+        this._addAction(x1+3*24, y1, 20, 18, ()=>fn_icon(3,gCharacterInfo.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.ICE})
+        this._addAction(x1+4*24, y1, 20, 18, ()=>fn_icon(4,gCharacterInfo.element===WeaponType.ELEMENT.BUBBLE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE})
 
         // wave beam, normal, bounce beam
         // wave - pass through walls
         // normal - break on contact
         // bounce - bounce off walls (bubbles bounce player)
-        this._addAction(x1+1*24, y1+24, 16, 16, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.WAVE})
-        this._addAction(x1+2*24, y1+24, 16, 16, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.NORMAL})
-        this._addAction(x1+3*24, y1+24, 16, 16, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.BOUNCE})
+        this._addAction(x1+1*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.WAVE})
+        this._addAction(x1+2*24, y1+24, 20, 18, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.NORMAL})
+        this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.BOUNCE})
 
         // single, double, triple
         // power, ice: 1,2,3 bullets
         // fire, normal: 1,3,5 bullets at 0,22,45 degrees
         // water: wider stream
         // bubble: more
-        this._addAction(x1+1*24, y1+48, 16, 16, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL1})
-        this._addAction(x1+2*24, y1+48, 16, 16, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL2})
-        this._addAction(x1+3*24, y1+48, 16, 16, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL3})
+        this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL1})
+        this._addAction(x1+2*24, y1+48, 20, 18, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL2})
+        this._addAction(x1+3*24, y1+48, 20, 18, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL3})
 
         // charge beam, normal, rapid shot
         // water, charge: larger orbs
         // water, rapid: stream
-        this._addAction(x1+1*24, y1+3*24, 16, 16, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.CHARGE})
-        this._addAction(x1+2*24, y1+3*24, 16, 16, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL})
-        this._addAction(x1+3*24, y1+3*24, 16, 16, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.RAPID })
+        this._addAction(x1+1*24, y1+3*24, 20, 18, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.CHARGE})
+        this._addAction(x1+2*24, y1+3*24, 20, 18, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL})
+        this._addAction(x1+3*24, y1+3*24, 20, 18, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.RAPID })
 
         // missile, super, homing
-        this._addAction(x1+1*24, y1+12+4*24, 16, 16, null, ()=>{})
-        this._addAction(x1+2*24, y1+12+4*24, 16, 16, null, ()=>{})
-        this._addAction(x1+3*24, y1+12+4*24, 16, 16, null, ()=>{})
+        this._addAction(x1+1*24, y1+12+4*24, 20, 18, null, ()=>{})
+        this._addAction(x1+2*24, y1+12+4*24, 20, 18, null, ()=>{})
+        this._addAction(x1+3*24, y1+12+4*24, 20, 18, null, ()=>{})
 
-        let x2 = rect2.x + 8
-        let y2 = rect2.y + 12 + 6
+        let x2 = this.rect2.x + 8
+        let y2 = this.rect2.y + 12 + 6
 
         // suits
         // diving helmet
-        this._addAction(x2+1*24, y2, 16, 16, null, ()=>{})
-        this._addAction(x2+2*24, y2, 16, 16, null, ()=>{})
-        this._addAction(x2+3*24, y2, 16, 16, null, ()=>{})
+        this._addAction(x2+1*24, y2, 20, 18, null, ()=>{})
+        this._addAction(x2+2*24, y2, 20, 18, null, ()=>{})
+        this._addAction(x2+3*24, y2, 20, 18, null, ()=>{})
 
         // space jump, spin jump
-        this._addAction(x2+12+1*24, y2+12+4*24, 16, 16, null, ()=>{})
-        this._addAction(x2+12+2*24, y2+12+4*24, 16, 16, null, ()=>{})
+        this._addAction(x2+12+1*24, y2+12+4*24, 20, 18, null, ()=>{})
+        this._addAction(x2+12+2*24, y2+12+4*24, 20, 18, null, ()=>{})
 
-        let x3 = gEngine.view.width/2 - 16
-        let y3 = rect2.bottom() + 8
-        this._addAction(x3, y3, 32, 16, null, ()=>{this.parent.screen = null})
-        this._addAction(x3 + 32 + 12, y3, 32, 16, null, ()=>{
+        let x3 = gEngine.view.width/2
+        let y3 = this.rect2.bottom() + 8
+        this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
+        this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
             const edit = true
             gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
                 gEngine.scene = new LevelEditScene()
@@ -349,35 +350,35 @@ class PauseScreen {
         ctx.closePath()
         ctx.fill()
 
-        let x = gEngine.view.width/2 - 80/2
-        let y = gEngine.view.height/2 - 128/2
+        let x = gEngine.view.width/2 - gAssets.sheets.pause_suit.tw/2
+        let y = gEngine.view.height/2 - gAssets.sheets.pause_suit.th/2
         gAssets.sheets.pause_suit.drawTile(ctx, 0, x, y)
 
         ctx.lineWidth = 1
         ctx.strokeStyle = "#88e810"
         ctx.beginPath()
-        let rect1 = new Rect(16, 16*2, 8*16, 10*16)
-        ctx.roundRect(rect1.x, rect1.y, rect1.w, rect1.h, 8)
+        ctx.roundRect(this.rect1.x, this.rect1.y, this.rect1.w, this.rect1.h, 8)
         ctx.closePath()
         ctx.stroke()
 
         ctx.strokeStyle = "#88e810"
         ctx.beginPath()
-        let rect2 = new Rect(gEngine.view.width - 10*16 + 16, 16*2, 8*16, 10*16)
-        ctx.roundRect(rect2.x, rect2.y, rect2.w, rect2.h, 8)
+        ctx.roundRect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h, 8)
         ctx.closePath()
         ctx.stroke()
 
         ctx.beginPath()
         ctx.fillStyle = "#0000FF"
         this.actions.forEach(act => {
-            if (!!act.icon) {
-                act.icon().draw(ctx, act.rect.x, act.rect.y)
-            } else {
-                ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
-            }
+            ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
         })
         ctx.fill()
+
+        this.actions.forEach(act => {
+            if (!!act.icon) {
+                act.icon().draw(ctx, act.rect.x+2, act.rect.y+1)
+            }
+        })
 
 
     }

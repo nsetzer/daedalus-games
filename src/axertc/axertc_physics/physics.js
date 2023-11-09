@@ -54,6 +54,8 @@ export class Physics2dPlatform {
         this.pressing_frame = 0     // last frame pressing on a wall
         this.pressing_direction = 1 // multiplier to wall jump in the opposite direction
 
+        this.enable_oneblock_walk = config?.oneblock_walk??false
+
         // the duration that gives some specified maximum velocity v'
         //      t = sqrt(H^2 / v'^2)
         // gravity for some specified height and duration
@@ -92,9 +94,9 @@ export class Physics2dPlatform {
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
          // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
 
-        this.jumpheight = 64 + 8
+        this.jumpheight = config?.jumpheight??(64 + 8)
         //this.jumpduration = .1875 // total duration divided by 4?
-        this.jumpduration = .22 // total duration divided by 4?
+        this.jumpduration =  config?.jumpduration??(.22) // total duration divided by 4?
 
         if (config?.gravity===0) {
             this.gravity = 0
@@ -400,16 +402,17 @@ export class Physics2dPlatform {
 
         // if traveling at maximum speed, add an extra sensor infront
         // this sensor will prevent falling when there is a gap of 1
-        let sensor_floorc = {x: this.target.rect.left() + 17, y: this.target.rect.bottom() + 1}
-        let xpt = (this.xmaxspeed1 + this.xmaxspeed1a)/2
-        if (dy > 0 && this.xcollisions.length == 0 && Math.abs(this.xspeed) > xpt) {
-            for (const ent of solids) {
-                if (!standing && (ent.collidePoint(sensor_floorc.x, sensor_floorc.y))) {
-                    dy = 0
+        if (this.enable_oneblock_walk) {
+            let sensor_floorc = {x: this.target.rect.left() + 17, y: this.target.rect.bottom() + 1}
+            let xpt = (this.xmaxspeed1 + this.xmaxspeed1a)/2
+            if (dy > 0 && this.xcollisions.length == 0 && Math.abs(this.xspeed) > xpt) {
+                for (const ent of solids) {
+                    if (!standing && (ent.collidePoint(sensor_floorc.x, sensor_floorc.y))) {
+                        dy = 0
+                    }
                 }
             }
         }
-
 
         if (dy != 0) {
 

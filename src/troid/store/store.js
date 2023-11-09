@@ -62,9 +62,9 @@ export class CharacterInfo {
 
     constructor() {
         this.element = WeaponType.ELEMENT.BUBBLE
-        this.beam = WeaponType.BEAM.WAVE
+        this.beam = WeaponType.BEAM.BOUNCE
         this.level = WeaponType.LEVEL.LEVEL1
-        this.modifier = WeaponType.MODIFIER.CHARGE
+        this.modifier = WeaponType.MODIFIER.RAPID
     }
 }
 
