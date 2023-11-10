@@ -1833,19 +1833,32 @@ export class Spawn extends PlatformerEntity {
         this.solid = 1
 
         let tid = 0
-        switch(props?.direction) {
+        this.direction = props?.direction??Direction.UP
+        switch(this.direction) {
             case Direction.LEFT:
                 tid = 0;
+                this.spawn_dx = -20
+                this.spawn_dy = 0
+                this.spawn_check = () => this.spawn_target.rect.right() < this.rect.left()
                 break;
             case Direction.DOWN:
                 tid = 2;
+                this.spawn_dx = 0
+                this.spawn_dy = 20
+                this.spawn_check = () => this.spawn_target.rect.top() > this.rect.bottom()
                 break;
             case Direction.RIGHT:
                 tid = 3;
+                this.spawn_dx = 20
+                this.spawn_dy = 0
+                this.spawn_check = () => this.spawn_target.rect.left() > this.rect.right()
                 break;
             case Direction.UP:
             default:
                 tid = 1;
+                this.spawn_dx = 0
+                this.spawn_dy = -20
+                this.spawn_check = () => this.spawn_target.rect.bottom() < this.rect.top()
                 break;
         }
         this.tid = tid
@@ -1905,15 +1918,16 @@ export class Spawn extends PlatformerEntity {
                 if (objs.length < 3) {
 
                     // create a dummy object
-                    const props = {x: this.rect.x + 8, y:this.rect.y}
+                    const props = {x: this.rect.x + 8, y:this.rect.y + 8}
                     this.spawn_target = new Creeper(-1, props)
                 }
 
             }
         } else {
 
-            this.spawn_target.rect.y -= 20 * dt
-            if (this.spawn_target.rect.bottom() < this.rect.top()) {
+            this.spawn_target.rect.x += this.spawn_dx * dt
+            this.spawn_target.rect.y += this.spawn_dy * dt
+            if (this.spawn_check()) {
                 let rect = this.spawn_target.rect
                 const props = {x: rect.x, y: rect.y}
                 // replace the dummy with a real object
@@ -1953,8 +1967,6 @@ Spawn.editorIcon = (props) => {
 }
 Spawn.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
-    {control: EditorControl.DOOR_ID},
-    {control: EditorControl.DOOR_TARGET},
 ]
 
 export class Creeper extends MobBase {
@@ -2304,16 +2316,6 @@ export class Coin extends PlatformerEntity {
 Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
-Coin.editorSchema = [
-    {control: EditorControl.CHOICE, name:"direction", choices:{
-        "UP": Direction.UP,
-        "RIGHT": Direction.RIGHT,
-        "DOWN": Direction.DOWN,
-        "LEFT": Direction.LEFT,
-    }},
-    {control: EditorControl.DOOR_ID},
-    {control: EditorControl.DOOR_TARGET},
-]
 
 export const editorEntities = [
     {name:"Coin", ctor: Coin}

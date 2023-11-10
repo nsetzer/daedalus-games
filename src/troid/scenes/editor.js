@@ -39,6 +39,7 @@ EditorTool.SELECT_TILE = 4
 EditorTool.PLACE_OBJECT = 5
 EditorTool.ERASE_OBJECT = 6
 EditorTool.SELECT_OBJECT = 7
+EditorTool.EDIT_OBJECT = 8
 
 
 class FileMenu {
@@ -630,7 +631,7 @@ class ObjectMenu {
 class ObjectEditMenu {
     constructor(parent) {
 
-        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 2)
+        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 3)
         this.parent = parent
 
         this.actions = []
@@ -647,6 +648,13 @@ class ObjectEditMenu {
 
         this.actions.push({x,y,icon:this.parent.editor_icons.erase, action: ()=>{
             this.parent.active_tool = EditorTool.ERASE_OBJECT
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({x,y,icon:this.parent.editor_icons.pencil, action: ()=>{
+            this.parent.active_tool = EditorTool.EDIT_OBJECT
             this.parent.active_menu = null
         }})
 
@@ -847,6 +855,9 @@ class ObjectPropertyEditMenu {
         }
 
         console.log("!!root_index", root_index)
+        if (root_index=== undefined) {
+            console.error("no option set")
+        }
 
         const y = this._y
         const root = {
@@ -1090,7 +1101,7 @@ export class LevelEditScene extends GameScene {
                     //this.active_menu = new ObjectMenu(this)
                     this.active_menu = new ObjectEditMenu(this)
                 },
-                selected: () => this.active_tool == EditorTool.SELECT_OBJECT || this.active_tool == EditorTool.ERASE_OBJECT,
+                selected: () => this.active_tool == EditorTool.SELECT_OBJECT || this.active_tool == EditorTool.ERASE_OBJECT || this.active_tool == EditorTool.EDIT_OBJECT,
             },
             {
                 name: "tile-place",
@@ -2124,6 +2135,20 @@ export class LevelEditScene extends GameScene {
                         else if (this.active_tool === EditorTool.ERASE_OBJECT) {
                             if (!t.first) {
                                 change_object = this.eraseObject(t.x, t.y)
+                            }
+
+                        }
+
+                        else if (this.active_tool === EditorTool.EDIT_OBJECT) {
+                            if (!t.first) {
+
+                                const oid = (t.y + 4)*512+t.x
+                                console.log("oid", oid)
+
+                                if (!!this.map.objects[oid]) {
+                                    console.log("oid", oid)
+                                    this.active_menu = new ObjectPropertyEditMenu(this, oid)
+                                }
                             }
 
                         }

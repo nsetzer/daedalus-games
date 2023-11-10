@@ -433,6 +433,8 @@ class LevelChunkBuilder {
 
         this.map = gAssets.mapinfo
 
+        this.map.chunks = {}
+
         const chunk_width = 4
         const chunk_height = 7
 

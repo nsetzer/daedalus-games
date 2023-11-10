@@ -1,11 +1,23 @@
  
 
+// about 135 combinations of guns
+// essentially 8 primary gun modes
+
+// power beam + element
+// split beam + element
+// wave beam + element
+// bubble gun
+// bounce + element
+// squirt gun
+// flame thrower
+// spread gun
+
 // __________
 // | Normal |_________________________________
 // |--------| NORMAL   | WAVE     | BOUNCE   |
 // | POWER  |          |          |          |
 // | FIRE   |          | spread   | fireball |
-// | WATER  |          |          |          |
+// | WATER  |          |          | splash   |
 // | ICE    |          |          | iceball  |
 // | BUBBLE | small    | small    | small    |
 //--------------------------------------------
@@ -15,7 +27,7 @@
 // |--------| NORMAL   | WAVE     | BOUNCE   |
 // | POWER  |          |          |          |
 // | FIRE   |          |          |          |
-// | WATER  |          |          |          |
+// | WATER  |          |          | splash   |
 // | ICE    |          |          |          |
 // | BUBBLE | big      | big      | big      |
 //--------------------------------------------
