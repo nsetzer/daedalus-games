@@ -585,7 +585,7 @@ class MapBuilder {
                 objname = "Slope"
                 objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
             } else {
-                console.log(tile)
+                console.error("error", tile)
             }
 
             if (objname !== null) {
@@ -602,7 +602,6 @@ class MapBuilder {
                         objname = "OneWayWall"
                         objprops.h = 8
                     }
-                    console.log("ONEWAY", objname, objprops)
                     this.createObject(objname, objprops)
                 }
 
@@ -618,7 +617,8 @@ class MapBuilder {
             let y = 16*(Math.floor(obj.oid/512 - 4))
             let x = 16*(obj.oid%512)
             let objname = obj.name
-            let objprops = {x:x, y:y}
+            let objprops = {x:x, y:y, ...obj.props}
+            console.log(obj, objname, objprops)
             this.createObject(objname, objprops)
         })
 
@@ -704,7 +704,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     // filter objects which do not exist
                     const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
                     gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
-
+                    console.log("load json", gAssets.mapinfo.objects)
                     return json
                 })
 

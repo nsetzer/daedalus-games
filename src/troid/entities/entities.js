@@ -12,6 +12,12 @@ $import("axertc_physics", {
 
 $import("store", {gAssets, gCharacterInfo, WeaponType})
 
+export const EditorControl = {}
+EditorControl.CHOICE = 1       // {name: str, default: value, choices: list-or-map}
+EditorControl.DOOR_TARGET = 2  // {}
+EditorControl.DOOR_ID = 3      // {}
+EditorControl.DIRECTION_4WAY = 4    // {default: value}
+
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
   return choices[index];
@@ -671,10 +677,16 @@ export class BounceBullet extends ProjectileBase {
 
     _bounce() {
 
-        this.physics.yspeed = this.physics.jumpspeed
-        this.physics.yaccum = 0
-        this.physics.gravityboost = false
-        this.physics.doublejump = true
+        // bounces better when frozen
+        // TODO: maybe it can do splash damage
+        if (this.element == WeaponType.ELEMENT.WATER) {
+            this._kill()
+        } else {
+            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.yaccum = 0
+            this.physics.gravityboost = false
+            this.physics.doublejump = true
+        }
     }
 }
 
@@ -1820,6 +1832,24 @@ export class Spawn extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
         this.solid = 1
 
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 0;
+                break;
+            case Direction.DOWN:
+                tid = 2;
+                break;
+            case Direction.RIGHT:
+                tid = 3;
+                break;
+            case Direction.UP:
+            default:
+                tid = 1;
+                break;
+        }
+        this.tid = tid
+
         this.spawn_timer = 0
         this.spawn_timeout = 2
         this.spawn_target = null
@@ -1832,7 +1862,7 @@ export class Spawn extends PlatformerEntity {
             this.spawn_target.paint(ctx)
         }
 
-        Spawn.sheet.drawTile(ctx, 1, this.rect.x, this.rect.y)
+        Spawn.sheet.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
     }
 
     collide(other, dx, dy) {
@@ -1900,7 +1930,32 @@ export class Spawn extends PlatformerEntity {
 Spawn.sheet = null
 Spawn.size = [32, 32]
 Spawn.icon = null
-Spawn.editorIcon = (props) => { return gAssets.sheets.pipes32.tile(1) }
+Spawn.editorIcon = (props) => {
+    let tid = 0
+    switch(props?.direction) {
+        case Direction.LEFT:
+            tid = 0;
+            break;
+
+        case Direction.DOWN:
+            tid = 2;
+            break;
+        case Direction.RIGHT:
+            tid = 3;
+            break;
+        case Direction.UP:
+        default:
+            tid = 1;
+            break;
+    }
+
+    return gAssets.sheets.pipes32.tile(tid)
+}
+Spawn.editorSchema = [
+    {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
+    {control: EditorControl.DOOR_ID},
+    {control: EditorControl.DOOR_TARGET},
+]
 
 export class Creeper extends MobBase {
     constructor(entid, props) {
@@ -2249,7 +2304,16 @@ export class Coin extends PlatformerEntity {
 Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
-
+Coin.editorSchema = [
+    {control: EditorControl.CHOICE, name:"direction", choices:{
+        "UP": Direction.UP,
+        "RIGHT": Direction.RIGHT,
+        "DOWN": Direction.DOWN,
+        "LEFT": Direction.LEFT,
+    }},
+    {control: EditorControl.DOOR_ID},
+    {control: EditorControl.DOOR_TARGET},
+]
 
 export const editorEntities = [
     {name:"Coin", ctor: Coin}

@@ -730,6 +730,248 @@ class ObjectEditMenu {
     }
 }
 
+class ObjectPropertyEditMenu {
+    // TODO: when this menu opens
+    // scroll the camera over .5 seconds to put the object in the center?
+    // maybe only if the menu would cover the object
+
+    constructor(parent, oid) {
+
+        this.parent = parent
+        this.oid = oid
+        // this.map.objects
+
+
+        this.rect = new Rect(0,24,7*16, 8 + 24 * 2)
+        this.actions = []
+
+        let obj = this.parent.map.objects[oid]
+        let ctor = this.parent.editor_objects[obj.name]
+        this.schemaList = (ctor?.editorSchema??[])
+
+        this._y = this.rect.y + 8
+        if (this.schemaList.length > 0) {
+            for (let i=0; i < this.schemaList.length; i++) {
+
+                let schema = this.schemaList[i]
+                if (schema.control == 1) {
+                    this.addChoiceWidget(schema)
+                }
+
+                if (schema.control == 2) {
+
+                    this.addChoiceWidget({"name": "target_world_id", choices:[0,1,2,3,4,5,6,7]})
+                    this.addChoiceWidget({"name": "target_level_id", choices:[0,1,2,3,4,5,6,7]})
+                    this.addChoiceWidget({"name": "target_door_id", choices:[0,1,2,3,4,5,6,7]})
+                }
+
+                if (schema.control == 3) {
+                    this.addDoorIdWidget(schema)
+                }
+
+                if (schema.control == 4) {
+                    this.addChoiceWidget({
+                        "name": "direction",
+                        "default": schema['default'],
+                        "choices": {
+                        "UP": Direction.UP,
+                        "RIGHT": Direction.RIGHT,
+                        "DOWN": Direction.DOWN,
+                        "LEFT": Direction.LEFT,
+                    }})
+                }
+            }
+        }
+
+        this.rect.h = this._y - (this.rect.y + 8) + 8
+
+    }
+
+    addDoorIdWidget(schema) {
+        // title case the name
+
+        const y = this._y
+        const root = {
+            render: (ctx) => {
+
+                ctx.strokeStyle = "black"
+                ctx.lineWidth = 2
+                ctx.moveTo(8,y-4)
+                ctx.lineTo(8+6*16, y-4)
+                ctx.stroke()
+
+                ctx.font = "12px";
+                ctx.fillStyle = "yellow"
+                ctx.strokeStyle = "yellow"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "top"
+                ctx.fillText("Door ID: ", 8, y);
+
+                ctx.font = "12px";
+                ctx.fillStyle = "yellow"
+                ctx.strokeStyle = "yellow"
+                ctx.textAlign = "right"
+                ctx.textBaseline = "top"
+
+                let obj = this.parent.map.objects[this.oid]
+
+                ctx.fillText(obj.props?.door_id??"error", 8+6*16, y);
+            },
+        }
+
+        this.actions.push(root)
+        this._y += 16
+    }
+
+    addChoiceWidget(schema) {
+
+        // title case the name
+        let name = schema.name.replaceAll("_", " ")
+            .split(" ") \
+            .map(s => s.charAt(0).toUpperCase() + s.slice(1)) \
+            .join(" ")
+
+        console.log(name, schema)
+
+        let options = Object.entries(schema.choices)
+
+        let obj = this.parent.map.objects[this.oid]
+
+        // determine the initial index
+        // use the current object property, or set form the schema
+        let root_index;
+        if (Object.hasOwn(obj.props, schema.name)) {
+            root_index = options.map(x=>x[1]).indexOf(obj.props[schema.name])
+        } else {
+            root_index = options.map(x=>x[1]).indexOf(schema['default'])
+        }
+
+        console.log("!!root_index", root_index)
+
+        const y = this._y
+        const root = {
+            render: (ctx) => {
+
+                ctx.strokeStyle = "black"
+                ctx.lineWidth = 2
+                ctx.moveTo(8,y-4)
+                ctx.lineTo(8+6*16, y-4)
+                ctx.stroke()
+
+                ctx.font = "12px";
+                ctx.fillStyle = "yellow"
+                ctx.strokeStyle = "yellow"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "top"
+                ctx.fillText(name, 8, y);
+            },
+
+            // default index from schema
+            index: root_index
+        }
+
+        this.actions.push(root)
+
+        this.actions.push({
+            render: (ctx) => {
+
+                ctx.font = "12px";
+                ctx.fillStyle = "yellow"
+                ctx.strokeStyle = "yellow"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+                let option_name = options[root.index][0]
+                ctx.fillText(option_name, 8+16+32, y+16 + 8);
+            }
+        })
+
+        this.actions.push({
+            x:8,
+            y:y+16,
+            icon:this.parent.editor_icons.arrow_left,
+            action: ()=>{
+            root.index -= 1
+            if (root.index < 0) {
+                root.index = options.length - 1
+            }
+            obj.props[schema.name] = options[root.index][1]
+        }})
+
+        this.actions.push({
+            x:8+5*16,
+            y:y+16,
+            icon:this.parent.editor_icons.arrow_right,
+            action: ()=>{
+            root.index += 1
+            if (root.index >= options.length) {
+                root.index = 0
+            }
+            obj.props[schema.name] = options[root.index][1]
+        }})
+
+        this._y += 32 + 8
+
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (t.pressed) { // prevent drag firing multiple times
+                return
+            }
+
+            if (!this.rect.collidePoint(t.x, t.y)) {
+                this.parent.active_menu = null
+                return
+            }
+
+            this.actions.forEach(action => {
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                    }
+                }
+            })
+        }
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+
+        let x = 8
+        let y = 32
+
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+
+        this.actions.forEach(action => {
+            if (!!action.render) {
+                action.render(ctx,action.x, action.y)
+            } else {
+                action.icon.draw(ctx, action.x, action.y)
+            }
+        })
+
+    }
+
+}
+
 export class LevelEditScene extends GameScene {
 
     // TODO: optimize: only do a full paint if something changed
@@ -1325,7 +1567,7 @@ export class LevelEditScene extends GameScene {
             // require a function (editor props) => icon
             // or default to icon
             if (!!ctor?.editorIcon) {
-                ctor.editorIcon(obj).draw(ctx, x, y)
+                ctor.editorIcon(obj.props).draw(ctx, x, y)
             } else if (!!ctor?.icon) {
                 ctor.icon.draw(ctx, x, y)
             }
@@ -1509,10 +1751,75 @@ export class LevelEditScene extends GameScene {
 
             console.log("place", obj)
 
+            let props = {}
+
+            let ctor = this.editor_objects[obj.name]
+            let is_door = false
+            let schemaList = (ctor?.editorSchema??[])
+            for (let i=0; i < schemaList.length; i++) {
+                if (schemaList[i].control == 3) {
+                    is_door = true;
+                    break
+                }
+            }
+
+            for (let i=0; i < schemaList.length; i++) {
+                let schema = schemaList[i]
+
+                if (schema.control == 1) {
+                    props[schema.name] = schema['default']
+                }
+
+                if (schema.control == 2) {
+                    props["target_world_id"] = 1
+                    props["target_level_id"] = 1
+                    props["target_door_id"] = 1
+                }
+
+                // door id handled below
+
+                if (schema.control == 4) {
+                    props["direction"] = schema['default']
+                }
+            }
+
+            if (is_door) {
+                // determine the next available door id
+                let door_id = -1
+                let positions = {}
+
+                Object.values(this.map.objects).forEach(obj => {
+                    positions[obj?.props?.door_id??0] = true
+                })
+
+                for (let i=1; i <= 8; i++) {
+                    if (!positions[i]) {
+                        door_id = i
+                        break
+                    }
+                }
+
+                if (door_id < 1) {
+                    console.log("two many doors")
+                    return false
+                }
+
+                if (is_door) {
+                    props.door_id = door_id
+                }
+            }
 
             this.map.objects[oid] = {
                 name: obj.name,
             }
+
+            if (schemaList.length > 0) {
+                this.map.objects[oid].props = props
+            }
+
+            console.log("placed", this.map.objects[oid])
+
+            this.active_menu = new ObjectPropertyEditMenu(this, oid)
 
             return true
         }
@@ -1626,7 +1933,7 @@ export class LevelEditScene extends GameScene {
 
         const objects0 = Object.entries(this.map.objects)
             .filter( t => !!t[1].name )
-            .map(t => ({oid: t[0], name: t[1].name}))
+            .map(t => ({oid: t[0], name: t[1].name, props:t[1].props}))
 
         gAssets.mapinfo.objects = objects0
 
@@ -1661,7 +1968,7 @@ export class LevelEditScene extends GameScene {
         // when saving
         const objects0 = Object.entries(this.map.objects)
             .filter( t => !!t[1].name )
-            .map(t => ({oid: t[0], name: t[1].name}))
+            .map(t => ({oid: t[0], name: t[1].name, props: t[1].props}))
 
         const map = {
             width: this.map.width,
