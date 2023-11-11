@@ -58,7 +58,11 @@ class CspController {
         return this.player
     }
 
-    setInputDirection(whlid, vector){
+    doubleTapDirection(whlid, direction) {
+        console.log(whlid, direction)
+    }
+
+    setInputDirection(whlid, vector) {
         if (whlid == 0) {
             const player = this.getPlayer()
             if (!player) {
@@ -85,13 +89,6 @@ class CspController {
     }
 
     handleButtonRelease(btnid){
-
-        if (btnid == 3) {
-
-            gEngine.scene.screen = new PauseScreen(gEngine.scene)
-
-            return
-        }
 
         const player = this.getPlayer()
         if (!player) {
@@ -435,10 +432,10 @@ class MainScene extends GameScene {
         //    style: 'rect',
         //})
 
-        this.touch.addButton(24, 24, 20, {
-            align: Alignment.RIGHT|Alignment.TOP,
-            style: 'rect',
-        })
+        //this.touch.addButton(24, 24, 20, {
+        //    align: Alignment.RIGHT|Alignment.TOP,
+        //    style: 'rect',
+        //})
 
         this.keyboard.addWheel_ArrowKeys()
         //this.keyboard.addButton(KeyboardInput.Keys.CTRL)
@@ -458,14 +455,20 @@ class MainScene extends GameScene {
     }
 
     update(dt) {
-        this.map.update(dt)
-        this.camera.update(dt)
+        if (!this.screen) {
+            this.map.update(dt)
+            this.camera.update(dt)
 
-        if (!this.map.map._x_player.alive) {
-            if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
-                this.map.map._x_player._revive()
+            if (!this.map.map._x_player.alive) {
+                if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
+                    this.map.map._x_player._revive()
+                }
             }
+
         }
+
+
+
     }
 
     _paint_status(ctx) {
@@ -491,6 +494,9 @@ class MainScene extends GameScene {
             ctx.fill();
             ctx.stroke();
         }
+
+        gAssets.sheets.editor.drawTile(ctx, 2*8+2, gEngine.view.width - 20, 4)
+
 
     }
 
@@ -604,6 +610,14 @@ class MainScene extends GameScene {
         } else {
             touches = this.touch.handleTouches(touches)
 
+            touches.forEach(t => {
+
+                if (t.y < 24 && t.x > gEngine.view.width - 24) {
+                    gEngine.scene.screen = new PauseScreen(gEngine.scene)
+                }
+
+
+            })
         }
         //gEngine.setFullScreen(true)
     }
@@ -624,8 +638,18 @@ class MainScene extends GameScene {
 
     handleKeyRelease(keyevent) {
         if (!!this.screen) {
+
+            if (keyevent.keyCode == 27) {
+                gEngine.scene.screen = null
+            }
         } else {
-            this.keyboard.handleKeyRelease(keyevent);
+
+            if (keyevent.keyCode == 27) {
+                gEngine.scene.screen = new PauseScreen(gEngine.scene)
+            } else {
+                this.keyboard.handleKeyRelease(keyevent);
+            }
+
 
         }
 
@@ -644,7 +668,7 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = true
+            const edit = false
             // mapid can be null or a filename
             const mapid = "map-2x1-20231111-073345"
 

@@ -231,7 +231,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("beams32")
             .path(RES_ROOT + "/sprites/beams32_export.png")
             .dimensions(32, 32)
-            .layout(2, 3)
+            .layout(2, 6)
             .offset(1, 1)
             .spacing(1, 1)
 

@@ -34,7 +34,13 @@ export class KeyboardInput {
     }
 
     addWheel(up, right, down, left) {
-        this.wheels.push({up, right, down, left, keysDown: [],
+        this.wheels.push({
+            up,
+            right,
+            down,
+            left,
+            keysDown: [],
+            keyTime: 0,
             last_vector: {x:null, y:null}, all:[up, right, down, left]})
     }
 
@@ -66,6 +72,15 @@ export class KeyboardInput {
             if (!whl.keysDown.includes(kc)) {
                 whl.keysDown.push(kc)
             }
+
+            let doubletap = false
+            let now = performance.now()
+            if (now - whl.keyTime < 200) {
+                //this.target.doubleTapDirection(whlid, this.keyToDirection(whl, kc))
+                console.log("double tap", whlid, this.keyToDirection(whl, kc), now - whl.keyTime)
+            }
+            whl.keyTime = performance.now()
+
             let v = this.getDirectionVector(whl)
             if (whl.last_vector.x !=v.x || whl.last_vector.y != v.y) {
                 whl.last_vector = v
@@ -106,8 +121,16 @@ export class KeyboardInput {
             if (index !== -1) {
                 whl.keysDown.splice(index, 1);
             }
-            // keyboard is always wheel zero?
+
             let v = this.getDirectionVector(whl)
+
+            let singletap = false
+            let now = performance.now()
+            if (now - whl.keyTime < 100) {
+                console.log("single tap", whlid, Direction.fromVector(v.x, v.y), now - whl.keyTime)
+            }
+
+
             this.target.setInputDirection(whlid, v)
             whl.last_vector = {x:null, y:null}
         } else if (kc > 0 ) {
@@ -127,6 +150,26 @@ export class KeyboardInput {
             }
         }
 
+    }
+
+    keyToDirection(whl, kc) {
+        let x = 0;
+        let y = 0;
+
+        if (x == 0 && kc == whl.left) {
+            x = -1;
+        }
+        if (x == 0 && kc == whl.right) {
+            x = 1;
+        }
+        if (y == 0 && kc == whl.up) {
+            y = -1;
+        }
+        if (y == 0 && kc == whl.down) {
+            y = 1;
+        }
+
+        return Direction.fromVector(x, y)
     }
 
     getDirectionVector(whl) {
@@ -234,7 +277,8 @@ export class TouchInput {
             alignment: alignment,
             vector: {x:0, y:0},
             pressed: false,
-            symbols: symbols
+            symbols: symbols,
+            vectorTime: [0, 0]
         })
     }
 
@@ -257,6 +301,7 @@ export class TouchInput {
         }
         return {cx, cy}
     }
+
     addButton(x, y, radius, options, icon=null) {
 
         let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
@@ -275,7 +320,19 @@ export class TouchInput {
         })
     }
 
-    handleMove(whlid, tx, ty) {
+    handleDoubleTap(whlid, touch) {
+        if (this.target===null) {
+            return
+        }
+
+        const cx = this.wheels[whlid].cx
+        const cy = this.wheels[whlid].cy
+
+        let dx = tx - cx
+        let dy = ty - cy
+    }
+
+    handleMove(whlid, tx, ty, first, pressed) {
         if (this.target===null) {
             return
         }
@@ -289,13 +346,36 @@ export class TouchInput {
         let cv = {x: dx/d, y:dy/d}
 
         this.wheels[whlid].vector = cv
-        this.target.setInputDirection(whlid, cv)
 
+
+        if (first) {
+            let now = performance.now()
+            let curr_d = Direction.fromVector(cv.x, cv.y)
+            let [prev_d, prev_t] = this.wheels[whlid].vectorTime
+            if (curr_d == prev_d  && (now - prev_t < 200)) {
+                //this.target.doubleTapDirection(whlid, curr_d)
+                console.log("double tap", whlid, curr_d, now - prev_t)
+            }
+            this.wheels[whlid].vectorTime = [curr_d, now]
+        }
+
+
+        this.target.setInputDirection(whlid, cv)
     }
 
     handleMoveCancel(whlid) {
         if (this.target===null) {
             return
+        }
+
+        if (true) {
+            let now = performance.now()
+            let v = this.wheels[whlid].vector
+            let curr_d = Direction.fromVector(v.x, v.y)
+            let [prev_d, prev_t] = this.wheels[whlid].vectorTime
+            if (curr_d == prev_d  && (now - prev_t < 100)) {
+                console.log("single tap", whlid, curr_d, (now - prev_t))
+            }
         }
 
         let cv = {x:0, y:0}
@@ -372,7 +452,7 @@ export class TouchInput {
 
             if (touch!==null && touch.pressed) {
                 wheel.pressed = true
-                this.handleMove(j, touch.x, touch.y)
+                this.handleMove(j, touch.x, touch.y, touch.first, touch.pressed)
             } else if (wheel.pressed) {
                 wheel.pressed = false
                 this.handleMoveCancel(j)

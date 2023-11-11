@@ -465,9 +465,6 @@ export class Physics2dPlatform {
             sensor_pressing = {x: this.target.rect.left()-1, y: this.target.rect.cy()}
         }
 
-
-
-
         let pressing = false
         for (const ent of solids) {
 
@@ -498,7 +495,10 @@ export class Physics2dPlatform {
 
                 pressing = true
             }
+        }
 
+        if (pressing) {
+            console.log("pressing", this.direction)
         }
 
         this.collisions = [...this.xcollisions, ...this.ycollisions]

@@ -437,17 +437,24 @@ export class BubbleBullet extends ProjectileBase {
         let aid;
 
         if (this.bubble_size == 1) {
-            this.animations["idle"] = this.animation.register(gAssets.sheets.beams16,
+            this.animations["idle"] = this.animation.register(
+                gAssets.sheets.beams16,
                 [17*ncols+0,17*ncols+1,17*ncols+2,17*ncols+1], spf, {xoffset, yoffset})
+            this.animations["dead"] = this.animation.register(
+                gAssets.sheets.beams16,
+                [17*ncols+4,17*ncols+5,17*ncols+6],
+                spf, {xoffset, yoffset, loop: false,
+                onend: this.onDeathAnimationEnd.bind(this)})
         } else {
-            this.animations["idle"] = this.animation.register(gAssets.sheets.beams32,
+            this.animations["idle"] = this.animation.register(
+                gAssets.sheets.beams32,
                 [0,1,2,1], spf, {xoffset, yoffset})
+            this.animations["dead"] = this.animation.register(
+                gAssets.sheets.beams32,
+                [3,4,5],
+                spf, {xoffset, yoffset, loop: false,
+                onend: this.onDeathAnimationEnd.bind(this)})
         }
-
-        this.animations["dead"] = this.animation.register(
-            gAssets.sheets.beams16,
-            [17*ncols+4,17*ncols+5,17*ncols+6],
-            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
 
         this.animation.setAnimationById(this.animations["idle"])
 
@@ -2036,6 +2043,8 @@ export class Door extends PlatformerEntity {
     collide(other, dx, dy) {
 
         let rectc = this.rect
+        // TODO: maybe do a negative collide?
+        // how to stand on object and not go thru until down is pressed?
 
         //if (this.direction & Direction.UPDOWN) {
         //    let recta = new Rect(this.rect.x, this.rect.y, 8, 32)
@@ -2051,7 +2060,7 @@ export class Door extends PlatformerEntity {
         //}
         //else {
         //    rectc = this.rect
-        //}
+        //}-
 
         // =====================
 
