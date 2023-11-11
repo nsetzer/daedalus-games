@@ -856,13 +856,13 @@ export class WaterBeam extends BeamBase {
 
     paint(ctx) {
 
-        if (!!this.influence) {
-            ctx.beginPath()
-            ctx.fillStyle = "#00FF0022"
-            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
-            ctx.closePath()
-            ctx.fill()
-        }
+        //if (!!this.influence) {
+        //    ctx.beginPath()
+        //    ctx.fillStyle = "#00FF0022"
+        //    ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+        //    ctx.closePath()
+        //    ctx.fill()
+        //}
 
 
         for (let i=0; i < this.points.length; i++) {
@@ -923,13 +923,13 @@ export class FireBeam extends BeamBase {
 
     paint(ctx) {
 
-        if (!!this.influence) {
-            ctx.beginPath()
-            ctx.fillStyle = "#00FF0022"
-            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
-            ctx.closePath()
-            ctx.fill()
-        }
+        //if (!!this.influence) {
+        //    ctx.beginPath()
+        //    ctx.fillStyle = "#00FF0022"
+        //    ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+        //    ctx.closePath()
+        //    ctx.fill()
+        //}
 
         let tiles = (Math.floor(gEngine.frameIndex/15)%2==0)?this.tiles_a:this.tiles_b
         for (let i=0; i < this.points.length; i++) {
@@ -1118,6 +1118,8 @@ export class Player extends PlatformerEntity {
         this.animation = new AnimationComponent(this)
         this.visible = true
 
+        this.spawning = false // spawning or despawning, lose direct control
+
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
         }
@@ -1148,6 +1150,8 @@ export class Player extends PlatformerEntity {
         this._beam = null
 
         this.alive = true
+
+        this.direction = Direction.NONE
 
     }
 
@@ -1231,7 +1235,6 @@ export class Player extends PlatformerEntity {
         aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
-
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
 
         this.weapon_offset = {}
@@ -1309,7 +1312,7 @@ export class Player extends PlatformerEntity {
         //ctx.strokeStyle = "yellow"
         //ctx.textAlign = "left"
         //ctx.textBaseline = "top"
-        //ctx.fillText(`${this.physics.action}`, this.rect.x, this.rect.y);
+        //ctx.fillText(`${this.direction}`, this.rect.x, this.rect.y);
 
         //ctx.font = "bold 16px";
         //ctx.fillStyle = "yellow"
@@ -1321,7 +1324,6 @@ export class Player extends PlatformerEntity {
         if (!!this._beam) {
             this._beam.paint(ctx)
         }
-
     }
 
     _updateAnimation() {
@@ -1343,6 +1345,10 @@ export class Player extends PlatformerEntity {
     }
 
     update(dt) {
+
+        if (this.spawning) {
+            return
+        }
 
         this.physics.update(dt)
         this.character.update(dt)
@@ -1413,6 +1419,40 @@ export class Player extends PlatformerEntity {
         }
 
         this.animation.update(dt)
+
+        if (this.direction != 0) {
+
+            let x = null
+            let y = null
+            switch(this.direction) {
+            case Direction.RIGHT:
+                x = this.rect.right() + 1
+                y = this.rect.cy()
+                break;
+            case Direction.LEFT:
+                x = this.rect.left() + 1
+                y = this.rect.cy()
+                break;
+            case Direction.UP:
+                x = this.rect.cx()
+                y = this.rect.top() - 1
+                break;
+            case Direction.DOWN:
+                x = this.rect.cx()
+                y = this.rect.bottom() + 1
+                break;
+            default:
+                break;
+            }
+
+            if (x != null) {
+                for (const ent of this.physics.group()) {
+                    if ((!!ent.interact) && ent.rect.collidePoint(x, y)) {
+                        ent.interact(this, this.direction)
+                    }
+                }
+            }
+        }
     }
 
     onInput(payload) {
@@ -1424,7 +1464,7 @@ export class Player extends PlatformerEntity {
         if ("whlid" in payload) {
 
             this._x_input = payload.vector
-            //this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
+            this.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
 
             // dead zone on mobile
             if (Math.abs(payload.vector.x) < 0.3535) {
@@ -1527,7 +1567,6 @@ export class Player extends PlatformerEntity {
         } else {
             console.log(payload)
         }
-
     }
 
     _shoot(power) {
@@ -1991,18 +2030,21 @@ export class Door extends PlatformerEntity {
                 this.spawn_dx = -20
                 this.spawn_dy = 0
                 this.spawn_check = () => this.spawn_target.rect.right() < this.rect.left()
+                this.despawn_check = () => this.spawn_target.rect.left() >= (this.rect.left()+8)
                 break;
             case Direction.DOWN:
                 tid = 2;
                 this.spawn_dx = 0
                 this.spawn_dy = 20
                 this.spawn_check = () => this.spawn_target.rect.top() > this.rect.bottom()
+                this.despawn_check = () => this.spawn_target.rect.bottom() <= (this.rect.bottom()-8)
                 break;
             case Direction.RIGHT:
                 tid = 3;
                 this.spawn_dx = 20
                 this.spawn_dy = 0
                 this.spawn_check = () => this.spawn_target.rect.left() > this.rect.right()
+                this.despawn_check = () => this.spawn_target.rect.right() <= (this.rect.right()-8)
                 break;
             case Direction.UP:
             default:
@@ -2010,6 +2052,7 @@ export class Door extends PlatformerEntity {
                 this.spawn_dx = 0
                 this.spawn_dy = -20
                 this.spawn_check = () => this.spawn_target.rect.bottom() < this.rect.top()
+                this.despawn_check = () => this.spawn_target.rect.top() >= (this.rect.top()+8)
                 break;
         }
         this.tid = tid
@@ -2017,25 +2060,22 @@ export class Door extends PlatformerEntity {
         this.spawn_timer = 0
         this.spawn_timeout = 2
         this.spawn_target = null
-        this.spawning = false
+
+        this.despawn = false
     }
 
     paint(ctx) {
 
-        if (this.spawn_target) {
-            this.spawn_target.paint(ctx)
-        }
-
         Spawn.sheet.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
 
-        let recta = new Rect(this.rect.x, this.rect.y, 8, 32)
-        let rectb = new Rect(this.rect.x+24, this.rect.y, 8, 32)
-        ctx.beginPath()
-        ctx.fillStyle = "red"
-        ctx.rect(recta.x, recta.y, recta.w, recta.h)
-        ctx.rect(rectb.x, rectb.y, rectb.w, rectb.h)
-        ctx.closePath()
-        ctx.fill()
+        //let recta = new Rect(this.rect.x, this.rect.y, 8, 32)
+        //let rectb = new Rect(this.rect.x+24, this.rect.y, 8, 32)
+        //ctx.beginPath()
+        //ctx.fillStyle = "red"
+        //ctx.rect(recta.x, recta.y, recta.w, recta.h)
+        //ctx.rect(rectb.x, rectb.y, rectb.w, rectb.h)
+        //ctx.closePath()
+        //ctx.fill()
 
 
     }
@@ -2085,8 +2125,6 @@ export class Door extends PlatformerEntity {
         else if (dy < 0 && rect.top() >= rectc.top()) {
             update.set_top(rectc.bottom())
             return update
-        } else {
-            console.log("error", dx, dy)
         }
 
         return null
@@ -2094,38 +2132,53 @@ export class Door extends PlatformerEntity {
 
     update(dt) {
 
-        /*
-        if (!this.spawn_target) {
-            this.spawn_timer += dt
-            if (this.spawn_timer > this.spawn_timeout) {
-                this.spawn_timer = 0
-
-                let objs = this._x_debug_map.queryObjects({"className": "Creeper"})
-
-                if (objs.length < 3) {
-
-                    // create a dummy object
-                    const props = {x: this.rect.x + 8, y:this.rect.y + 8}
-                    this.spawn_target = new Creeper(-1, props)
+        if (!!this.spawn_target) {
+            if (this.despawn) {
+                this.spawn_target.rect.x -= this.spawn_dx * dt
+                this.spawn_target.rect.y -= this.spawn_dy * dt
+                if (this.despawn_check()) {
+                    console.log("despawn finished")
+                    this.despawn = false
                 }
-
+            } else {
+                this.spawn_target.rect.x += this.spawn_dx * dt
+                this.spawn_target.rect.y += this.spawn_dy * dt
+                if (this.spawn_check()) {
+                    console.log("spawn finished")
+                    this.spawn_target.spawning = false
+                    this.spawn_target = null
+                }
             }
-        } else {
 
-            this.spawn_target.rect.x += this.spawn_dx * dt
-            this.spawn_target.rect.y += this.spawn_dy * dt
-            if (this.spawn_check()) {
-                let rect = this.spawn_target.rect
-                const props = {x: rect.x, y: rect.y}
-                // replace the dummy with a real object
-                // this is closer to the correct behavior in multiplayer
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
-                this.spawn_target = null
-            }
         }
-        */
+    }
 
+    interact(ent, direction) {
+        if (Direction.flip[direction]==this.direction) {
+            this.spawn_target = ent
+            ent.spawning = true
+            this.despawn = true
+            switch (this.direction) {
 
+                case Direction.LEFT:
+                    //ent.rect.x = this.rect.cx() - ent.rect.w/2
+                    //ent.rect.y = this.rect.top() - ent.rect.h
+                    break;
+                case Direction.RIGHT:
+                    //ent.rect.x = this.rect.cx() - ent.rect.w/2
+                    //ent.rect.y = this.rect.top() - ent.rect.h
+                    break;
+                case Direction.UP:
+                    ent.rect.x = this.rect.cx() - ent.rect.w/2
+                    ent.rect.y = this.rect.top() - ent.rect.h
+                    break;
+                case Direction.DOWN:
+                    ent.rect.x = this.rect.cx() - ent.rect.w/2
+                    ent.rect.y = this.rect.bottom()
+                    break;
+            }
+
+        }
     }
 }
 Door.sheet = null
