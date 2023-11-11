@@ -497,10 +497,6 @@ export class Physics2dPlatform {
             }
         }
 
-        if (pressing) {
-            console.log("pressing", this.direction)
-        }
-
         this.collisions = [...this.xcollisions, ...this.ycollisions]
 
         this.xcollide = this.xcollisions.length > 0
