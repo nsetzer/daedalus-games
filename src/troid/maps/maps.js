@@ -12,7 +12,7 @@ $import("axertc_physics", {
 
 $import("entities", {
     Player, Coin, Brick,
-    Creeper, Shredder, Spawn,
+    Creeper, Shredder, Spawn, Door,
     Bullet, BubbleBullet, BounceBullet, WaterBeam, FireBeam
 })
 
@@ -40,6 +40,7 @@ export class PlatformMap extends CspMap {
         this.registerClass("Creeper", Creeper)
         this.registerClass("Shredder", Shredder)
         this.registerClass("Spawn", Spawn)
+        this.registerClass("Door", Door)
     }
 
     paint(ctx) {

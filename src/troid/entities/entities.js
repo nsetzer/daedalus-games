@@ -1969,6 +1969,187 @@ Spawn.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
 
+export class Door extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
+        this.solid = 1
+        //this.collide = 1
+
+        let tid = 0
+        this.direction = props?.direction??Direction.UP
+        switch(this.direction) {
+            case Direction.LEFT:
+                tid = 0;
+                this.spawn_dx = -20
+                this.spawn_dy = 0
+                this.spawn_check = () => this.spawn_target.rect.right() < this.rect.left()
+                break;
+            case Direction.DOWN:
+                tid = 2;
+                this.spawn_dx = 0
+                this.spawn_dy = 20
+                this.spawn_check = () => this.spawn_target.rect.top() > this.rect.bottom()
+                break;
+            case Direction.RIGHT:
+                tid = 3;
+                this.spawn_dx = 20
+                this.spawn_dy = 0
+                this.spawn_check = () => this.spawn_target.rect.left() > this.rect.right()
+                break;
+            case Direction.UP:
+            default:
+                tid = 1;
+                this.spawn_dx = 0
+                this.spawn_dy = -20
+                this.spawn_check = () => this.spawn_target.rect.bottom() < this.rect.top()
+                break;
+        }
+        this.tid = tid
+
+        this.spawn_timer = 0
+        this.spawn_timeout = 2
+        this.spawn_target = null
+        this.spawning = false
+    }
+
+    paint(ctx) {
+
+        if (this.spawn_target) {
+            this.spawn_target.paint(ctx)
+        }
+
+        Spawn.sheet.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
+
+        let recta = new Rect(this.rect.x, this.rect.y, 8, 32)
+        let rectb = new Rect(this.rect.x+24, this.rect.y, 8, 32)
+        ctx.beginPath()
+        ctx.fillStyle = "red"
+        ctx.rect(recta.x, recta.y, recta.w, recta.h)
+        ctx.rect(rectb.x, rectb.y, rectb.w, rectb.h)
+        ctx.closePath()
+        ctx.fill()
+
+
+    }
+
+    collide(other, dx, dy) {
+
+        let rectc = this.rect
+
+        //if (this.direction & Direction.UPDOWN) {
+        //    let recta = new Rect(this.rect.x, this.rect.y, 8, 32)
+        //    let rectb = new Rect(this.rect.x+24, this.rect.y, 8, 32)
+//
+        //    if (other.rect.cx() < this.rect.cx()) {
+        //        rectc = recta
+        //        console.log("recta")
+        //    } else {
+        //        console.log("rectb")
+        //        rectc = rectb
+        //    }
+        //}
+        //else {
+        //    rectc = this.rect
+        //}
+
+        // =====================
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= rectc.left()) {
+            update.set_right(rectc.left())
+            return update
+        }
+
+        else if (dx < 0 && rect.left() >= rectc.right()) {
+            update.set_left(rectc.right())
+            return update
+        }
+
+        else if (dy > 0 && rect.bottom() <= rectc.top()) {
+            update.set_bottom(rectc.top())
+            return update
+        }
+
+        else if (dy < 0 && rect.top() >= rectc.top()) {
+            update.set_top(rectc.bottom())
+            return update
+        } else {
+            console.log("error", dx, dy)
+        }
+
+        return null
+    }
+
+    update(dt) {
+
+        /*
+        if (!this.spawn_target) {
+            this.spawn_timer += dt
+            if (this.spawn_timer > this.spawn_timeout) {
+                this.spawn_timer = 0
+
+                let objs = this._x_debug_map.queryObjects({"className": "Creeper"})
+
+                if (objs.length < 3) {
+
+                    // create a dummy object
+                    const props = {x: this.rect.x + 8, y:this.rect.y + 8}
+                    this.spawn_target = new Creeper(-1, props)
+                }
+
+            }
+        } else {
+
+            this.spawn_target.rect.x += this.spawn_dx * dt
+            this.spawn_target.rect.y += this.spawn_dy * dt
+            if (this.spawn_check()) {
+                let rect = this.spawn_target.rect
+                const props = {x: rect.x, y: rect.y}
+                // replace the dummy with a real object
+                // this is closer to the correct behavior in multiplayer
+                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
+                this.spawn_target = null
+            }
+        }
+        */
+
+
+    }
+}
+Door.sheet = null
+Door.size = [32, 32]
+Door.icon = null
+Door.editorIcon = (props) => {
+    let tid = 0
+    switch(props?.direction) {
+        case Direction.LEFT:
+            tid = 0;
+            break;
+
+        case Direction.DOWN:
+            tid = 2;
+            break;
+        case Direction.RIGHT:
+            tid = 3;
+            break;
+        case Direction.UP:
+        default:
+            tid = 1;
+            break;
+    }
+
+    return gAssets.sheets.pipes32.tile(tid)
+}
+Door.editorSchema = [
+    {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
+    {control: EditorControl.DOOR_ID},
+    {control: EditorControl.DOOR_TARGET},
+]
+
+
 export class Creeper extends MobBase {
     constructor(entid, props) {
         super(entid, props)
@@ -2323,6 +2504,7 @@ export const editorEntities = [
     {name:"Creeper", ctor: Creeper}
     {name:"Shredder", ctor: Shredder}
     {name:"Spawn", ctor: Spawn}
+    {name:"Door", ctor: Door}
 ]
 
 export function registerEntities() {
@@ -2336,18 +2518,18 @@ export function registerEntities() {
 
     // for any mob, the first row should contain
     // the 16x16 editor icon
-    let editorIcon = (sheet) => {
+    let editorIcon = (sheet, tid=0) => {
         let icon = new SpriteSheet()
         icon.tw = 16
         icon.th = 16
         icon.rows = 1
-        icon.cols = 1
+        icon.cols = tid+1
         icon.xspacing = 1
         icon.yspacing = 1
         icon.xoffset = 1
         icon.yoffset = 1
         icon.image = sheet.image
-        return icon.tile(0)
+        return icon.tile(tid)
     }
 
     Creeper.sheet = gAssets.sheets.creeper
@@ -2358,4 +2540,8 @@ export function registerEntities() {
 
     Spawn.sheet = gAssets.sheets.pipes32
     Spawn.icon = editorIcon(Spawn.sheet)
+
+    Door.sheet = gAssets.sheets.pipes32
+    Door.icon = editorIcon(Door.sheet, 1)
+
 }
