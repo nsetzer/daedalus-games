@@ -2271,7 +2271,7 @@ export class LevelEditScene extends GameScene {
 
         // use json to easily create an immutable structure
         // only save the layer or set of objects that were changed
-        event = {}
+        let event = {}
 
         // for now both tiles and objects must be saved
         // in the future to save memory only save the thing that changed
@@ -2286,7 +2286,6 @@ export class LevelEditScene extends GameScene {
             event.objects = JSON.stringify(this.map.objects)
         }
 
-        console.log('history push', change_tile, change_object)
         this.history.push(event)
 
         // enforce maximum number of entries
