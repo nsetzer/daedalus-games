@@ -77,6 +77,8 @@ export class CharacterInfo {
         this.beam = WeaponType.BEAM.NORMAL
         this.level = WeaponType.LEVEL.LEVEL1
         this.modifier = WeaponType.MODIFIER.RAPID
+
+        this.current_map = {world_id:0,level_id:0,door_id:0}
     }
 }
 
@@ -85,6 +87,7 @@ export const gCharacterInfo = new CharacterInfo()
 export class MapInfo {
     constructor() {
         this.mapid = null
+        this.theme = "plains"
         this.width = 24 * 16
         this.height = 14 * 16
         this.layers = [{}]
@@ -92,8 +95,6 @@ export class MapInfo {
         this.objects = []
     }
 }
-
-
 
 export const gAssets = {
     // all of the assets currently loaded
@@ -104,5 +105,6 @@ export const gAssets = {
     // meta data for the current map
     "mapinfo": new MapInfo(),
     // the current map
-    "map": null
+    "map": null,
+    "themes": {}
 }

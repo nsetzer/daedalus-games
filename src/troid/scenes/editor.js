@@ -361,6 +361,9 @@ class SettingsMenu {
         let x = this.rect.x + 8
         let y = this.rect.y + 8
 
+        this.themes = Object.keys(gAssets.themes)
+        this.theme_index =  this.themes.indexOf(this.parent.current_theme)
+
         this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeMapSize(-1, 0)
         }})
@@ -379,10 +382,29 @@ class SettingsMenu {
         }})
 
         y += 24
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{}})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText("0", x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{}})
+        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
+            this.changeTheme(-1)
+        }})
+        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(this.themes[this.theme_index], x+8,y+8)}})
+        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+            this.changeTheme(1)
+        }})
 
+    }
+
+    changeTheme(dx) {
+
+        this.theme_index += dx
+
+        if (this.theme_index < 0) {
+            this.theme_index = this.themes.length - 1
+        }
+
+        if (this.theme_index >= this.themes.length) {
+            this.theme_index = 0
+        }
+
+        this.parent.setTileTheme(this.themes[this.theme_index])
     }
 
     changeMapSize(dx, dy) {
@@ -395,8 +417,7 @@ class SettingsMenu {
         w += dx
         h += dy
 
-        console.log(w,h)
-        if (w < 0 || h < 0 || w*h > 16) {
+        if (w < 1 || h < 1 || w*h > 16) {
             return
         }
 
@@ -445,24 +466,6 @@ class SettingsMenu {
 
         let x = 8
         let y = 32
-
-        //let k = (this.parent.tile_property - 1)
-        //ctx.beginPath();
-        //ctx.strokeStyle = "gold"
-        //ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
-        //ctx.stroke()
-        //ctx.fillStyle = "#0000FF"
-        //for (let j=0; j < 3; j++) {
-        //    x = 8 + 24*2
-        //    for (let i=0; i < 3; i++) {
-        //        ctx.beginPath()
-        //        ctx.rect(x,y,16,16)
-        //        ctx.closePath()
-        //        ctx.fill()
-        //        x += 24
-        //    }
-        //    y += 24
-        //}
 
         ctx.font = "bold 16px";
         ctx.fillStyle = "black"
@@ -1055,17 +1058,7 @@ export class LevelEditScene extends GameScene {
             }
         })
 
-        this.theme_sheets = [
-            null,
-            gAssets.sheets.zone_01_sheet_01,
-            gAssets.sheets.zone_01_sheet_02
-        ]
-
-        this.theme_sheets_icon = [
-            null,
-            gAssets.sheets.zone_01_sheet_01.tile(0),
-            gAssets.sheets.zone_01_sheet_02.tile(0),
-        ]
+        this.setTileTheme("plains")
 
         this.editor_icons = {
             "pencil": gAssets.sheets.editor.tile(0),
@@ -1313,6 +1306,12 @@ export class LevelEditScene extends GameScene {
 
         // init history to the current state
         this.historyPush(true, true)
+    }
+
+    setTileTheme(theme) {
+        this.current_theme = theme
+        this.theme_sheets = gAssets.themes[theme]
+        this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
     }
 
     _init_slopes() {

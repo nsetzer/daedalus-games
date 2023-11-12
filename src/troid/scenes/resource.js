@@ -44,7 +44,7 @@ export class ResourceLoaderScene extends GameScene {
         //this.build_loader()
 
         this.timer = 0;
-        this.timeout = 0; // how long to show the loading bar after it finished loading
+        this.timeout = .1; // how long to show the loading bar after it finished loading
         this.finished = false
 
         // total elapsed time spent loading (wall clock time)
@@ -59,11 +59,13 @@ export class ResourceLoaderScene extends GameScene {
             this.stats.total_elapsed += dt
             const loader = this.pipeline[this.pipeline_index]
             if (!loader.ready) {
-                let t0 = performance.now()
-                loader.update()
-                let elapsed = performance.now() - t0
-                this.stats.elapsed[this.stats.elapsed.length - 1] += elapsed
-                this.stats.nupdates[this.stats.nupdates.length - 1] += 1
+                if (loader.status != ResourceStatus.ERROR) {
+                    let t0 = performance.now()
+                    loader.update()
+                    let elapsed = performance.now() - t0
+                    this.stats.elapsed[this.stats.elapsed.length - 1] += elapsed
+                    this.stats.nupdates[this.stats.nupdates.length - 1] += 1
+                }
             } else {
                 this.pipeline_index += 1
                 this.stats.elapsed.push(0)
@@ -94,10 +96,12 @@ export class ResourceLoaderScene extends GameScene {
         //ctx.fillStyle = "yellow";
         //ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`, 0, -8)
 
-        //ctx.beginPath();
-        //ctx.strokeStyle = 'red';
-        //ctx.rect(-1, -1, gEngine.view.width+2, gEngine.view.height+2);
-        //ctx.stroke();
+        ctx.beginPath();
+        ctx.fillStyle = 'black';
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.closePath()
+        ctx.fill();
+
         let color = 'yellow'
         if (this.pipeline_index < this.pipeline.length) {
             if (this.pipeline[this.pipeline_index].status == ResourceStatus.ERROR) {
@@ -182,17 +186,7 @@ class AssetLoader {
         }
 
         if (this.loader.ready) {
-            gAssets.music = {... gAssets.music, ... this.loader.music}
-            gAssets.sounds = {... gAssets.sounds, ... this.loader.sounds}
-            gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
-            gAssets.font = {... gAssets.font, ... this.loader.font}
-
-            registerEntities()
-
-
-
-
-
+            this._finalize()
 
         }
 
@@ -305,11 +299,37 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("zone_01_pipes_01")
+            .path(RES_ROOT + "/sprites/tile_pipes_01.png")
+            .dimensions(16, 16)
+            .layout(4, 11)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
+    }
 
+    _finalize() {
+        gAssets.music = {... gAssets.music, ... this.loader.music}
+        gAssets.sounds = {... gAssets.sounds, ... this.loader.sounds}
+        gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
+        gAssets.font = {... gAssets.font, ... this.loader.font}
 
+        gAssets.themes.plains = [
+            null,
+            gAssets.sheets.zone_01_sheet_01,
+            gAssets.sheets.zone_01_pipes_01,
+        ]
+
+        gAssets.themes.underground = [
+            null,
+            gAssets.sheets.zone_01_sheet_02,
+            gAssets.sheets.zone_01_pipes_01,
+        ]
+
+        registerEntities()
     }
 }
 
@@ -368,17 +388,17 @@ class LevelTileBuilder {
     _init() {
         this.map = gAssets.mapinfo
 
-        // TODO: parse the map data to figure out theme info
-
-        this.theme_sheets = [
-            null,
-            gAssets.sheets.zone_01_sheet_01,
-            gAssets.sheets.zone_01_sheet_02,
-            ]
+        if (!gAssets.themes[this.map.theme]) {
+            console.error("undefined map theme " + this.map.theme)
+            this.status = ResourceStatus.ERROR
+            return
+        }
 
         this.work_queue = Object.entries(this.map.layers[0])
         this.num_jobs = this.work_queue.length
         this.num_jobs_completed = 0
+
+        this.theme_sheets = gAssets.themes[this.map.theme]
     }
 }
 
@@ -433,6 +453,13 @@ class LevelChunkBuilder {
 
         this.map = gAssets.mapinfo
 
+        if (!gAssets.themes[this.map.theme]) {
+            console.error("undefined map theme " + this.map.theme)
+            this.status = ResourceStatus.ERROR
+            return
+        }
+
+
         this.map.chunks = {}
 
         const chunk_width = 4
@@ -458,11 +485,7 @@ class LevelChunkBuilder {
                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}}
             }
 
-            this.theme_sheets = [
-                null,
-                gAssets.sheets.zone_01_sheet_01,
-                gAssets.sheets.zone_01_sheet_02,
-            ]
+            this.theme_sheets = gAssets.themes[this.map.theme]
 
             this.map.chunks[chunkid].tiles[tid] = tile
         })
@@ -525,7 +548,7 @@ class MapBuilder {
     }
 
     progress() {
-        return .2
+        return 1.0
     }
 
     update(dt) {
@@ -615,14 +638,31 @@ class MapBuilder {
         })
 
         // spawn map objects
+        let doors = {}
+
         mapinfo.objects.forEach(obj => {
             let y = 16*(Math.floor(obj.oid/512 - 4))
             let x = 16*(obj.oid%512)
             let objname = obj.name
             let objprops = {x:x, y:y, ...obj.props}
-            console.log(obj, objname, objprops)
-            this.createObject(objname, objprops)
+            let ent = this.createObject(objname, objprops)
+
+            if (objprops.door_id !== undefined) {
+                doors[objprops.door_id] = ent
+            }
         })
+
+        if (Object.keys(doors).length == 0) {
+            console.error("no door specified")
+        } else {
+            // either spawn in in the lowest door
+            // or use the transition target door if available
+
+            const lowest = Object.entries(doors).reduce((a,b) => a[0] < b[0] ? a : b)
+            console.log("lowest", lowest)
+            lowest[1].spawnEntity(this.map._x_player)
+        }
+
 
         this.ready = true
     }
@@ -699,9 +739,10 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
                     gAssets.mapinfo.width = w
                     gAssets.mapinfo.height = h
-                    gAssets.mapinfo.theme = json?.theme??0
+                    gAssets.mapinfo.theme = json?.theme??"plains"
                     gAssets.mapinfo.layers = json?.layers??[{}]
                     gAssets.mapinfo.objects = json?.objects??[]
+                    console.log(gAssets.mapinfo.theme)
 
                     // filter objects which do not exist
                     const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))

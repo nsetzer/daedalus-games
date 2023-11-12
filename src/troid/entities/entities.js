@@ -14,6 +14,7 @@ $import("store", {gAssets, gCharacterInfo, WeaponType})
 
 export const EditorControl = {}
 EditorControl.CHOICE = 1       // {name: str, default: value, choices: list-or-map}
+//EditorControl.CHOOSE_ENTITY = x  // like CHOICE but shows icons from a list of named entities
 EditorControl.DOOR_TARGET = 2  // {}
 EditorControl.DOOR_ID = 3      // {}
 EditorControl.DIRECTION_4WAY = 4    // {default: value}
@@ -1170,6 +1171,7 @@ export class Player extends PlatformerEntity {
             "jump":{},
             "fall":{},
             "hit":{},
+            "spawn":{},
             "morphed":{"idle": {}, "run": {}},
         }
 
@@ -1222,6 +1224,12 @@ export class Player extends PlatformerEntity {
         this.animations["hit"][Direction.LEFT] = aid
         this.animations["hit"][Direction.UPRIGHT] = aid
         this.animations["hit"][Direction.UPLEFT] = aid
+
+        this.animations["spawn"][Direction.RIGHT] = this.animations["run"][Direction.RIGHT]
+        this.animations["spawn"][Direction.LEFT] = this.animations["run"][Direction.LEFT]
+        aid = this.animation.register(Player.sheet, [1*ncols+8], spf, {xoffset, yoffset})
+        this.animations["spawn"][Direction.UP] = aid
+        this.animations["spawn"][Direction.DOWN] = aid
 
         aid = this.animation.register(Player.sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.RIGHT] = aid
@@ -1347,6 +1355,7 @@ export class Player extends PlatformerEntity {
     update(dt) {
 
         if (this.spawning) {
+            this.animation.update(dt)
             return
         }
 
@@ -1430,7 +1439,7 @@ export class Player extends PlatformerEntity {
                 y = this.rect.cy()
                 break;
             case Direction.LEFT:
-                x = this.rect.left() + 1
+                x = this.rect.left() - 1
                 y = this.rect.cy()
                 break;
             case Direction.UP:
@@ -1452,6 +1461,16 @@ export class Player extends PlatformerEntity {
                     }
                 }
             }
+        }
+    }
+
+    setSpawning(direction) {
+        if (direction == Direction.NONE) {
+            this.spawning = false
+            // TODO apply cached player inputs
+        } else {
+            this.animation.setAnimationById(this.animations["spawn"][direction])
+            this.spawning = true
         }
     }
 
@@ -2022,6 +2041,10 @@ export class Door extends PlatformerEntity {
         this.solid = 1
         //this.collide = 1
 
+        this.world_id = props?.world_id??0
+        this.level_id = props?.level_id??0
+        this.door_id = props?.door_id??0
+
         let tid = 0
         this.direction = props?.direction??Direction.UP
         switch(this.direction) {
@@ -2037,7 +2060,7 @@ export class Door extends PlatformerEntity {
                 this.spawn_dx = 0
                 this.spawn_dy = 20
                 this.spawn_check = () => this.spawn_target.rect.top() > this.rect.bottom()
-                this.despawn_check = () => this.spawn_target.rect.bottom() <= (this.rect.bottom()-8)
+                this.despawn_check = () => this.spawn_target.rect.bottom() <= (this.rect.bottom()-1)
                 break;
             case Direction.RIGHT:
                 tid = 3;
@@ -2138,25 +2161,64 @@ export class Door extends PlatformerEntity {
                 this.spawn_target.rect.y -= this.spawn_dy * dt
                 if (this.despawn_check()) {
                     console.log("despawn finished")
-                    this.despawn = false
+
+                    // either transition or respawn.
+                    //this.spawnEntity(this.spawn_target)
+
+                    gCharacterInfo.transitionToLevel(this.world_id, this.level_id, this.door_id)
+
                 }
             } else {
                 this.spawn_target.rect.x += this.spawn_dx * dt
                 this.spawn_target.rect.y += this.spawn_dy * dt
                 if (this.spawn_check()) {
                     console.log("spawn finished")
-                    this.spawn_target.spawning = false
+                    this.spawn_target.setSpawning(Direction.NONE)
                     this.spawn_target = null
                 }
             }
-
         }
     }
 
+    spawnEntity(ent) {
+
+
+        ent.rect.x = this.rect.cx() - Math.floor(ent.rect.w/2)
+        ent.rect.y = this.rect.cy() - Math.floor(ent.rect.h/2)
+        this.spawn_target = ent
+        this.spawn_target.setSpawning(this.direction)
+        this.spawn_target.physics.direction = Direction.NONE
+        if ((this.direction&Direction.LEFTRIGHT)==0) {
+            this.spawn_target.physics.facing = Direction.RIGHT
+        } else {
+            this.spawn_target.physics.facing = this.direction
+        }
+
+        this.spawn_target.physics.xspeed = 0
+        this.spawn_target.physics.xaccum = 0
+        this.spawn_target.physics.yspeed = 0
+        this.spawn_target.physics.yaccum = 0
+        this.despawn = false
+    }
+
     interact(ent, direction) {
+
         if (Direction.flip[direction]==this.direction) {
+
+            // first attempt at trying to center the player on the door
+            // before letting them pass through
+            if (this.direction&Direction.LEFTRIGHT) {
+                if (Math.abs(ent.rect.cy() - this.rect.cy()) > 4) {
+                    return
+                }
+            } else if (this.direction&Direction.UPDOWN) {
+                if (Math.abs(ent.rect.cx() - this.rect.cx()) > 8) {
+                    return
+                }
+            }
+
             this.spawn_target = ent
-            ent.spawning = true
+            ent.setSpawning(direction) // despawn is the reverse direction of spawn
             this.despawn = true
             switch (this.direction) {
 

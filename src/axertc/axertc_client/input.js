@@ -77,7 +77,7 @@ export class KeyboardInput {
             let now = performance.now()
             if (now - whl.keyTime < 200) {
                 //this.target.doubleTapDirection(whlid, this.keyToDirection(whl, kc))
-                console.log("double tap", whlid, this.keyToDirection(whl, kc), now - whl.keyTime)
+                //console.log("double tap", whlid, this.keyToDirection(whl, kc), now - whl.keyTime)
             }
             whl.keyTime = performance.now()
 
@@ -127,7 +127,7 @@ export class KeyboardInput {
             let singletap = false
             let now = performance.now()
             if (now - whl.keyTime < 100) {
-                console.log("single tap", whlid, Direction.fromVector(v.x, v.y), now - whl.keyTime)
+                //console.log("single tap", whlid, Direction.fromVector(v.x, v.y), now - whl.keyTime)
             }
 
 
@@ -354,7 +354,7 @@ export class TouchInput {
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
             if (curr_d == prev_d  && (now - prev_t < 200)) {
                 //this.target.doubleTapDirection(whlid, curr_d)
-                console.log("double tap", whlid, curr_d, now - prev_t)
+                //console.log("double tap", whlid, curr_d, now - prev_t)
             }
             this.wheels[whlid].vectorTime = [curr_d, now]
         }
@@ -374,7 +374,7 @@ export class TouchInput {
             let curr_d = Direction.fromVector(v.x, v.y)
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
             if (curr_d == prev_d  && (now - prev_t < 100)) {
-                console.log("single tap", whlid, curr_d, (now - prev_t))
+                //console.log("single tap", whlid, curr_d, (now - prev_t))
             }
         }
 

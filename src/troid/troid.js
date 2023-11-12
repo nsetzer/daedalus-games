@@ -31,7 +31,7 @@ $import("axertc_physics", {
     AnimationComponent
 })
 
-$import("scenes", {LevelLoaderScene, LevelEditScene})
+$import("scenes", {LevelLoaderScene, LevelEditScene, transitionToLevel})
 $import("store", {MapInfo, gAssets, gCharacterInfo, WeaponType})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
@@ -663,6 +663,11 @@ export default class Application extends ApplicationBase {
 
         const query = daedalus.util.parseParameters()
 
+        // hack to avoid importing the main scene in the editor
+        LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
+        // hack to avoid circular import
+        gCharacterInfo.transitionToLevel = transitionToLevel
+
         super({
             portrait: 0,
             fullscreen: 0,
@@ -670,12 +675,9 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = false
+            const edit = true
             // mapid can be null or a filename
-            const mapid = "map-2x1-20231111-073345"
-
-            // hack to avoid importing the main scene in the editor
-            LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
+            const mapid = "map-2x1-20231112-120815"
 
             return new LevelLoaderScene(mapid, edit, ()=>{
 
