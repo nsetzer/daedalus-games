@@ -346,7 +346,6 @@ function init_velocity() {
     Bullet.velocity_profile_spread2[Direction.LEFT] = Bullet.velocity_profile_spread2[Direction.RIGHT].map(x => flip(x))
     Bullet.velocity_profile_spread2[Direction.UPLEFT] = Bullet.velocity_profile_spread2[Direction.UPRIGHT].map(x => flip(x))
 
-    console.log("spread", Bullet.velocity_profile_spread[Direction.RIGHT])
 }
 
 init_velocity()
@@ -493,7 +492,6 @@ export class BubbleBullet extends ProjectileBase {
             this.physics.update(dt)
 
             if (this.alive_timer > this.alive_duration) {
-                console.log(this.alive_timer)
                 this._kill()
             }
 
@@ -518,7 +516,6 @@ export class BubbleBullet extends ProjectileBase {
 
             if (!this.bounce && this.physics.collide) {
                 this._kill()
-                console.log("collision with ground")
             }
 
 
@@ -538,7 +535,6 @@ export class BubbleBullet extends ProjectileBase {
 
     collide(other, dx, dy) {
 
-        console.log(this.bubble_size, other._classname)
         if (this.bubble_size == 2) {
             let rect = other.rect
             let update = rect.copy()
@@ -1638,6 +1634,7 @@ export class Player extends PlatformerEntity {
 
             this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
         })
+        gAssets.sounds.fireBeam.play()
     }
 
     _bounce() {
@@ -1706,6 +1703,7 @@ export class Player extends PlatformerEntity {
 
     _revive() {
 
+        // deprecated in favor of transition to spawn point
         this.alive =  true
 
         this.physics.group = () => {
@@ -2060,7 +2058,6 @@ Spawn.editorSchema = [
 export class Door extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
-        console.log("props", props)
         this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
         this.solid = 1
         //this.collide = 1

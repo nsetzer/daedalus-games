@@ -333,6 +333,11 @@ class AssetLoader {
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
+
+        this.loader.addSoundEffect("fireBeam")
+            .path(RES_ROOT + "/sfx/beam/fireBeam.ogg")
+            .volume(.4)
+            .allowMissing()
     }
 
     _finalize() {

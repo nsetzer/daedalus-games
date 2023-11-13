@@ -14,16 +14,23 @@ export const ResourceStatus = {
  *  the sound to be played overlapping up to three times.
  */
 export class SoundEffect {
-    constructor(path) {
+    constructor(path, volume, allow_missing) {
         let sound = new Audio();
-        sound.src = path
+
+        this.default_volume = volume
 
         this.ready = false
         this.status = ResourceStatus.LOADING
 
         sound.onerror = () => {
             console.warn("error loading: " + path)
-            this.status = ResourceStatus.ERROR
+            if (allow_missing) {
+                this.status = ResourceStatus.READY
+                this.ready = true
+                this.sounds = []
+            } else {
+                this.status = ResourceStatus.ERROR
+            }
         }
 
         sound.onabort = () => {
@@ -35,19 +42,26 @@ export class SoundEffect {
         sound.oncanplaythrough = () => {
             this.status = ResourceStatus.READY
             this.ready = true
+            // clone the node to allow playing overlapping copies
             this.sounds.push(this.sounds[0].cloneNode())
             this.sounds.push(this.sounds[0].cloneNode())
         }
 
         this.playindex = 0
+        sound.src = path
 
 
     }
 
-    play(volume=1) {
-        if (SoundEffect.global_volume > 0) {
+    play(volume=null) {
+        if (SoundEffect.global_volume > 0 && this.sounds.length > 0) {
             const snd = this.sounds[this.playindex]
-            snd.volume = volume * SoundEffect.global_volume
+            let m = this.default_volume
+            if (volume !== null) {
+                m = volume
+            }
+            console.log(m * SoundEffect.global_volume, volume)
+            snd.volume = m * SoundEffect.global_volume
             snd.play().catch(error => {
               console.log(error)
             })
@@ -62,7 +76,20 @@ export class SoundEffectBuilder {
 
     constructor() {
         this._path = ""
+        this._volume = 1
+        this._allow_missing = false
 
+    }
+
+    volume(volume) {
+        // resource path
+        if (volume > 0 && volume < 1) {
+            this._volume = volume
+        } else {
+            throw {"error": "volume must be between 0 and 1"}
+        }
+
+        return this
     }
 
     path(path) {
@@ -71,8 +98,13 @@ export class SoundEffectBuilder {
         return this
     }
 
+    allowMissing() {
+        this._allow_missing = true
+        return this
+    }
+
     build() {
-        let se = new SoundEffect(this._path)
+        let se = new SoundEffect(this._path, this._volume, this._allow_missing)
         return se
     }
 }

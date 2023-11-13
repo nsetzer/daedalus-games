@@ -485,7 +485,12 @@ class MainScene extends GameScene {
 
             if (!this.map.map._x_player.alive) {
                 if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
-                    this.map.map._x_player._revive()
+
+                    const info = gCharacterInfo.current_map_spawn
+                    gCharacterInfo.transitionToLevel(
+                        info.world_id, info.level_id, info.door_id)
+
+                    //this.map.map._x_player._revive()
                 }
             }
 
@@ -692,6 +697,14 @@ export default class Application extends ApplicationBase {
         LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
         // hack to avoid circular import
         gCharacterInfo.transitionToLevel = transitionToLevel
+
+
+        const world_id = "zone1"
+        const level_id = 1
+        const door_id = 1
+        gCharacterInfo.current_map = {world_id, level_id, door_id}
+        gCharacterInfo.current_map_spawn = {world_id, level_id, door_id}
+
 
         super({
             portrait: 0,
