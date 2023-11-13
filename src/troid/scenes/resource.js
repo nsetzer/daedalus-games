@@ -1,5 +1,29 @@
+
+// Note on world editor
+// 1 screen is 24 x 14 pixels.
+//  a screen can be converted to a 24x16 tile by mapping all solid
+//  tiles to a single pixel.
+//  padding the top and bottom with one row of pixels and truncating
+//  one column of pixels on the left and right
+//  use one color for the background - based on the theme. e.g. blue sky
+//  use one color for the solid terrain, black green, brown
+//  these tiles can be used to visualize all maps in a given world.
+//  a visual editor can display all map tiles. which can be dragged
+//  around like objects in the level editor.
+//  adjacent rooms can automatically be linked together by
+//  updating the door ids
+//  even without implementing linking, it can be used to visualize
+//  and verify that all maps are properly wired together
+//  the world editor should overlay the level id in each level tile
+//  when placing a level in the world visualizer.
+//  level 1 is placed at 0,0
+//  discover neighbors and place them
+//  iterate until all levels have been placed
+//  place unpositioned levels along the bottom in way that
+//  that does not overlap
+//
  
- $import("axertc_client", {
+$import("axertc_client", {
     GameScene,
     ResourceLoader, ResourceStatus
 
@@ -658,9 +682,16 @@ class MapBuilder {
             // either spawn in in the lowest door
             // or use the transition target door if available
 
-            const lowest = Object.entries(doors).reduce((a,b) => a[0] < b[0] ? a : b)
-            console.log("lowest", lowest)
-            lowest[1].spawnEntity(this.map._x_player)
+            let door = Object.entries(doors).reduce((a,b) => a[0] < b[0] ? a : b)[1]
+
+            if (doors[gCharacterInfo.current_map.door_id] != undefined) {
+                door = doors[gCharacterInfo.current_map.door_id]
+            } else {
+                console.error("door id error", gCharacterInfo.current_map)
+            }
+
+            door.spawnEntity(this.map._x_player)
+
         }
 
 

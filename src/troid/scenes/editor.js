@@ -779,9 +779,12 @@ class ObjectPropertyEditMenu {
 
                 if (schema.control == 2) {
 
-                    this.addChoiceWidget({"name": "target_world_id", choices:[0,1,2,3,4,5,6,7]})
-                    this.addChoiceWidget({"name": "target_level_id", choices:[0,1,2,3,4,5,6,7]})
-                    this.addChoiceWidget({"name": "target_door_id", choices:[0,1,2,3,4,5,6,7]})
+                    // worlds have names, levels have numbers
+                    // a world editor could allow for a manifest
+                    // that gives levels names in addition to the number
+                    this.addChoiceWidget({"name": "target_world_id", "choices":["zone1",], "default":"zone1"})
+                    this.addChoiceWidget({"name": "target_level_id", "choices":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], "default": 1})
+                    this.addChoiceWidget({"name": "target_door_id", "choices":[1,2,3,4,5,6,7,8], "default": 1})
                 }
 
                 if (schema.control == 3) {
@@ -1058,7 +1061,12 @@ export class LevelEditScene extends GameScene {
             }
         })
 
-        this.setTileTheme("plains")
+        if (gAssets.themes[gAssets.mapinfo.theme] !== undefined) {
+            this.setTileTheme(gAssets.mapinfo.theme)
+        } else {
+            this.setTileTheme("plains")
+        }
+
 
         this.editor_icons = {
             "pencil": gAssets.sheets.editor.tile(0),
@@ -1991,7 +1999,7 @@ export class LevelEditScene extends GameScene {
 
         gAssets.mapinfo.width = this.map.width
         gAssets.mapinfo.height = this.map.height
-        gAssets.mapinfo.theme = 0
+        gAssets.mapinfo.theme = this.current_theme
 
         gAssets.mapinfo.layers = this.map.layers
 
@@ -2051,7 +2059,7 @@ export class LevelEditScene extends GameScene {
             version: 0,
             width: this.map.width,
             height: this.map.height,
-            theme: 0,
+            theme: this.current_theme,
             layers: [tiles0],
             objects: objects0
         }

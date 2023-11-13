@@ -381,8 +381,7 @@ export class BubbleBullet extends ProjectileBase {
             }
         }
 
-        this.solid = 0
-        this.collide = 1
+        this.solid = 1
         this.visible = 1
         this.alive = true
 
@@ -535,6 +534,30 @@ export class BubbleBullet extends ProjectileBase {
         this.animation.update(dt)
 
     }
+
+
+    collide(other, dx, dy) {
+
+        console.log(this.bubble_size, other._classname)
+        if (this.bubble_size == 2) {
+            let rect = other.rect
+            let update = rect.copy()
+
+            if (dy > 0 && rect.bottom() <= this.rect.top()) {
+                if (other instanceof Player) {
+                    other._bounce()
+                    this._kill()
+                    return null
+                }
+            }
+        }
+
+
+        return null
+    }
+
+
+
 }
 
 export class BounceBullet extends ProjectileBase {
@@ -2037,13 +2060,14 @@ Spawn.editorSchema = [
 export class Door extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
+        console.log("props", props)
         this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
         this.solid = 1
         //this.collide = 1
 
-        this.world_id = props?.world_id??0
-        this.level_id = props?.level_id??0
-        this.door_id = props?.door_id??0
+        this.target_world_id = props?.target_world_id??0
+        this.target_level_id = props?.target_level_id??0
+        this.target_door_id = props?.target_door_id??0
 
         let tid = 0
         this.direction = props?.direction??Direction.UP
@@ -2165,7 +2189,7 @@ export class Door extends PlatformerEntity {
                     // either transition or respawn.
                     //this.spawnEntity(this.spawn_target)
 
-                    gCharacterInfo.transitionToLevel(this.world_id, this.level_id, this.door_id)
+                    gCharacterInfo.transitionToLevel(this.target_world_id, this.target_level_id, this.target_door_id)
 
                 }
             } else {

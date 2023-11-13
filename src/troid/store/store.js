@@ -73,12 +73,15 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.POWER
+        this.element = WeaponType.ELEMENT.BUBBLE
         this.beam = WeaponType.BEAM.NORMAL
-        this.level = WeaponType.LEVEL.LEVEL1
-        this.modifier = WeaponType.MODIFIER.RAPID
+        this.level = WeaponType.LEVEL.LEVEL3
+        this.modifier = WeaponType.MODIFIER.CHARGE
 
-        this.current_map = {world_id:0,level_id:0,door_id:0}
+        // where to spawn the player when they die
+        this.current_map_spawn = {world_id:"",level_id:0,door_id:0}
+        // where to spawn the player when loading the current map
+        this.current_map = {world_id:"",level_id:0,door_id:0}
     }
 }
 
@@ -87,8 +90,8 @@ export const gCharacterInfo = new CharacterInfo()
 export class MapInfo {
     constructor() {
         this.mapid = null
-        this.theme = "plains"
-        this.width = 24 * 16
+        this.theme = ""
+        this.width = 24 * 16 // 1 screen is 24x14 tiles
         this.height = 14 * 16
         this.layers = [{}]
         this.chunks = {}

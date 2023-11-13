@@ -139,11 +139,33 @@ class Camera extends CameraBase {
         this.active_border = new Rect(0,0,0,0)
         this.active_region = new Rect(0,0,0,0)
 
-        this.tile_position = {x:-1024, y:-1024}
+        //this.tile_position = {x:-1024, y:-1024}
         this.dirty = true
 
         //margin of 4 tiles in the direction the target is facing
         //and 2 tiles in all other directions
+    }
+
+    paint(ctx) {
+
+        if (false) {
+
+            let xborder1 = Math.floor(gEngine.view.width/4)
+            let xborder2 = Math.floor(gEngine.view.width/4)
+            let yborder1 = Math.floor(gEngine.view.height/4) + 16
+            let yborder2 = Math.floor(gEngine.view.height/4)
+            let wnd = new Rect(
+                this.x + xborder1,
+                this.y + yborder1,
+                this.width - xborder1 - xborder2,
+                this.height - yborder1 - yborder2)
+
+            ctx.beginPath()
+            ctx.strokeStyle = "red"
+            ctx.rect(wnd.x, wnd.y, wnd.w, wnd.h)
+            ctx.closePath()
+            ctx.stroke()
+        }
     }
 
     setTarget(target) {
@@ -173,7 +195,7 @@ class Camera extends CameraBase {
         //if (v.y > 0) { wnd.h += 32 }
         let xborder1 = Math.floor(gEngine.view.width/4)
         let xborder2 = Math.floor(gEngine.view.width/4)
-        let yborder1 = Math.floor(gEngine.view.height/4)
+        let yborder1 = Math.floor(gEngine.view.height/4) + 16
         let yborder2 = Math.floor(gEngine.view.height/4)
         let wnd = new Rect(
             this.x + xborder1,
@@ -233,9 +255,9 @@ class Camera extends CameraBase {
             this.width + 64,
             this.height + 64)
 
-        this.dirty = this.dirty || (this.tile_position.x != tx || this.tile_position.y != ty)
+        this.dirty = this.dirty //|| (this.tile_position.x != tx || this.tile_position.y != ty)
 
-        this.tile_position = {x:tx, y:ty}
+        //this.tile_position = {x:tx, y:ty}
 
     }
 
@@ -579,8 +601,10 @@ class MainScene extends GameScene {
         }
 
         this.map.paint(ctx)
+        this.camera.paint(ctx)
 
         ctx.restore()
+
 
         this._paint_status(ctx)
 
@@ -590,12 +614,13 @@ class MainScene extends GameScene {
             this.touch.paint(ctx)
         }
 
-        //ctx.font = "bold 16px";
-        //ctx.fillStyle = "black"
-        //ctx.strokeStyle = "black"
-        //ctx.textAlign = "left"
-        //ctx.textBaseline = "bottom"
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
 
+        ctx.fillText(`${gEngine.fps}`, 8 + 3*24 + 16, 12);
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
         //ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
 
@@ -675,9 +700,9 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = true
+            const edit = false
             // mapid can be null or a filename
-            const mapid = "map-2x1-20231112-120815"
+            const mapid = "level1" // "map-2x1-20231112-120815"
 
             return new LevelLoaderScene(mapid, edit, ()=>{
 
