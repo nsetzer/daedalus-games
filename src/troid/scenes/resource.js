@@ -338,6 +338,26 @@ class AssetLoader {
             .path(RES_ROOT + "/sfx/beam/fireBeam.ogg")
             .volume(.4)
             .allowMissing()
+
+        this.loader.addSoundEffect("fireBeamCharge")
+            .path(RES_ROOT + "/sfx/beam/fireBeamCharge.ogg")
+            .volume(1.0)
+            .allowMissing()
+
+        this.loader.addSoundEffect("fireBeamChargeLoop")
+            .path(RES_ROOT + "/sfx/beam/fireBeamChargeLoop.ogg")
+            .volume(1.0)
+            .allowMissing()
+
+        this.loader.addSoundEffect("fireBeamFlameStart")
+            .path(RES_ROOT + "/sfx/beam/fireBeamFlameStartFast.ogg")
+            .volume(.4)
+            .allowMissing()
+
+        this.loader.addSoundEffect("fireBeamFlameLoop")
+            .path(RES_ROOT + "/sfx/beam/fireBeamFlameLoop.ogg")
+            .volume(.4)
+            .allowMissing()
     }
 
     _finalize() {

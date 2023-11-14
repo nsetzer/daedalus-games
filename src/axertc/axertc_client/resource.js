@@ -53,6 +53,26 @@ export class SoundEffect {
 
     }
 
+    loop() {
+
+        // start the next index at N milliseconds rounded down from now
+        this.sounds.forEach(snd => {
+            snd.addEventListener('ended', function() {
+                this.currentTime = 0;
+                this.play();
+            }, false);
+        })
+
+        this.play()
+    }
+
+    stop() {
+        this.sounds.forEach(snd => {
+            snd.pause()
+            snd.currentTime = 0
+        })
+    }
+
     play(volume=null) {
         if (SoundEffect.global_volume > 0 && this.sounds.length > 0) {
             const snd = this.sounds[this.playindex]
@@ -60,13 +80,14 @@ export class SoundEffect {
             if (volume !== null) {
                 m = volume
             }
-            console.log(m * SoundEffect.global_volume, volume)
             snd.volume = m * SoundEffect.global_volume
             snd.play().catch(error => {
-              console.log(error)
+              console.error("error playing audio: " + error)
             })
             this.playindex = (this.playindex+1) % this.sounds.length
+            return snd
         }
+        return null
     }
 }
 
@@ -83,7 +104,7 @@ export class SoundEffectBuilder {
 
     volume(volume) {
         // resource path
-        if (volume > 0 && volume < 1) {
+        if (volume >= 0 && volume <= 1) {
             this._volume = volume
         } else {
             throw {"error": "volume must be between 0 and 1"}

@@ -38,6 +38,7 @@ $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
 $import("entities", {Player})
 $import("maps", {PlatformMap})
 
+$import("api", {})
 window.print = console.log
 
 class CspController {

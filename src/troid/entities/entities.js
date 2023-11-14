@@ -1,4 +1,6 @@
  
+$import("daedalus", {})
+
 $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
     Direction, Alignment, Rect,
@@ -1387,9 +1389,18 @@ export class Player extends PlatformerEntity {
         }
 
         if (this.charging && this.charge_duration < this.charge_timeout) {
-            this.charge_duration += dt
-            if (this.charge_duration > this.charge_timeout) {
-                this.charge_duration = this.charge_timeout
+            if (this.charge_duration < this.charge_timeout) {
+                this.charge_duration += dt
+                if (this.charge_duration >= this.charge_timeout) {
+                    if (!!this._beam) {
+                        gAssets.sounds.fireBeamFlameStart.stop()
+                        gAssets.sounds.fireBeamFlameLoop.loop()
+                    } else {
+                        gAssets.sounds.fireBeamCharge.stop()
+                        gAssets.sounds.fireBeamChargeLoop.loop()
+                    }
+                    this.charge_duration = this.charge_timeout
+                }
             }
 
             if (!this._beam && gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
@@ -1558,7 +1569,14 @@ export class Player extends PlatformerEntity {
 
             if (!this.morphed) {
                 if (payload.pressed) {
-                    this.charging = gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL
+
+                    let charge_sound = null
+                    if (gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL) {
+                        this.charging = true
+
+                        charge_sound = gAssets.sounds.fireBeamCharge
+                    }
+
                     this.charge_duration = 0.0
 
                     if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
@@ -1567,15 +1585,28 @@ export class Player extends PlatformerEntity {
                             this._beam = new WaterBeam(this)
                         } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
                             this._beam = new FireBeam(this)
+                            charge_sound = gAssets.sounds.fireBeamFlameStart
                         } else {
                             this._shoot(0)
                         }
 
                     }
+
+                    if (!!charge_sound) {
+                        charge_sound.play()
+                    }
                 } else {
                     let power = this.charge_duration / this.charge_timeout
                     this.charge_duration = 0.0
                     this.charging = false
+                    if (!!this._beam) {
+                        gAssets.sounds.fireBeamFlameStart.stop()
+                        gAssets.sounds.fireBeamFlameLoop.stop()
+                    } else {
+                        gAssets.sounds.fireBeamCharge.stop()
+                        gAssets.sounds.fireBeamChargeLoop.stop()
+                    }
+
                     if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
                         this._shoot(power)
                     } else {
@@ -2068,10 +2099,12 @@ export class Door extends PlatformerEntity {
 
         let tid = 0
         this.direction = props?.direction??Direction.UP
+        // speed things up in development
+        let speed = daedalus.env.debug?60:20
         switch(this.direction) {
             case Direction.LEFT:
                 tid = 0;
-                this.spawn_dx = -20
+                this.spawn_dx = -speed
                 this.spawn_dy = 0
                 this.spawn_check = () => this.spawn_target.rect.right() < this.rect.left()
                 this.despawn_check = () => this.spawn_target.rect.left() >= (this.rect.left()+8)
@@ -2079,13 +2112,13 @@ export class Door extends PlatformerEntity {
             case Direction.DOWN:
                 tid = 2;
                 this.spawn_dx = 0
-                this.spawn_dy = 20
+                this.spawn_dy = speed
                 this.spawn_check = () => this.spawn_target.rect.top() > this.rect.bottom()
                 this.despawn_check = () => this.spawn_target.rect.bottom() <= (this.rect.bottom()-1)
                 break;
             case Direction.RIGHT:
                 tid = 3;
-                this.spawn_dx = 20
+                this.spawn_dx = speed
                 this.spawn_dy = 0
                 this.spawn_check = () => this.spawn_target.rect.left() > this.rect.right()
                 this.despawn_check = () => this.spawn_target.rect.right() <= (this.rect.right()-8)
@@ -2094,7 +2127,7 @@ export class Door extends PlatformerEntity {
             default:
                 tid = 1;
                 this.spawn_dx = 0
-                this.spawn_dy = -20
+                this.spawn_dy = -speed
                 this.spawn_check = () => this.spawn_target.rect.bottom() < this.rect.top()
                 this.despawn_check = () => this.spawn_target.rect.top() >= (this.rect.top()+8)
                 break;
