@@ -640,7 +640,7 @@ class MapBuilder {
             let objname = null
             let objprops = null
 
-            if (tile.shape==TileShape.FULL) {
+            if (tile.shape==TileShape.FULL || tile.shape==TileShape.ALT_FULL) {
                 objname = "Wall"
                 objprops = {x:x, y:y, w:16, h:16}
             } else if (tile.shape==TileShape.HALF) {

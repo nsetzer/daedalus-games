@@ -29,6 +29,9 @@ TileShape.FULL = 1
 TileShape.HALF = 2
 TileShape.ONETHIRD = 3
 TileShape.TWOTHIRD = 4
+TileShape.RESERVED = 5
+TileShape.RESERVED = 6
+TileShape.ALT_FULL = 7 // theme block
 
 export const TileProperty = {}
 TileShape.RESERVED = 0
@@ -54,7 +57,7 @@ let TT_2_07 = 2*11 +  7
 let TT_2_08 = 2*11 +  8
 
 let TT_3_07 = 3*11 +  7
-let TT_3_08 = 3*11 +  9
+let TT_3_08 = 3*11 +  8
 let TT_3_09 = 3*11 +  9
 let TT_3_10 = 3*11 + 10
 
@@ -74,6 +77,8 @@ let TT_1_07 = 1*11 +  7 // twothird
 let TT_1_08 = 1*11 +  8 // twothird
 let TT_1_09 = 1*11 +  9 // twothird
 let TT_1_10 = 1*11 + 10 // twothird
+
+let TT_3_00 = 3*11 + 0 // alt full
 
 
 export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
@@ -104,10 +109,10 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         const ntid_l = ((y + 4)*512 + (x - 1))
         const ntid_r = ((y + 4)*512 + (x + 1))
 
-        let eu = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property)
-        let ed = !!layer[ntid_d] && solid(layer[ntid_d].property) == solid(layer[ntid].property)
-        let el = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property)
-        let er = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property)
+        let eu = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape != TileShape.ALT_FULL
+        let ed = !!layer[ntid_d] && solid(layer[ntid_d].property) == solid(layer[ntid].property) && layer[ntid_d].shape != TileShape.ALT_FULL
+        let el = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && layer[ntid_l].shape != TileShape.ALT_FULL
+        let er = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && layer[ntid_r].shape != TileShape.ALT_FULL
 
         if (layer[ntid].property == TileProperty.ONEWAY) {
             // this allows having a step to stand on inside of a cliff.
@@ -185,10 +190,10 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
             if (n==4 && x > 0 && ((x+1)*16) < map_width) {
                 const tiddl = ((y + 4 - 1)*512 + (x-1))
                 const tiddr = ((y + 4 - 1)*512 + (x+1))
-                const dl = !layer[tiddl]
-                const dr = !layer[tiddr]
+                const dl = !(!!layer[tiddl] && layer[tiddl].shape != TileShape.ALT_FULL)
+                const dr = !(!!layer[tiddr] && layer[tiddr].shape != TileShape.ALT_FULL)
                 if (dl && !dr) {tid = TT_3_07}
-                if (dr && !dr) {tid = TT_3_08}
+                if (dr && !dl) {tid = TT_3_08}
             }
 
             // fill the corners when there are neighbor diagonal slopes
@@ -210,8 +215,8 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
                 const du = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape == TileShape.ONETHIRD
                 const tiddl = ((y + 4 - 1)*512 + (x-1))
                 const tiddr = ((y + 4 - 1)*512 + (x+1))
-                const dl = !layer[tiddl]
-                const dr = !layer[tiddr]
+                const dl = !(!!layer[tiddl] && layer[tiddl].shape != TileShape.ALT_FULL)
+                const dr = !(!!layer[tiddr] && layer[tiddr].shape != TileShape.ALT_FULL)
                 //const dl = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && (layer[ntid_l].shape == TileShape.TWOTHIRD || layer[ntid_l].shape == TileShape.FULL)
                 //const dr = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && (layer[ntid_r].shape == TileShape.TWOTHIRD || layer[ntid_r].shape == TileShape.FULL)
                 if (du && dl) { tid = TT_2_07 }
@@ -292,6 +297,8 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
             tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
+    } else if (tile.shape == TileShape.ALT_FULL) {
+        tile.tile = TT_3_00
     } else {
         console.log("error shape", tile.shape)
     }

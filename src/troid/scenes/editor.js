@@ -156,6 +156,7 @@ class TileMenu {
                     }
 
                 }
+
             }
             else if (ty == 2) {
                 if (tx < 4) {
@@ -165,16 +166,16 @@ class TileMenu {
                     }
                     this.parent.active_tool = EditorTool.PLACE_TILE
                     this.parent.active_menu = null
-                }
-
-                if (tx == 4) {
-
-                } else {
+                } else if (tx  == 4) {
+                    this.parent.tile_shape = 7 // alt full
 
                 }
+                console.log(tx)
+
+
+
             }
             else if (ty == 3) {
-                console.log("boo")
 
                 if (tx == 0) {
                     this.parent.active_tool = EditorTool.PAINT_TILE
@@ -294,7 +295,12 @@ class TileMenu {
         if (this.parent.active_tool == EditorTool.PAINT_TILE) {
             k = 4
         } else {
-            k = (this.parent.tile_shape - 1)
+            if (this.parent.tile_shape == 7) {
+                // alt full
+                k = 4
+            } else {
+                k = (this.parent.tile_shape - 1)
+            }
         }
         ctx.beginPath();
         ctx.strokeStyle = "gold"
@@ -328,6 +334,11 @@ class TileMenu {
             points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
             ctx.fill()
         }
+
+        x += 24
+        ctx.beginPath();
+        ctx.rect(x,y,16,16)
+        ctx.fill()
 
         // ---------------------------------------------------------------
         // Row 4 Shape
@@ -1041,7 +1052,7 @@ export class LevelEditScene extends GameScene {
     //       change the engine to not clear on every frame
     //       scene is still 60fps. but there are no animations
 
-    constructor(loader) {
+    constructor() {
         super()
 
         this.history = []
@@ -1987,6 +1998,14 @@ export class LevelEditScene extends GameScene {
                 property: this.tile_property,
                 sheet: this.tile_sheet,
             }
+        } else if (this.tile_shape == 7) {
+
+            this.map.layers[0][tid] = {
+                shape: this.tile_shape,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+
         }
 
         this._updateTile(x,y,this.map.layers[0][tid])
@@ -2090,6 +2109,93 @@ export class LevelEditScene extends GameScene {
         document.body.appendChild(downloadAnchorNode); // required for firefox
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
+    }
+
+
+
+    historyPush(change_tile, change_object) {
+
+        // remove old entries that were discarded by the user
+        while (this.history_index > 0) {
+            console.log("remove events")
+            this.history.pop()
+            this.history_index -= 1
+        }
+
+        // use json to easily create an immutable structure
+        // only save the layer or set of objects that were changed
+        let event = {}
+
+        // for now both tiles and objects must be saved
+        // in the future to save memory only save the thing that changed
+        // and have a pointer to the last saved state for other layers or
+        // unchanged objects
+        // if the history is [tile, object, tile]
+        // an undo should effectivley go back to the previous tile state
+        // maybe it needs separate history streams?
+        if (change_tile || change_object) {
+            event.layer_id = 0
+            event.layer = JSON.stringify(this.map.layers[0])
+            event.objects = JSON.stringify(this.map.objects)
+        }
+
+        this.history.push(event)
+
+        // enforce maximum number of entries
+        while (this.history.length > 10) {
+            this.history.shift()
+        }
+
+        // log the size
+        let history_size = this.history.map(h => (h?.layer??"").length + (h?.objects??"").length).reduce((a,b)=>a+b,0)
+        console.log(`history index=${this.history_index} num_entries=${this.history.length} size=${(history_size/1024).toFixed(1)}kb`)
+
+    }
+
+    historyPop() {
+        // history_index always points at the most recent event
+        // a pop should apply the previous state
+        // an unpop should reapply the most recently popped state
+
+        if (this.history_index < this.history.length-1) {
+            this.history_index += 1
+            let idx = (this.history.length - 1) - this.history_index
+            console.log("pop", idx, this.history.length, this.history_index)
+            this._historyApplyIndex(idx)
+            gAssets.sounds.click1.play()
+        } else {
+            gAssets.sounds.click2.play()
+        }
+    }
+
+    historyUnPop() {
+
+        if (this.history_index > 0) {
+            this.history_index -= 1
+            let idx = (this.history.length - 1) - this.history_index
+            console.log("unpop", idx, this.history.length, this.history_index)
+            this._historyApplyIndex(idx)
+            gAssets.sounds.click1.play()
+        } else {
+            gAssets.sounds.click2.play()
+        }
+    }
+
+    _historyApplyIndex(idx) {
+        if (idx >= 0 && idx < this.history.length) {
+            console.log("apply event ", idx, this.history.length)
+            let event = this.history[idx]
+
+            if (Object.hasOwn(event, 'layer_id')) {
+                console.log("history apply tiles")
+                this.map.layers[event.layer_id] = JSON.parse(event.layer)
+            }
+
+            if (Object.hasOwn(event, 'objects')) {
+                console.log("history apply object")
+                this.map.objects = JSON.parse(event.objects)
+            }
+        }
     }
 
     handleTouches(touches) {
@@ -2263,91 +2369,6 @@ export class LevelEditScene extends GameScene {
                         this.change_object = false //reset
                     }
                 }
-            }
-        }
-    }
-
-    historyPush(change_tile, change_object) {
-
-        // remove old entries that were discarded by the user
-        while (this.history_index > 0) {
-            console.log("remove events")
-            this.history.pop()
-            this.history_index -= 1
-        }
-
-        // use json to easily create an immutable structure
-        // only save the layer or set of objects that were changed
-        let event = {}
-
-        // for now both tiles and objects must be saved
-        // in the future to save memory only save the thing that changed
-        // and have a pointer to the last saved state for other layers or
-        // unchanged objects
-        // if the history is [tile, object, tile]
-        // an undo should effectivley go back to the previous tile state
-        // maybe it needs separate history streams?
-        if (change_tile || change_object) {
-            event.layer_id = 0
-            event.layer = JSON.stringify(this.map.layers[0])
-            event.objects = JSON.stringify(this.map.objects)
-        }
-
-        this.history.push(event)
-
-        // enforce maximum number of entries
-        while (this.history.length > 10) {
-            this.history.shift()
-        }
-
-        // log the size
-        let history_size = this.history.map(h => (h?.layer??"").length + (h?.objects??"").length).reduce((a,b)=>a+b,0)
-        console.log(`history index=${this.history_index} num_entries=${this.history.length} size=${(history_size/1024).toFixed(1)}kb`)
-
-    }
-
-    historyPop() {
-        // history_index always points at the most recent event
-        // a pop should apply the previous state
-        // an unpop should reapply the most recently popped state
-
-        if (this.history_index < this.history.length-1) {
-            this.history_index += 1
-            let idx = (this.history.length - 1) - this.history_index
-            console.log("pop", idx, this.history.length, this.history_index)
-            this._historyApplyIndex(idx)
-            gAssets.sounds.click1.play()
-        } else {
-            gAssets.sounds.click2.play()
-        }
-    }
-
-    historyUnPop() {
-
-        if (this.history_index > 0) {
-            this.history_index -= 1
-            let idx = (this.history.length - 1) - this.history_index
-            console.log("unpop", idx, this.history.length, this.history_index)
-            this._historyApplyIndex(idx)
-            gAssets.sounds.click1.play()
-        } else {
-            gAssets.sounds.click2.play()
-        }
-    }
-
-    _historyApplyIndex(idx) {
-        if (idx >= 0 && idx < this.history.length) {
-            console.log("apply event ", idx, this.history.length)
-            let event = this.history[idx]
-
-            if (Object.hasOwn(event, 'layer_id')) {
-                console.log("history apply tiles")
-                this.map.layers[event.layer_id] = JSON.parse(event.layer)
-            }
-
-            if (Object.hasOwn(event, 'objects')) {
-                console.log("history apply object")
-                this.map.objects = JSON.parse(event.objects)
             }
         }
     }
