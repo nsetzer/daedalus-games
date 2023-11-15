@@ -657,7 +657,7 @@ export class CanvasEngine extends DomElement {
                 //this.delta_accum -= e
                 //this.scene.update(e)
 
-                while (this.delta_accum > dt) {
+                while (this.delta_accum > dt && n < 2) {
                     this.delta_accum -= dt
                     //const t0 = performance.now()
                     this.scene.update(dt)
@@ -665,6 +665,9 @@ export class CanvasEngine extends DomElement {
                     //const elapsed = t1 - t0
                     //
                     n += 1;
+                }
+                if (this.delta_accum > dt) {
+                    console.warn(`dropped ${this.delta_accum/dt} frames`)
                 }
                 const p2 = performance.now()
 

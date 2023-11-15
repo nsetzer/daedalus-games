@@ -15,6 +15,7 @@ export function get_map_world_manifest() {
 
     let url
     if (env.release) {
+        // in release mode the manifest must be pre-generated
         url = "static/maps/manifest.json"
     } else {
         url = env.baseUrl + "/api/map/world/manifest"
@@ -26,6 +27,7 @@ export function get_map_world_level_manifest(world) {
 
     let url
     if (env.release) {
+        // in release mode the manifest must be pre-generated
         url = "static/maps/" + world + "/manifest.json"
     } else {
         url = env.baseUrl + daedalus.util.joinpath('/api/map/world', world, 'level/manifest');
@@ -37,6 +39,10 @@ export function get_map_world_level_manifest(world) {
     return get_json(url, {})
 }
 
-get_map_world_manifest().then(json => console.log(json))
-get_map_world_level_manifest("zone1").then(json => console.log(json))
-get_map_world_level_manifest("zone3").then(json => console.log(json))
+export function post_map_level(path, body) {
+    const url = env.baseUrl + '/api/map/level';
+    const parameters = daedalus.util.serializeParameters({
+        'path': path,
+    })
+    return post_json(url + parameters, body, {})
+}

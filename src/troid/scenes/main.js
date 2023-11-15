@@ -328,7 +328,7 @@ class PauseScreen {
         this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
         this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
             const edit = true
-            gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
+            gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
                 gEngine.scene = new LevelEditScene()
             })
 

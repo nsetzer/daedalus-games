@@ -9,6 +9,8 @@
 //       arrow keys move the cursor. primary fire button clicks
 //       hide when there is a real mouse event
 
+$import("daedalus", {})
+
 $import("axertc_client", {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
@@ -30,6 +32,8 @@ $import("store", {MapInfo, gAssets})
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
 $import("entities", {editorEntities})
 $import("maps", {PlatformMap})
+$import("api", {post_map_level})
+
 
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
@@ -50,7 +54,7 @@ EditorTool.EDIT_OBJECT = 8
 class FileMenu {
     constructor(parent) {
 
-        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 2)
+        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 3)
         this.parent = parent
 
     }
@@ -81,6 +85,11 @@ class FileMenu {
 
                 this.parent.saveAs()
             }
+
+            if (tx == 0 && ty == 2) {
+                gEngine.scene = new LevelLoaderScene.scenes.select()
+            }
+
         }
     }
 
@@ -102,6 +111,8 @@ class FileMenu {
         y += 24
         this.parent.editor_icons.load.draw(ctx, x, y)
 
+        y += 24
+        this.parent.editor_icons.load.draw(ctx, x, y)
     }
 }
 
@@ -793,7 +804,7 @@ class ObjectPropertyEditMenu {
                     // worlds have names, levels have numbers
                     // a world editor could allow for a manifest
                     // that gives levels names in addition to the number
-                    this.addChoiceWidget({"name": "target_world_id", "choices":["zone1",], "default":"zone1"})
+                    this.addChoiceWidget({"name": "target_world_id", "choices":["world_01",], "default":"world_01"})
                     this.addChoiceWidget({"name": "target_level_id", "choices":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], "default": 1})
                     this.addChoiceWidget({"name": "target_door_id", "choices":[1,2,3,4,5,6,7,8], "default": 1})
                 }
@@ -919,7 +930,7 @@ class ObjectPropertyEditMenu {
 
         if (root_index === undefined || root_index < 0) {
             root_index = 0
-            console.error("no option set")
+            console.error("no option set for " + schema.name)
         }
 
         const y = this._y
@@ -954,7 +965,7 @@ class ObjectPropertyEditMenu {
                 ctx.strokeStyle = "black"
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
-                let option_name = options[root.index][0]
+                let option_name = options[root.index][1]
                 ctx.fillText(option_name, 8+16+32, y+12 + 8);
             }
         })
@@ -1830,7 +1841,7 @@ export class LevelEditScene extends GameScene {
             }
 
             if (schema.control == 2) {
-                props["target_world_id"] = 1
+                props["target_world_id"] = "world_01"
                 props["target_level_id"] = 1
                 props["target_door_id"] = 1
             }
@@ -2102,14 +2113,22 @@ export class LevelEditScene extends GameScene {
 
         let fname = "map-" + tw + "x" + th + "-" + y+m+d+"-"+H+M+S + ".json"
 
-        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
-        let downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href",     dataStr);
-        downloadAnchorNode.setAttribute("download", fname);
-        downloadAnchorNode.setAttribute("target", "_blank");
-        document.body.appendChild(downloadAnchorNode); // required for firefox
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        if (daedalus.env.debug) {
+            // save the file using the webserver
+            console.log("save: " + gAssets.mapinfo.mapurl)
+            post_map_level(gAssets.mapinfo.mapurl, map)
+        } else {
+            // download the file in release mode
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(map));
+            let downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("download", fname);
+            downloadAnchorNode.setAttribute("target", "_blank");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
     }
 
 

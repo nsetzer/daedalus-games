@@ -15,17 +15,19 @@ class TroidService(object):
         self.project_root = project_root
 
     def world_manifest(self):
-        root = os.path.join(self.project_root, "resource", "maps")
-        if not os.path.exists(root):
+        resource_root = os.path.join(self.project_root, "resource")
+        maps_root = os.path.join(resource_root, "maps")
+        if not os.path.exists(maps_root):
             raise FileNotFoundError("project root not found")
 
-        worlds = glob.glob(os.path.join(root, "*", ""))
+        worlds = glob.glob(os.path.join(maps_root, "*", ""))
         worlds = [os.path.split(path.rstrip(os.sep))[1] for path in worlds]
         return worlds
 
     def level_manifest(self, world):
         resource_root = os.path.join(self.project_root, "resource")
-        world_root = os.path.join(resource_root, "maps", world)
+        maps_root = os.path.join(resource_root, "maps")
+        world_root = path_join_safe(maps_root, world)
         if not os.path.exists(world_root):
             raise FileNotFoundError("world root not found")
 
@@ -45,6 +47,14 @@ class TroidService(object):
                 levels.append(level)
 
         return levels
+
+    def save_level(self, path, obj):
+        resource_root = os.path.join(self.project_root, "resource")
+        json_path = path_join_safe(resource_root, path)
+
+        with open(json_path, "w") as wf:
+            json.dump(obj, wf)
+            wf.write("\n")
 
 class TroidResource(Resource):
 
@@ -67,15 +77,21 @@ class TroidResource(Resource):
         levels = self.service.level_manifest(matches['world'])
         return JsonResponse({"world": matches['world'], "levels": levels})
 
-    @post("/api/map/level/:path")
-    def get_map_world_level_manifest(self, request, location, matches):
+    @post("/api/map/level")
+    def post_map_level(self, request, location, matches):
         # save the level json to :path which is {world}/level_{id}.json
         resource_root = os.path.join(self.project_root, "resource", "maps")
-        return JsonResponse({"error": "world root not found"}, 500)
 
-    @post("/api")
-    def post_style(self, request, location, matches):
-        pass
+        paths = request.query.get("path", [])
+        if len(paths) != 1:
+            return JsonResponse({"error": "path not set"}, 400)
+
+        path = paths[0]
+        obj = request.json()
+
+        self.service.save_level(path, obj)
+
+        return JsonResponse({"message": "success"}, 200)
 
 class TroidServer(Server):
 
@@ -101,7 +117,7 @@ class TroidServer(Server):
 def main():
     # --env debug=true src/troid/troid.js
 
-    if sys.argv[1] == "build":
+    if len(sys.argv) > 1 and sys.argv[1] == "build":
         print("build")
         project_root = "./src/troid"
         service = TroidService(project_root)

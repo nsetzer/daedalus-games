@@ -34,7 +34,12 @@ export default class Application extends ApplicationBase {
         const query = daedalus.util.parseParameters()
 
         // hack to avoid importing the main scene in the editor
-        LevelLoaderScene.scenes = {main: MainScene, edit:LevelEditScene}
+        LevelLoaderScene.scenes = {
+            main: MainScene,
+            edit: LevelEditScene,
+            select: LevelEditSelectScene,
+
+        }
         // hack to avoid circular import
         gCharacterInfo.transitionToLevel = transitionToLevel
 

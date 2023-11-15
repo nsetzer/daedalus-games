@@ -738,6 +738,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
     constructor(mapurl, edit, success_cbk) {
 
         super(success_cbk);
+        console.log("load: " + mapurl)
 
         //this.mapurl = "maps/" + this.mapid + ".json"
         this.mapurl = mapurl
@@ -763,6 +764,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
         if (this.mapurl == gAssets.mapinfo.mapurl && this.mapurl !== null) {
             console.log("load current level")
         } else if (this.mapurl == null) {
+            console.log("load new level")
             gAssets.mapinfo = new MapInfo()
             gAssets.mapinfo.mapurl = this.mapurl
             gAssets.mapinfo.theme = "plains"
@@ -771,6 +773,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
             gAssets.mapinfo.layers = [{}]
             gAssets.mapinfo.objects = []
         } else if (!!this.mapurl) {
+            console.log("load level:", RES_ROOT + "/" + this.mapurl)
 
             gAssets.mapinfo = new MapInfo()
             gAssets.mapinfo.mapurl = this.mapurl

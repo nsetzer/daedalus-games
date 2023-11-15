@@ -135,7 +135,7 @@ class TextInputContainer extends DomElement {
 
     elementMounted() {
 
-        console.log("on touch mount", this.getDomNode().contains(this.text.getDomNode()))
+        //console.log("on touch mount", this.getDomNode().contains(this.text.getDomNode()))
     }
     submit() {
         this.addClassName(style.hidden)
