@@ -1,7 +1,7 @@
  
 
 $import("daedalus", {})
-$import("api.requests", {})
+$include("./requests.js")
 
 export const env = {
     //`http://${window.location.hostname}:4100`
@@ -19,7 +19,7 @@ export function get_map_world_manifest() {
     } else {
         url = env.baseUrl + "/api/map/world/manifest"
     }
-    return api.requests.get_json(url, {})
+    return get_json(url, {})
 }
 
 export function get_map_world_level_manifest(world) {
@@ -34,7 +34,7 @@ export function get_map_world_level_manifest(world) {
     //const params = daedalus.util.serializeParameters({
     //    'token': getAuthToken(),
     //})
-    return api.requests.get_json(url, {})
+    return get_json(url, {})
 }
 
 get_map_world_manifest().then(json => console.log(json))
