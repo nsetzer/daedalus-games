@@ -89,7 +89,7 @@ export const gCharacterInfo = new CharacterInfo()
 
 export class MapInfo {
     constructor() {
-        this.mapid = null
+        this.mapurl = null
         this.theme = ""
         this.width = 24 * 16 // 1 screen is 24x14 tiles
         this.height = 14 * 16

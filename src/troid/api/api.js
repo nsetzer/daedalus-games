@@ -7,18 +7,30 @@ export const env = {
     //`http://${window.location.hostname}:4100`
     // baseUrl is empty when running in production
     // for development set to the full qualified url of the backend
-    baseUrl: (daedalus?.env?.baseUrl)??window.location.origin
+    baseUrl: (daedalus?.env?.baseUrl)??window.location.origin,
+    release: !daedalus.env.debug
 }
-console.log(env)
 
-function get_map_world_manifest() {
+export function get_map_world_manifest() {
 
-    const url = env.baseUrl + "/api/map/world/manifest"
+    let url
+    if (env.release) {
+        url = "static/maps/manifest.json"
+    } else {
+        url = env.baseUrl + "/api/map/world/manifest"
+    }
     return api.requests.get_json(url, {})
 }
 
-function get_map_world_level_manifest(world) {
-    const url = env.baseUrl + daedalus.util.joinpath('/api/map/world', world, 'level/manifest');
+export function get_map_world_level_manifest(world) {
+
+    let url
+    if (env.release) {
+        url = "static/maps/" + world + "/manifest.json"
+    } else {
+        url = env.baseUrl + daedalus.util.joinpath('/api/map/world', world, 'level/manifest');
+    }
+
     //const params = daedalus.util.serializeParameters({
     //    'token': getAuthToken(),
     //})

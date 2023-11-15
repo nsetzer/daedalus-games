@@ -2014,7 +2014,7 @@ export class LevelEditScene extends GameScene {
 
     playTest() {
 
-        gAssets.mapinfo.mapid = "editor-playtest"
+        gAssets.mapinfo.mapurl = "editor-playtest"
 
         gAssets.mapinfo.width = this.map.width
         gAssets.mapinfo.height = this.map.height
@@ -2035,7 +2035,8 @@ export class LevelEditScene extends GameScene {
         gAssets.mapinfo.objects = objects0
 
         const edit = false
-        gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapid, edit, ()=>{
+        console.log("playtest", gAssets.mapinfo.mapurl)
+        gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
             gEngine.scene = new LevelLoaderScene.scenes.main()
         })
 

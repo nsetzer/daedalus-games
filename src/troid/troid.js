@@ -55,13 +55,16 @@ export default class Application extends ApplicationBase {
 
             const edit = true
             // mapid can be null or a filename
-            const mapid = "level1" // "map-2x1-20231112-120815"
+            const mapurl = null // "map-2x1-20231112-120815"
 
-            return new LevelLoaderScene(mapid, edit, ()=>{
+            return new LevelLoaderScene(mapurl, edit, ()=>{
 
                 if (edit) {
-                    gEngine.scene = new LevelEditSelectScene()
-                    //gEngine.scene = new LevelEditScene()
+                    if (mapurl === null) {
+                        gEngine.scene = new LevelEditSelectScene()
+                    } else {
+                        gEngine.scene = new LevelEditScene()
+                    }
                 } else {
                     gEngine.scene = new MainScene()
                 }

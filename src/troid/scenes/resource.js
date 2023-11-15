@@ -735,11 +735,12 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
     // tile chunks are 4 * 7 tiles
 
-    constructor(mapid, edit, success_cbk) {
+    constructor(mapurl, edit, success_cbk) {
 
         super(success_cbk);
 
-        this.mapid = mapid
+        //this.mapurl = "maps/" + this.mapid + ".json"
+        this.mapurl = mapurl
         this.task_edit = edit
 
         this.index = 0
@@ -759,17 +760,30 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
         this.pipeline = []
 
-        if (this.mapid == gAssets.mapinfo.mapid) {
+        if (this.mapurl == gAssets.mapinfo.mapurl && this.mapurl !== null) {
             console.log("load current level")
-        } else if (!!this.mapid) {
+        } else if (this.mapurl == null) {
+            gAssets.mapinfo = new MapInfo()
+            gAssets.mapinfo.mapurl = this.mapurl
+            gAssets.mapinfo.theme = "plains"
+            gAssets.mapinfo.width = 24*16
+            gAssets.mapinfo.height = 14*16
+            gAssets.mapinfo.layers = [{}]
+            gAssets.mapinfo.objects = []
+        } else if (!!this.mapurl) {
 
             gAssets.mapinfo = new MapInfo()
-            gAssets.mapinfo.mapid = this.mapid
+            gAssets.mapinfo.mapurl = this.mapurl
+            gAssets.mapinfo.theme = "plains"
+            gAssets.mapinfo.width = 24*16
+            gAssets.mapinfo.height = 14*16
+            gAssets.mapinfo.layers = [{}]
+            gAssets.mapinfo.objects = []
 
             const info_loader = new ResourceLoader()
 
             info_loader.addJson("map")
-                .path(RES_ROOT + "/maps/" + this.mapid + ".json")
+                .path(RES_ROOT + "/" + this.mapurl)
                 .transform(json => {
 
                     json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
@@ -809,11 +823,9 @@ export class LevelLoaderScene extends ResourceLoaderScene {
 
             this.pipeline.push(info_loader)
         } else if (!this.task_edit) {
-            throw {"error": "mapid is null", "mapid": this.mapid, "edit":this.task_edit}
+            throw {"error": "mapid is null", "mapurl": this.mapurl, "edit":this.task_edit}
         } else {
-            console.log("create new map")
-            gAssets.mapinfo = new MapInfo()
-            gAssets.mapinfo.mapid = "map"
+            throw {"error": "unknown task", "mapurl": this.mapurl, "edit":this.task_edit}
         }
 
         this.pipeline.push(new AssetLoader())
