@@ -2220,7 +2220,7 @@ export class Door extends PlatformerEntity {
                     //this.spawnEntity(this.spawn_target)
 
                     gCharacterInfo.transitionToLevel(this.target_world_id, this.target_level_id, this.target_door_id)
-
+                    this.spawn_target = null // prevent transitioning again
                 }
             } else {
                 this.spawn_target.rect.x += this.spawn_dx * dt
