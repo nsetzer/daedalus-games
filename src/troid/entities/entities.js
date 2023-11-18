@@ -577,13 +577,13 @@ export class BounceBullet extends ProjectileBase {
 
         this.physics = new Physics2dPlatform(this,{
             xmaxspeed1: 200,
-            xmaxspeed2: 200, // 35 seems right
-            jumpheight: 32,
-            jumpduration: .11,
+            xmaxspeed2: 200,
+            jumpheight: 20,
+            jumpduration: .08,
         })
         this.physics.xfriction = 0
         this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent instanceof PlatformBase})
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return (ent instanceof PlatformBase || ent.solid)})
         }
         this.solid = 0
         this.collide = 1
@@ -2432,15 +2432,15 @@ export class Creeper extends MobBase {
         this.animations["run"][Direction.RIGHT] = aid
 
         this.animations["dead"][Direction.NONE] = this.animation.register(
-            gAssets.sheets.beams16,
-            [18*7+0, 18*7+1, 18*7+2, 18*7+3],
-            spf, {xoffset:-2, yoffset:-2, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+            sheet,
+            [3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
+            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
 
         // flat then poof
         this.animations["dead2"][Direction.NONE] = this.animation.register(
-            gAssets.sheets.beams16,
-            [18*7+0, 18*7+1, 18*7+2, 18*7+3],
-            spf, {xoffset:-2, yoffset:-2, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+            sheet,
+            [3*ncols+0, 3*ncols+0, 3*ncols+0, 3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
+            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
 
         this.animation.setAnimationById(this.animations.run[Direction.LEFT])
 
@@ -2467,7 +2467,7 @@ export class Creeper extends MobBase {
             if (!this.character.frozen) {
                 if (other instanceof Player) {
                     other._bounce()
-                    this._kill()
+                    this._kill2()
                     return null
                 }
             } else {
@@ -2525,6 +2525,11 @@ export class Creeper extends MobBase {
     _kill() {
         this.character.alive = false
         this.animation.setAnimationById(this.animations["dead"][Direction.NONE])
+    }
+
+    _kill2() {
+        this.character.alive = false
+        this.animation.setAnimationById(this.animations["dead2"][Direction.NONE])
     }
 
     onDeathAnimationEnd() {

@@ -271,9 +271,12 @@ export class TouchInput {
 
         let p = this._align_wheel(x, y, alignment)
         this.wheels.push({
+            // user defined configuration
             x, y, radius,
+            // cx,cy are derived from x,y and depend on the canvas scale
             cx: p.cx,
             cy: p.cy,
+            scale: 1.5,
             alignment: alignment,
             vector: {x:0, y:0},
             pressed: false,
@@ -442,7 +445,7 @@ export class TouchInput {
             for (let i=touches.length-1; i >= 0; i--) {
                 const dx = wheel.cx - touches[i].x
                 const dy = wheel.cy - touches[i].y
-                const dr = wheel.radius * 2
+                const dr = (wheel.radius/gEngine.view.scale) * wheel.scale
                 if ((dx*dx + dy*dy) < dr*dr) {
                     touch = touches[i]
                     touches.splice(i, 1);
@@ -565,6 +568,17 @@ export class TouchInput {
             ctx.arc(cx, cyt, radius, 0, 2*Math.PI);
             ctx.fill();
 
+            //ctx.strokeStyle = '#FF0000';
+            //ctx.beginPath();
+            //ctx.arc(cx, cy, whl.radius/gEngine.view.scale * whl.scale, 0, 2*Math.PI);
+            //ctx.stroke();
+            //ctx.beginPath();
+            //ctx.lineWidth = 3
+            //ctx.moveTo(cx, cy);
+            //ctx.lineTo(0, gEngine.view.height);
+            //ctx.lineWidth = 1
+            //ctx.stroke();
+
             if (whl.symbols != null) {
                 ctx.font = "10px";
                 ctx.fillStyle = "black"
@@ -594,6 +608,14 @@ export class TouchInput {
                 _arrow_draw(ctx, this.arrows.down,  cx, cyt)
                 _arrow_draw(ctx, this.arrows.left,  cxr, cy)
             }
+
+            //ctx.font = "10px";
+            //ctx.fillStyle = "black"
+            //ctx.strokeStyle = "black"
+            //ctx.textAlign = "center"
+            //ctx.textBaseline = "middle"
+            //ctx.fillText("" + dr.toFixed(1) + "," + gEngine.view.scale, cx, cy);
+
 
         }
 

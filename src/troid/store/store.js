@@ -74,7 +74,7 @@ export class CharacterInfo {
 
     constructor() {
         this.element = WeaponType.ELEMENT.POWER
-        this.beam = WeaponType.BEAM.WAVE
+        this.beam = WeaponType.BEAM.BOUNCE
         this.level = WeaponType.LEVEL.LEVEL3
         this.modifier = WeaponType.MODIFIER.RAPID
 
