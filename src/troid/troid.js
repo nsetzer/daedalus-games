@@ -58,9 +58,9 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = true
+            const edit = false
             // mapid can be null or a filename
-            const mapurl = null // "map-2x1-20231112-120815"
+            const mapurl = "maps/world_01/level_01.json"
 
             return new LevelLoaderScene(mapurl, edit, ()=>{
 

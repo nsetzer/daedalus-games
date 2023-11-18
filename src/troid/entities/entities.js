@@ -1125,7 +1125,6 @@ export class CharacterComponent {
     }
 }
 
-
 export class Player extends PlatformerEntity {
 
     constructor(entid, props) {
@@ -1760,9 +1759,17 @@ export class Brick extends PlatformerEntity {
         this.breakable = 0
         this.alive = 1
         this.solid = 1
+
+        this.particles = []
+        this.timer = 0
+        this.timeout = 2 // enough time for particles to fall off the screen
     }
 
     collide(other, dx, dy) {
+
+        if (!this.alive) {
+            return null
+        }
 
         let rect = other.rect
         let update = rect.copy()
@@ -1784,7 +1791,7 @@ export class Brick extends PlatformerEntity {
 
         if (dy < 0 && rect.top() >= this.rect.top()) {
             if (other instanceof Player) {
-                this.destroy()
+                this._kill()
             }
             update.set_top(this.rect.bottom())
             return update
@@ -1794,11 +1801,47 @@ export class Brick extends PlatformerEntity {
     }
 
     paint(ctx) {
-        Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+
+        if (this.alive) {
+            Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+        } else {
+            // draw a quarter of the brick
+            this.particles.forEach(p => {
+                ctx.drawImage(Brick.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
+            })
+        }
     }
 
     update(dt) {
 
+        if (!this.alive) {
+
+            this.particles.forEach(p => {
+                p.x += p.dx*dt
+                p.y += p.dy*dt
+                p.dy += 500 * dt
+            })
+
+            this.timer += dt
+            if (this.timer >= this.timeout) {
+                this.destroy()
+            }
+        }
+    }
+
+    _kill() {
+        this.alive = 0
+        this.solid = 0
+
+        this.particles = []
+
+        let dx;
+        dx = ((Math.random() * 4) + 2)*10
+        this.particles.push({x:this.rect.x, y: this.rect.y, dx: dx, dy: -100})
+        this.particles.push({x:this.rect.x+8, y: this.rect.y, dx: -dx, dy: -100})
+        dx = ((Math.random() * 4) + 2)*10
+        this.particles.push({x:this.rect.x, y: this.rect.y+8, dx: dx, dy: 0})
+        this.particles.push({x:this.rect.x+8, y: this.rect.y+8, dx: -dx, dy: 0})
     }
 }
 Brick.sheet = null

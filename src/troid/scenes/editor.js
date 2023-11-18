@@ -84,6 +84,7 @@ class FileMenu {
             if (tx == 0 && ty == 0) {
 
                 this.parent.saveAs()
+                this.parent.active_menu = null
             }
 
             if (tx == 0 && ty == 2) {
