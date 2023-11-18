@@ -2331,7 +2331,7 @@ Door.editorSchema = [
 export class Creeper extends MobBase {
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 12, 12)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 14)
 
         this.animation = new AnimationComponent(this)
         this.visible = true
@@ -2356,9 +2356,9 @@ export class Creeper extends MobBase {
 
     buildAnimations() {
 
-        let spf = 1/8
-        let xoffset = - 6
-        let yoffset = - 4
+        let spf = 1/16
+        let xoffset = - 2
+        let yoffset = - 6
 
         this.animations = {
             "idle":{},
@@ -2368,13 +2368,14 @@ export class Creeper extends MobBase {
             "fall":{},
             "hit":{},
             "ball":{},
-            "dead":{}
+            "dead":{},
+            "dead2":{}
         }
 
-        let ncols = 3
-        let nrows = 3
-        let aid;
         let sheet = Creeper.sheet
+        let ncols = sheet.cols
+        let nrows = sheet.rows
+        let aid;
 
         aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.LEFT] = aid
@@ -2382,12 +2383,18 @@ export class Creeper extends MobBase {
         aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2, 0*ncols+1, 0*ncols+0, 0*ncols+3, 0*ncols+4, 0*ncols+3], spf, {xoffset, yoffset})
         this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2, 1*ncols+1, 1*ncols+0, 1*ncols+3, 1*ncols+4, 1*ncols+3], spf, {xoffset, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
 
         this.animations["dead"][Direction.NONE] = this.animation.register(
+            gAssets.sheets.beams16,
+            [18*7+0, 18*7+1, 18*7+2, 18*7+3],
+            spf, {xoffset:-2, yoffset:-2, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+
+        // flat then poof
+        this.animations["dead2"][Direction.NONE] = this.animation.register(
             gAssets.sheets.beams16,
             [18*7+0, 18*7+1, 18*7+2, 18*7+3],
             spf, {xoffset:-2, yoffset:-2, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
@@ -2438,13 +2445,15 @@ export class Creeper extends MobBase {
 
     paint(ctx) {
         //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+
+        this.animation.paint(ctx)
+
         //ctx.fillStyle = "red"
         //ctx.beginPath()
         //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
         //ctx.closePath()
         //ctx.fill()
 
-        this.animation.paint(ctx)
 
         //ctx.font = "bold 16px";
         //ctx.fillStyle = "yellow"

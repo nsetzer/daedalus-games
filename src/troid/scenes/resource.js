@@ -296,9 +296,9 @@ class AssetLoader {
             .spacing(1, 1)
 
         this.loader.addSpriteSheet("creeper")
-            .path(RES_ROOT + "/sprites/creeper.png")
-            .dimensions(24, 16)
-            .layout(3, 3)
+            .path(RES_ROOT + "/sprites/creeper2.png")
+            .dimensions(20, 20)
+            .layout(3, 5)
             .offset(1, 18)
             .spacing(1, 1)
 
