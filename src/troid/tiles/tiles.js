@@ -13,8 +13,8 @@ $import("axertc_common", {
  * using 1024, instead of 512, would double the max width and half the max height
  * without using any more bits
  */
-interface Tile {
-    tid: number        // (18 bits) encoded position ((y+4)*512 + x)
+type Tile = {
+    tid: number,        // (18 bits) encoded position ((y+4)*512 + x)
     shape: number,     // ( 3 bits) shape enum
     property: number,  // ( 3 bits) tile property enum
     sheet: number,     // ( 3 bits) index for the sheet to render this tile

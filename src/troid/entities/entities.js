@@ -382,7 +382,7 @@ export class BubbleBullet extends ProjectileBase {
             }
         }
 
-        this.solid = 1
+        this.solid = 0
         this.visible = 1
         this.alive = true
 
@@ -419,7 +419,9 @@ export class BubbleBullet extends ProjectileBase {
             return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
         }
 
-
+        // prevent colliding with the player when fired
+        this.touch_timer = 0
+        this.touch_duration = 0.25
     }
 
     buildAnimations() {
@@ -528,6 +530,25 @@ export class BubbleBullet extends ProjectileBase {
                 }
             }
 
+
+            if (this.touch_timer < this.touch_duration) {
+                this.touch_timer += dt
+            } else {
+                let objs = this._x_debug_map.queryObjects({"className": "Player"})
+                if (objs.length > 0) {
+                    let player = objs[0]
+
+                    if (this.rect.collideRect(player.rect)) {
+                        if (this.bubble_size == 2 && player.rect.cy() < this.rect.cy()) {
+                            player._bounce()
+                        }
+                        this._kill()
+                    }
+                }
+            }
+
+
+
         }
 
         this.animation.update(dt)
@@ -583,7 +604,9 @@ export class BounceBullet extends ProjectileBase {
         })
         this.physics.xfriction = 0
         this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return (ent instanceof PlatformBase || ent.solid)})
+            return Object.values(this._x_debug_map.objects).filter(ent=>{
+                return (ent instanceof PlatformBase || (ent.solid && !(ent instanceof MobBase)))
+            })
         }
         this.solid = 0
         this.collide = 1
@@ -1154,6 +1177,7 @@ export class Player extends PlatformerEntity {
         this.looking_up = false
 
         this.buildAnimations()
+        //this.buildAnimations2()
 
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
@@ -1173,6 +1197,114 @@ export class Player extends PlatformerEntity {
         this.alive = true
 
         this.direction = Direction.NONE
+
+    }
+
+    buildAnimations2() {
+
+        let spf = .1
+        let spf2 = 1/12
+        let xoffset = - 12
+        let yoffset = - 7
+        let yoffset2 = - 19
+
+        this.animations = {
+            "idle":{},
+            "run":{},
+            "wall_slide":{},
+            "jump":{},
+            "fall":{},
+            "hit":{},
+            "spawn":{},
+            "morphed":{"idle": {}, "run": {}},
+            "morph":{},
+            "unmorph":{},
+        }
+
+        let aid;
+        const sheet = Player.sheet2
+
+        const idle = (row) => [(row*sheet.cols + 0)]
+        const walk = (row) => [...Array(sheet.cols).keys()].map(i => (row*sheet.cols + i))
+        const jump = (row) => [(row*sheet.cols + 2)]
+        const fall = (row) => [(row*sheet.cols + 2)]
+        const hurt = (row) => [(row*sheet.cols + 0)]
+        const spawn = (row) => [(row*sheet.cols + 0)]
+        const ball = (row) => [(row*sheet.cols + 0)]
+        const morph = (row) => [(row*sheet.cols + 0)]
+        const unmorph = (row) => [(row*sheet.cols + 0)]
+
+        aid = this.animation.register(sheet, idle(0), spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.RIGHT] = aid
+        aid = this.animation.register(sheet, idle(1), spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.UPRIGHT] = aid
+
+        aid = this.animation.register(sheet, idle(2), spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, idle(3), spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, walk(0), spf, {xoffset, yoffset})
+        this.animations["run"][Direction.RIGHT] = aid
+        aid = this.animation.register(sheet, walk(1), spf, {xoffset, yoffset})
+        this.animations["run"][Direction.UPRIGHT] = aid
+
+        aid = this.animation.register(sheet, walk(2), spf, {xoffset, yoffset})
+        this.animations["run"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, walk(3), spf, {xoffset, yoffset})
+        this.animations["run"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, jump(0), spf, {xoffset, yoffset})
+        this.animations["jump"][Direction.RIGHT] = aid
+        aid = this.animation.register(sheet, jump(1), spf, {xoffset, yoffset})
+        this.animations["jump"][Direction.UPRIGHT] = aid
+
+        aid = this.animation.register(sheet, jump(2), spf, {xoffset, yoffset})
+        this.animations["jump"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, jump(3), spf, {xoffset, yoffset})
+        this.animations["jump"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, fall(0), spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.RIGHT] = aid
+        aid = this.animation.register(sheet, fall(1), spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.UPRIGHT] = aid
+
+        aid = this.animation.register(sheet, fall(2), spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, fall(3), spf, {xoffset, yoffset})
+        this.animations["fall"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, hurt(0), spf, {xoffset, yoffset})
+        this.animations["hit"][Direction.RIGHT] = aid
+        this.animations["hit"][Direction.LEFT] = aid
+        this.animations["hit"][Direction.UPRIGHT] = aid
+        this.animations["hit"][Direction.UPLEFT] = aid
+
+        this.animations["spawn"][Direction.RIGHT] = this.animations["run"][Direction.RIGHT]
+        this.animations["spawn"][Direction.LEFT] = this.animations["run"][Direction.LEFT]
+        aid = this.animation.register(sheet, spawn(0), spf, {xoffset, yoffset})
+        this.animations["spawn"][Direction.UP] = aid
+        this.animations["spawn"][Direction.DOWN] = aid
+
+        aid = this.animation.register(sheet, ball(0), spf, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['idle'][Direction.RIGHT] = aid
+
+        aid = this.animation.register(sheet, ball(1), spf, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['idle'][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, ball(2), spf2, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['run'][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, ball(3), spf2, {xoffset, yoffset:yoffset2})
+        this.animations["morphed"]['run'][Direction.RIGHT] = aid
+
+        this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
+
+        this.weapon_offset = {}
+        this.weapon_offset[Direction.RIGHT]   = {x: 12, y: 12}
+        this.weapon_offset[Direction.UPRIGHT] = {x: 12, y:  3}
+        this.weapon_offset[Direction.LEFT]    = {x: -8 + 3, y: 12}
+        this.weapon_offset[Direction.UPLEFT]  = {x: -6, y:  3}
 
     }
 
@@ -2744,6 +2876,7 @@ export const editorEntities = [
 
 export function registerEntities() {
     Player.sheet = gAssets.sheets.player
+    Player.sheet2 = gAssets.sheets.player2
 
     Brick.sheet = gAssets.sheets.brick
     Brick.icon = gAssets.sheets.brick.tile(0)

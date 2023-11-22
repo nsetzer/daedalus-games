@@ -586,13 +586,19 @@ export class CanvasEngine extends DomElement {
 
                 const p1 = performance.now()
                 let n = 0;
-                while (this.delta_accum > dt) {
+                while (this.delta_accum > dt && n < 2) {
                     this.delta_accum -= dt
                     this.spt_b = this.updateTimer()
                     this.frameIndex += 1
                     this.scene.update(dt)
                     n += 1;
                 }
+
+                if (this.delta_accum > dt) {
+                    console.warn(`${n}. dropped  ${this.delta_accum/dt} frames`)
+                    this.delta_accum = 0
+                }
+
                 const p2 = performance.now()
                 if (n > 0) {
                     this.spt_c = this.frameTimer()
@@ -623,90 +629,4 @@ export class CanvasEngine extends DomElement {
         window.requestAnimationFrame(this.render.bind(this));
     }
 
-    render2() {
-
-        if (!this.paused) {
-            window.requestAnimationFrame(this.render.bind(this));
-        }
-
-        let now = performance.now()
-
-        let dt = 1/60;
-
-        if (this.lastTime != null) {
-
-            const timings = []
-            //if (this.touch_event) {
-            //    this.scene.handleTouches(this.touch_event)
-            //}
-            let n = 0;
-
-            const elapsed = now - this.lastTime
-
-            if (!this.paused) {
-                this.delta_accum += (now - this.lastTime) / 1000.0;
-                //console.log(((now - this.lastTime) / 1000.0))
-
-                n = 0
-
-                const p1 = performance.now()
-
-                // if the frame delta were recorded for every CSP step:
-                //
-                //let e = Math.max(dt, this.delta_accum)
-                //this.delta_accum -= e
-                //this.scene.update(e)
-
-                while (this.delta_accum > dt && n < 2) {
-                    this.delta_accum -= dt
-                    //const t0 = performance.now()
-                    this.scene.update(dt)
-                    //const t1 = performance.now()
-                    //const elapsed = t1 - t0
-                    //
-                    n += 1;
-                }
-                if (this.delta_accum > dt) {
-                    console.warn(`dropped ${this.delta_accum/dt} frames`)
-                }
-                const p2 = performance.now()
-
-
-                if (n > 0) {
-                    this.renderFrame();
-
-                    const p3 = performance.now()
-
-                    timings.push((p2 - p1))
-                    timings.push((p3 - p2))
-
-                    now = performance.now()
-                    const e = (now - this.lastTime)/1000
-                    this.spt += (0.02551203525869137) * (e - this.spt)
-                    this.fps_timer -= 1
-                    if (this.fps_timer <= 0) {
-                        this.fps = Math.round(1.0/this.spt)
-                        console.log(performance.now())
-                        this.fps_timer = 300
-                    }
-                    this.lastTime = now;
-                    this.timings = timings
-
-                    //if (this.fps < 59) {
-                    //    console.warn("frame elapsed", elapsed, timings, n, this.fps)
-                    //}
-
-                }
-
-            }
-
-
-
-        } else {
-            this.lastTime = now;
-        }
-
-
-
-    }
 }
