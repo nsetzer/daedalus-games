@@ -91,7 +91,7 @@ export class SoundEffect {
     }
 }
 
-SoundEffect.global_volume = 1
+SoundEffect.global_volume = 0
 
 export class SoundEffectBuilder {
 

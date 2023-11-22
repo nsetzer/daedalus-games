@@ -515,8 +515,8 @@ export class MainScene extends GameScene {
 
         // camera
         ctx.beginPath();
-        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
-        ctx.clip();
+        //ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        //ctx.clip();
         ctx.translate(-this.camera.x, -this.camera.y)
 
         // blue sky background
@@ -530,6 +530,7 @@ export class MainScene extends GameScene {
             Math.min(gAssets.mapinfo.height - this.camera.y, gEngine.view.height))
         ctx.closePath()
         ctx.fill()
+        ctx.clip();
 
         // gutter
         //ctx.beginPath()

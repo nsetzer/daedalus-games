@@ -743,11 +743,13 @@ export class BounceBullet extends ProjectileBase {
 }
 
 export class BeamBase extends ProjectileBase {
-    constructor(parent) {
+    constructor(parent, wave) {
         super("", {})
 
         this.parent = parent
-        this.group = this.parent.physics.group
+        //this.group = this.parent.physics.group
+        let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>ent?.solid)
+        this.group = () => Object.values(this.parent._x_debug_map.objects).filter(rule)
 
         this.points = []
 
@@ -761,7 +763,7 @@ export class BeamBase extends ProjectileBase {
         this.final_maximum = (20 + this.strength * 2)
         this.dx = 4
 
-        this.oddonly = false
+        this.oddonly = false // only paint odd indexes
 
         this.targets2 = () => {
             return Object.values(this.parent._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
@@ -830,15 +832,26 @@ export class BeamBase extends ProjectileBase {
         if (gEngine.frameIndex%3==0) {
             this.targets = []
 
+            let dx1 = dx * strength
+            let dx2 = dx * Math.min(strength, maximum - strength)
+            let dx3 = dx/2 * Math.max(0, maximum - strength - strength)
+            let dy1 = dy * strength
+            let dy2 = 0
+            let dy3 = (4 * .7071) * Math.max(0, maximum - strength - strength)
+
             // add 32 for the size of the parent sprite
-            let w = ((maximum-strength) * Math.abs(dx) / 2) + ((1 + strength)*Math.abs(dx)) + 32
-            let h = (maximum-strength) * Math.abs((dy || dx)) + 32 + 32 // plus an extra 32
-            let x = this.parent.rect.cx()
+
+            let x1,x2,y1,y2
             if (this.parent.current_facing&Direction.LEFT) {
-                x -= w
+                x1 = this.parent.rect.cx() + dx1 + dx2 + dx3 - 32
+                x2 = this.parent.rect.cx()
+            } else {
+                x1 = this.parent.rect.cx()
+                x2 = this.parent.rect.cx() + dx1 + dx2 + dx3 + 32
             }
-            let y = this.parent.rect.cy() - (maximum * Math.abs(dy) / 2) - 32 // subtract extra 32
-            this.influence = new Rect(x,y,w,h)
+            y1 = this.parent.rect.cy() + Math.min(dy1, 0) - 32
+            y2 = this.parent.rect.cy() + dy1 + dy2 + dy3 + 32
+            this.influence = new Rect(x1,y1,x2-x1,y2-y1)
 
             this.targets = this.group().filter(ent => ent.rect.collideRect(this.influence))
         }
@@ -859,6 +872,10 @@ export class BeamBase extends ProjectileBase {
                 x += dx
                 y += dy
                 d = ((dy<0)?Direction.UP:Direction.NONE) | ((dx<0)?Direction.LEFT:Direction.RIGHT)
+            } else if (dy < 0 && i < 2*strength) {
+                x += dx
+                //y += dy
+                d = ((dx<0)?Direction.LEFT:Direction.RIGHT)
             } else {
                 x += dx/2
                 y += (4 * .7071)
@@ -882,11 +899,11 @@ export class BeamBase extends ProjectileBase {
 }
 
 export class WaterBeam extends BeamBase {
-    constructor(parent) {
-        super(parent)
+    constructor(parent, wave) {
+        super(parent, wave)
         // TODO: wave beam should not have gravity
-        this.strength = 6
-        this.final_maximum = (20 + this.strength * 2)
+        this.strength = 9
+        this.final_maximum = 4 * this.strength //(20 + this.strength * 2)
 
         this.tiles = {}
 
@@ -901,13 +918,13 @@ export class WaterBeam extends BeamBase {
 
     paint(ctx) {
 
-        //if (!!this.influence) {
-        //    ctx.beginPath()
-        //    ctx.fillStyle = "#00FF0022"
-        //    ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
-        //    ctx.closePath()
-        //    ctx.fill()
-        //}
+        if (!!this.influence) {
+            ctx.beginPath()
+            ctx.fillStyle = "#00FF0022"
+            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+            ctx.closePath()
+            ctx.fill()
+        }
 
 
         for (let i=0; i < this.points.length; i++) {
@@ -936,8 +953,8 @@ export class WaterBeam extends BeamBase {
 }
 
 export class FireBeam extends BeamBase {
-    constructor(parent) {
-        super(parent)
+    constructor(parent, wave) {
+        super(parent, wave)
 
         // only draws every other point
         // this improves the collision detection
@@ -1713,9 +1730,9 @@ export class Player extends PlatformerEntity {
                     if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
 
                         if (gCharacterInfo.element == WeaponType.ELEMENT.WATER && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new WaterBeam(this)
+                            this._beam = new WaterBeam(this, gCharacterInfo.beam == WeaponType.BEAM.WAVE)
                         } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new FireBeam(this)
+                            this._beam = new FireBeam(this, gCharacterInfo.beam == WeaponType.BEAM.WAVE)
                             charge_sound = gAssets.sounds.fireBeamFlameStart
                         } else {
                             this._shoot(0)

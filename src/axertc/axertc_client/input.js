@@ -236,8 +236,12 @@ export class TouchInput {
         this.wheels = []
         this.buttons = []
 
-        this.arrows = {}
-        this.scale = 0
+        this.arrows = {
+            up: _arrow(-1, 0, 4/gEngine.view.scale),
+            down: _arrow(1, 0, 4/gEngine.view.scale),
+            left: _arrow(0, -1, 4/gEngine.view.scale),
+            right: _arrow(0, 1, 4/gEngine.view.scale),
+        }
 
     }
 
@@ -276,7 +280,7 @@ export class TouchInput {
             // cx,cy are derived from x,y and depend on the canvas scale
             cx: p.cx,
             cy: p.cy,
-            scale: 1.5,
+            multiplier: options?.multiplier ?? 2,
             alignment: alignment,
             vector: {x:0, y:0},
             pressed: false,
@@ -445,7 +449,7 @@ export class TouchInput {
             for (let i=touches.length-1; i >= 0; i--) {
                 const dx = wheel.cx - touches[i].x
                 const dy = wheel.cy - touches[i].y
-                const dr = (wheel.radius/gEngine.view.scale) * wheel.scale
+                const dr = (wheel.radius/gEngine.view.scale) * wheel.multiplier
                 if ((dx*dx + dy*dy) < dr*dr) {
                     touch = touches[i]
                     touches.splice(i, 1);
@@ -496,6 +500,14 @@ export class TouchInput {
             button.cx = p.cx
             button.cy = p.cy
         }
+
+        this.arrows = {
+            up: _arrow(-1, 0, 4/gEngine.view.scale),
+            down: _arrow(1, 0, 4/gEngine.view.scale),
+            left: _arrow(0, -1, 4/gEngine.view.scale),
+            right: _arrow(0, 1, 4/gEngine.view.scale),
+        }
+
     }
 
     paint(ctx) {
@@ -593,16 +605,7 @@ export class TouchInput {
             } else {
 
                 ctx.fillStyle = '#000000';
-                if (gEngine.view.scale != this.scale) {
-                    this.scale = gEngine.view.scale
-                    this.arrows = {
-                        up: _arrow(-1, 0, 4/this.scale),
-                        down: _arrow(1, 0, 4/this.scale),
-                        left: _arrow(0, -1, 4/this.scale),
-                        right: _arrow(0, 1, 4/this.scale),
-                    }
 
-                }
                 _arrow_draw(ctx, this.arrows.up,    cx, cyb)
                 _arrow_draw(ctx, this.arrows.right, cxl, cy)
                 _arrow_draw(ctx, this.arrows.down,  cx, cyt)
