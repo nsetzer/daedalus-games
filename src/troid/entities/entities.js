@@ -574,9 +574,6 @@ export class BubbleBullet extends ProjectileBase {
 
         return null
     }
-
-
-
 }
 
 export class BounceBullet extends ProjectileBase {
@@ -773,13 +770,13 @@ export class BeamBase extends ProjectileBase {
 
     paint(ctx) {
 
-        if (!!this.influence) {
-            ctx.beginPath()
-            ctx.fillStyle = "#00FF0022"
-            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
-            ctx.closePath()
-            ctx.fill()
-        }
+        //if (!!this.influence) {
+        //    ctx.beginPath()
+        //    ctx.fillStyle = "#00FF0022"
+        //    ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+        //    ctx.closePath()
+        //    ctx.fill()
+        //}
 
 
         for (let i=0; i < this.points.length; i++) {
@@ -918,13 +915,13 @@ export class WaterBeam extends BeamBase {
 
     paint(ctx) {
 
-        if (!!this.influence) {
-            ctx.beginPath()
-            ctx.fillStyle = "#00FF0022"
-            ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
-            ctx.closePath()
-            ctx.fill()
-        }
+        //if (!!this.influence) {
+        //    ctx.beginPath()
+        //    ctx.fillStyle = "#00FF0022"
+        //    ctx.rect(this.influence.x,this.influence.y,this.influence.w,this.influence.h)
+        //    ctx.closePath()
+        //    ctx.fill()
+        //}
 
 
         for (let i=0; i < this.points.length; i++) {
@@ -1018,6 +1015,7 @@ export class FireBeam extends BeamBase {
     }
 }
 
+// TODO: projectiles reduce framerate if they move off screen on large maps
 function generateProjectiles(x,y,direction, power) {
 
     let projectiles = []
@@ -2860,7 +2858,10 @@ export class Coin extends PlatformerEntity {
 
                 const p = player.charge_duration / player.charge_timeout
 
-                if (p > .9) {
+                let c1 = (gCharacterInfo.element == WeaponType.ELEMENT.WATER && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE)
+                let c2 = (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE)
+
+                if (p > .9 && !c1 && !c2) {
 
                     let dx = x1 - x2
                     let dy = y1 - y2

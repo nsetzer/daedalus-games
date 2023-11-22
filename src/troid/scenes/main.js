@@ -515,8 +515,8 @@ export class MainScene extends GameScene {
 
         // camera
         ctx.beginPath();
-        //ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
-        //ctx.clip();
+        ctx.rect(0, 0, gEngine.view.width, gEngine.view.height);
+        ctx.clip();
         ctx.translate(-this.camera.x, -this.camera.y)
 
         // blue sky background
