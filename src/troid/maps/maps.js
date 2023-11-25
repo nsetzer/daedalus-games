@@ -11,9 +11,7 @@ $import("axertc_physics", {
 })
 
 $import("entities", {
-    Player, Coin, Brick,
-    Creeper, Shredder, Spawn, Door,
-    Bullet, BubbleBullet, BounceBullet, WaterBeam, FireBeam
+    defaultEntities, editorEntities
 })
 
 export class PlatformMap extends CspMap {
@@ -21,26 +19,18 @@ export class PlatformMap extends CspMap {
     constructor() {
         super()
 
-        // misc / non-editor entities
-        this.registerClass("Player", Player)
-        this.registerClass("Bullet", Bullet)
-        this.registerClass("BubbleBullet", BubbleBullet)
-        this.registerClass("BounceBullet", BounceBullet)
-        this.registerClass("WaterBeam", WaterBeam)
-        this.registerClass("FireBeam", FireBeam)
-
-        // tiles
         this.registerClass("Wall", Wall)
         this.registerClass("OneWayWall", OneWayWall)
         this.registerClass("Slope", Slope)
 
-        // objects
-        this.registerClass("Coin", Coin)
-        this.registerClass("Brick", Brick)
-        this.registerClass("Creeper", Creeper)
-        this.registerClass("Shredder", Shredder)
-        this.registerClass("Spawn", Spawn)
-        this.registerClass("Door", Door)
+        // misc / non-editor entities
+        defaultEntities.forEach(obj => {
+            this.registerClass(obj.name, obj.ctor)
+        })
+
+        editorEntities.forEach(obj => {
+            this.registerClass(obj.name, obj.ctor)
+        })
     }
 
     paint(ctx) {

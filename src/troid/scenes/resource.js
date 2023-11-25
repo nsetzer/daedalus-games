@@ -242,7 +242,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("player2")
             .path(RES_ROOT + "/sprites/player2.png")
             .dimensions(32, 32)
-            .layout(4, 8)
+            .layout(4, 10)
             .offset(1, 1)
             .spacing(1, 1)
 
@@ -270,9 +270,9 @@ class AssetLoader {
         this.loader.addSpriteSheet("brick")
             .path(RES_ROOT + "/sprites/brick.png")
             .dimensions(16, 16)
-            .layout(1, 1)
-            .offset(0, 0)
-            .spacing(0, 0)
+            .layout(2, 4)
+            .offset(1, 1)
+            .spacing(1, 1)
 
         this.loader.addSpriteSheet("coin")
             .path(RES_ROOT + "/sprites/coin.png")

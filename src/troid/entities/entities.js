@@ -1191,8 +1191,8 @@ export class Player extends PlatformerEntity {
 
         this.looking_up = false
 
-        this.buildAnimations()
-        //this.buildAnimations2()
+        //this.buildAnimations()
+        this.buildAnimations2()
 
         this.current_action = "idle"
         this.current_facing = Direction.RIGHT
@@ -1240,14 +1240,23 @@ export class Player extends PlatformerEntity {
         const sheet = Player.sheet2
 
         const idle = (row) => [(row*sheet.cols + 0)]
-        const walk = (row) => [...Array(sheet.cols).keys()].map(i => (row*sheet.cols + i))
+        const walk = (row) => [...Array(8).keys()].map(i => (row*sheet.cols + i))
         const jump = (row) => [(row*sheet.cols + 2)]
         const fall = (row) => [(row*sheet.cols + 2)]
-        const hurt = (row) => [(row*sheet.cols + 0)]
-        const spawn = (row) => [(row*sheet.cols + 0)]
-        const ball = (row) => [(row*sheet.cols + 0)]
-        const morph = (row) => [(row*sheet.cols + 0)]
-        const unmorph = (row) => [(row*sheet.cols + 0)]
+        const hurt = (row) => [(4*sheet.cols + 2)]
+        const spawn = (row) => [(4*sheet.cols + 1)]
+        const ball1 = () => [0,1,2,3].map(i => (7*sheet.cols + i))
+        const ball2 = () => [0,3,2,1].map(i => (7*sheet.cols + i))
+        const ball_idle = () => [(7*sheet.cols + 0)]
+        const morph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i))
+        const unmorph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i)).reverse()
+
+        console.log("--------------")
+        console.log(morph(0))
+        console.log(morph(1))
+        console.log(unmorph(0))
+        console.log(unmorph(1))
+        console.log("--------------")
 
         aid = this.animation.register(sheet, idle(0), spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
@@ -1301,16 +1310,30 @@ export class Player extends PlatformerEntity {
         this.animations["spawn"][Direction.UP] = aid
         this.animations["spawn"][Direction.DOWN] = aid
 
-        aid = this.animation.register(sheet, ball(0), spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, morph(0), spf/2, {xoffset, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
+        this.animations["morph"][Direction.RIGHT] = aid
+        this.animations["morph"][Direction.UPRIGHT] = aid
+        aid = this.animation.register(sheet, morph(1), spf/2, {xoffset, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
+        this.animations["morph"][Direction.LEFT] = aid
+        this.animations["morph"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, unmorph(0), spf/2, {xoffset, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
+        this.animations["unmorph"][Direction.RIGHT] = aid
+        this.animations["unmorph"][Direction.UPRIGHT] = aid
+        aid = this.animation.register(sheet, unmorph(1), spf/2, {xoffset, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
+        this.animations["unmorph"][Direction.LEFT] = aid
+        this.animations["unmorph"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, ball(1), spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, ball(2), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball1(), spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, ball(3), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball2(), spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
@@ -1504,7 +1527,13 @@ export class Player extends PlatformerEntity {
     _updateAnimation() {
 
         let aid;
-        if (this.morphed) {
+        let frame_id = -1
+        if (this.morphing) {
+            let mfacing = this.current_facing&Direction.LEFTRIGHT
+            let maction = this.morphed?"unmorph":"morph"
+            aid = this.animations[maction][mfacing]
+            frame_id = 1
+        } else if (this.morphed) {
             let mfacing = this.current_facing&Direction.LEFTRIGHT
             let maction =(this.current_action != "idle")?"run":"idle"
             aid = this.animations["morphed"][maction][mfacing]
@@ -1516,7 +1545,8 @@ export class Player extends PlatformerEntity {
             console.error(this.physics)
             throw {message: "invalid aid", aid, action:this.current_action, facing: this.current_facing}
         }
-        this.animation.setAnimationById(aid)
+
+        this.animation.setAnimationById(aid, frame_id)
     }
 
     update(dt) {
@@ -1767,20 +1797,53 @@ export class Player extends PlatformerEntity {
         } else if (payload.btnid === 2) {
             if (!payload.pressed) {
                 if (this.morphed) {
-                    this.rect.h = 24
-                    this.rect.y -= 12
-                    this.morphed = false
-
+                    //this.rect.h = 24
+                    //this.rect.y -= 12
+                    //this.morphed = false
+                    this._unmorph()
                 } else {
-                    this.rect.h = 12
-                    this.rect.y += 12
-                    this.morphed = true
+                    //this.rect.h = 12
+                    //this.rect.y += 12
+                    //this.morphed = true
+                    this._morph()
+
                 }
                 this._updateAnimation()
             }
 
         } else {
             console.log(payload)
+        }
+    }
+
+    onMorphEnd() {
+        this.rect.h = 12
+        this.rect.y += 12
+        this.morphing = false
+        this.morphed = true
+        this._updateAnimation()
+    }
+
+    onUnmorphEnd() {
+        this.morphing = false
+        this.morphed = false
+        this._updateAnimation()
+    }
+
+    _morph() {
+        if (!this.morphing && !this.morphed) {
+            this.morphing = true
+            this._updateAnimation()
+        }
+    }
+
+    _unmorph() {
+        if (!this.morphing && this.morphed) {
+            this.rect.h = 24
+            this.rect.y -= 12
+            this.morphing = true
+            //this.morphed = false
+            this._updateAnimation()
         }
     }
 
@@ -1950,11 +2013,11 @@ export class Brick extends PlatformerEntity {
     paint(ctx) {
 
         if (this.alive) {
-            Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+            this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
         } else {
             // draw a quarter of the brick
             this.particles.forEach(p => {
-                ctx.drawImage(Brick.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
+                ctx.drawImage(this.constructor.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
             })
         }
     }
@@ -1994,6 +2057,97 @@ export class Brick extends PlatformerEntity {
 Brick.sheet = null
 Brick.size = [16, 16]
 Brick.icon = null
+
+/**
+ * red switches active red platforms
+ * and deactivate blue platforms
+ * by default red platforms are always solid
+ */
+export class RedSwitch extends Brick {
+
+    paint(ctx) {
+        this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+    }
+
+    _kill() {
+
+        this._x_debug_map.queryObjects({"className": "RedPlatform"}).forEach(obj => {
+            //obj.visible = true;
+            obj.solid = true;
+        })
+
+        this._x_debug_map.queryObjects({"className": "BluePlatform"}).forEach(obj => {
+            //obj.visible = false;
+            obj.solid = false;
+        })
+        console.log("reveal red")
+    }
+}
+RedSwitch.sheet = null
+RedSwitch.size = [16, 16]
+RedSwitch.icon = null
+
+/**
+ * blue switches active blue platforms
+ * and deactivate red platforms
+ * by default blue platforms are always not solid
+ */
+export class BlueSwitch extends Brick {
+
+    paint(ctx) {
+        this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+    }
+
+    _kill() {
+        this._x_debug_map.queryObjects({"className": "RedPlatform"}).forEach(obj => {
+            //obj.visible = false;
+            obj.solid = false;
+        })
+
+        this._x_debug_map.queryObjects({"className": "BluePlatform"}).forEach(obj => {
+            //obj.visible = true;
+            obj.solid = true;
+        })
+        console.log("reveal blue")
+    }
+
+}
+BlueSwitch.sheet = null
+BlueSwitch.size = [16, 16]
+BlueSwitch.icon = null
+
+export class RedPlatform extends Brick {
+
+    paint(ctx) {
+        this.constructor.sheet.drawTile(ctx, this.solid?2:3, this.rect.x, this.rect.y)
+    }
+
+    _kill() {
+
+    }
+}
+RedPlatform.sheet = null
+RedPlatform.size = [16, 16]
+RedPlatform.icon = null
+
+export class BluePlatform extends Brick {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.solid = false
+    }
+    paint(ctx) {
+        this.constructor.sheet.drawTile(ctx, this.solid?6:7, this.rect.x, this.rect.y)
+    }
+
+    _kill() {
+
+    }
+}
+BluePlatform.sheet = null
+BluePlatform.size = [16, 16]
+BluePlatform.icon = null
+
 
 export class MobCharacterComponent {
 
@@ -2883,13 +3037,26 @@ Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
 
+export const defaultEntities = [
+    {name:"Player", ctor: Player},
+    {name:"Bullet", ctor: Bullet},
+    {name:"BubbleBullet", ctor: BubbleBullet},
+    {name:"BounceBullet", ctor: BounceBullet},
+    {name:"WaterBeam", ctor: WaterBeam},
+    {name:"FireBeam", ctor: FireBeam},
+]
+
 export const editorEntities = [
-    {name:"Coin", ctor: Coin}
-    {name:"Brick", ctor: Brick}
-    {name:"Creeper", ctor: Creeper}
-    {name:"Shredder", ctor: Shredder}
-    {name:"Spawn", ctor: Spawn}
-    {name:"Door", ctor: Door}
+    {name:"Coin", ctor: Coin},
+    {name:"Brick", ctor: Brick},
+    {name:"RedPlatform", ctor: RedPlatform},
+    {name:"RedBrick", ctor: RedSwitch},
+    {name:"BluePlatform", ctor: BluePlatform},
+    {name:"BlueBrick", ctor: BlueSwitch},
+    {name:"Creeper", ctor: Creeper},
+    {name:"Shredder", ctor: Shredder},
+    {name:"Spawn", ctor: Spawn},
+    {name:"Door", ctor: Door},
 ]
 
 export function registerEntities() {
@@ -2898,6 +3065,18 @@ export function registerEntities() {
 
     Brick.sheet = gAssets.sheets.brick
     Brick.icon = gAssets.sheets.brick.tile(0)
+
+    RedSwitch.sheet = gAssets.sheets.brick
+    RedSwitch.icon = gAssets.sheets.brick.tile(1)
+
+    BlueSwitch.sheet = gAssets.sheets.brick
+    BlueSwitch.icon = gAssets.sheets.brick.tile(5)
+
+    RedPlatform.sheet = gAssets.sheets.brick
+    RedPlatform.icon = gAssets.sheets.brick.tile(2)
+
+    BluePlatform.sheet = gAssets.sheets.brick
+    BluePlatform.icon = gAssets.sheets.brick.tile(6)
 
     Coin.sheet = gAssets.sheets.coin
     Coin.icon = gAssets.sheets.coin.tile(0)

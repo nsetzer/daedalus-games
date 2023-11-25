@@ -10,6 +10,9 @@ export class AnimationComponent {
         this.animations = {}
         this.animation = null
         this.timer = 0
+        this.frame_id = -1 // when changing animations,
+                           // if frame id is the same,
+                           // the frame index does not reset
         this.frame_index = 0
         this.aid = -1
         this.paused = 0
@@ -34,14 +37,17 @@ export class AnimationComponent {
         return aid
     }
 
-    setAnimationById(aid) {
+    setAnimationById(aid, frame_id=-1) {
         if (aid != this.aid) {
 
             if (aid === undefined || this.animations[aid] === undefined) {
                 console.error("invalid aid")
             } else {
                 this.timer = 0
-                this.frame_index = 0
+                if (frame_id < 0 || (frame_id != this.frame_id)) {
+                    this.frame_index = 0
+                }
+                this.frame_id = frame_id
                 this.animation = this.animations[aid]
                 this.aid = aid
             }

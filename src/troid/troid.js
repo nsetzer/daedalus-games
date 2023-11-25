@@ -44,7 +44,7 @@ export default class Application extends ApplicationBase {
         gCharacterInfo.transitionToLevel = transitionToLevel
 
 
-        const world_id = "zone1"
+        const world_id = "world_01"
         const level_id = 1
         const door_id = 1
         gCharacterInfo.current_map = {world_id, level_id, door_id}

@@ -2026,7 +2026,7 @@ export class LevelEditScene extends GameScene {
 
     playTest() {
 
-        gAssets.mapinfo.mapurl = "editor-playtest"
+        //gAssets.mapinfo.mapurl = "editor-playtest"
 
         gAssets.mapinfo.width = this.map.width
         gAssets.mapinfo.height = this.map.height
@@ -2083,7 +2083,6 @@ export class LevelEditScene extends GameScene {
                 if (Object.hasOwn(t[1], 'props') && Object.keys(t[1].props).length > 0) {
                     obj.props = t[1].props
                 }
-                console.log(obj, t[1])
                 return obj
             })
 
