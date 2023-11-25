@@ -316,6 +316,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("help_flower")
+            .path(RES_ROOT + "/sprites/flower.png")
+            .dimensions(32, 32)
+            .layout(2, 4)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("zone_01_sheet_01")
             .path(RES_ROOT + "/sprites/tile_ground_01.png")
             .dimensions(16, 16)

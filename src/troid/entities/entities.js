@@ -20,6 +20,7 @@ EditorControl.CHOICE = 1       // {name: str, default: value, choices: list-or-m
 EditorControl.DOOR_TARGET = 2  // {}
 EditorControl.DOOR_ID = 3      // {}
 EditorControl.DIRECTION_4WAY = 4    // {default: value}
+EditorControl.TEXT = 8         // {property: value, default: value}
 
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
@@ -2841,6 +2842,7 @@ Creeper.sheet = null
 Creeper.size = [16, 16]
 Creeper.icon = null
 
+
 export class Shredder extends MobBase {
     constructor(entid, props) {
         super(entid, props)
@@ -3037,6 +3039,113 @@ Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
 
+export class HelpFlower extends MobBase {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
+
+        this.animation = new AnimationComponent(this)
+        this.visible = true
+
+        this.breakable = 0
+        this.solid = 0
+
+        this.buildAnimations()
+
+        this.player_near = false
+    }
+
+    buildAnimations() {
+
+        let spf = .2
+        let xoffset = 0
+        let yoffset = 0
+
+        this.animations = {
+            "idle":{},
+            "talk":{},
+        }
+
+        let sheet = HelpFlower.sheet
+        let ncols = sheet.cols
+        let nrows = sheet.rows
+        let aid;
+
+        aid = this.animation.register(sheet, [0,1,2,3], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, [4,5,6,7], spf, {xoffset, yoffset})
+        this.animations["talk"][Direction.LEFT] = aid
+
+        this.animation.setAnimationById(this.animations.idle[Direction.LEFT])
+
+    }
+
+    paint(ctx) {
+        this.animation.paint(ctx)
+
+        if (this.player_near) {
+            //ctx.beginPath()
+            //ctx.rect()
+        }
+    }
+
+    update(dt) {
+        this.character.update(dt)
+        this.animation.update(dt)
+
+
+        let player_near = false
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            let player = objs[0]
+
+            let x1 = player.rect.cx()
+            let x2 = this.rect.cx()
+
+            let y1 = player.rect.cy()
+            let y2 = this.rect.cy()
+
+            let d = Math.sqrt(Math.pow(x1 - x2,2) + Math.pow(y1 - y2, 2))
+
+            if (d < 16 * 3) {
+                player_near = true
+
+            }
+        }
+
+        if (this.player_near != player_near) {
+            if (player_near) {
+                this.animation.setAnimationById(this.animations.talk[Direction.LEFT])
+            } else {
+                this.animation.setAnimationById(this.animations.idle[Direction.LEFT])
+            }
+            this.player_near = player_near
+        }
+
+
+    }
+
+    _kill() {
+    }
+
+    _kill2() {
+    }
+}
+
+HelpFlower.sheet = null
+HelpFlower.size = [32, 32]
+HelpFlower.icon = null
+HelpFlower.editorIcon = (props) => {
+    let tid = 0
+    return gAssets.sheets.help_flower.tile(tid)
+}
+HelpFlower.editorSchema = [
+    {control: EditorControl.TEXT, "property": "helpText"},
+]
+
+// entities that can be created in a level,
+// but cannot be created in the editor
 export const defaultEntities = [
     {name:"Player", ctor: Player},
     {name:"Bullet", ctor: Bullet},
@@ -3047,16 +3156,17 @@ export const defaultEntities = [
 ]
 
 export const editorEntities = [
-    {name:"Coin", ctor: Coin},
-    {name:"Brick", ctor: Brick},
-    {name:"RedPlatform", ctor: RedPlatform},
-    {name:"RedBrick", ctor: RedSwitch},
-    {name:"BluePlatform", ctor: BluePlatform},
-    {name:"BlueBrick", ctor: BlueSwitch},
-    {name:"Creeper", ctor: Creeper},
-    {name:"Shredder", ctor: Shredder},
-    {name:"Spawn", ctor: Spawn},
-    {name:"Door", ctor: Door},
+    {name:"Coin", ctor: Coin, category: 'item'},
+    {name:"Brick", ctor: Brick, category: 'item'},
+    {name:"RedPlatform", ctor: RedPlatform, category: 'switch'},
+    {name:"RedBrick", ctor: RedSwitch, category: 'switch'},
+    {name:"BluePlatform", ctor: BluePlatform, category: 'switch'},
+    {name:"BlueBrick", ctor: BlueSwitch, category: 'switch'},
+    {name:"Creeper", ctor: Creeper, category: 'small_mob'},
+    {name:"Shredder", ctor: Shredder, category: 'small_mob'},
+    {name:"HelpFlower", ctor: HelpFlower, category: 'friendly'},
+    {name:"Spawn", ctor: Spawn, category: "door"},
+    {name:"Door", ctor: Door, category: "door"},
 ]
 
 export function registerEntities() {
@@ -3099,6 +3209,9 @@ export function registerEntities() {
 
     Creeper.sheet = gAssets.sheets.creeper
     Creeper.icon = editorIcon(Creeper.sheet)
+
+    HelpFlower.sheet = gAssets.sheets.help_flower
+    HelpFlower.icon = editorIcon(HelpFlower.sheet)
 
     Shredder.sheet = gAssets.sheets.shredder
     Shredder.icon = editorIcon(Shredder.sheet)

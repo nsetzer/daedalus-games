@@ -30,7 +30,7 @@ $import("axertc_physics", {
 $import("store", {MapInfo, gAssets})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {editorEntities})
+$import("entities", {editorEntities, EditorControl})
 $import("maps", {PlatformMap})
 $import("api", {post_map_level})
 
@@ -796,11 +796,11 @@ class ObjectPropertyEditMenu {
             for (let i=0; i < this.schemaList.length; i++) {
 
                 let schema = this.schemaList[i]
-                if (schema.control == 1) {
+                if (schema.control == EditorControl.CHOICE) {
                     this.addChoiceWidget(schema)
                 }
 
-                if (schema.control == 2) {
+                if (schema.control == EditorControl.DOOR_TARGET) {
 
                     // worlds have names, levels have numbers
                     // a world editor could allow for a manifest
@@ -810,11 +810,11 @@ class ObjectPropertyEditMenu {
                     this.addChoiceWidget({"name": "target_door_id", "choices":[1,2,3,4,5,6,7,8], "default": 1})
                 }
 
-                if (schema.control == 3) {
+                if (schema.control == EditorControl.DOOR_ID) {
                     this.addDoorIdWidget(schema)
                 }
 
-                if (schema.control == 4) {
+                if (schema.control == EditorControl.DIRECTION_4WAY) {
                     this.addChoiceWidget({
                         "name": "direction",
                         "default": schema['default'],
@@ -824,6 +824,9 @@ class ObjectPropertyEditMenu {
                         "DOWN": Direction.DOWN,
                         "LEFT": Direction.LEFT,
                     }})
+                }
+                if (schema.control == EditorControl.TEXT) {
+                    this.addTextWidget(schema)
                 }
             }
         }
@@ -862,6 +865,64 @@ class ObjectPropertyEditMenu {
 
         this.actions.push(root)
         this._y += 16
+    }
+
+    addTextWidget(schema) {
+
+        let obj = this.parent.map.objects[this.oid]
+        const property_name = schema.property
+        const y = this._y
+        const label = {
+            render: (ctx) => {
+
+                ctx.strokeStyle = "black"
+                ctx.lineWidth = 2
+                ctx.beginPath()
+                ctx.moveTo(8,y-2)
+                ctx.lineTo(8+6*16, y-2)
+                ctx.closePath()
+                ctx.stroke()
+
+                ctx.beginPath()
+                ctx.font = "8px serif"
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "top"
+                ctx.fillText(property_name, 8, y+2);
+
+            },
+        }
+        const edit = {
+            render: (ctx) => {
+
+                ctx.save()
+                ctx.fillStyle = "#00000020"
+                ctx.strokeStyle = "black"
+                ctx.lineWidth = 1
+                ctx.beginPath()
+                ctx.rect(8,y+16-2, 6*16, 16)
+                ctx.closePath()
+                ctx.stroke()
+                ctx.fill()
+                ctx.clip()
+
+                ctx.beginPath()
+                ctx.font = "8px serif"
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "bottom"
+                ctx.fillText(obj.props[property_name], 8+2, y+16+2 + 12);
+
+                ctx.restore()
+
+            },
+        }
+
+        this.actions.push(label)
+        this.actions.push(edit)
+        this._y += 16 + 16
     }
 
     addDoorIdWidget(schema) {
@@ -1828,7 +1889,7 @@ export class LevelEditScene extends GameScene {
         let props = {}
         let is_door = false
         for (let i=0; i < schemaList.length; i++) {
-            if (schemaList[i].control == 3) {
+            if (schemaList[i].control == EditorControl.DOOR_ID) {
                 is_door = true;
                 break
             }
@@ -1837,11 +1898,11 @@ export class LevelEditScene extends GameScene {
         for (let i=0; i < schemaList.length; i++) {
             let schema = schemaList[i]
 
-            if (schema.control == 1) {
+            if (schema.control == EditorControl.CHOICE) {
                 props[schema.name] = schema['default']
             }
 
-            if (schema.control == 2) {
+            if (schema.control == EditorControl.DOOR_TARGET) {
                 props["target_world_id"] = "world_01"
                 props["target_level_id"] = 1
                 props["target_door_id"] = 1
@@ -1849,8 +1910,12 @@ export class LevelEditScene extends GameScene {
 
             // door id handled below
 
-            if (schema.control == 4) {
+            if (schema.control == EditorControl.DIRECTION_4WAY) {
                 props["direction"] = schema['default']
+            }
+
+            if (schema.control == EditorControl.TEXT) {
+                props[schema['property']??"text"] = schema['default']??"default text"
             }
         }
 
