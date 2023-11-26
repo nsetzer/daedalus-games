@@ -340,19 +340,20 @@ class PauseScreen {
         let x3 = gEngine.view.width/2
         let y3 = this.rect2.bottom() + 8
         this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
+        this.actions[this.actions.length - 1].text = "return"
         this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
             const edit = true
             gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
                 gEngine.scene = new LevelEditScene()
             })
-
         })
+        this.actions[this.actions.length - 1].text = "edit"
 
     }
 
     paint(ctx) {
 
-        let rect0 = new Rect(0, 24, gEngine.view.width, gEngine.view.height-24)
+        let rect0 = new Rect(0, 0, gEngine.view.width, gEngine.view.height)
         ctx.lineWidth = 1
         ctx.fillStyle = "#000000dd"
         ctx.beginPath()
@@ -377,12 +378,23 @@ class PauseScreen {
         ctx.closePath()
         ctx.stroke()
 
-        ctx.beginPath()
-        ctx.fillStyle = "#0000FF"
+
         this.actions.forEach(act => {
+            ctx.beginPath()
+            ctx.fillStyle = "#0000FF"
             ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+            ctx.fill()
+            if (act.text) {
+                ctx.font = "bold 16px";
+                ctx.fillStyle = "white"
+                ctx.strokeStyle = "white"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+
+                ctx.fillText(act.text, act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
+
+            }
         })
-        ctx.fill()
 
         this.actions.forEach(act => {
             if (!!act.icon) {
@@ -599,11 +611,12 @@ export class MainScene extends GameScene {
         ctx.restore()
 
 
-        this._paint_status(ctx)
+
 
         if (!!this.screen) {
             this.screen.paint(ctx)
         } else {
+            this._paint_status(ctx)
             this.touch.paint(ctx)
         }
 
