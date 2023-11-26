@@ -805,7 +805,7 @@ class ObjectPropertyEditMenu {
                     // worlds have names, levels have numbers
                     // a world editor could allow for a manifest
                     // that gives levels names in addition to the number
-                    this.addChoiceWidget({"name": "target_world_id", "choices":["world_01",], "default":"world_01"})
+                    this.addChoiceWidget({"name": "target_world_id", "choices":["<none>", "<current>", "world_01",], "default":"<current>"})
                     this.addChoiceWidget({"name": "target_level_id", "choices":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], "default": 1})
                     this.addChoiceWidget({"name": "target_door_id", "choices":[1,2,3,4,5,6,7,8], "default": 1})
                 }

@@ -73,11 +73,11 @@ export class KeyboardInput {
                 whl.keysDown.push(kc)
             }
 
+            // doubletap
             let doubletap = false
             let now = performance.now()
             if (now - whl.keyTime < 200) {
-                //this.target.doubleTapDirection(whlid, this.keyToDirection(whl, kc))
-                //console.log("double tap", whlid, this.keyToDirection(whl, kc), now - whl.keyTime)
+                this.target.tapDirection(whlid, this.keyToDirection(whl, kc), 2)
             }
             whl.keyTime = performance.now()
 
@@ -124,12 +124,12 @@ export class KeyboardInput {
 
             let v = this.getDirectionVector(whl)
 
+            //singletap
             let singletap = false
             let now = performance.now()
             if (now - whl.keyTime < 100) {
-                //console.log("single tap", whlid, Direction.fromVector(v.x, v.y), now - whl.keyTime)
+                this.target.tapDirection(whlid, Direction.fromVector(v.x, v.y), 1)
             }
-
 
             this.target.setInputDirection(whlid, v)
             whl.last_vector = {x:null, y:null}
@@ -356,12 +356,12 @@ export class TouchInput {
 
 
         if (first) {
+            //doubletap
             let now = performance.now()
             let curr_d = Direction.fromVector(cv.x, cv.y)
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
             if (curr_d == prev_d  && (now - prev_t < 200)) {
-                //this.target.doubleTapDirection(whlid, curr_d)
-                //console.log("double tap", whlid, curr_d, now - prev_t)
+                this.target.tapDirection(whlid, curr_d, 2)
             }
             this.wheels[whlid].vectorTime = [curr_d, now]
         }
@@ -376,12 +376,13 @@ export class TouchInput {
         }
 
         if (true) {
+            // singletap
             let now = performance.now()
             let v = this.wheels[whlid].vector
             let curr_d = Direction.fromVector(v.x, v.y)
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
             if (curr_d == prev_d  && (now - prev_t < 100)) {
-                //console.log("single tap", whlid, curr_d, (now - prev_t))
+                this.target.tapDirection(whlid, curr_d, 1)
             }
         }
 

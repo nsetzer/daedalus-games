@@ -1687,7 +1687,16 @@ export class Player extends PlatformerEntity {
             return
         }
 
-        if ("whlid" in payload) {
+        if ("tap_count" in payload) {
+
+            if (this.morphed && payload.direction == Direction.UP) {
+                this._unmorph()
+                this._updateAnimation()
+            } else if (!this.morphed && payload.direction == Direction.DOWN) {
+                this._morph()
+                this._updateAnimation()
+            }
+        } else if ("whlid" in payload) {
 
             this._x_input = payload.vector
             this.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
@@ -1793,23 +1802,6 @@ export class Player extends PlatformerEntity {
                     }
 
                 }
-            }
-
-        } else if (payload.btnid === 2) {
-            if (!payload.pressed) {
-                if (this.morphed) {
-                    //this.rect.h = 24
-                    //this.rect.y -= 12
-                    //this.morphed = false
-                    this._unmorph()
-                } else {
-                    //this.rect.h = 12
-                    //this.rect.y += 12
-                    //this.morphed = true
-                    this._morph()
-
-                }
-                this._updateAnimation()
             }
 
         } else {
@@ -2438,9 +2430,14 @@ export class Door extends PlatformerEntity {
         this.solid = 1
         //this.collide = 1
 
-        this.target_world_id = props?.target_world_id??0
+        this.target_world_id = props?.target_world_id??"<none>"
         this.target_level_id = props?.target_level_id??0
         this.target_door_id = props?.target_door_id??0
+
+        // todo: where best to unpack this?
+        if (this.target_world_id === "<current>") {
+            this.target_world_id = gCharacterInfo.current_map.world_id
+        }
 
         let tid = 0
         this.direction = props?.direction??Direction.UP
@@ -2561,8 +2558,6 @@ export class Door extends PlatformerEntity {
                 if (this.despawn_check()) {
                     console.log("despawn finished")
 
-                    // either transition or respawn.
-                    //this.spawnEntity(this.spawn_target)
 
                     gCharacterInfo.transitionToLevel(this.target_world_id, this.target_level_id, this.target_door_id)
                     this.spawn_target = null // prevent transitioning again
@@ -2601,6 +2596,10 @@ export class Door extends PlatformerEntity {
     }
 
     interact(ent, direction) {
+
+        if (this.target_world_id === "<none>") {
+            return
+        }
 
         if (Direction.flip[direction]==this.direction) {
 
@@ -3039,6 +3038,92 @@ Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
 
+class TextTyper {
+    //TODO: support multiple pages
+    //TODO: support typing one letter at a time
+    //TODO: auto advance and text type time controllable in settings (slow, medium, fast)
+    //TODO: page duration a function of the content
+    constructor(text) {
+
+        console.log("show text", text)
+        this.text = text
+
+        this.state = 0
+
+        this.timer_show = 0
+        this.timer_show_duration = 0.5
+
+        this.timer_page = 0
+        this.timer_page_duration = 3
+    }
+
+    paint(ctx) {
+
+        let x = gEngine.scene.camera.x
+        let y = gEngine.scene.camera.y + 48
+        let w = gEngine.view.width - 16
+        let h = 48
+
+        if (this.state == 0 || this.state == 2) {
+            w *= this.timer_show/this.timer_show_duration
+            ctx.beginPath()
+            ctx.fillStyle = "#000000c0"
+            ctx.rect(x + gEngine.view.width/2 - w/2, y, w, h)
+            ctx.closePath()
+            ctx.fill()
+        } else if (this.state == 1) {
+            ctx.beginPath()
+            ctx.fillStyle = "#000000c0"
+            let l = x + gEngine.view.width/2 - w/2
+
+            ctx.rect(l, y, w, h)
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.font = "bold 16px";
+            ctx.fillStyle = "white"
+            ctx.strokeStyle = "white"
+            ctx.textAlign = "left"
+            ctx.textBaseline = "top"
+            ctx.fillText(this.text, l + 8, y + 8);
+        }
+
+    }
+
+    dismiss() {
+        if (this.state < 2) {
+            this.timer_show = this.timer_show_duration
+            this.timer_page = this.timer_page_duration
+            this.state = 2 // dismiss
+        }
+    }
+
+    update(dt) {
+        if (this.state == 0) {
+            this.timer_show += dt
+            if (this.timer_show > this.timer_show_duration) {
+                this.timer_show = this.timer_show_duration
+                this.state = 1 // show text
+            }
+        } else if (this.state == 1) {
+            this.timer_page += dt
+            if (this.timer_page > this.timer_page_duration) {
+                this.timer_show = this.timer_show_duration
+                this.timer_page = this.timer_page_duration
+                this.state = 2 // dismiss
+            }
+
+        } else if (this.state == 2) {
+
+            this.timer_show -= dt
+            if (this.timer_show < 0) {
+                this.state = 3 // hide
+            }
+        }
+
+    }
+}
+
 export class HelpFlower extends MobBase {
     constructor(entid, props) {
         super(entid, props)
@@ -3053,6 +3138,9 @@ export class HelpFlower extends MobBase {
         this.buildAnimations()
 
         this.player_near = false
+
+        this.dialog = null
+        this.helpText = props?.helpText??"default help text"
     }
 
     buildAnimations() {
@@ -3074,8 +3162,14 @@ export class HelpFlower extends MobBase {
         aid = this.animation.register(sheet, [0,1,2,3], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.LEFT] = aid
 
+        aid = this.animation.register(sheet, [8,9,10,11], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.RIGHT] = aid
+
         aid = this.animation.register(sheet, [4,5,6,7], spf, {xoffset, yoffset})
         this.animations["talk"][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, [12,13,14,15], spf, {xoffset, yoffset})
+        this.animations["talk"][Direction.RIGHT] = aid
 
         this.animation.setAnimationById(this.animations.idle[Direction.LEFT])
 
@@ -3084,9 +3178,8 @@ export class HelpFlower extends MobBase {
     paint(ctx) {
         this.animation.paint(ctx)
 
-        if (this.player_near) {
-            //ctx.beginPath()
-            //ctx.rect()
+        if (this.dialog) {
+            this.dialog.paint(ctx)
         }
     }
 
@@ -3110,19 +3203,37 @@ export class HelpFlower extends MobBase {
 
             if (d < 16 * 3) {
                 player_near = true
-
             }
+
+            if (this.player_near != player_near) {
+                if (player_near) {
+                    this.animation.setAnimationById(this.animations.talk[this.facing])
+                } else {
+                    this.animation.setAnimationById(this.animations.idle[this.facing])
+                }
+                this.player_near = player_near
+
+                if (this.player_near) {
+                    this.dialog = new TextTyper(this.helpText)
+                } else {
+                    this.dialog.dismiss()
+                }
+            }
+
+            if (!this.player_near) {
+                if (player.rect.cx() < this.rect.cx()) {
+                    this.facing = Direction.LEFT
+                } else {
+                    this.facing = Direction.RIGHT
+                }
+                this.animation.setAnimationById(this.animations.idle[this.facing])
+            }
+
         }
 
-        if (this.player_near != player_near) {
-            if (player_near) {
-                this.animation.setAnimationById(this.animations.talk[Direction.LEFT])
-            } else {
-                this.animation.setAnimationById(this.animations.idle[Direction.LEFT])
-            }
-            this.player_near = player_near
+        if (this.dialog) {
+            this.dialog.update(dt)
         }
-
 
     }
 

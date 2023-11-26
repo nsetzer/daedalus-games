@@ -39,6 +39,20 @@ class CspController {
         console.log(whlid, direction)
     }
 
+    tapDirection(whlid, direction, tap_count) {
+
+        if (whlid == 0) {
+            const player = this.getPlayer()
+            if (!player) {
+                console.log("player not found")
+                return
+            }
+            player.ownedByClient = true
+
+            this.map.map.sendObjectInputEvent(player.entid, {whlid, direction, tap_count})
+        }
+    }
+
     setInputDirection(whlid, vector) {
         if (whlid == 0) {
             const player = this.getPlayer()
