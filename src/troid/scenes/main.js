@@ -444,34 +444,20 @@ export class MainScene extends GameScene {
             align: Alignment.LEFT|Alignment.BOTTOM,
             //symbols: ["W", "D", "S", "A"],
         })
-        this.touch.addButton(120, -40, 32, {})
-        this.touch.addButton(40, -120, 32, {})
-        this.touch.addButton(40, -40, 32, {})
-        //this.touch.addButton(240 - 32, -24, 32, {
-        //    align: Alignment.LEFT|Alignment.BOTTOM,
-        //    style: 'rect',
-        //})
-        //this.touch.addButton(240 - 32, -24, 32, {
-        //    align: Alignment.RIGHT|Alignment.BOTTOM,
-        //    style: 'rect',
-        //})
-
-        //this.touch.addButton(24, 24, 20, {
-        //    align: Alignment.RIGHT|Alignment.TOP,
-        //    style: 'rect',
-        //})
+        this.touch.addButton(120, -40, 32, {text: "Z"})
+        this.touch.addButton(40, -120, 32, {text: "X"})
+        this.touch.addButton(40, -40, 32, {text: "C"})
 
         this.keyboard.addWheel_ArrowKeys()
-        //this.keyboard.addButton(KeyboardInput.Keys.CTRL)
-        //this.keyboard.addButton(KeyboardInput.Keys.SPACE)
 
         this.keyboard.addButton(90) // Z
         this.keyboard.addButton(88) // X
         this.keyboard.addButton(67) // C
-        this.keyboard.addButton(27) // ESC
 
         this.camera = new Camera(this.map.map, this.map.map._x_player)
         this.screen =  null //  new PauseScreen(this)
+
+        this.dialog = null // something that implements paint(ctx), update(dt), dismiss()
 
     }
 
@@ -482,6 +468,10 @@ export class MainScene extends GameScene {
         if (!this.screen) {
             this.map.update(dt)
             this.camera.update(dt)
+
+            if (!!this.dialog) {
+                this.dialog.update(dt)
+            }
 
             if (!this.map.map._x_player.alive) {
                 if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
@@ -639,8 +629,9 @@ export class MainScene extends GameScene {
 
         ctx.restore()
 
-
-
+        if (!!this.dialog) {
+            this.dialog.paint(ctx)
+        }
 
         if (!!this.screen) {
             this.screen.paint(ctx)
@@ -701,11 +692,13 @@ export class MainScene extends GameScene {
     handleKeyRelease(keyevent) {
         if (!!this.screen) {
 
+            // check for escape pressed
             if (keyevent.keyCode == 27) {
                 gEngine.scene.screen = null
             }
         } else {
 
+            // check for escape pressed
             if (keyevent.keyCode == 27) {
                 gEngine.scene.screen = new PauseScreen(gEngine.scene)
             } else {

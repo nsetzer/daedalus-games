@@ -312,10 +312,12 @@ export class TouchInput {
         return {cx, cy}
     }
 
-    addButton(x, y, radius, options, icon=null) {
+    addButton(x, y, radius, options) {
 
         let alignment = options?.align ?? (Alignment.RIGHT|Alignment.BOTTOM)
         let style = options?.style ?? "circle"
+        let text = options?.text ?? null
+        let icon = options?.icon ?? null
 
         let p = this._align_button(x, y, alignment)
 
@@ -327,6 +329,7 @@ export class TouchInput {
             style: style,
             pressed: false,
             icon: icon,
+            text: text,
         })
     }
 
@@ -645,7 +648,9 @@ export class TouchInput {
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
 
-                ctx.fillText("" + i, btn.cx,btn.cy);
+                let text = "" + (btn.text ?? i)
+
+                ctx.fillText(text, btn.cx,btn.cy);
             }
             ctx.restore()
         }

@@ -3061,8 +3061,8 @@ class TextTyper {
 
     paint(ctx) {
 
-        let x = gEngine.scene.camera.x
-        let y = gEngine.scene.camera.y + 48
+        let x = 0 //gEngine.scene.camera.x
+        let y = 48 //gEngine.scene.camera.y + 48
         let w = gEngine.view.width - 16
         let h = 48
 
@@ -3089,7 +3089,6 @@ class TextTyper {
             ctx.textBaseline = "top"
             ctx.fillText(this.text, l + 8, y + 8);
         }
-
     }
 
     dismiss() {
@@ -3122,7 +3121,6 @@ class TextTyper {
                 this.state = 3 // hide
             }
         }
-
     }
 }
 
@@ -3179,16 +3177,11 @@ export class HelpFlower extends MobBase {
 
     paint(ctx) {
         this.animation.paint(ctx)
-
-        if (this.dialog) {
-            this.dialog.paint(ctx)
-        }
     }
 
     update(dt) {
         this.character.update(dt)
         this.animation.update(dt)
-
 
         let player_near = false
         let objs = this._x_debug_map.queryObjects({"className": "Player"})
@@ -3216,9 +3209,9 @@ export class HelpFlower extends MobBase {
                 this.player_near = player_near
 
                 if (this.player_near) {
-                    this.dialog = new TextTyper(this.helpText)
+                    gEngine.scene.dialog = new TextTyper(this.helpText)
                 } else {
-                    this.dialog.dismiss()
+                    gEngine.scene.dialog.dismiss()
                 }
             }
 
@@ -3230,13 +3223,7 @@ export class HelpFlower extends MobBase {
                 }
                 this.animation.setAnimationById(this.animations.idle[this.facing])
             }
-
         }
-
-        if (this.dialog) {
-            this.dialog.update(dt)
-        }
-
     }
 
     _kill() {

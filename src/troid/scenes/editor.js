@@ -113,7 +113,7 @@ class FileMenu {
         this.parent.editor_icons.load.draw(ctx, x, y)
 
         y += 24
-        this.parent.editor_icons.load.draw(ctx, x, y)
+        this.parent.editor_icons.exit.draw(ctx, x, y)
     }
 }
 
@@ -971,7 +971,18 @@ class ObjectPropertyEditMenu {
             .map(s => s.charAt(0).toUpperCase() + s.slice(1)) \
             .join(" ")
 
-        let options = Object.entries(schema.choices)
+        let options = null
+        let option_index = 0
+        console.log("!!", schema.choices)
+        if (!Array.isArray(schema.choices)) {
+            options = Object.entries(schema.choices)
+            option_index = 0
+        } else {
+            options = Object.entries(schema.choices)
+            option_index = 1
+        }
+        console.log("!!", options)
+        console.log("!!", option_index)
 
         let obj = this.parent.map.objects[this.oid]
 
@@ -1027,7 +1038,7 @@ class ObjectPropertyEditMenu {
                 ctx.strokeStyle = "black"
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
-                let option_name = options[root.index][1]
+                let option_name = options[root.index][option_index]
                 ctx.fillText(option_name, 8+16+32, y+12 + 8);
             }
         })
@@ -1172,6 +1183,7 @@ export class LevelEditScene extends GameScene {
             "play": gAssets.sheets.editor.tile(2*8+0),
             "undo": gAssets.sheets.editor.tile(2*8+6),
             "redo": gAssets.sheets.editor.tile(2*8+7),
+            "exit": gAssets.sheets.editor.tile(2*8+3),
         }
 
         this.editor_objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))

@@ -142,6 +142,7 @@ class ScrollArea {
 
         this.actions.push({
             rect: new Rect(rect.cx()-8, rect.top() + 4, 16, 16),
+            icon: gAssets.sheets.editor.tile(6),
             action: () => {
                 if (this.index > 0) {
                     this.index -= 1
@@ -152,6 +153,7 @@ class ScrollArea {
         })
         this.actions.push({
             rect: new Rect(rect.cx()-8, rect.bottom() - 4 - 16, 16, 16),
+            icon: gAssets.sheets.editor.tile(7),
             action: () => {
                 if (this.index < this.children.length - 1) {
                     this.index += 1
@@ -184,6 +186,10 @@ class ScrollArea {
             ctx.rect(rect.x, rect.y, rect.w, rect.h)
             ctx.closePath()
             ctx.stroke()
+
+            if (!!this.actions[i].icon) {
+                this.actions[i].icon.draw(ctx, rect.x, rect.y)
+            }
         }
 
         for (let i = this.index; i < this.index + this.count; i ++) {
@@ -284,6 +290,10 @@ class Button {
         ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 2)
         ctx.closePath()
         ctx.stroke()
+
+        if (!!this.icon) {
+            this.icon.draw(ctx, this.rect.x, this.rect.y)
+        }
     }
 
     handleTouches(touches) {
@@ -337,12 +347,12 @@ export class LevelEditSelectScene extends GameScene {
             this.onSelectWorld(0, worlds[0])
         })
 
-        this.btn_exit = new Button(new Rect(4, 4, 16, 16), null, () => {
+        this.btn_exit = new Button(new Rect(4, 4, 16, 16), gAssets.sheets.editor.tile(2*8+3), () => {
             console.log("exit")
         })
 
         let r = this.area_levels.rect
-        this.btn_new_level = new Button(new Rect(r.x+r.w-20, r.y+r.h - 20, 16, 16), null, () => {
+        this.btn_new_level = new Button(new Rect(r.x+r.w-20, r.y+r.h - 20, 16, 16), gAssets.sheets.editor.tile(2*8+4), () => {
             this.onCreateLevel()
         })
         this.widgets.push(this.btn_exit)

@@ -60,7 +60,7 @@ export default class Application extends ApplicationBase {
 
             const edit = false
             // mapid can be null or a filename
-            const mapurl = "maps/world_01/level_01.json"
+            const mapurl = daedalus.env.debug?"maps/world_01/level_04.json":"maps/world_01/level_01.json"
 
             return new LevelLoaderScene(mapurl, edit, ()=>{
 
