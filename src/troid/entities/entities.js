@@ -1689,12 +1689,14 @@ export class Player extends PlatformerEntity {
 
         if ("tap_count" in payload) {
 
-            if (this.morphed && payload.direction == Direction.UP) {
-                this._unmorph()
-                this._updateAnimation()
-            } else if (!this.morphed && payload.direction == Direction.DOWN) {
-                this._morph()
-                this._updateAnimation()
+            if (payload.tap_count == 2) {
+                if (this.morphed && payload.direction == Direction.UP) {
+                    this._unmorph()
+                    this._updateAnimation()
+                } else if (!this.morphed && payload.direction == Direction.DOWN) {
+                    this._morph()
+                    this._updateAnimation()
+                }
             }
         } else if ("whlid" in payload) {
 

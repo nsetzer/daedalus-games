@@ -344,6 +344,20 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("theme_bg_0")
+            .path(RES_ROOT + "/sprites/bg0.png")
+            .dimensions(352, 352)
+            .layout(1, 1)
+            .offset(0, 0)
+            .spacing(0, 0)
+
+        this.loader.addSpriteSheet("theme_bg_1")
+            .path(RES_ROOT + "/sprites/bg1.png")
+            .dimensions(352, 352)
+            .layout(1, 1)
+            .offset(0, 0)
+            .spacing(0, 0)
+
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")

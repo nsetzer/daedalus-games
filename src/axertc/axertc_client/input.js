@@ -14,6 +14,9 @@ const Keys = {
     ALT: 18,
 }
 
+const T_SINGLETAP = 100
+const T_DOUBLETAP = 200
+
 //[ord(c) for c in "WDSA"]
 //[87, 68, 83, 65]
 
@@ -76,7 +79,7 @@ export class KeyboardInput {
             // doubletap
             let doubletap = false
             let now = performance.now()
-            if (now - whl.keyTime < 200) {
+            if (now - whl.keyTime < T_DOUBLETAP) {
                 this.target.tapDirection(whlid, this.keyToDirection(whl, kc), 2)
             }
             whl.keyTime = performance.now()
@@ -127,7 +130,7 @@ export class KeyboardInput {
             //singletap
             let singletap = false
             let now = performance.now()
-            if (now - whl.keyTime < 100) {
+            if (now - whl.keyTime < T_SINGLETAP) {
                 this.target.tapDirection(whlid, Direction.fromVector(v.x, v.y), 1)
             }
 
@@ -327,18 +330,6 @@ export class TouchInput {
         })
     }
 
-    handleDoubleTap(whlid, touch) {
-        if (this.target===null) {
-            return
-        }
-
-        const cx = this.wheels[whlid].cx
-        const cy = this.wheels[whlid].cy
-
-        let dx = tx - cx
-        let dy = ty - cy
-    }
-
     handleMove(whlid, tx, ty, first, pressed) {
         if (this.target===null) {
             return
@@ -355,12 +346,12 @@ export class TouchInput {
         this.wheels[whlid].vector = cv
 
 
-        if (first) {
+        if (first && pressed) {
             //doubletap
             let now = performance.now()
             let curr_d = Direction.fromVector(cv.x, cv.y)
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
-            if (curr_d == prev_d  && (now - prev_t < 200)) {
+            if (curr_d == prev_d  && (now - prev_t < T_DOUBLETAP)) {
                 this.target.tapDirection(whlid, curr_d, 2)
             }
             this.wheels[whlid].vectorTime = [curr_d, now]
@@ -381,7 +372,7 @@ export class TouchInput {
             let v = this.wheels[whlid].vector
             let curr_d = Direction.fromVector(v.x, v.y)
             let [prev_d, prev_t] = this.wheels[whlid].vectorTime
-            if (curr_d == prev_d  && (now - prev_t < 100)) {
+            if (curr_d == prev_d  && (now - prev_t < T_SINGLETAP)) {
                 this.target.tapDirection(whlid, curr_d, 1)
             }
         }

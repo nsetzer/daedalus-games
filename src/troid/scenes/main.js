@@ -368,6 +368,7 @@ class PauseScreen {
         ctx.lineWidth = 1
         ctx.strokeStyle = "#88e810"
         ctx.beginPath()
+        ``
         ctx.roundRect(this.rect1.x, this.rect1.y, this.rect1.w, this.rect1.h, 8)
         ctx.closePath()
         ctx.stroke()
@@ -528,6 +529,31 @@ export class MainScene extends GameScene {
 
     }
 
+    _parallax(ctx) {
+
+        let tw = 352
+        let y = gAssets.mapinfo.height - tw
+
+        let layers = [
+            {image: gAssets.sheets.theme_bg_1, scale: 7},
+            {image: gAssets.sheets.theme_bg_0, scale: 5},
+        ]
+
+        for (let j=0; j < layers.length; j++) {
+            let layer = layers[j]
+
+            let x1 =  (- Math.floor(this.camera.x/layer.scale)) - tw
+            let x2 = gAssets.mapinfo.width
+            for (let x=x1; x < x2; x += tw) {
+                if ((x + tw) < this.camera.x || (x > this.camera.x + gEngine.view.width)) {
+                    continue
+                }
+                layer.image.drawTile(ctx, 0, x, y)
+            }
+        }
+
+    }
+
     paint(ctx) {
 
         // screen boundary
@@ -557,6 +583,8 @@ export class MainScene extends GameScene {
         ctx.closePath()
         ctx.fill()
         ctx.clip();
+
+        this._parallax(ctx)
 
         // gutter
         //ctx.beginPath()
@@ -604,6 +632,7 @@ export class MainScene extends GameScene {
 
             }
         }
+
 
         this.map.paint(ctx)
         this.camera.paint(ctx)
