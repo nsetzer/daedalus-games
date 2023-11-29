@@ -13,7 +13,7 @@ export const ResourceStatus = {
  *  sound effects are cloned internally 3 times allowing for
  *  the sound to be played overlapping up to three times.
  */
-export class SoundEffect {
+export class SoundEffectV1 {
     constructor(path, volume, allow_missing) {
         let sound = new Audio();
 
@@ -91,7 +91,106 @@ export class SoundEffect {
     }
 }
 
-SoundEffect.global_volume = 0
+
+export class SoundEffectV2 {
+
+    constructor(path, volume, allow_missing) {
+
+        fetch(path, {mode: "cors"})
+            .then((resp) => {return resp.arrayBuffer()})
+            .then(buffer => {return SoundEffectV2.ctxt.decodeAudioData(buffer)})
+            .then(buffer => {
+                this.buffer = buffer
+                this.status = ResourceStatus.READY
+                this.ready = true
+            })
+            .catch(error => {
+                console.error(error)
+                if (allow_missing) {
+                    this.status = ResourceStatus.READY
+                    this.ready = true
+                } else {
+                    this.status = ResourceStatus.ERROR
+                }
+            })
+
+        this.url = path
+        this.default_volume = volume
+        this.buffer = null
+        this.source = null
+    }
+
+    loop() {
+        //console.log("loop source", this.url)
+
+        if (!this.buffer) {
+            return
+        }
+
+        if (!!this.source) {
+            this.stop()
+        }
+
+        let volume = this.default_volume
+
+        if (volume < 1e-5) {
+            return
+        }
+
+        let source = SoundEffectV2.ctxt.createBufferSource();
+        let gain = SoundEffectV2.ctxt.createGain();
+        gain.gain.value = (volume !== null)?volume:this.default_volume;
+        source.buffer = this.buffer
+        source.connect(gain)
+        gain.connect(SoundEffectV2.ctxt.destination)
+        source.loop = true
+        source.start()
+
+        this.source = source
+    }
+
+    stop() {
+        //console.log("stop source", this.url)
+        if (!!this.source) {
+            this.source.stop()
+            this.source = null
+        }
+    }
+
+    play(volume=null) {
+
+        if (!this.buffer) {
+            return
+        }
+
+        if (!!this.source) {
+            this.stop()
+        }
+
+        volume = (volume !== null)?volume:this.default_volume
+
+        if (volume < 1e-5) {
+            return
+        }
+
+        let source = SoundEffectV2.ctxt.createBufferSource();
+        let gain = SoundEffectV2.ctxt.createGain();
+        gain.gain.value = volume;
+        source.buffer = this.buffer
+        source.connect(gain)
+        gain.connect(SoundEffectV2.ctxt.destination)
+        source.loop = false
+        source.start()
+
+        this.source = source
+
+    }
+}
+SoundEffectV2.ctxt = new (AudioContext || webkitAudioContext)()
+
+export const SoundEffect = SoundEffectV2
+
+SoundEffect.global_volume = 1.0
 
 export class SoundEffectBuilder {
 

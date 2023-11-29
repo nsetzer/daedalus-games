@@ -480,6 +480,7 @@ export class BubbleBullet extends ProjectileBase {
     }
 
     _kill() {
+        gAssets.sounds.bubble_pop.play()
         this.animation.setAnimationById(this.animations["dead"])
         this.alive = false
     }
@@ -1873,7 +1874,7 @@ export class Player extends PlatformerEntity {
     }
 
     _bounce() {
-
+        gAssets.sounds.jump.play()
         if (this.jump_pressed) {
             this.physics.yspeed = this.physics.jumpspeed
         } else {
@@ -1892,11 +1893,13 @@ export class Player extends PlatformerEntity {
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
         if (standing) {
+            gAssets.sounds.jump.play()
             this.physics.yspeed = this.physics.jumpspeed
             this.physics.yaccum = 0
             this.physics.gravityboost = false
             this.physics.doublejump = true
         } else if (pressing && !standing) {
+            gAssets.sounds.jump.play()
             this.physics.xspeed = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.xaccum = 0
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
@@ -1904,6 +1907,7 @@ export class Player extends PlatformerEntity {
             this.physics.gravityboost = false
 
         } else if (!standing && this.physics.doublejump && this.physics.yspeed > 0) {
+            gAssets.sounds.jump.play()
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.yaccum = 0
             this.physics.gravityboost = false
@@ -3010,6 +3014,7 @@ export class Coin extends PlatformerEntity {
 
             if (d < 16 * 7) {
                 if (this.rect.collideRect(player.rect)) {
+                    gAssets.sounds.coin_collect.play()
                     this.destroy()
                 }
 
@@ -3232,7 +3237,6 @@ export class HelpFlower extends MobBase {
     _kill2() {
     }
 }
-
 HelpFlower.sheet = null
 HelpFlower.size = [32, 32]
 HelpFlower.icon = null
@@ -3243,6 +3247,22 @@ HelpFlower.editorIcon = (props) => {
 HelpFlower.editorSchema = [
     {control: EditorControl.TEXT, "property": "helpText"},
 ]
+
+export class EquipmentItem extends MobBase {
+
+}
+EquipmentItem.sheet = null
+EquipmentItem.size = [16, 16]
+EquipmentItem.icon = null
+EquipmentItem.editorIcon = (props) => {
+    let tid = 0
+    return gAssets.sheets.brick.tile(tid)
+}
+EquipmentItem.editorSchema = [
+    {control: EditorControl.CHOICE, "property": "helpText"},
+    //{name: str, default: value, choices: list-or-map}
+]
+
 
 // entities that can be created in a level,
 // but cannot be created in the editor

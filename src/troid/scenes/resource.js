@@ -320,7 +320,7 @@ class AssetLoader {
             .path(RES_ROOT + "/sprites/mobs/flower.png")
             .dimensions(32, 32)
             .layout(2, 4)
-            .offset(1, 1)
+            .offset(1, 18)
             .spacing(1, 1)
 
         this.loader.addSpriteSheet("zone_01_sheet_01")
@@ -362,19 +362,34 @@ class AssetLoader {
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
 
+        this.loader.addSoundEffect("jump")
+            .path(RES_ROOT + "/sfx/misc/jump.ogg")
+            .volume(.025)
+            .allowMissing()
+
+        this.loader.addSoundEffect("coin_collect")
+            .path(RES_ROOT + "/sfx/misc/coin.wav")
+            .volume(.3)
+            .allowMissing()
+
+        this.loader.addSoundEffect("bubble_pop")
+            .path(RES_ROOT + "/sfx/misc/bubble_pop.wav")
+            .volume(.3)
+            .allowMissing()
+
         this.loader.addSoundEffect("fireBeam")
             .path(RES_ROOT + "/sfx/beam/fireBeam.ogg")
-            .volume(.4)
+            .volume(.3)
             .allowMissing()
 
         this.loader.addSoundEffect("fireBeamCharge")
             .path(RES_ROOT + "/sfx/beam/fireBeamCharge.ogg")
-            .volume(1.0)
+            .volume(0.7)
             .allowMissing()
 
         this.loader.addSoundEffect("fireBeamChargeLoop")
             .path(RES_ROOT + "/sfx/beam/fireBeamChargeLoop.ogg")
-            .volume(1.0)
+            .volume(0.7)
             .allowMissing()
 
         this.loader.addSoundEffect("fireBeamFlameStart")
