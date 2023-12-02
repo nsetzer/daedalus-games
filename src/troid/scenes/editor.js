@@ -634,8 +634,8 @@ class ObjectMenu {
                 //ctx.closePath()
                 //ctx.fill()
 
-                if (page.objects[n]?.ctor?.icon) {
-                    let icon = page.objects[n]?.ctor?.icon
+                if (page.objects[n]?.icon) {
+                    let icon = page.objects[n]?.icon
                     icon.draw(ctx, x, y)
                 }
 
@@ -785,8 +785,8 @@ class ObjectPropertyEditMenu {
         this.actions = []
 
         let obj = this.parent.map.objects[oid]
-        let ctor = this.parent.editor_objects[obj.name]
-        this.schemaList = (ctor?.editorSchema??[])
+        let entry = this.parent.editor_objects[obj.name]
+        this.schemaList = (entry?.editorSchema??[])
 
         this._y = this.rect.y + 8
 
@@ -1184,9 +1184,10 @@ export class LevelEditScene extends GameScene {
             "undo": gAssets.sheets.editor.tile(2*8+6),
             "redo": gAssets.sheets.editor.tile(2*8+7),
             "exit": gAssets.sheets.editor.tile(2*8+3),
+            "new": gAssets.sheets.editor.tile(2*8+4),
         }
 
-        this.editor_objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
+        this.editor_objects = Object.fromEntries(editorEntities.map(entry=>[entry.name,entry]))
 
         this.object_pages = [
 
@@ -1721,20 +1722,20 @@ export class LevelEditScene extends GameScene {
 
 
             //let objinfo = this.object_registry[obj.name]
-            let ctor = this.editor_objects[obj.name]
+            let entry = this.editor_objects[obj.name]
 
             // icon2 is a temporary hack
             // require a function (editor props) => icon
             // or default to icon
-            if (!!ctor?.editorIcon) {
-                ctor.editorIcon(obj.props).draw(ctx, x, y)
-            } else if (!!ctor?.icon) {
-                ctor.icon.draw(ctx, x, y)
+            if (!!entry?.editorIcon) {
+                entry.editorIcon(obj.props).draw(ctx, x, y)
+            } else if (!!entry?.icon) {
+                entry.icon.draw(ctx, x, y)
             }
 
             ctx.beginPath()
             ctx.strokeStyle = "blue"
-            ctx.rect(x,y,ctor.size[0],ctor.size[1])
+            ctx.rect(x,y,entry.size[0],entry.size[1])
             ctx.closePath()
             ctx.stroke()
 
@@ -1980,8 +1981,8 @@ export class LevelEditScene extends GameScene {
         if (!this.map.objects[oid]) {
 
             let obj = this.object_pages[this.objmenu_current_page].objects[this.objmenu_current_object]
-            let ctor = this.editor_objects[obj.name]
-            let schemaList = (ctor?.editorSchema??[])
+            let entry = this.editor_objects[obj.name]
+            let schemaList = (entry?.editorSchema??[])
 
             if (schemaList.length > 0 && pressed) {
                 return false

@@ -43,10 +43,10 @@
 //--------------------------------------------
 
 const WeaponElementType = {}
-WeaponElementType.POWER = 1
-WeaponElementType.FIRE = 2
-WeaponElementType.WATER = 3
-WeaponElementType.ICE = 4
+WeaponElementType.POWER  = 1
+WeaponElementType.FIRE   = 2
+WeaponElementType.WATER  = 3
+WeaponElementType.ICE    = 4
 WeaponElementType.BUBBLE = 5
 
 const WeaponBeamType = {}
@@ -99,6 +99,74 @@ export class MapInfo {
     }
 }
 
+export class SoundEffectPalette {
+
+    constructor() {
+        // map loaded audio assets to how they should be used
+
+        const nullsound ={play: ()=>{}, loop: ()=>{}, stop: ()=>{}}
+
+        // 17 beam sounds
+        this.BEAM_SHOOT = {}
+        this.BEAM_SHOOT[WeaponElementType.POWER ] = gAssets.sounds.fireBeam
+        this.BEAM_SHOOT[WeaponElementType.FIRE  ] = gAssets.sounds.fireBeam
+        this.BEAM_SHOOT[WeaponElementType.WATER ] = gAssets.sounds.fireBeam
+        this.BEAM_SHOOT[WeaponElementType.ICE   ] = gAssets.sounds.fireBeam
+        this.BEAM_SHOOT[WeaponElementType.BUBBLE] = gAssets.sounds.fireBeam
+
+        this.BEAM_CHARGE = {}
+        this.BEAM_CHARGE[WeaponElementType.POWER ] = gAssets.sounds.fireBeamCharge
+        this.BEAM_CHARGE[WeaponElementType.FIRE  ] = gAssets.sounds.fireBeamCharge
+        this.BEAM_CHARGE[WeaponElementType.WATER ] = gAssets.sounds.fireBeamCharge
+        this.BEAM_CHARGE[WeaponElementType.ICE   ] = gAssets.sounds.fireBeamCharge
+        this.BEAM_CHARGE[WeaponElementType.BUBBLE] = gAssets.sounds.fireBeamCharge
+
+        this.BEAM_FLAMETHROWER_CHARGE = gAssets.sounds.fireBeamFlameStart
+        this.BEAM_FLAMETHROWER_STEADY = gAssets.sounds.fireBeamFlameLoop
+
+        this.BEAM_SQUIRT_CHARGE = gAssets.sounds.fireBeamFlameStart
+        this.BEAM_SQUIRT_STEADY = gAssets.sounds.fireBeamFlameLoop
+
+        this.BEAM_SPLASH = nullsound
+        this.BEAM_SPREAD = gAssets.sounds.fireBeam
+
+        this.BEAM_BUBBLE_POP = gAssets.sounds.bubble_pop
+
+        // 2 missile sounds
+        this.MISSILE_SHOOT = gAssets.sounds.fireBeam
+        this.MISSILE_IMPACT = nullsound
+
+        // 9 player sounds
+        this.PLAYER_JUMP = gAssets.sounds.jump
+        this.PLAYER_DOUBLE_JUMP = gAssets.sounds.jump
+        this.PLAYER_MORPH = gAssets.sounds.curl
+        this.PLAYER_UNMORPH = gAssets.sounds.uncurl
+        this.PLAYER_HURT = nullsound
+        this.PLAYER_PIPE_ENTER = nullsound
+        this.PLAYER_PIPE_EXIT = nullsound
+        this.PLAYER_DOOR_ENTER = nullsound
+        this.PLAYER_DOOR_EXIT = nullsound
+
+        // 3 mob sounds
+        this.MOB_HURT_1 = nullsound
+        this.MOB_HURT_2 = nullsound
+        this.MOB_HURT_3 = nullsound
+
+        // 2 item sounds
+        this.ITEM_COLLECT = gAssets.sounds.coin_collect
+        this.ITEM_COLLECT_COIN = gAssets.sounds.coin_collect
+
+        // 3 gui sounds
+        this.GUI_CLICK_1 = gAssets.sounds.click1
+        this.GUI_CLICK_2 = gAssets.sounds.click2
+        this.GUI_CLICK_3 = gAssets.sounds.click3
+
+        // 17 + 2 + 9 + 3 + 2 + 3 =
+        // 36 total sounds
+
+    }
+}
+
 export const gAssets = {
     // all of the assets currently loaded
     "music": {},
@@ -109,5 +177,6 @@ export const gAssets = {
     "mapinfo": new MapInfo(),
     // the current map
     "map": null,
-    "themes": {}
+    "themes": {},
+    "sfx": null // instance of SoundEffectPalette
 }

@@ -595,7 +595,7 @@ export class CanvasEngine extends DomElement {
                 }
 
                 if (this.delta_accum > dt) {
-                    console.warn(`${n}. dropped  ${this.delta_accum/dt} frames`)
+                    //console.warn(`${n}. dropped  ${this.delta_accum/dt} frames`)
                     this.delta_accum = 0
                 }
 

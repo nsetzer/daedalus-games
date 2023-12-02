@@ -391,14 +391,10 @@ class PauseScreen {
                 element = "Water"
 
                 if (gCharacterInfo.beam == WeaponType.BEAM.BOUNCE) {
-                    if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
-                        name = "Splash"
-                    } else {
-                        name = "Auto Splash"
-                    }
+                    element = "Splash"
                 }
                 else if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
-                    name = "Squirt"
+                    element = "Squirt"
                 }
                 break;
             case WeaponType.ELEMENT.ICE:
@@ -415,10 +411,14 @@ class PauseScreen {
 
             switch (gCharacterInfo.beam) {
                 case WeaponType.BEAM.WAVE:
-                    name = "Wave " + name
+                    if (element !== "Splash") {
+                        name = "Wave " + name
+                    }
                     break
                 case WeaponType.BEAM.BOUNCE:
-                    name = "Bounce " + name
+                    if (element !== "Splash") {
+                        name = "Bounce " + name
+                    }
                     break
             }
 
@@ -428,7 +428,9 @@ class PauseScreen {
                     name = "Charge " + name
                     break
                 case WeaponType.MODIFIER.RAPID:
-                    name = "Auto " + name
+                    if (element !== "Squirt") {
+                        name = "Auto " + name
+                    }
                     break
             }
 

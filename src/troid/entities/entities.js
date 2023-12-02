@@ -14,6 +14,59 @@ $import("axertc_physics", {
 
 $import("store", {gAssets, gCharacterInfo, WeaponType})
 
+// entities that can be created in a level,
+// but cannot be created in the editor
+export const defaultEntities = []
+function registerDefaultEntity(name, ctor, onLoad=null) {
+    if (onLoad === null) {
+        onLoad = ((entry) => {})
+    }
+
+    defaultEntities.push({
+        name,
+        ctor,
+        onLoad,
+        sheet: null,
+    })
+}
+
+export const editorEntities = []
+function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=null) {
+    if (onLoad === null) {
+        onLoad = ((entry) => {})
+    }
+
+    if (schema === null) {
+        schema = []
+    }
+
+    editorEntities.push({
+        name,
+        ctor,
+        size,
+        category,
+        onLoad,
+        sheet: null,
+        icon: null,
+        editorSchema: schema,
+        editorIcon: null,
+    })
+}
+
+export const editorIcon = (sheet, tid=0) => {
+        let icon = new SpriteSheet()
+        icon.tw = 16
+        icon.th = 16
+        icon.rows = 1
+        icon.cols = tid+1
+        icon.xspacing = 1
+        icon.yspacing = 1
+        icon.xoffset = 1
+        icon.yoffset = 1
+        icon.image = sheet.image
+        return icon.tile(tid)
+    }
+
 export const EditorControl = {}
 EditorControl.CHOICE = 1       // {name: str, default: value, choices: list-or-map}
 //EditorControl.CHOOSE_ENTITY = x  // like CHOICE but shows icons from a list of named entities
@@ -242,6 +295,10 @@ export class Bullet extends ProjectileBase {
     }
 
 }
+
+registerDefaultEntity("Bullet", Bullet, (entry)=> {
+
+})
 
 function init_velocity() {
     // generate the velocity profile for a bullet moving
@@ -578,6 +635,10 @@ export class BubbleBullet extends ProjectileBase {
     }
 }
 
+registerDefaultEntity("BubbleBullet", BubbleBullet, (entry)=> {
+
+})
+
 export class BounceBullet extends ProjectileBase {
     // a bounce bullet is only animate to appear as if it is bouncing
     // the bullet actually walks on the ground like a normal entity
@@ -740,6 +801,10 @@ export class BounceBullet extends ProjectileBase {
         }
     }
 }
+
+registerDefaultEntity("BounceBullet", BounceBullet, (entry)=> {
+
+})
 
 export class BeamBase extends ProjectileBase {
     constructor(parent, wave) {
@@ -951,6 +1016,10 @@ export class WaterBeam extends BeamBase {
     }
 }
 
+registerDefaultEntity("WaterBeam", WaterBeam, (entry)=> {
+
+})
+
 export class FireBeam extends BeamBase {
     constructor(parent, wave) {
         super(parent, wave)
@@ -1016,6 +1085,10 @@ export class FireBeam extends BeamBase {
         }
     }
 }
+
+registerDefaultEntity("FireBeam", FireBeam, (entry)=> {
+
+})
 
 // TODO: projectiles reduce framerate if they move off screen on large maps
 function generateProjectiles(x,y,direction, power) {
@@ -1185,10 +1258,6 @@ export class Player extends PlatformerEntity {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
         }
 
-        if (Player.sheets === null) {
-            throw {"error": "sprite sheet not set"}
-        }
-
         this.character = new CharacterComponent(this)
 
         this.looking_up = false
@@ -1239,7 +1308,7 @@ export class Player extends PlatformerEntity {
         }
 
         let aid;
-        const sheet = Player.sheet2
+        const sheet = Player.sheet
 
         const idle = (row) => [(row*sheet.cols + 0)]
         const walk = (row) => [...Array(8).keys()].map(i => (row*sheet.cols + i))
@@ -1252,13 +1321,6 @@ export class Player extends PlatformerEntity {
         const ball_idle = () => [(7*sheet.cols + 0)]
         const morph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i))
         const unmorph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i)).reverse()
-
-        console.log("--------------")
-        console.log(morph(0))
-        console.log(morph(1))
-        console.log(unmorph(0))
-        console.log(unmorph(1))
-        console.log("--------------")
 
         aid = this.animation.register(sheet, idle(0), spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
@@ -1370,48 +1432,49 @@ export class Player extends PlatformerEntity {
         let ncols = 17
         let nrows = 6
         let aid;
+        const sheet = Player.sheet
 
-        aid = this.animation.register(Player.sheet, [0*ncols+0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
-        aid = this.animation.register(Player.sheet, [0*ncols+3], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+3], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.LEFT] = aid
-        aid = this.animation.register(Player.sheet, [1*ncols+3], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+3], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2], spf, {xoffset, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
-        aid = this.animation.register(Player.sheet, [0*ncols+3, 0*ncols+4, 0*ncols+5], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+3, 0*ncols+4, 0*ncols+5], spf, {xoffset, yoffset})
         this.animations["run"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2], spf, {xoffset, yoffset})
         this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(Player.sheet, [1*ncols+3, 1*ncols+4, 1*ncols+5], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+3, 1*ncols+4, 1*ncols+5], spf, {xoffset, yoffset})
         this.animations["run"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [0*ncols+6], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+6], spf, {xoffset, yoffset})
         this.animations["jump"][Direction.RIGHT] = aid
-        aid = this.animation.register(Player.sheet, [0*ncols+7], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+7], spf, {xoffset, yoffset})
         this.animations["jump"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+6], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+6], spf, {xoffset, yoffset})
         this.animations["jump"][Direction.LEFT] = aid
-        aid = this.animation.register(Player.sheet, [1*ncols+7], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+7], spf, {xoffset, yoffset})
         this.animations["jump"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [0*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+2], spf, {xoffset, yoffset})
         this.animations["fall"][Direction.RIGHT] = aid
-        aid = this.animation.register(Player.sheet, [0*ncols+5], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0*ncols+5], spf, {xoffset, yoffset})
         this.animations["fall"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+2], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+2], spf, {xoffset, yoffset})
         this.animations["fall"][Direction.LEFT] = aid
-        aid = this.animation.register(Player.sheet, [1*ncols+5], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+5], spf, {xoffset, yoffset})
         this.animations["fall"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+9], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+9], spf, {xoffset, yoffset})
         this.animations["hit"][Direction.RIGHT] = aid
         this.animations["hit"][Direction.LEFT] = aid
         this.animations["hit"][Direction.UPRIGHT] = aid
@@ -1419,20 +1482,20 @@ export class Player extends PlatformerEntity {
 
         this.animations["spawn"][Direction.RIGHT] = this.animations["run"][Direction.RIGHT]
         this.animations["spawn"][Direction.LEFT] = this.animations["run"][Direction.LEFT]
-        aid = this.animation.register(Player.sheet, [1*ncols+8], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [1*ncols+8], spf, {xoffset, yoffset})
         this.animations["spawn"][Direction.UP] = aid
         this.animations["spawn"][Direction.DOWN] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.LEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.LEFT] = aid
 
-        aid = this.animation.register(Player.sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
@@ -1830,6 +1893,7 @@ export class Player extends PlatformerEntity {
         if (!this.morphing && !this.morphed) {
             this.morphing = true
             this._updateAnimation()
+            gAssets.sfx.PLAYER_MORPH.play()
         }
     }
 
@@ -1840,6 +1904,7 @@ export class Player extends PlatformerEntity {
             this.morphing = true
             //this.morphed = false
             this._updateAnimation()
+            gAssets.sfx.PLAYER_UNMORPH.play()
         }
     }
 
@@ -1960,6 +2025,11 @@ export class Player extends PlatformerEntity {
 }
 Player.sheet = null
 
+registerDefaultEntity("Player", Player, (entry)=> {
+    //Player.sheet = gAssets.sheets.player
+    Player.sheet = gAssets.sheets.player2
+})
+
 export class Brick extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -2057,6 +2127,11 @@ Brick.sheet = null
 Brick.size = [16, 16]
 Brick.icon = null
 
+registerEditorEntity("Brick", Brick, [16,16], 'item', null, (entry)=> {
+    Brick.sheet = gAssets.sheets.brick
+    Brick.icon = gAssets.sheets.brick.tile(0)
+})
+
 /**
  * red switches active red platforms
  * and deactivate blue platforms
@@ -2085,6 +2160,11 @@ export class RedSwitch extends Brick {
 RedSwitch.sheet = null
 RedSwitch.size = [16, 16]
 RedSwitch.icon = null
+
+registerEditorEntity("RedSwitch", RedSwitch, [16,16], 'switch', null, (entry)=> {
+    RedSwitch.sheet = gAssets.sheets.brick
+    RedSwitch.icon = gAssets.sheets.brick.tile(1)
+})
 
 /**
  * blue switches active blue platforms
@@ -2115,6 +2195,11 @@ BlueSwitch.sheet = null
 BlueSwitch.size = [16, 16]
 BlueSwitch.icon = null
 
+registerEditorEntity("BlueSwitch", BlueSwitch, [16,16], 'switch', null, (entry)=> {
+    BlueSwitch.sheet = gAssets.sheets.brick
+    BlueSwitch.icon = gAssets.sheets.brick.tile(5)
+})
+
 export class RedPlatform extends Brick {
 
     paint(ctx) {
@@ -2128,6 +2213,12 @@ export class RedPlatform extends Brick {
 RedPlatform.sheet = null
 RedPlatform.size = [16, 16]
 RedPlatform.icon = null
+
+registerEditorEntity("RedPlatform", RedPlatform, [16,16], 'switch', null, (entry)=> {
+    RedPlatform.sheet = gAssets.sheets.brick
+    RedPlatform.icon = gAssets.sheets.brick.tile(2)
+
+})
 
 export class BluePlatform extends Brick {
 
@@ -2146,6 +2237,11 @@ export class BluePlatform extends Brick {
 BluePlatform.sheet = null
 BluePlatform.size = [16, 16]
 BluePlatform.icon = null
+
+registerEditorEntity("BluePlatform", BluePlatform, [16,16], 'switch', null, (entry)=> {
+    BluePlatform.sheet = gAssets.sheets.brick
+    BluePlatform.icon = gAssets.sheets.brick.tile(6)
+})
 
 
 export class MobCharacterComponent {
@@ -2371,6 +2467,11 @@ Spikes.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
 
+registerEditorEntity("Spikes", Spikes, [16,16], "small_mob", null, (entry)=> {
+    Spikes.sheet = gAssets.sheets.spikes
+    Spikes.icon = gAssets.sheets.spikes.tile(0)
+})
+
 export class Spawn extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -2513,6 +2614,11 @@ Spawn.editorIcon = (props) => {
 Spawn.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
+
+registerEditorEntity("Spawn", Spawn, [32,32], "small_mob", null, (entry)=> {
+    Spawn.sheet = gAssets.sheets.pipes32
+    Spawn.icon = editorIcon(Spawn.sheet)
+})
 
 export class Door extends PlatformerEntity {
     constructor(entid, props) {
@@ -2762,6 +2868,10 @@ Door.editorSchema = [
     {control: EditorControl.DOOR_TARGET},
 ]
 
+registerEditorEntity("Door", Door, [32,32], "door", null, (entry)=> {
+    Door.sheet = gAssets.sheets.pipes32
+    Door.icon = editorIcon(Door.sheet, 1)
+})
 
 export class Creeper extends MobBase {
     constructor(entid, props) {
@@ -2932,6 +3042,10 @@ Creeper.sheet = null
 Creeper.size = [16, 16]
 Creeper.icon = null
 
+registerEditorEntity("Creeper", Creeper, [16,16], "small_mob", null, (entry)=> {
+    Creeper.sheet = gAssets.sheets.creeper
+    Creeper.icon = editorIcon(Creeper.sheet)
+})
 
 export class Shredder extends MobBase {
     constructor(entid, props) {
@@ -3065,6 +3179,11 @@ Shredder.sheet = null
 Shredder.size = [16, 16]
 Shredder.icon = null
 
+registerEditorEntity("Shredder", Shredder, [16,16], "small_mob", null, (entry)=> {
+    Shredder.sheet = gAssets.sheets.shredder
+    Shredder.icon = editorIcon(Shredder.sheet)
+})
+
 export class Coin extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -3129,6 +3248,11 @@ export class Coin extends PlatformerEntity {
 Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
+
+registerEditorEntity("Coin", Coin, [16,16], 'item', null, (entry)=> {
+    Coin.sheet = gAssets.sheets.coin
+    Coin.icon = gAssets.sheets.coin.tile(0)
+})
 
 class TextTyper {
     //TODO: support multiple pages
@@ -3333,6 +3457,11 @@ HelpFlower.editorSchema = [
     {control: EditorControl.TEXT, "property": "helpText"},
 ]
 
+registerEditorEntity("HelpFlower", HelpFlower, [32,32], "friendly", null, (entry)=> {
+    HelpFlower.sheet = gAssets.sheets.help_flower
+    HelpFlower.icon = editorIcon(HelpFlower.sheet)
+})
+
 export class EquipmentItem extends MobBase {
 
 }
@@ -3344,93 +3473,30 @@ EquipmentItem.editorIcon = (props) => {
     return gAssets.sheets.brick.tile(tid)
 }
 EquipmentItem.editorSchema = [
-    {control: EditorControl.CHOICE, "property": "helpText"},
+    {control: EditorControl.TEXT, "property": "helpText"},
     //{name: str, default: value, choices: list-or-map}
 ]
 
+registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], "item", null, (entry)=> {
+    EquipmentItem.sheet = gAssets.sheets.brick
+    EquipmentItem.icon = gAssets.sheets.brick.tile(0)
+})
 
-// entities that can be created in a level,
-// but cannot be created in the editor
-export const defaultEntities = [
-    {name:"Player", ctor: Player},
-    {name:"Bullet", ctor: Bullet},
-    {name:"BubbleBullet", ctor: BubbleBullet},
-    {name:"BounceBullet", ctor: BounceBullet},
-    {name:"WaterBeam", ctor: WaterBeam},
-    {name:"FireBeam", ctor: FireBeam},
-]
+export function registerEntityAssets() {
 
-export const editorEntities = [
-    {name:"Coin", ctor: Coin, category: 'item'},
-    {name:"Brick", ctor: Brick, category: 'item'},
-    {name:"RedPlatform", ctor: RedPlatform, category: 'switch'},
-    {name:"RedBrick", ctor: RedSwitch, category: 'switch'},
-    {name:"BluePlatform", ctor: BluePlatform, category: 'switch'},
-    {name:"BlueBrick", ctor: BlueSwitch, category: 'switch'},
-    {name:"Creeper", ctor: Creeper, category: 'small_mob'},
-    {name:"Shredder", ctor: Shredder, category: 'small_mob'},
-    {name:"Spikes", ctor: Spikes, category: 'small_mob'},
-    {name:"HelpFlower", ctor: HelpFlower, category: 'friendly'},
-    {name:"Spawn", ctor: Spawn, category: "door"},
-    {name:"Door", ctor: Door, category: "door"},
-]
+    defaultEntities.forEach(entry => {
+        entry.onLoad(entry)
+    })
 
-export function registerEntities() {
-    Player.sheet = gAssets.sheets.player
-    Player.sheet2 = gAssets.sheets.player2
-
-    Brick.sheet = gAssets.sheets.brick
-    Brick.icon = gAssets.sheets.brick.tile(0)
-
-    RedSwitch.sheet = gAssets.sheets.brick
-    RedSwitch.icon = gAssets.sheets.brick.tile(1)
-
-    BlueSwitch.sheet = gAssets.sheets.brick
-    BlueSwitch.icon = gAssets.sheets.brick.tile(5)
-
-    RedPlatform.sheet = gAssets.sheets.brick
-    RedPlatform.icon = gAssets.sheets.brick.tile(2)
-
-    BluePlatform.sheet = gAssets.sheets.brick
-    BluePlatform.icon = gAssets.sheets.brick.tile(6)
-
-    Coin.sheet = gAssets.sheets.coin
-    Coin.icon = gAssets.sheets.coin.tile(0)
-
-    Spikes.sheet = gAssets.sheets.spikes
-    Spikes.icon = gAssets.sheets.spikes.tile(0)
-
-    // for any mob, the first row should contain
-    // the 16x16 editor icon
-    let editorIcon = (sheet, tid=0) => {
-        let icon = new SpriteSheet()
-        icon.tw = 16
-        icon.th = 16
-        icon.rows = 1
-        icon.cols = tid+1
-        icon.xspacing = 1
-        icon.yspacing = 1
-        icon.xoffset = 1
-        icon.yoffset = 1
-        icon.image = sheet.image
-        return icon.tile(tid)
-    }
-
-    Creeper.sheet = gAssets.sheets.creeper
-    Creeper.icon = editorIcon(Creeper.sheet)
-
-    HelpFlower.sheet = gAssets.sheets.help_flower
-    HelpFlower.icon = editorIcon(HelpFlower.sheet)
-
-    Shredder.sheet = gAssets.sheets.shredder
-    Shredder.icon = editorIcon(Shredder.sheet)
-
-    Spawn.sheet = gAssets.sheets.pipes32
-    Spawn.icon = editorIcon(Spawn.sheet)
-
-    Door.sheet = gAssets.sheets.pipes32
-    Door.icon = editorIcon(Door.sheet, 1)
-
+    editorEntities.forEach(entry => {
+        entry.onLoad(entry)
+        if (entry.icon === null) {
+            console.log("fix oldstyle entity", entry.name)
+            entry.icon = entry.ctor.icon
+            entry.editorIcon = entry.ctor.editorIcon
+            entry.editorSchema = entry.ctor.editorSchema
+        }
+    })
 }
 
 

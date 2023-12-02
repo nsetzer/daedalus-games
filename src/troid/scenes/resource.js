@@ -37,9 +37,9 @@ $import("axertc_common", {
 
 const RES_ROOT = "static"
 
-$import("store", {MapInfo, gAssets})
+$import("store", {MapInfo, gAssets, SoundEffectPalette})
 $import("maps", {PlatformMap})
-$import("entities", {registerEntities, editorEntities})
+$import("entities", {registerEntityAssets, editorEntities})
 
 $import("axertc_physics", {
     Physics2dPlatform
@@ -374,6 +374,16 @@ class AssetLoader {
             .volume(.025)
             .allowMissing()
 
+        this.loader.addSoundEffect("curl")
+            .path(RES_ROOT + "/sfx/misc/curl.ogg")
+            .volume(.3)
+            .allowMissing()
+
+        this.loader.addSoundEffect("uncurl")
+            .path(RES_ROOT + "/sfx/misc/uncurl.ogg")
+            .volume(.3)
+            .allowMissing()
+
         this.loader.addSoundEffect("coin_collect")
             .path(RES_ROOT + "/sfx/misc/coin.wav")
             .volume(.3)
@@ -428,7 +438,9 @@ class AssetLoader {
             gAssets.sheets.zone_01_pipes_01,
         ]
 
-        registerEntities()
+        registerEntityAssets()
+
+        gAssets.sfx = new SoundEffectPalette()
     }
 }
 
@@ -865,12 +877,11 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     gAssets.mapinfo.theme = json?.theme??"plains"
                     gAssets.mapinfo.layers = json?.layers??[{}]
                     gAssets.mapinfo.objects = json?.objects??[]
-                    console.log(gAssets.mapinfo.theme)
+                    console.log("current theme", gAssets.mapinfo.theme)
 
                     // filter objects which do not exist
                     const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
                     gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
-                    console.log("load json", gAssets.mapinfo.objects)
                     return json
                 })
 
