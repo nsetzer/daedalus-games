@@ -390,7 +390,7 @@ export class Physics2dPlatform {
         let standing = false
 
         if (this.standing && this.yspeed >= 0) {
-            const dd = this._move_y(solids, 9)
+            const dd = this._move_y(solids, 6)
             if (dd != null && dd.dy >= 0 && dd.dy <= 8) {
                 this.target.rect.y += dd.dy
                 //if (this.target.playerId=="player1") {console.error("set standing yspeed sticky");}

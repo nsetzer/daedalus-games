@@ -296,9 +296,16 @@ class AssetLoader {
             .spacing(1, 1)
 
         this.loader.addSpriteSheet("pause_items")
-            .path(RES_ROOT + "/sprites/pause_items.png")
-            .dimensions(16, 16)
+            .path(RES_ROOT + "/sprites/pause_items2.png")
+            .dimensions(20, 18)
             .layout(9, 6)
+            .offset(1, 1)
+            .spacing(1, 1)
+
+        this.loader.addSpriteSheet("spikes")
+            .path(RES_ROOT + "/sprites/spikes.png")
+            .dimensions(16, 16)
+            .layout(2, 4)
             .offset(1, 1)
             .spacing(1, 1)
 

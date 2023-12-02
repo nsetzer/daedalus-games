@@ -299,25 +299,43 @@ class PauseScreen {
         // wave - pass through walls
         // normal - break on contact
         // bounce - bounce off walls (bubbles bounce player)
-        this._addAction(x1+1*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.WAVE})
-        this._addAction(x1+2*24, y1+24, 20, 18, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.NORMAL})
-        this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{gCharacterInfo.beam = WeaponType.BEAM.BOUNCE})
+        this._addAction(x1+0*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{
+            gCharacterInfo.beam = (gCharacterInfo.beam == WeaponType.BEAM.WAVE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.WAVE
+        })
+        //this._addAction(x1+2*24, y1+24, 20, 18, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{
+        //    gCharacterInfo.beam = WeaponType.BEAM.NORMAL
+        //})
+        this._addAction(x1+1*24, y1+24, 20, 18, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{
+            gCharacterInfo.beam = (gCharacterInfo.beam == WeaponType.BEAM.BOUNCE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.BOUNCE
+        })
 
         // single, double, triple
         // power, ice: 1,2,3 bullets
         // fire, normal: 1,3,5 bullets at 0,22,45 degrees
         // water: wider stream
         // bubble: more
-        this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL1})
-        this._addAction(x1+2*24, y1+48, 20, 18, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL2})
-        this._addAction(x1+3*24, y1+48, 20, 18, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{gCharacterInfo.level=WeaponType.LEVEL.LEVEL3})
+        this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{
+            gCharacterInfo.level=WeaponType.LEVEL.LEVEL1
+        })
+        this._addAction(x1+2*24, y1+48, 20, 18, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{
+            gCharacterInfo.level=WeaponType.LEVEL.LEVEL2
+        })
+        this._addAction(x1+3*24, y1+48, 20, 18, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{
+            gCharacterInfo.level=WeaponType.LEVEL.LEVEL3
+        })
 
         // charge beam, normal, rapid shot
         // water, charge: larger orbs
         // water, rapid: stream
-        this._addAction(x1+1*24, y1+3*24, 20, 18, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.CHARGE})
-        this._addAction(x1+2*24, y1+3*24, 20, 18, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL})
-        this._addAction(x1+3*24, y1+3*24, 20, 18, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{gCharacterInfo.modifier=WeaponType.MODIFIER.RAPID })
+        this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{
+            gCharacterInfo.modifier = (gCharacterInfo.modifier == WeaponType.MODIFIER.CHARGE)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.CHARGE
+        })
+        //this._addAction(x1+2*24, y1+3*24, 20, 18, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{
+        //    gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL
+        //})
+        this._addAction(x1+4*24, y1+24, 20, 18, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{
+            gCharacterInfo.modifier = (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.RAPID
+        })
 
         // missile, super, homing
         this._addAction(x1+1*24, y1+12+4*24, 20, 18, null, ()=>{})
@@ -351,12 +369,91 @@ class PauseScreen {
 
     }
 
+    _beamName() {
+
+        let element = null
+        let name = null
+
+        switch (gCharacterInfo.element) {
+            case WeaponType.ELEMENT.POWER:
+                element = "Power"
+                break;
+            case WeaponType.ELEMENT.FIRE:
+                element = "Fire"
+                if (gCharacterInfo.beam == WeaponType.BEAM.WAVE && gCharacterInfo.modifier == WeaponType.MODIFIER.NORMAL) {
+                    name = "Spread"
+                }
+                else if (gCharacterInfo.beam == WeaponType.BEAM.WAVE && gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                    name = "Flame Thrower"
+                }
+                break;
+            case WeaponType.ELEMENT.WATER:
+                element = "Water"
+
+                if (gCharacterInfo.beam == WeaponType.BEAM.BOUNCE) {
+                    if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                        name = "Splash"
+                    } else {
+                        name = "Auto Splash"
+                    }
+                }
+                else if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                    name = "Squirt"
+                }
+                break;
+            case WeaponType.ELEMENT.ICE:
+                element = "Ice"
+                break;
+            case WeaponType.ELEMENT.BUBBLE:
+                element = "Bubble"
+                break;
+        }
+
+        if (name === null) {
+
+            name = element
+
+            switch (gCharacterInfo.beam) {
+                case WeaponType.BEAM.WAVE:
+                    name = "Wave " + name
+                    break
+                case WeaponType.BEAM.BOUNCE:
+                    name = "Bounce " + name
+                    break
+            }
+
+
+            switch (gCharacterInfo.modifier) {
+                case WeaponType.MODIFIER.CHARGE:
+                    name = "Charge " + name
+                    break
+                case WeaponType.MODIFIER.RAPID:
+                    name = "Auto " + name
+                    break
+            }
+
+            switch (gCharacterInfo.level) {
+                case WeaponType.LEVEL.LEVEL1:
+                    break
+                case WeaponType.LEVEL.LEVEL2:
+                    name = name + " II"
+                    break
+                case WeaponType.LEVEL.LEVEL3:
+                    name = name + " III"
+                    break
+            }
+
+        }
+
+        return name
+    }
+
     paint(ctx) {
 
         let rect0 = new Rect(0, 0, gEngine.view.width, gEngine.view.height)
         ctx.lineWidth = 1
-        ctx.fillStyle = "#000000dd"
         ctx.beginPath()
+        ctx.fillStyle = "#000000dd"
         ctx.rect(rect0.x, rect0.y, rect0.w, rect0.h)
         ctx.closePath()
         ctx.fill()
@@ -379,30 +476,49 @@ class PauseScreen {
         ctx.closePath()
         ctx.stroke()
 
+        let x1 = this.rect1.x + 2 + 2
+        let y1 = this.rect1.y + 12 + 6
+
+        ctx.beginPath()
+        ctx.fillStyle = "#C0C0C0"
+        ctx.rect(x1+0*24+12, y1+0*24+6, 4*24, 6)
+        ctx.rect(x1+0*24+12, y1+1*24+6, 1*24, 6)
+        ctx.rect(x1+3*24+12, y1+1*24+6, 1*24, 6)
+        ctx.rect(x1+1*24+12, y1+2*24+6, 2*24, 6)
+        ctx.closePath()
+        ctx.fill()
+
+        ctx.font = "bold 14px";
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(this._beamName(), x1+2*24+12, y1+3*24+6);
 
         this.actions.forEach(act => {
-            ctx.beginPath()
-            ctx.fillStyle = "#0000FF"
-            ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
-            ctx.fill()
-            if (act.text) {
-                ctx.font = "bold 16px";
-                ctx.fillStyle = "white"
-                ctx.strokeStyle = "white"
-                ctx.textAlign = "center"
-                ctx.textBaseline = "middle"
 
-                ctx.fillText(act.text, act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
-
-            }
-        })
-
-        this.actions.forEach(act => {
             if (!!act.icon) {
-                act.icon().draw(ctx, act.rect.x+2, act.rect.y+1)
-            }
-        })
+                act.icon().draw(ctx, act.rect.x, act.rect.y)
+            } else {
+                ctx.beginPath()
+                ctx.fillStyle = "#0000FF"
+                ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+                ctx.closePath()
+                ctx.fill()
+                if (act.text) {
+                    ctx.font = "bold 16px";
+                    ctx.fillStyle = "white"
+                    ctx.strokeStyle = "white"
+                    ctx.textAlign = "center"
+                    ctx.textBaseline = "middle"
 
+                    ctx.fillText(act.text, act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
+
+                }
+            }
+
+
+        })
 
     }
 
@@ -684,7 +800,8 @@ export class MainScene extends GameScene {
         if (keyevent.text == "d") {
             let objs = this.map.map.queryObjects({"className": "Player"})
             if (objs.length > 0) {
-                objs[0]._hurt()
+                objs[0].character.hit()
+                //objs[0]._hurt()
             }
         }
     }

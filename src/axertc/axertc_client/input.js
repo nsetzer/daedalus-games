@@ -642,7 +642,7 @@ export class TouchInput {
             if (btn.icon !== null) {
                 btn.icon.sheet.drawTileScaled(ctx, btn.icon.tid, btn.cx-16,btn.cy-16, 32, 32)
             } else {
-                ctx.font = "16px bold";
+                ctx.font = Math.floor(20/gEngine.view.scale) + "px bold";
                 ctx.fillStyle = "black"
                 ctx.strokeStyle = "black"
                 ctx.textAlign = "center"
