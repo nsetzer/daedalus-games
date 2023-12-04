@@ -121,6 +121,13 @@ export class SoundEffectPalette {
         this.BEAM_CHARGE[WeaponElementType.ICE   ] = gAssets.sounds.fireBeamCharge
         this.BEAM_CHARGE[WeaponElementType.BUBBLE] = gAssets.sounds.fireBeamCharge
 
+        this.BEAM_CHARGE_LOOP = {}
+        this.BEAM_CHARGE_LOOP[WeaponElementType.POWER ] = gAssets.sounds.fireBeamChargeLoop
+        this.BEAM_CHARGE_LOOP[WeaponElementType.FIRE  ] = gAssets.sounds.fireBeamChargeLoop
+        this.BEAM_CHARGE_LOOP[WeaponElementType.WATER ] = gAssets.sounds.fireBeamChargeLoop
+        this.BEAM_CHARGE_LOOP[WeaponElementType.ICE   ] = gAssets.sounds.fireBeamChargeLoop
+        this.BEAM_CHARGE_LOOP[WeaponElementType.BUBBLE] = gAssets.sounds.fireBeamChargeLoop
+
         this.BEAM_FLAMETHROWER_CHARGE = gAssets.sounds.fireBeamFlameStart
         this.BEAM_FLAMETHROWER_STEADY = gAssets.sounds.fireBeamFlameLoop
 
@@ -139,6 +146,7 @@ export class SoundEffectPalette {
         // 9 player sounds
         this.PLAYER_JUMP = gAssets.sounds.jump
         this.PLAYER_DOUBLE_JUMP = gAssets.sounds.jump
+        this.PLAYER_BOUNCE = gAssets.sounds.jump
         this.PLAYER_MORPH = gAssets.sounds.curl
         this.PLAYER_UNMORPH = gAssets.sounds.uncurl
         this.PLAYER_HURT = nullsound

@@ -149,6 +149,14 @@ export class SoundEffectV2 {
         this.source = source
     }
 
+    pause() {
+        // stop playback if it was looping
+    }
+
+    resume() {
+        // continue playback if it was looping
+    }
+
     stop() {
         //console.log("stop source", this.url)
         if (!!this.source) {

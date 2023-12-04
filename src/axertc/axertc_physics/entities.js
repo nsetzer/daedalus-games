@@ -130,11 +130,12 @@ export class Slope extends PlatformBase {
         this.visible = props?.visible??true
         this.oneway = props?.oneway??false
 
-        console.log(`"Slope(oneway=${this.oneway})"`)
+
 
         if (!!props.direction) {
             this.rect = new Rect(props.x, props.y, props.w, props.h)
             this.direction = props.direction
+            this.init_points()
             this.init()
         } else {
             this.rect = new Rect(0,0,0,0)
@@ -146,21 +147,8 @@ export class Slope extends PlatformBase {
         this.solid = 1
     }
 
-    init() {
-
-        /*
-         +======================+
-        ||   upleft | upright   ||
-        ||         /o\          ||
-        ||        / | \         ||
-        ||       o--o--o        ||
-        ||        \ | /         ||
-        ||         \o/          ||
-        || downleft | downright ||
-         +======================+
-        */
+    init_points() {
         this.points = []
-
         // points are organized such that:
         // origin is always first
         // left most non-origin point is second
@@ -190,12 +178,32 @@ export class Slope extends PlatformBase {
             default:
                 throw {message: "invalid direction", direction: this.direction}
         }
+    }
+
+    init() {
+
+        /*
+         +======================+
+        ||   upleft | upright   ||
+        ||         /o\          ||
+        ||        / | \         ||
+        ||       o--o--o        ||
+        ||        \ | /         ||
+        ||         \o/          ||
+        || downleft | downright ||
+         +======================+
+        */
+
 
         const p1 = this.points[1]
         const p2 = this.points[2]
 
         const m = (p2.y - p1.y) / (p2.x-p1.x)
         const b = p1.y - m *p1.x
+
+        console.log("!!", p1, p2, m, b)
+
+        this._eq = [m,b]
 
         // compute y position, given an x position
         this.f = (x) => {

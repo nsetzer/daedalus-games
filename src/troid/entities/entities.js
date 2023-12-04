@@ -537,7 +537,8 @@ export class BubbleBullet extends ProjectileBase {
     }
 
     _kill() {
-        gAssets.sounds.bubble_pop.play()
+        gAssets.sfx.BEAM_BUBBLE_POP.play()
+
         this.animation.setAnimationById(this.animations["dead"])
         this.alive = false
     }
@@ -1634,11 +1635,11 @@ export class Player extends PlatformerEntity {
                 this.charge_duration += dt
                 if (this.charge_duration >= this.charge_timeout) {
                     if (!!this._beam) {
-                        gAssets.sounds.fireBeamFlameStart.stop()
-                        gAssets.sounds.fireBeamFlameLoop.loop()
+                        gAssets.sfx.BEAM_FLAMETHROWER_CHARGE.stop()
+                        gAssets.sfx.BEAM_FLAMETHROWER_STEADY.loop()
                     } else {
-                        gAssets.sounds.fireBeamCharge.stop()
-                        gAssets.sounds.fireBeamChargeLoop.loop()
+                        gAssets.sfx.fireBeamCharge.stop()
+                        gAssets.sfx.fireBeamChargeLoop.loop()
                     }
                     this.charge_duration = this.charge_timeout
                 }
@@ -1935,11 +1936,15 @@ export class Player extends PlatformerEntity {
 
             this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
         })
-        gAssets.sounds.fireBeam.play()
+
+        gAssets.sfx.BEAM_SHOOT[gCharacterInfo.element].play()
+
     }
 
     _bounce() {
-        gAssets.sounds.jump.play()
+
+        gAssets.sfx.PLAYER_BOUNCE.play()
+
         if (this.jump_pressed) {
             this.physics.yspeed = this.physics.jumpspeed
         } else {
@@ -1958,13 +1963,13 @@ export class Player extends PlatformerEntity {
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
         if (standing) {
-            gAssets.sounds.jump.play()
+            gAssets.sfx.PLAYER_JUMP.play()
             this.physics.yspeed = this.physics.jumpspeed
             this.physics.yaccum = 0
             this.physics.gravityboost = false
             this.physics.doublejump = true
         } else if (pressing && !standing) {
-            gAssets.sounds.jump.play()
+            gAssets.sfx.PLAYER_JUMP.play()
             this.physics.xspeed = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.xaccum = 0
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
@@ -1972,7 +1977,7 @@ export class Player extends PlatformerEntity {
             this.physics.gravityboost = false
 
         } else if (!standing && this.physics.doublejump && this.physics.yspeed > 0) {
-            gAssets.sounds.jump.play()
+            gAssets.sfx.PLAYER_JUMP.play()
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.yaccum = 0
             this.physics.gravityboost = false
@@ -3218,7 +3223,7 @@ export class Coin extends PlatformerEntity {
 
             if (d < 16 * 7) {
                 if (this.rect.collideRect(player.rect)) {
-                    gAssets.sounds.coin_collect.play()
+                    gAssets.sfx.ITEM_COLLECT_COIN.play()
                     this.destroy()
                 }
 
@@ -3480,6 +3485,135 @@ EquipmentItem.editorSchema = [
 registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], "item", null, (entry)=> {
     EquipmentItem.sheet = gAssets.sheets.brick
     EquipmentItem.icon = gAssets.sheets.brick.tile(0)
+})
+
+export class Flipper extends Slope {
+    constructor(entid, props) {
+        if (props.direction == Direction.LEFT) {
+            props.x += 10
+        } else {
+            props.x += 12
+        }
+        props.w = 26
+        props.h = 27
+        super(entid, props)
+
+        this.rect2 = new Rect(this.rect.x,  this.rect.bottom() - 12, this.rect.w, 12)
+        this.visible =1
+
+        let tid = 0
+        switch(this.direction) {
+            case Direction.LEFT:
+                tid = 6
+                break;
+            case Direction.RIGHT:
+                tid = 2
+                break;
+        }
+        this.tid = tid
+
+        console.log(`"Flipper(oneway=${this.oneway}, ${this._eq})"`)
+        console.log(this.rect)
+        console.log(this.points)
+
+        this.timer = 0
+    }
+
+    init_points() {
+        this.points = []
+        // points are organized such that:
+        // origin is always first
+        // left most non-origin point is second
+        // right most non-origin point is third
+        switch (this.direction) {
+
+            case Direction.RIGHT:
+                this.points.push({x: this.rect.left() + 12 - 12, y: this.rect.top() + 27})
+                this.points.push({x: this.rect.left() + 38 - 12, y: this.rect.top() + 27})
+                this.points.push({x: this.rect.left() + 12 - 12, y: this.rect.top()})
+                //this.direction = Direction.UPRIGHT
+                break
+            case Direction.LEFT:
+                this.points.push({x: this.rect.right() - 12 + 12, y: this.rect.top() + 27})
+                this.points.push({x: this.rect.right() - 38 + 12, y: this.rect.top() + 27})
+                this.points.push({x: this.rect.right() - 12 + 12, y: this.rect.top()})
+                //this.direction = Direction.UPLEFT
+                break
+            default:
+                throw {message: "invalid direction", direction: this.direction}
+        }
+    }
+
+    paint(ctx) {
+
+        let tid = this.tid
+        if (this.timer > 0) {
+            tid += 1
+        }
+
+        if (this.direction == Direction.LEFT) {
+            Flipper.sheet.drawTile(ctx, tid, this.rect.x-10, this.rect.y)
+        } else {
+            Flipper.sheet.drawTile(ctx, tid, this.rect.x-12, this.rect.y)
+        }
+        //super.paint(ctx)
+        //ctx.strokeStyle = 'blue'
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+        //ctx.stroke()
+    }
+
+    update(dt) {
+
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            const player = objs[0]
+
+            if (this.rect2.collideRect(player.rect)) {
+                player._bounce()
+                this.timer = 0.3
+            }
+        }
+
+        if (this.timer > 0) {
+            this.timer -= dt
+        }
+
+    }
+
+}
+Flipper.sheet = null
+Flipper.size = [48, 32]
+Flipper.icon = null
+Flipper.editorIcon = (props) => {
+    let tid = 0
+    switch(props?.direction) {
+        case Direction.LEFT:
+            tid = 6;
+            break;
+        case Direction.RIGHT:
+        default:
+            tid = 2;
+            break;
+    }
+
+    return gAssets.sheets.flipper.tile(tid)
+}
+Flipper.editorSchema = [
+    {
+        control: EditorControl.CHOICE,
+        name: "direction",
+        "default": Direction.RIGHT,
+        choices: {
+            "RIGHT": Direction.RIGHT,
+            "LEFT": Direction.LEFT
+        }
+    },
+]
+
+registerEditorEntity("Flipper", Flipper, [48,32], "item", null, (entry)=> {
+    Flipper.sheet = gAssets.sheets.flipper
+    Flipper.icon = editorIcon(Flipper.sheet)
 })
 
 export function registerEntityAssets() {
