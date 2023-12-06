@@ -1,7 +1,8 @@
  
 
-$import("daedalus", {})
-$include("./requests.js")
+import {} from "@daedalus/daedalus"
+
+import {} from "@troid/api/requests"
 
 export const env = {
     //`http://${window.location.hostname}:4100`
