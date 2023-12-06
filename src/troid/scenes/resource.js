@@ -316,6 +316,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("bumper")
+            .path(RES_ROOT + "/sprites/bumper.png")
+            .dimensions(32, 16)
+            .layout(3, 1)
+            .offset(1, 18)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("creeper")
             .path(RES_ROOT + "/sprites/mobs/creeper2.png")
             .dimensions(20, 20)

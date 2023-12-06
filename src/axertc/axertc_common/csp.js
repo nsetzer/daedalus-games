@@ -982,8 +982,8 @@ export class ClientCspMap {
                     // delta should be 7 or 31
 
                     if (false) {
-                        debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + \
-                              ` client validate message deltA:`);
+                        debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + 
+                              ` client validate message delta:`);
                         console.warn(`delta: ${(this.map.local_step - msg.client_step)}`)
                     }
 

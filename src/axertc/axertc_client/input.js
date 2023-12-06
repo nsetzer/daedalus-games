@@ -1,6 +1,6 @@
  
 
-$import("axertc_common", {Rect, Direction, Alignment})
+import {Rect, Direction, Alignment} from "@axertc/axertc_common"
 
 const Keys = {
     LEFT: 37,

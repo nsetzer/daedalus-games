@@ -1,6 +1,6 @@
  
 
-$import("axertc_common", {Rect, Direction, Alignment})
+import {Rect, Direction, Alignment} from "@axertc/axertc_common"
 // https://gist.github.com/mjackson/5311256
 // https://github.com/goldfire/CanvasInput
 

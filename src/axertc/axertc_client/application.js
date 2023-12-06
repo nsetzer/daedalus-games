@@ -1,9 +1,9 @@
 
-from module daedalus import {
+import {
     StyleSheet, DomElement,
     TextElement, ListItemElement, ListElement,
     HeaderElement, ButtonElement, LinkElement
-}
+} from "@daedalus/daedalus"
 
 const style = {
     "body": StyleSheet({

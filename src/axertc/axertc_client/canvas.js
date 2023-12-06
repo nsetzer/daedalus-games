@@ -1,13 +1,15 @@
  
-$import("daedalus", {
+import {
     StyleSheet, DomElement,
     TextElement, ListItemElement, ListElement,
     HeaderElement, ButtonElement, LinkElement
-})
+} from "@daedalus/daedalus"
 
-$import("axertc_common", {Rect, Direction, Alignment})
-$include("./input.js")
-$include("./widget.js")
+import {Rect, Direction, Alignment} from "@axertc/axertc_common"
+
+//$include("./input.js")
+//$include("./widget.js")
+import { WidgetStyle } from "./widget.js"
 
 export class GameScene {
 

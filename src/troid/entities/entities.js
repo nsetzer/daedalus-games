@@ -1,10 +1,23 @@
  
+ /*
+import {} from "@daedalus/daedalus"
+
+import {
+    CspMap, ClientCspMap, ServerCspMap, fmtTime,
+    Direction, Alignment, Rect,
+} from "@axertc/axertc_common"
+*/
+
+// 
+
+
 $import("daedalus", {})
 
 $import("axertc_common", {
-    CspMap, ClientCspMap, ServerCspMap, fmtTime
+    CspMap, ClientCspMap, ServerCspMap, fmtTime,
     Direction, Alignment, Rect,
 })
+
 $import("axertc_client", {SpriteSheet})
 
 $import("axertc_physics", {
@@ -1955,6 +1968,20 @@ export class Player extends PlatformerEntity {
         this.physics.doublejump = true
     }
 
+    _bounce2() {
+
+        gAssets.sfx.PLAYER_BOUNCE.play()
+
+        if (this.jump_pressed) {
+            this.physics.yspeed = this.physics.jumpspeed*1.25
+        } else {
+            this.physics.yspeed = this.physics.jumpspeed
+        }
+        this.physics.yaccum = 0
+        this.physics.gravityboost = false
+        this.physics.doublejump = true
+    }
+
     _jump() {
 
         // coyote time
@@ -3512,10 +3539,6 @@ export class Flipper extends Slope {
         }
         this.tid = tid
 
-        console.log(`"Flipper(oneway=${this.oneway}, ${this._eq})"`)
-        console.log(this.rect)
-        console.log(this.points)
-
         this.timer = 0
     }
 
@@ -3570,7 +3593,7 @@ export class Flipper extends Slope {
             const player = objs[0]
 
             if (this.rect2.collideRect(player.rect)) {
-                player._bounce()
+                player._bounce2()
                 this.timer = 0.3
             }
         }
@@ -3615,6 +3638,75 @@ registerEditorEntity("Flipper", Flipper, [48,32], "item", null, (entry)=> {
     Flipper.sheet = gAssets.sheets.flipper
     Flipper.icon = editorIcon(Flipper.sheet)
 })
+
+export class Bumper extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+
+        this.rect = new Rect(props.x, props.y+4, 32, 12)
+        this.rect2 = new Rect(props.x+2, props.y+2, 32-4, 2)
+
+        this.timer = 0
+    }
+
+    paint(ctx) {
+
+        let tid = 2
+        if (this.timer > 0) {
+            tid = 0
+        }
+
+        Bumper.sheet.drawTile(ctx, tid, this.rect.x, this.rect.y - 4)
+
+        //ctx.strokeStyle = 'blue'
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+        //ctx.stroke()
+    }
+
+    update(dt) {
+
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            const player = objs[0]
+
+            if (this.rect2.collideRect(player.rect)) {
+                player._bounce2()
+                this.timer = 0.3
+            }
+        }
+
+        if (this.timer > 0) {
+            this.timer -= dt
+        }
+
+    }
+
+}
+Bumper.sheet = null
+Bumper.size = [32, 16]
+Bumper.icon = null
+Bumper.editorIcon = (props) => {
+    let tid = 0
+    switch(props?.direction) {
+        case Direction.LEFT:
+            tid = 6;
+            break;
+        case Direction.RIGHT:
+        default:
+            tid = 2;
+            break;
+    }
+
+    return gAssets.sheets.bumper.tile(tid)
+}
+Bumper.editorSchema = []
+
+registerEditorEntity("Bumper", Bumper, [32,16], "item", null, (entry)=> {
+    Bumper.sheet = gAssets.sheets.bumper
+    Bumper.icon = editorIcon(Bumper.sheet)
+})
+
 
 export function registerEntityAssets() {
 

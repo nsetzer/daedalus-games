@@ -85,10 +85,10 @@ current direction
 //$include("./primitives.js")
 //$include("./resource.js")
 //$include("./entity.js")
-$include("./input.js")
-$include("./widget.js")
 //$include("./websocket.js")
-$include("./webrtc.js")
-$include("./canvas.js")
-$include("./resource.js")
-$include("./application.js")
+export * from "./input.js"
+export * from "./widget.js"
+export * from "./webrtc.js"
+export * from "./canvas.js"
+export * from "./resource.js"
+export * from "./application.js"

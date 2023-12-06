@@ -1,5 +1,5 @@
 
-$import("axertc_common", {Entity, Direction, Rect})
+import {Direction, Rect} from "@axertc/axertc_common"
 /*
 
 https://medium.com/@brazmogu/physics-for-game-dev-a-platformer-physics-cheatsheet-f34b09064558
@@ -17,6 +17,8 @@ jumpspeed = - sqrt(2*H*g)
 */
 
 export class Physics2dPlatform {
+
+    static maprect = new Rect(0,0,0,0);
 
     constructor(target, config=null) {
         this.target = target
@@ -681,4 +683,4 @@ export class Physics2dPlatform {
     }
 }
 
-Physics2dPlatform.maprect = new Rect(0,0,0,0)
+//Physics2dPlatform.maprect = new Rect(0,0,0,0)

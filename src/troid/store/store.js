@@ -101,10 +101,42 @@ export class MapInfo {
 
 export class SoundEffectPalette {
 
+    //BEAM_SHOOT = {}
+    //BEAM_CHARGE = {}
+    //BEAM_CHARGE_LOOP = {}
+    //BEAM_FLAMETHROWER_CHARGE: any = null
+    //BEAM_FLAMETHROWER_STEADY: any = null
+    //BEAM_SQUIRT_CHARGE: any = null
+    //BEAM_SQUIRT_STEADY: any = null
+    //BEAM_SPLASH: any = null
+    //BEAM_SPREAD: any = null
+    //BEAM_BUBBLE_POP: any = null
+    //MISSILE_SHOOT: any = null
+    //MISSILE_IMPACT: any = null
+    //PLAYER_JUMP: any = null
+    //PLAYER_DOUBLE_JUMP: any = null
+    //PLAYER_BOUNCE: any = null
+    //PLAYER_MORPH: any = null
+    //PLAYER_UNMORPH: any = null
+    //PLAYER_HURT: any = null
+    //PLAYER_PIPE_ENTER: any = null
+    //PLAYER_PIPE_EXIT: any = null
+    //PLAYER_DOOR_ENTER: any = null
+    //PLAYER_DOOR_EXIT: any = null
+    //MOB_HURT_1: any = null
+    //MOB_HURT_2: any = null
+    //MOB_HURT_3: any = null
+
+    //ITEM_COLLECT: any = null
+    //ITEM_COLLECT_COIN: any = null
+    //GUI_CLICK_1: any = null
+    //GUI_CLICK_2: any = null
+    //GUI_CLICK_3: any = null
+
     constructor() {
         // map loaded audio assets to how they should be used
 
-        const nullsound ={play: ()=>{}, loop: ()=>{}, stop: ()=>{}}
+        const nullsound = {play: ()=>{}, loop: ()=>{}, stop: ()=>{}}
 
         // 17 beam sounds
         this.BEAM_SHOOT = {}

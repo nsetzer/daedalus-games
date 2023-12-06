@@ -1,7 +1,9 @@
 
-$import("axertc_common", {Entity, Direction, Rect})
 
-$include("./physics.js")
+
+import {Entity, Direction, Rect} from "@axertc/axertc_common"
+
+import {Physics2dPlatform} from "./physics.js"
 
 export class PlatformerEntity extends Entity {
 

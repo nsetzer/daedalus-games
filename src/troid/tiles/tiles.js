@@ -1,7 +1,7 @@
 
-$import("axertc_common", {
+import {
     Direction, Rect
-})
+} from "@axertc/axertc_common"
 
 
 /**
@@ -13,35 +13,38 @@ $import("axertc_common", {
  * using 1024, instead of 512, would double the max width and half the max height
  * without using any more bits
  */
-type Tile = {
-    tid: number,        // (18 bits) encoded position ((y+4)*512 + x)
-    shape: number,     // ( 3 bits) shape enum
-    property: number,  // ( 3 bits) tile property enum
-    sheet: number,     // ( 3 bits) index for the sheet to render this tile
-    direction: number, // ( 4 bits) direction enum for slopes
-    tile: number,      // -------- tile index for the sheet assigned to this tile
-                       // assigned by updateTile and depends on neighbors
-}
+//export type Tile = {
+//    tid: number,       // (18 bits) encoded position ((y+4)*512 + x)
+//    shape: number,     // ( 3 bits) shape enum
+//    property: number,  // ( 3 bits) tile property enum
+//    sheet: number,     // ( 3 bits) index for the sheet to render this tile
+//    direction: number, // ( 4 bits) direction enum for slopes
+//    tile: number,      // -------- tile index for the sheet assigned to this tile
+//                       // assigned by updateTile and depends on neighbors
+//}
  
-export const TileShape = {}
-TileShape.RESERVED = 0
-TileShape.FULL = 1
-TileShape.HALF = 2
-TileShape.ONETHIRD = 3
-TileShape.TWOTHIRD = 4
-TileShape.RESERVED = 5
-TileShape.RESERVED = 6
-TileShape.ALT_FULL = 7 // theme block
+export class TileShape {
+    static RESERVED0 = 0
+    static FULL = 1
+    static HALF = 2
+    static ONETHIRD = 3
+    static TWOTHIRD = 4
+    static RESERVED1 = 5
+    static RESERVED2 = 6
+    static ALT_FULL = 7 // theme block
+}
 
-export const TileProperty = {}
-TileShape.RESERVED = 0
-TileProperty.SOLID = 1
-TileProperty.NOTSOLID = 2
-TileProperty.ONEWAY = 3
-TileProperty.ICE = 4
-TileProperty.WATER = 5
-TileProperty.LAVA = 6
+export class TileProperty {
+    static RESERVED = 0
+    static SOLID = 1
+    static NOTSOLID = 2
+    static ONEWAY = 3
+    static ICE = 4
+    static WATER = 5
+    static LAVA = 6
+}
 
+ 
 // a tile is a {shape, property, sheet}
 // it may have a `tile` property which is the image to draw
 
@@ -109,26 +112,26 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         const ntid_l = ((y + 4)*512 + (x - 1))
         const ntid_r = ((y + 4)*512 + (x + 1))
 
-        let eu = !!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape != TileShape.ALT_FULL
-        let ed = !!layer[ntid_d] && solid(layer[ntid_d].property) == solid(layer[ntid].property) && layer[ntid_d].shape != TileShape.ALT_FULL
-        let el = !!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && layer[ntid_l].shape != TileShape.ALT_FULL
-        let er = !!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && layer[ntid_r].shape != TileShape.ALT_FULL
+        let eu = (!!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape != TileShape.ALT_FULL)?1:0
+        let ed = (!!layer[ntid_d] && solid(layer[ntid_d].property) == solid(layer[ntid].property) && layer[ntid_d].shape != TileShape.ALT_FULL)?1:0
+        let el = (!!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && layer[ntid_l].shape != TileShape.ALT_FULL)?1:0
+        let er = (!!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && layer[ntid_r].shape != TileShape.ALT_FULL)?1:0
 
         if (layer[ntid].property == TileProperty.ONEWAY) {
             // this allows having a step to stand on inside of a cliff.
             // by having a layer of tiles that are passthrough and sections that are one way
-            eu = !!layer[ntid_u] && layer[ntid_u].property == layer[ntid].property
+            eu = (!!layer[ntid_u] && layer[ntid_u].property == layer[ntid].property)?1:0
         }
 
         // tiles on the bottom edge of the map should act like there is a tile below them
         if ((y + 1)*16 >= map_height) {
-            ed = true
+            ed = 1
         }
         if ((x + 1)*16 >= map_width) {
-            er = true
+            er = 1
         }
         if ((x - 1)*16 <= 0) {
-            el = true
+            el = 1
         }
 
         let tid = -1

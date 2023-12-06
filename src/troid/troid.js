@@ -15,17 +15,21 @@
 //   like a secret exit/entrance pair. doors warp to the corresponding named
 //   door of another map.
 // when using the map editor: all exits kick you back to the editor
-$import("axertc_client", {
+import {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
     ArrowButtonWidget, TouchInput, KeyboardInput
+} from "@axertc/axertc_client"
 
-})
+import {
+    MainScene, LevelLoaderScene, LevelEditScene, 
+    LevelEditSelectScene, transitionToLevel
+} from "@troid/scenes"
 
-$import("scenes", {MainScene, LevelLoaderScene, LevelEditScene, LevelEditSelectScene, transitionToLevel})
-$import("store", {MapInfo, gAssets, gCharacterInfo, WeaponType})
+import {MapInfo, gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-$import("api", {})
+import {} from "@troid/api"
+
 window.print = console.log
 
 export default class Application extends ApplicationBase {

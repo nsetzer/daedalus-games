@@ -1,6 +1,5 @@
  
 
-
 //deprecate???
 export function randomNumber(min, max) {
     // returns a number from min to max, including min or max
@@ -27,8 +26,7 @@ export function shuffle(array) {
   while (currentIndex != 0) {
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
-    [array[currentIndex], array[randomIndex]] = \
-        [array[randomIndex], array[currentIndex]];
+    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
   }
 
   return array;
