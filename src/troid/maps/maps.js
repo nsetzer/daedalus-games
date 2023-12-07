@@ -1,18 +1,18 @@
  
 
-$import("axertc_common", {
-    CspMap, ClientCspMap, ServerCspMap, fmtTime
+import {
+    CspMap, ClientCspMap, ServerCspMap, fmtTime,
     Direction, Alignment, Rect,
-})
+} from "@axertc/axertc_common"
 
-$import("axertc_physics", {
+import {
     Physics2dPlatform, PlatformerEntity, Wall, Slope, OneWayWall,
     AnimationComponent
-})
+} from "@axertc/axertc_physics"
 
-$import("entities", {
+import {
     defaultEntities, editorEntities
-})
+} from "entities"
 
 export class PlatformMap extends CspMap {
 

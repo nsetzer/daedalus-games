@@ -13,16 +13,22 @@ import {
  * using 1024, instead of 512, would double the max width and half the max height
  * without using any more bits
  */
-//export type Tile = {
-//    tid: number,       // (18 bits) encoded position ((y+4)*512 + x)
-//    shape: number,     // ( 3 bits) shape enum
-//    property: number,  // ( 3 bits) tile property enum
-//    sheet: number,     // ( 3 bits) index for the sheet to render this tile
-//    direction: number, // ( 4 bits) direction enum for slopes
-//    tile: number,      // -------- tile index for the sheet assigned to this tile
-//                       // assigned by updateTile and depends on neighbors
-//}
- 
+
+export type Tile = {   
+    tid: number,       // (18 bits) encoded position ((y+4)*512 + x)
+    shape: number,     // ( 3 bits) shape enum
+    property: number,  // ( 3 bits) tile property enum
+    sheet: number,     // ( 3 bits) index for the sheet to render this tile
+    direction: number, // ( 4 bits) direction enum for slopes
+    tile: number,      // -------- tile index for the sheet assigned to this tile
+                       // assigned by updateTile and depends on neighbors
+}
+
+export type Layer = { [key: number]: Tile }
+
+export type Layers = Layer[]
+
+
 export class TileShape {
     static RESERVED0 = 0
     static FULL = 1
@@ -84,7 +90,15 @@ let TT_1_10 = 1*11 + 10 // twothird
 let TT_3_00 = 3*11 + 0 // alt full
 
 
-export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
+export function updateTile(layer:Layer, map_width:number, map_height:number, sheets:any, x:number, y:number, tile: Tile) {
+    // layer: the layer of tiles
+    // map_width: the width of the map in pixels. used for bounds checks
+    // map_height: the height of the map in pixels. used for bounds checks
+    // sheets: (deprecated) no longer used
+    // x: the x-coordinate of the tile index 
+    // y: the y-coordinate of the tile index 
+    //
+
     // TODO: one more optimization for tile sheets
     //       extract a Tile once for each used index in the tile sheet
 
@@ -96,7 +110,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
     // update neighbors
     // loop until no more tiles are changed
 
-    const tile_before = tile.tile
+    const tile_before : number = tile.tile
 
     const solid = (p) => p == TileProperty.SOLID
 
@@ -306,12 +320,7 @@ export function updateTile(layer, map_width, map_height, sheets, x, y, tile) {
         console.log("error shape", tile.shape)
     }
 
-    // check to see if any changes were made
-    if (!!tile_before && !!tile.tile) {
-        return tile_before.sheet != tile.tile.sheet || tile_before.tid != tile.tile.tid
-    }
-
-    return (!!tile_before) !== (!!tile.tile)
+    return tile_before != tile.tile
 }
 
 export function paintTile(ctx, x, y, tile, sheets) {
