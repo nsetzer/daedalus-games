@@ -21,7 +21,7 @@ export function get_map_world_manifest() {
     } else {
         url = env.baseUrl + "/api/map/world/manifest"
     }
-    return get_json(url, {})
+    return requests.get_json(url, {})
 }
 
 export function get_map_world_level_manifest(world) {
@@ -37,7 +37,7 @@ export function get_map_world_level_manifest(world) {
     //const params = daedalus.util.serializeParameters({
     //    'token': getAuthToken(),
     //})
-    return get_json(url, {})
+    return requests.get_json(url, {})
 }
 
 export function post_map_level(path, body) {
@@ -45,5 +45,5 @@ export function post_map_level(path, body) {
     const parameters = daedalus.util.serializeParameters({
         'path': path,
     })
-    return post_json(url + parameters, body, {})
+    return requests.post_json(url + parameters, body, {})
 }
