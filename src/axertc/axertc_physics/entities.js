@@ -147,6 +147,8 @@ export class Slope extends PlatformBase {
         this.breakable = 0
         this.alive = 1
         this.solid = 1
+
+        this.tested_points = []
     }
 
     init_points() {
@@ -202,8 +204,6 @@ export class Slope extends PlatformBase {
 
         const m = (p2.y - p1.y) / (p2.x-p1.x)
         const b = p1.y - m *p1.x
-
-        console.log("!!", p1, p2, m, b)
 
         this._eq = [m,b]
 
@@ -412,9 +412,15 @@ export class Slope extends PlatformBase {
         if (yp == null) {
             return false
         }
+
+        //this.tested_points.push({x,y})
+        //this.visible = true
+
         if (this.direction&Direction.DOWN) {
+            //console.log("slope cp dn1 (", x,y, ")", yp, yp >= y, this.rect)
             return yp >= y
         } else {
+            //console.log("slope cp up2 (", x,y, ")", yp, yp <= y, this.rect)
             return yp <= y
         }
     }
@@ -440,6 +446,13 @@ export class Slope extends PlatformBase {
         ctx.textBaseline = "top"
 
         ctx.fillText(`${this.entid}`, this.rect.x, this.rect.y);
+
+        //this.tested_points.forEach(pt => {
+        //    ctx.beginPath();
+        //    ctx.fillStyle = "#FF00FF";
+        //    ctx.rect(pt.x, pt.y, 1, 1)
+        //    ctx.fill();
+        //})
 
     }
 

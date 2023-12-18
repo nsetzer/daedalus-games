@@ -375,6 +375,9 @@ export class CanvasEngine extends DomElement {
             s = (Math.floor((s*100)/25)*25)/100
 
             this.view.scale = Math.max(1, s)
+            if (daedalus.env.debug) {
+                this.view.scale = 3
+            }
         } else {
             if (daedalus.platform.isMobile) {
 
