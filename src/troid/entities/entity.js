@@ -3085,48 +3085,95 @@ class CreeperPhysics {
         this.target = target
 
         this.standing_direction = Direction.NONE
-        this.moving_direction = Direction.LEFT
-        this.target_rect = null
+        this.moving_direction = Direction.RIGHT
+        this.next_rect = null
 
         this.rect = target.rect
 
+        this.vaccum = 0
+
+    }
+
+    _update_neighborhood() {
+        let rect = this.target.rect
+        this._neighborhood = new Rect(rect.x - 8, rect.y - 8, rect.w + 16, rect.h + 16);
+        this._neighbors = this.group().filter(ent => ent.rect.collideRect(this._neighborhood))
+    }
+
+    _init_step() {
+        // run this test every couple frames when falling
+        let rect = this.target.rect
+        let sensor_u = {x: rect.cx(),       y: rect.top() - 1}
+        let sensor_d = {x: rect.cx(),       y: rect.bottom()}
+        let sensor_l = {x: rect.left() - 1, y: rect.cy()}
+        let sensor_r = {x: rect.right(),    y: rect.cy()}
+
+        let collide_u = false;
+        let collide_d = false;
+        let collide_l = false;
+        let collide_r = false;
+
+        this._neighbors.forEach(ent => {
+            if (ent.collidePoint(sensor_u.x, sensor_u.y)) { collide_u = true }
+            if (ent.collidePoint(sensor_d.x, sensor_d.y)) { collide_d = true }
+            if (ent.collidePoint(sensor_l.x, sensor_l.y)) { collide_l = true }
+            if (ent.collidePoint(sensor_r.x, sensor_r.y)) { collide_r = true }
+        })
+
+        if (collide_d) {
+            this.standing_direction = Direction.DOWN
+        } else if (collide_u) {
+            this.standing_direction = Direction.UP
+        } else if (collide_l) {
+            this.standing_direction = Direction.LEFT
+        } else if (collide_r) {
+            this.standing_direction = Direction.RIGHT
+        } else {
+            // falling
+            this.standing_direction = Direction.DOWN
+        }
     }
 
     _step() {
+        // returns a number representing the amount of velocity units consumed
+        // e.g. if a step was taken on an axis, this returns 1
+        //      if a step was taken on adiagonal, this returns sqrt(2)
 
-        if (this.target_rect != null) {
+        if (this.next_rect != null) {
             // when walking off a cliff, change the standing direction
             // this handles translating from one wall to another
 
-            let dx = this.rect.x - this.target_rect.x
-            let dy = this.rect.y - this.target_rect.y
+            let dx = this.target.rect.x - this.next_rect.x
+            let dy = this.target.rect.y - this.next_rect.y
+            let v = 0
             if (dx < 0) {
-                this.rect.x += 1
+                this.target.rect.x += 1
+                v += 1
             } else if (dx > 0) {
-                this.rect.x -= 1
+                this.target.rect.x -= 1
+                v += 1
             }
 
             if (dy < 0) {
-                this.rect.y += 1
+                this.target.rect.y += 1
+                v += 1
             } else if (dy > 0) {
-                this.rect.y -= 1
+                this.target.rect.y -= 1
+                v += 1
             }
 
             if (dx != 0 || dy != 0) {
-
-                return
+                // consume 1.4 velocity units because it traveled on a diagonal
+                return v==2?1.4:1
             }
             if (dx == 0 && dy ==0) {
-                this.target_rect = null
+                this.next_rect = null
             }
         }
 
         let v = Direction.vector(this.moving_direction)
         let dx = v.x;
         let dy = v.y;
-        let neighborhood = new Rect(this.rect.left() - 8, this.rect.top() - 8, this.rect.w + 16, this.rect.h + 16);
-        let neighbors = this.group().filter(ent => ent.rect.collideRect(neighborhood))
-        //let neighbors = this.group()//.filter(ent => ent.rect.collideRect(neighborhood))
 
         let collide_u = false;
         let collide_d = false;
@@ -3171,7 +3218,7 @@ class CreeperPhysics {
         // can step down to solid
         let sensor_g1 = {x: sns.x + dx - 1*step.x, y: sns.y + dy - 1*step.y};
 
-        neighbors.forEach(ent => {
+        this._neighbors.forEach(ent => {
             if (ent.entid == this.entid) { return }
 
             if (ent.collidePoint(sensor_u.x, sensor_u.y)) { collide_u = true }
@@ -3292,36 +3339,25 @@ class CreeperPhysics {
         let hw = Math.floor(this.rect.w/2)
         let hh = Math.floor(this.rect.h/2)
 
-        let lut2 = [
-            [{standing: Direction.DOWN ,moving: Direction.RIGHT}, {standing: Direction.LEFT , moving: Direction.DOWN ,x:+hw,y:+(hh+2)}],
-            [{standing: Direction.LEFT ,moving: Direction.DOWN }, {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+hh}],
-            [{standing: Direction.UP   ,moving: Direction.LEFT }, {standing: Direction.RIGHT, moving: Direction.UP   ,x:-hw,y:-(hh+2)}],
-            [{standing: Direction.RIGHT,moving: Direction.UP   }, {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh-1)}],
-            [{standing: Direction.DOWN ,moving: Direction.LEFT }, {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-hw,y:+(hh+2)}],
-            [{standing: Direction.RIGHT,moving: Direction.DOWN }, {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+hh}],
-            [{standing: Direction.UP   ,moving: Direction.RIGHT}, {standing: Direction.LEFT , moving: Direction.UP   ,x:+hw,y:-(hh+2)}],
-            [{standing: Direction.LEFT ,moving: Direction.UP   }, {standing: Direction.DOWN , moving: Direction.LEFT ,x:-(hw+2),y:-(hh-1)}],
-        ]
+        // look up table for walking off a cliff, which changes the standing direction
 
-        //let lut2_2 = {
-        //    [Direction.DOWN]: {
-        //        [Direction.Right]: {standing: Direction.LEFT , moving: Direction.DOWN ,x:+hw,y:+hh},
-        //        [Direction.LEFT ]: {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-hw,y:+hh},
-        //    },
-        //    [Direction.UP]: {
-        //        [Direction.RIGHT]: {standing: Direction.LEFT , moving: Direction.UP   ,x:+hw,y:-hh},
-        //        [Direction.LEFT ]: {standing: Direction.RIGHT, moving: Direction.UP   ,x:-hw,y:-(hh+1)},
-        //    },
-        //    [Direction.LEFT]: {
-        //        [Direction.DOWN]: {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+1),y:+hh},
-        //        [Direction.UP  ]: {standing: Direction.DOWN , moving: Direction.LEFT ,x:-hw,y:-hh},
-        //    },
-        //    [Direction.RIGHT]: {
-        //        [Direction.DOWN]: {standing: Direction.UP   , moving: Direction.RIGHT,x:+hw,y:+hh},
-        //        [Direction.UP  ]: {standing: Direction.DOWN , moving: Direction.RIGHT,x:+hw,y:-hh},
-        //    }
-        //}
+        let lut2 = {}
+        lut2[Direction.DOWN ] = {}
+        lut2[Direction.LEFT ] = {}
+        lut2[Direction.UP   ] = {}
+        lut2[Direction.RIGHT] = {}
 
+        lut2[Direction.UP   ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.UP   ,x:-(hw+0),y:-(hh+2)}
+        lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh-1)}
+        lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
+        lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
+
+        lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+0),y:-(hh+2)}
+        lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+0)}
+        lut2[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-(hw+0),y:+(hh+2)}
+        lut2[Direction.LEFT ][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.LEFT ,x:-(hw+2),y:-(hh+0)}
+
+        // look up table for walking up a wall, which changes the standing direction
         let lut3 = [
             [{standing: Direction.DOWN ,moving: Direction.RIGHT}, {standing: Direction.RIGHT , moving: Direction.UP   ,x:0,y:0}],
             [{standing: Direction.LEFT ,moving: Direction.DOWN }, {standing: Direction.DOWN  , moving: Direction.RIGHT,x:0,y:0}],
@@ -3345,7 +3381,7 @@ class CreeperPhysics {
             //console.log("step up")
             this.rect.x += step.x + dx
             this.rect.y += step.y + dy
-            return
+            return 1.4
 
         // if standing, front and head will not collide, step forward
         }
@@ -3357,7 +3393,7 @@ class CreeperPhysics {
             //console.log("step dn", gEngine.frameIndex)
             this.rect.x += -step.x + dx
             this.rect.y += -step.y + dy
-            return
+            return 1.4
         }
 
         if (standing && !bonk && d_collide_next[lut.b]) {
@@ -3365,7 +3401,7 @@ class CreeperPhysics {
             //console.log("step fd")
             this.rect.x += dx
             this.rect.y += dy
-            return
+            return 1
         }
 
         // todo check if next rect is valid
@@ -3374,13 +3410,14 @@ class CreeperPhysics {
             //move to walk off the 'cliff'
             // it's a cliff from the perspective of the current downwards direction
 
-            let ta, tmp
-            for (let i=0; i < lut2.length; i++) {
-                [ta,tmp] = lut2[i]
-                if (ta.standing == this.standing_direction && ta.moving == this.moving_direction) {
-                    break
-                }
-            }
+            //let ta, tmp
+            //for (let i=0; i < lut2.length; i++) {
+            //    [ta,tmp] = lut2[i]
+            //    if (ta.standing == this.standing_direction && ta.moving == this.moving_direction) {
+            //        break
+            //    }
+            //}
+            let tmp = lut2[this.standing_direction][this.moving_direction]
 
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
@@ -3390,7 +3427,7 @@ class CreeperPhysics {
             // in order to support objects that are not square and 16x16
             let x1 = this.rect.cx()
             let y1 = this.rect.cy()
-            let nextrect = new Rect(
+            let next_rect = new Rect(
                 this.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x)/8)*8,
                 this.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y)/8)*8,
                 this.rect.w,
@@ -3404,7 +3441,7 @@ class CreeperPhysics {
             //    if (ent.collidePoint(p.x, p.y)) { collide = true}
             //}
 
-            this.target_rect = nextrect
+            this.next_rect = next_rect
 
             //this.rect.x += dx
             //this.rect.y += dy
@@ -3421,11 +3458,11 @@ class CreeperPhysics {
             let y2 = this.rect.cy()
             //console.log("delta", tmp, Math.abs(x2-x1), Math.abs(y2-y2))
 
-            return
+            return 0
         }
 
 
-        if (standing && d_collide_next[lut.b] && !d_collide_next[lut.t]) {
+        if (standing && d_collide_next[lut.b] && !d_collide_next[lut.t] && d_collide_next[lut.f]) {
             //console.log("rotate 3")
             this.collision_points = d_collide_next
             // move to walk up a 'wall'
@@ -3443,26 +3480,26 @@ class CreeperPhysics {
             this.moving_direction = tmp.moving
             this.standing_direction = tmp.standing
 
-            let nextrect = new Rect(
-                this.rect.x + tmp.x + dx, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
-                this.rect.y + tmp.y + dy, // Math.round((this.rect.y + tmp.y + dy)/8)*8,
+            let next_rect = new Rect(
+                this.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
+                this.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y + dy)/8)*8,
                 this.rect.w,
                 this.rect.h
             )
 
-            this.rect.x = nextrect.x
-            this.rect.y = nextrect.y
+            this.rect.x = next_rect.x
+            this.rect.y = next_rect.y
 
             // todo round the edge cooresponding the the standing direction
             // in order to support objects that are not square and 16x16
 
-            return
+            return 1
         }
 
         if (!d_collide[lut.b]) {
             this.rect.x += -step.x
             this.rect.y += -step.y
-            return
+            return 1
         }
 
         this.sns_points = {
@@ -3488,74 +3525,9 @@ class CreeperPhysics {
         throw {"error": "error"}
     }
 
-    _init_step() {
-        // run this test every couple frames when falling
-
-        let sensor_u = {x: this.rect.cx(), y: this.rect.top() - 1}
-        let sensor_d = {x: this.rect.cx(), y: this.rect.bottom() + 1}
-        let sensor_l = {x: this.rect.left() - 1, y: this.rect.cy()}
-        let sensor_r = {x: this.rect.right() + 1, y: this.rect.cy()}
-
-        let collide_u = false;
-        let collide_d = false;
-        let collide_l = false;
-        let collide_r = false;
-
-        let neighborhood = new Rect(this.rect.left() - 8, this.rect.top() - 8, this.rect.w + 16, this.rect.h + 16);
-        let neighbors = this.group().filter(ent => ent.rect.collideRect(neighborhood))
-
-        neighbors.forEach(ent => {
-            if (ent.collidePoint(sensor_u.x, sensor_u.y)) { collide_u = true }
-            if (ent.collidePoint(sensor_d.x, sensor_d.y)) { collide_d = true }
-            if (ent.collidePoint(sensor_l.x, sensor_l.y)) { collide_l = true }
-            if (ent.collidePoint(sensor_r.x, sensor_r.y)) { collide_r = true }
-        })
-
-        if (collide_d) {
-            this.standing_direction = Direction.DOWN
-        } else if (collide_u) {
-            this.standing_direction = Direction.UP
-        } else if (collide_l) {
-            this.standing_direction = Direction.LEFT
-        } else if (collide_r) {
-            this.standing_direction = Direction.RIGHT
-        } else {
-            // falling
-            this.standing_direction = Direction.DOWN
-        }
-
-        console.log("creeper set standing direction", this.standing_direction)
-
-        let dx = 0
-        let dy = 0;
-
-        sensor_u.x += dx;
-        sensor_u.y += dy;
-
-        sensor_d.x += dx;
-        sensor_d.y += dy;
-
-        sensor_l.x += dx;
-        sensor_l.y += dy;
-
-        sensor_r.x += dx;
-        sensor_r.y += dy;
-
-        let collide_next_u = false;
-        let collide_next_d = false;
-        let collide_next_l = false;
-        let collide_next_r = false;
-
-        neighbors.forEach(ent => {
-            if (ent.collidePoint(sensor_u.x, sensor_u.y)) { collide_next_u = true }
-            if (ent.collidePoint(sensor_d.x, sensor_d.y)) { collide_next_d = true }
-            if (ent.collidePoint(sensor_l.x, sensor_l.y)) { collide_next_l = true }
-            if (ent.collidePoint(sensor_r.x, sensor_r.y)) { collide_next_r = true }
-        })
-    }
-
     update(dt) {
 
+        this._update_neighborhood()
 
         // if standing and velocity is greater than zero, take a step
         // use velocity and direction separate values instead of
@@ -3566,7 +3538,30 @@ class CreeperPhysics {
             this._init_step()
         }
 
-        this._step()
+        this.vaccum += 20*dt
+        while (this.vaccum > 1.0) {
+            this.vaccum -= this._step()
+
+        }
+    }
+
+    paint(ctx) {
+        let sensor_u = {x: this.rect.cx(), y: this.rect.top() - 1}
+        let sensor_d = {x: this.rect.cx(), y: this.rect.bottom()}
+        let sensor_l = {x: this.rect.left() - 1, y: this.rect.cy()}
+        let sensor_r = {x: this.rect.right(), y: this.rect.cy()}
+
+
+        ctx.beginPath()
+        ctx.fillStyle = "#FF0000"
+        ctx.lineWidth = 1
+        ctx.rect(sensor_u.x, sensor_u.y, 1, 1)
+        ctx.rect(sensor_d.x, sensor_d.y, 1, 1)
+        ctx.rect(sensor_l.x, sensor_l.y, 1, 1)
+        ctx.rect(sensor_r.x, sensor_r.y, 1, 1)
+        ctx.closePath()
+        ctx.fill();
+
     }
 }
 
@@ -3648,6 +3643,7 @@ export class CreeperV2 extends MobBase {
         ctx.fill()
         ctx.stroke()
 
+        this.physics.paint(ctx)
         //ctx.beginPath()
         //ctx.font = "6px";
         //ctx.fillStyle = "white"
