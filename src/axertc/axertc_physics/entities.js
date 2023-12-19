@@ -131,8 +131,7 @@ export class Slope extends PlatformBase {
         this.rect = new Rect(0,0,0,0)
         this.visible = props?.visible??true
         this.oneway = props?.oneway??false
-
-
+        this.halfheight = props?.halfheight??false
 
         if (!!props.direction) {
             this.rect = new Rect(props.x, props.y, props.w, props.h)
@@ -157,27 +156,46 @@ export class Slope extends PlatformBase {
         // origin is always first
         // left most non-origin point is second
         // right most non-origin point is third
+
+        let l = this.rect.left()
+        let t = this.rect.top()
+        let r = this.rect.right()
+        let b = this.rect.bottom()
+
+        // half height is for 2/3 slopes
+        // allowing the block to fill a full tile
+        // while only having an angle in the top half
+        // it will be solid from below correctly
+        if (this.halfheight) {
+            if (this.direction & Direction.DOWN) {
+                t += Math.floor(this.rect.h/2)
+                //b += Math.floor(this.rect.h/2)
+            } else {
+                b -= Math.floor(this.rect.h/2)
+            }
+        }
+
         switch (this.direction) {
 
             case Direction.UPRIGHT:
-                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
-                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
-                this.points.push({x: this.rect.left(), y: this.rect.top()})
+                this.points.push({x: l, y: b})
+                this.points.push({x: r, y: b})
+                this.points.push({x: l, y: t})
                 break
             case Direction.UPLEFT:
-                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
-                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
-                this.points.push({x: this.rect.right(), y: this.rect.top()})
+                this.points.push({x: r, y: b})
+                this.points.push({x: l, y: b})
+                this.points.push({x: r, y: t})
                 break
             case Direction.DOWNRIGHT:
-                this.points.push({x: this.rect.left(), y: this.rect.top()})
-                this.points.push({x: this.rect.right(), y: this.rect.top()})
-                this.points.push({x: this.rect.left(), y: this.rect.bottom()})
+                this.points.push({x: l, y: t})
+                this.points.push({x: r, y: t})
+                this.points.push({x: l, y: b})
                 break
             case Direction.DOWNLEFT:
-                this.points.push({x: this.rect.right(), y: this.rect.top()})
-                this.points.push({x: this.rect.left(), y: this.rect.top()})
-                this.points.push({x: this.rect.right(), y: this.rect.bottom()})
+                this.points.push({x: r, y: t})
+                this.points.push({x: l, y: t})
+                this.points.push({x: r, y: b})
                 break
             default:
                 throw {message: "invalid direction", direction: this.direction}
@@ -432,6 +450,11 @@ export class Slope extends PlatformBase {
         let r = this.rect.x+this.rect.w
         let b = this.rect.y+this.rect.h
 
+        ctx.fillStyle = "#c3a3a388";
+        ctx.beginPath();
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.fill();
+
         ctx.fillStyle = "#c3a3a3";
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -439,13 +462,14 @@ export class Slope extends PlatformBase {
         ctx.lineTo(this.points[2].x, this.points[2].y);
         ctx.fill();
 
-        ctx.font = "bold 8";
-        ctx.fillStyle = "black"
-        ctx.strokeStyle = "black"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
 
-        ctx.fillText(`${this.entid}`, this.rect.x, this.rect.y);
+
+        //ctx.font = "bold 8";
+        //ctx.fillStyle = "black"
+        //ctx.strokeStyle = "black"
+        //ctx.textAlign = "left"
+        //ctx.textBaseline = "top"
+        //ctx.fillText(`${this.entid}`, this.rect.x, this.rect.y);
 
         //this.tested_points.forEach(pt => {
         //    ctx.beginPath();

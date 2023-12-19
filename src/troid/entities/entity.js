@@ -3088,10 +3088,11 @@ class CreeperPhysics {
         this.moving_direction = Direction.RIGHT
         this.next_rect = null
 
-        this.rect = target.rect
+        //this.rect = target.rect
 
-        this.vaccum = 0
+        this.vaccum = 0 // velocity accumulator
 
+        this._init_lut()
     }
 
     _update_neighborhood() {
@@ -3134,7 +3135,81 @@ class CreeperPhysics {
         }
     }
 
-    _step() {
+    _init_lut() {
+                // clockwise A or counterclockwise B
+        // the next moving direction in a sequence
+        // and the amount to add or subtract
+        // A: RIGHT, DOWN, LEFT, UP
+        //   xy: ++, -+, --, +-,
+        // B: LEFT, DOWN, RIGHT, UP
+        //   xy: -+, ++, +-, --
+
+        // transition table for [standing][moving]
+        // no overlap between the two
+        // clockwise
+        // dr : ld
+        // ld : ul
+        // ul : ru
+        // ru : dr
+        // counter clockwise
+        // dl : rd
+        // rd : ur
+        // ur : lu
+        // lu : dl
+        let hw = Math.floor(this.target.rect.w/2)
+        let hh = Math.floor(this.target.rect.h/2)
+
+        // look up table for walking off a cliff, which changes the standing direction
+
+        let lut2 = {}
+        lut2[Direction.DOWN ] = {}
+        lut2[Direction.LEFT ] = {}
+        lut2[Direction.UP   ] = {}
+        lut2[Direction.RIGHT] = {}
+
+        lut2[Direction.UP   ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.UP   ,x:-(hw+0),y:-(hh+2)}
+        lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh-1)}
+        lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
+        lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
+
+        lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+0),y:-(hh+2)}
+        lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+0)}
+        lut2[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-(hw+0),y:+(hh+2)}
+        lut2[Direction.LEFT ][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.LEFT ,x:-(hw+2),y:-(hh+0)}
+
+        // look up table for walking up a wall, which changes the standing direction
+        //let lut3 = [
+        //    [{standing: Direction.UP   ,moving: Direction.LEFT }, {standing: Direction.LEFT  , moving: Direction.DOWN ,x:0,y:0}],
+        //    [{standing: Direction.RIGHT,moving: Direction.UP   }, {standing: Direction.UP    , moving: Direction.LEFT ,x:0,y:0}],
+        //    [{standing: Direction.DOWN ,moving: Direction.RIGHT}, {standing: Direction.RIGHT , moving: Direction.UP   ,x:0,y:0}],
+        //    [{standing: Direction.LEFT ,moving: Direction.DOWN }, {standing: Direction.DOWN  , moving: Direction.RIGHT,x:0,y:0}],
+        //    [{standing: Direction.UP   ,moving: Direction.RIGHT}, {standing: Direction.RIGHT , moving: Direction.DOWN ,x:0,y:0}],
+        //    [{standing: Direction.RIGHT,moving: Direction.DOWN }, {standing: Direction.DOWN  , moving: Direction.LEFT ,x:0,y:0}],
+        //    [{standing: Direction.DOWN ,moving: Direction.LEFT }, {standing: Direction.LEFT  , moving: Direction.UP   ,x:0,y:0}],
+        //    [{standing: Direction.LEFT ,moving: Direction.UP   }, {standing: Direction.UP    , moving: Direction.RIGHT,x:0,y:0}],
+        //]
+
+        let lut3 = {}
+        lut3[Direction.DOWN ] = {}
+        lut3[Direction.LEFT ] = {}
+        lut3[Direction.UP   ] = {}
+        lut3[Direction.RIGHT] = {}
+
+        lut3[Direction.UP   ][Direction.LEFT ] = {standing: Direction.LEFT  , moving: Direction.DOWN ,x:0,y:0}
+        lut3[Direction.RIGHT][Direction.UP   ] = {standing: Direction.UP    , moving: Direction.LEFT ,x:0,y:0}
+        lut3[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.RIGHT , moving: Direction.UP   ,x:0,y:0}
+        lut3[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.DOWN  , moving: Direction.RIGHT,x:0,y:0}
+
+        lut3[Direction.UP   ][Direction.RIGHT] = {standing: Direction.RIGHT , moving: Direction.DOWN ,x:0,y:0}
+        lut3[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.DOWN  , moving: Direction.LEFT ,x:0,y:0}
+        lut3[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.LEFT  , moving: Direction.UP   ,x:0,y:0}
+        lut3[Direction.LEFT ][Direction.UP   ] = {standing: Direction.UP    , moving: Direction.RIGHT,x:0,y:0}
+
+        this._lut_rotate_2 = lut2
+        this._lut_rotate_3 = lut3
+    }
+
+    _step(dx, dy) {
         // returns a number representing the amount of velocity units consumed
         // e.g. if a step was taken on an axis, this returns 1
         //      if a step was taken on adiagonal, this returns sqrt(2)
@@ -3171,10 +3246,6 @@ class CreeperPhysics {
             }
         }
 
-        let v = Direction.vector(this.moving_direction)
-        let dx = v.x;
-        let dy = v.y;
-
         let collide_u = false;
         let collide_d = false;
         let collide_l = false;
@@ -3189,15 +3260,15 @@ class CreeperPhysics {
         let collide_next_s2 = false; // the bottom edge (either u,d,l,r) but should not collide
         let collide_next_g1 = false; // the bottom edge (either u,d,l,r) but should not collide
 
-        let sensor_u = {x: this.rect.cx(), y: this.rect.top() - 1}
-        let sensor_d = {x: this.rect.cx(), y: this.rect.bottom()}
-        let sensor_l = {x: this.rect.left() - 1, y: this.rect.cy()}
-        let sensor_r = {x: this.rect.right(), y: this.rect.cy()}
+        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
+        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
+        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
+        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
 
         if (this.moving_direction == Direction.RIGHT) {sensor_r.x -= 1}
-        if (this.moving_direction == Direction.LEFT ) {sensor_r.x += 1}
-        if (this.moving_direction == Direction.UP   ) {sensor_r.y += 1}
-        if (this.moving_direction == Direction.DOWN ) {sensor_r.y -= 1}
+        if (this.moving_direction == Direction.LEFT ) {sensor_l.x += 1}
+        if (this.moving_direction == Direction.UP   ) {sensor_u.y += 1}
+        if (this.moving_direction == Direction.DOWN ) {sensor_d.y -= 1}
 
         let sensor_next_u = {x: sensor_u.x+dx, y: sensor_u.y+dy}
         let sensor_next_d = {x: sensor_d.x+dx, y: sensor_d.y+dy}
@@ -3316,61 +3387,29 @@ class CreeperPhysics {
         //while (this.trails[2].length > 48) { this.trails[2].shift() }
 
 
-        // clockwise A or counterclockwise B
-        // the next moving direction in a sequence
-        // and the amount to add or subtract
-        // A: RIGHT, DOWN, LEFT, UP
-        //   xy: ++, -+, --, +-,
-        // B: LEFT, DOWN, RIGHT, UP
-        //   xy: -+, ++, +-, --
-
-        // transition table for [standing][moving]
-        // no overlap between the two
-        // clockwise
-        // dr : ld
-        // ld : ul
-        // ul : ru
-        // ru : dr
-        // counter clockwise
-        // dl : rd
-        // rd : ur
-        // ur : lu
-        // lu : dl
-        let hw = Math.floor(this.rect.w/2)
-        let hh = Math.floor(this.rect.h/2)
-
-        // look up table for walking off a cliff, which changes the standing direction
-
-        let lut2 = {}
-        lut2[Direction.DOWN ] = {}
-        lut2[Direction.LEFT ] = {}
-        lut2[Direction.UP   ] = {}
-        lut2[Direction.RIGHT] = {}
-
-        lut2[Direction.UP   ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.UP   ,x:-(hw+0),y:-(hh+2)}
-        lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh-1)}
-        lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
-        lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
-
-        lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+0),y:-(hh+2)}
-        lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+0)}
-        lut2[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-(hw+0),y:+(hh+2)}
-        lut2[Direction.LEFT ][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.LEFT ,x:-(hw+2),y:-(hh+0)}
-
-        // look up table for walking up a wall, which changes the standing direction
-        let lut3 = [
-            [{standing: Direction.DOWN ,moving: Direction.RIGHT}, {standing: Direction.RIGHT , moving: Direction.UP   ,x:0,y:0}],
-            [{standing: Direction.LEFT ,moving: Direction.DOWN }, {standing: Direction.DOWN  , moving: Direction.RIGHT,x:0,y:0}],
-            [{standing: Direction.UP   ,moving: Direction.LEFT }, {standing: Direction.LEFT  , moving: Direction.DOWN ,x:0,y:0}],
-            [{standing: Direction.RIGHT,moving: Direction.UP   }, {standing: Direction.UP    , moving: Direction.LEFT ,x:0,y:0}],
-            [{standing: Direction.DOWN ,moving: Direction.LEFT }, {standing: Direction.LEFT  , moving: Direction.UP   ,x:0,y:0}],
-            [{standing: Direction.RIGHT,moving: Direction.DOWN }, {standing: Direction.DOWN  , moving: Direction.LEFT ,x:0,y:0}],
-            [{standing: Direction.UP   ,moving: Direction.RIGHT}, {standing: Direction.RIGHT , moving: Direction.DOWN ,x:0,y:0}],
-            [{standing: Direction.LEFT ,moving: Direction.UP   }, {standing: Direction.UP    , moving: Direction.RIGHT,x:0,y:0}],
-        ]
-
         let bonk =  d_collide_next[lut.t] || d_collide_next[lut.f]
         let standing = d_collide[lut.b]
+
+        this.sns_points = {
+            "standing": d_sensor[this.standing_direction],
+            "standing_next": d_sensor_next[this.standing_direction],
+            "step_up": sensor_s1,
+            "step_dn": sensor_g1,
+        }
+        this.sns_result = {
+            "standing": d_collide[this.standing_direction],
+            "standing_next": d_collide_next[this.standing_direction],
+            "step_up": collide_next_s1,
+            "step_dn": collide_next_g1,
+        }
+        let dbgs = ""
+        dbgs += `d=${Direction.name[this.standing_direction]}`
+        dbgs += ` standing=${this.sns_points['standing'].x},${this.sns_points['standing'].y}=${this.sns_result['standing']}`
+        dbgs += ` standing_next=${this.sns_points['standing_next'].x},${this.sns_points['standing_next'].y}=${this.sns_result['standing_next']}`
+        dbgs += ` step_up=${this.sns_points['step_up'].x},${this.sns_points['step_up'].y}=${collide_next_s1}+${collide_next_s2}`
+        dbgs += ` step_dn=${this.sns_points['step_dn'].x},${this.sns_points['step_dn'].y}=${collide_next_g1}`
+        dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
+        console.log(dbgs)
 
         if (standing && !bonk && collide_next_s1 && !collide_next_s2) {
             // TODO: only step up on even frames otherwise don't move?
@@ -3378,35 +3417,35 @@ class CreeperPhysics {
             //if (gEngine.frameIndex%2==1) {
             //    return
             //}
-            //console.log("step up")
-            this.rect.x += step.x + dx
-            this.rect.y += step.y + dy
+            console.log("step up")
+            this.target.rect.x += step.x + dx
+            this.target.rect.y += step.y + dy
             return 1.4
 
         // if standing, front and head will not collide, step forward
         }
 
         if (standing && !bonk && !d_collide_next[lut.b] && collide_next_g1) {
-            if ((gEngine.frameIndex%2)==1) {
-                return
-            }
-            //console.log("step dn", gEngine.frameIndex)
-            this.rect.x += -step.x + dx
-            this.rect.y += -step.y + dy
+            //if ((gEngine.frameIndex%2)==1) {
+            //    return
+            //}
+            console.log("step dn", gEngine.frameIndex)
+            this.target.rect.x += -step.x + dx
+            this.target.rect.y += -step.y + dy
             return 1.4
         }
 
         if (standing && !bonk && d_collide_next[lut.b]) {
             // step in the forward direction
-            //console.log("step fd")
-            this.rect.x += dx
-            this.rect.y += dy
+            console.log("step fd")
+            this.target.rect.x += dx
+            this.target.rect.y += dy
             return 1
         }
 
         // todo check if next rect is valid
         if (standing && !d_collide_next[lut.b] && !d_collide_next[lut.t]) {
-            //console.log("rotate 2")
+            console.log("rotate 2")
             //move to walk off the 'cliff'
             // it's a cliff from the perspective of the current downwards direction
 
@@ -3417,7 +3456,7 @@ class CreeperPhysics {
             //        break
             //    }
             //}
-            let tmp = lut2[this.standing_direction][this.moving_direction]
+            let tmp = this._lut_rotate_2[this.standing_direction][this.moving_direction]
 
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
@@ -3425,13 +3464,13 @@ class CreeperPhysics {
             this.standing_direction = tmp.standing
             // todo round the edge cooresponding the the standing direction
             // in order to support objects that are not square and 16x16
-            let x1 = this.rect.cx()
-            let y1 = this.rect.cy()
+            //let x1 = this.target.rect.cx()
+            //let y1 = this.target.rect.cy()
             let next_rect = new Rect(
-                this.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x)/8)*8,
-                this.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y)/8)*8,
-                this.rect.w,
-                this.rect.h
+                this.target.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x)/8)*8,
+                this.target.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y)/8)*8,
+                this.target.rect.w,
+                this.target.rect.h
             )
 
             // probably need to do 4 tests
@@ -3454,8 +3493,8 @@ class CreeperPhysics {
             //this.rect.x = nextrect.x
             //this.rect.y = nextrect.y
 
-            let x2 = this.rect.cx()
-            let y2 = this.rect.cy()
+            let x2 = this.target.rect.cx()
+            let y2 = this.target.rect.cy()
             //console.log("delta", tmp, Math.abs(x2-x1), Math.abs(y2-y2))
 
             return 0
@@ -3463,17 +3502,18 @@ class CreeperPhysics {
 
 
         if (standing && d_collide_next[lut.b] && !d_collide_next[lut.t] && d_collide_next[lut.f]) {
-            //console.log("rotate 3")
+            console.log("rotate 3")
             this.collision_points = d_collide_next
             // move to walk up a 'wall'
             // it's a wall from the perspective of the current downwards direction
-            let ta, tmp
-            for (let i=0; i < lut3.length; i++) {
-                [ta,tmp] = lut3[i]
-                if (ta.standing == this.standing_direction && ta.moving == this.moving_direction) {
-                    break
-                }
-            }
+            //let ta, tmp
+            //for (let i=0; i < lut3.length; i++) {
+            //    [ta,tmp] = lut3[i]
+            //    if (ta.standing == this.standing_direction && ta.moving == this.moving_direction) {
+            //        break
+            //    }
+            //}
+            let tmp = this._lut_rotate_3[this.standing_direction][this.moving_direction]
 
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
@@ -3481,14 +3521,14 @@ class CreeperPhysics {
             this.standing_direction = tmp.standing
 
             let next_rect = new Rect(
-                this.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
-                this.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y + dy)/8)*8,
-                this.rect.w,
-                this.rect.h
+                this.target.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
+                this.target.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y + dy)/8)*8,
+                this.target.rect.w,
+                this.target.rect.h
             )
 
-            this.rect.x = next_rect.x
-            this.rect.y = next_rect.y
+            this.target.rect.x = next_rect.x
+            this.target.rect.y = next_rect.y
 
             // todo round the edge cooresponding the the standing direction
             // in order to support objects that are not square and 16x16
@@ -3496,31 +3536,13 @@ class CreeperPhysics {
             return 1
         }
 
-        if (!d_collide[lut.b]) {
-            this.rect.x += -step.x
-            this.rect.y += -step.y
-            return 1
-        }
+        //if (!d_collide[lut.b]) {
+        //    this.rect.x += -step.x
+        //    this.rect.y += -step.y
+        //    return 1
+        //}
 
-        this.sns_points = {
-            "standing": d_sensor[this.standing_direction],
-            "standing_next": d_sensor_next[this.standing_direction],
-            "step_up": sensor_s1,
-            "step_dn": sensor_g1,
-        }
-        this.sns_result = {
-            "standing": d_collide[this.standing_direction],
-            "standing_next": d_collide_next[this.standing_direction],
-            "step_up": collide_next_s1,
-            "step_dn": collide_next_g1,
-        }
-        let dbgs = ""
-        dbgs += ` standing=${this.sns_points['standing'].x},${this.sns_points['standing'].y}=${this.sns_result['standing']}`
-        dbgs += ` standing_next=${this.sns_points['standing_next'].x},${this.sns_points['standing_next'].y}=${this.sns_result['standing_next']}`
-        dbgs += ` step_up=${this.sns_points['step_up'].x},${this.sns_points['step_up'].y}=${collide_next_s1}+${collide_next_s2}`
-        dbgs += ` step_dn=${this.sns_points['step_dn'].x},${this.sns_points['step_dn'].y}=${collide_next_g1}`
-        dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
-        console.log(dbgs)
+
 
         throw {"error": "error"}
     }
@@ -3534,22 +3556,28 @@ class CreeperPhysics {
         // using a walking vector. this way a user can press 'forward'
         // but if the standing direction changes, 'forward' does not change
         // velocity desides how often step gets called
+
+        // todo: refactor sensors
+        //  function to build b,f,t,nb,nf,nt,s1,s2,g1 (maybe rename b,f,t,nb,nf,nt,u1,u2,d1)
+        //  first pass: test if standing (only sensor b)
+        //  maybe _step should accept a velocity dx,dy
+
         if (this.standing_direction === Direction.NONE) {
             this._init_step()
         }
 
         this.vaccum += 20*dt
         while (this.vaccum > 1.0) {
-            this.vaccum -= this._step()
-
+            let v = Direction.vector(this.moving_direction)
+            this.vaccum -= this._step(v.x, v.y)
         }
     }
 
     paint(ctx) {
-        let sensor_u = {x: this.rect.cx(), y: this.rect.top() - 1}
-        let sensor_d = {x: this.rect.cx(), y: this.rect.bottom()}
-        let sensor_l = {x: this.rect.left() - 1, y: this.rect.cy()}
-        let sensor_r = {x: this.rect.right(), y: this.rect.cy()}
+        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
+        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
+        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
+        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
 
 
         ctx.beginPath()
@@ -3628,20 +3656,27 @@ export class CreeperV2 extends MobBase {
 
         //this.animation.paint(ctx)
 
-        if (this.standing_direction&Direction.LEFTRIGHT && this.rect.x%16 != 0 ||
-            this.standing_direction&Direction.UPDOWN && this.rect.y%16 != 0) {
-            ctx.fillStyle = "#FF000020"
-            ctx.strokeStyle = "#FF0000"
-        } else {
-            ctx.fillStyle = "#0000FF20"
-            ctx.strokeStyle = "#0000FF"
+        //if (this.standing_direction&Direction.LEFTRIGHT && this.rect.x%16 != 0 ||
+        //    this.standing_direction&Direction.UPDOWN && this.rect.y%16 != 0) {
+        //    ctx.fillStyle = "#FF000020"
+        //    ctx.strokeStyle = "#FF0000"
+        //} else {
+        //    ctx.fillStyle = "#0000FF20"
+        //    ctx.strokeStyle = "#0000FF"
+        //}
 
-        }
-        ctx.beginPath()
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
+        // todo draw square sprite with ruler embedded instead of using canvas api
+        //ctx.beginPath()
+        //ctx.rect(
+        //    Math.floor(this.rect.x),
+        //    Math.floor(this.rect.y),
+        //    Math.floor(this.rect.w),
+        //    Math.floor(this.rect.h))
+        //ctx.closePath()
+        //ctx.fill()
+        //ctx.stroke()
+
+        CreeperV2.sheet.drawTile(ctx, 0, this.rect.x, this.rect.y)
 
         this.physics.paint(ctx)
         //ctx.beginPath()
@@ -4164,7 +4199,7 @@ CreeperV2.size = [16, 16]
 CreeperV2.icon = null
 
 registerEditorEntity("CreeperV2", CreeperV2, [16,16], "small_mob", null, (entry)=> {
-    CreeperV2.sheet = gAssets.sheets.creeper
+    CreeperV2.sheet = gAssets.sheets.ruler
     CreeperV2.icon = editorIcon(CreeperV2.sheet)
 })
 

@@ -323,6 +323,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("ruler")
+            .path(RES_ROOT + "/sprites/ruler.png")
+            .dimensions(16, 16)
+            .layout(1, 1)
+            .offset(0, 0)
+            .spacing(0, 0)
+
         this.loader.addSpriteSheet("creeper")
             .path(RES_ROOT + "/sprites/mobs/creeper2.png")
             .dimensions(20, 20)
@@ -729,18 +736,18 @@ class MapBuilder {
                 objname = "Slope"
                 objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
             } else if (tile.shape==TileShape.TWOTHIRD) {
-                if (tile.direction&TileShape.DOWN) {
-                    y += 8
-                }
+                //if (tile.direction&TileShape.DOWN) {
+                //    y += 8
+                //}
                 objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
+                objprops = {x:x, y:y, w:16, h:16, halfheight:true, direction:tile.direction}
             } else {
                 console.error("error", tile)
             }
 
             if (objname !== null) {
                 if (tile.property == TileProperty.SOLID) {
-                    objprops.visible = false
+                    //objprops.visible = false
                     this.createObject(objname, objprops)
                 }
 
