@@ -159,8 +159,9 @@ export class Slope extends PlatformBase {
 
         let l = this.rect.left()
         let t = this.rect.top()
-        let r = this.rect.right()
-        let b = this.rect.bottom()
+        // this causes a painting anomaly but is correct.
+        let r = this.rect.right() - 1
+        let b = this.rect.bottom() - 1
 
         // half height is for 2/3 slopes
         // allowing the block to fill a full tile
@@ -174,6 +175,7 @@ export class Slope extends PlatformBase {
                 b -= Math.floor(this.rect.h/2)
             }
         }
+        console.log(Direction.name[this.direction], this.rect, t, r)
 
         switch (this.direction) {
 
