@@ -270,7 +270,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("brick")
             .path(RES_ROOT + "/sprites/brick.png")
             .dimensions(16, 16)
-            .layout(2, 4)
+            .layout(3, 4)
             .offset(1, 1)
             .spacing(1, 1)
 
@@ -747,7 +747,7 @@ class MapBuilder {
 
             if (objname !== null) {
                 if (tile.property == TileProperty.SOLID) {
-                    //objprops.visible = false
+                    objprops.visible = false
                     this.createObject(objname, objprops)
                 }
 

@@ -1263,8 +1263,8 @@ export class Player extends PlatformerEntity {
             xmaxspeed2: 175,
             oneblock_walk: true
         })
-        this.animation = new AnimationComponent(this)
         this.visible = true
+        this.animation = new AnimationComponent(this)
 
         this.spawning = false // spawning or despawning, lose direct control
 
@@ -2162,6 +2162,131 @@ Brick.icon = null
 registerEditorEntity("Brick", Brick, [16,16], 'item', null, (entry)=> {
     Brick.sheet = gAssets.sheets.brick
     Brick.icon = gAssets.sheets.brick.tile(0)
+})
+
+export class FakeBrick extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.rect2 = new Rect(this.rect.x, this.rect.y-1, this.rect.w, 2)
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+        this.visible = 1
+
+        this.animation = new AnimationComponent(this)
+
+        this.particles = []
+        this.timer = 0
+        this.timeout = 2 // enough time for particles to fall off the screen
+
+
+        this.buildAnimations()
+    }
+
+    buildAnimations() {
+
+        let spf = 1/8
+        let xoffset = 0
+        let yoffset = 0
+
+        const sheet = FakeBrick.sheet
+        this.animations = {}
+
+        this.animations.idle = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
+        this.animations.kill = this.animation.register(sheet, [8,9,10,11], spf, {xoffset, yoffset, onend:this.onKillAnimationEnd.bind(this)})
+        this.animations.restore = this.animation.register(sheet, [11,10,9,8], spf, {xoffset, yoffset, onend:this.onRestoreAnimationEnd.bind(this)})
+
+        this.animation.setAnimationById(this.animations.idle)
+
+    }
+
+    onKillAnimationEnd() {
+        this.alive = 0
+        this.solid = 0
+    }
+
+    onRestoreAnimationEnd() {
+
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            const player = objs[0]
+            if (this.rect.collideRect(player.rect)) {
+                this._kill()
+                return
+            }
+        }
+
+        this.alive = 1
+        this.solid = 1
+        this.animation.setAnimationById(this.animations.idle)
+
+    }
+
+    paint(ctx) {
+
+        //ctx.beginPath();
+        //ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        //ctx.fillStyle = '#FF00007f';
+        //ctx.fill();
+
+        if (this.alive) {
+            this.animation.paint(ctx)
+        }
+
+        //FakeBrick.sheet.drawTile(ctx, 0, this.rect.x, this.rect.y)
+    }
+
+    update(dt) {
+
+        this.animation.update(dt)
+
+        if (this.alive) {
+            let objs = this._x_debug_map.queryObjects({"className": "Player"})
+            if (objs.length > 0) {
+                const player = objs[0]
+                if (this.rect2.collideRect(player.rect)) {
+                    let xp = player.rect.cx();
+                    let x1 = this.rect.x
+                    let x2 = this.rect.right() 
+                    if (x1 <= xp && xp < x2) {
+                        this._kill()
+                    }
+                }
+            }
+        } else {
+
+            this.timer -= dt
+
+            if (this.timer < 0) {
+                this._restore()
+            }
+            
+        }
+    }
+
+    _kill() {
+        this.alive = 1
+        this.solid = 0
+        this.timer = 1.0
+        this.animation.setAnimationById(this.animations.kill)
+    }
+
+    _restore() {
+        this.alive = 1
+        this.solid = 0
+        this.animation.setAnimationById(this.animations.restore)
+    }
+
+}
+FakeBrick.sheet = null
+FakeBrick.size = [16, 16]
+FakeBrick.icon = null
+
+registerEditorEntity("FakeBrick", FakeBrick, [16,16], 'item', null, (entry)=> {
+    FakeBrick.sheet = gAssets.sheets.brick
+    FakeBrick.icon = gAssets.sheets.brick.tile(4)
 })
 
 /**
@@ -3085,7 +3210,7 @@ class CreeperPhysics {
         this.target = target
 
         this.standing_direction = Direction.NONE
-        this.moving_direction = Direction.RIGHT
+        this.moving_direction = Direction.LEFT
         this.next_rect = null
 
         //this.rect = target.rect
@@ -3172,8 +3297,8 @@ class CreeperPhysics {
         lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
         lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
 
-        lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+0),y:-(hh+2)}
-        lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+0)}
+        lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+1),y:-(hh+2)}
+        lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+1)}
         lut2[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-(hw+0),y:+(hh+2)}
         lut2[Direction.LEFT ][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.LEFT ,x:-(hw+2),y:-(hh+0)}
 
@@ -3573,6 +3698,7 @@ class CreeperPhysics {
             this._init_step()
         }
 
+        // TODO: forward step and falling step (jumping, gravity)
         this.vaccum += 20*dt
         while (this.vaccum > 1.0) {
             let v = Direction.vector(this.moving_direction)

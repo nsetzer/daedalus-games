@@ -18,6 +18,10 @@ export class AnimationComponent {
         this.paused = 0
 
         this.effect = null // deprecated?
+
+        if (this.target.visible === undefined) {
+            throw {"error": "target.visible not set"}
+        }
     }
 
     register(sheet, tids, frame_duration, params) {
