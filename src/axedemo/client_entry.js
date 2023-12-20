@@ -292,6 +292,10 @@ class CspController {
         return this.player2
     }
 
+    tapDirection(whlid, direction, count) {
+
+    }
+
     setInputDirection(whlid, vector){
         if (whlid == 0) {
             const player = this.getPlayer1()
@@ -324,6 +328,7 @@ const DEMO_MODE_FIREWORKS = (1<<1)
 const DEMO_MODE_MOVEMENT  = (1<<2)
 const DEMO_MODE_PLATFORM  = (1<<3)
 const DEMO_MODE_BULLET    = (1<<4)
+const DEMO_MODE_PLATFORM2 = (1<<5)|DEMO_MODE_PLATFORM
 const DEMO_MODE_ALL = DEMO_MODE_CLOCK|DEMO_MODE_FIREWORKS|DEMO_MODE_MOVEMENT
 
 class AxeSimulatorScene extends GameScene {
@@ -805,8 +810,13 @@ class DemoScene extends AxeSimulatorScene {
 
             const x1 = Physics2dPlatform.maprect.left() + 8
             const x2 = Physics2dPlatform.maprect.right() - 40
-            this.map_player1.map.sendObjectCreateEvent("Player", {x: 9, y:128, playerId: "player1"})
-            this.map_player2.map.sendObjectCreateEvent("Player", {x: 170, y:128, playerId: "player2"})
+
+            if (this.demo_mode&DEMO_MODE_PLATFORM2) {
+                this.map_player1.map.sendObjectCreateEvent("PlayerV2", {x: 9, y:128, playerId: "player1"})
+            } else {
+                this.map_player1.map.sendObjectCreateEvent("Player", {x: 9, y:128, playerId: "player1"})
+                this.map_player2.map.sendObjectCreateEvent("Player", {x: 170, y:128, playerId: "player2"})
+            }
 
             //TODO: set player ownership
             // this.map_player1.map.setOwned("player1")
@@ -886,6 +896,10 @@ class DemoScene extends AxeSimulatorScene {
 
         if (keyevent.text=="4") {
             window.location.href = url + "?mode=platform";
+        }
+
+        if (keyevent.text=="5") {
+            window.location.href = url + "?mode=platform2";
         }
 
         if (false && keyevent.text=="1") {
@@ -970,6 +984,9 @@ export default class Application extends ApplicationBase {
                 break
             case "platform":
                 demo_mode = DEMO_MODE_PLATFORM;
+                break
+            case "platform":
+                demo_mode = DEMO_MODE_PLATFORM2;
                 break
             case "bullet":
                 demo_mode = DEMO_MODE_BULLET;

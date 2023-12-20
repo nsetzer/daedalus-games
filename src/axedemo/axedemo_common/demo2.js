@@ -3,7 +3,7 @@
 
 // TODO: rename map to World
 $import("axertc_common", {CspMap, ClientCspMap, Direction, Rect})
-$import("axertc_physics", {Physics2dPlatform, PlatformerEntity, Wall, Slope})
+$import("axertc_physics", {Physics2dPlatform, Physics2dPlatformV2, PlatformerEntity, Wall, Slope})
 
 
 function random( min, max ) {
@@ -265,6 +265,39 @@ class Player extends PlatformerEntity {
     }
 }
 
+class PlayerV2 extends PlatformerEntity {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.playerId = props?.playerId??null
+
+        this.physics = new Physics2dPlatformV2(this)
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+        this.hue = random(0, 360)
+        this.brightness = random(50, 80)
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.strokeStyle = 'hsl(' + this.hue + ', 100%, ' + this.brightness + '%)';
+        ctx.stroke();
+
+        this.physics.paint(ctx)
+    }
+
+    update(dt) {
+
+        this.physics.update(dt)
+    }
+}
+
 export class PlatformMap extends CspMap {
 
     constructor() {
@@ -273,6 +306,7 @@ export class PlatformMap extends CspMap {
         this.registerClass("Wall", Wall)
         this.registerClass("Slope", Slope)
         this.registerClass("Player", Player)
+        this.registerClass("PlayerV2", PlayerV2)
     }
 
     validateMessage(playerId, msg) {
