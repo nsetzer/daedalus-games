@@ -692,14 +692,83 @@ export class Physics2dPlatformV2 {
         this.target = target
 
         this.standing_direction = Direction.NONE
-        this.moving_direction = Direction.LEFT
+        this.moving_direction = Direction.NONE
+        this.moving_speed = 90 // temporary FIXME
         this.next_rect = null
 
         this.vaccum = 0 // velocity accumulator
 
+        // step_vector the direction considered up
+        this._step_vector = {x: 0, y:0}
+        this._init_gravity(config)
         this._init_lut()
 
+        this.can_wallwalk = config?.wallwalk??false
+
         this.sensor_info = null
+
+        this.speed = {x:0, y:0}
+        this.accum = {x:0, y:0}
+    }
+
+    _init_gravity(config) {
+        // the duration that gives some specified maximum velocity v'
+        //      t = sqrt(H^2 / v'^2)
+        // gravity for some specified height and duration
+        //      g = H / (2*t^2)
+        // jump speed for a given height and gravity
+        //      v' = sqrt(2 * H * g)
+        // height for a given initial velocity
+        //      v'^2 = 2*H*g
+
+        // selecting a maximum speed of 8 pixels per frame, at 60 frames per second
+        //      max speed = 8 PPF * 60 FPS = 480
+        //      h = 128
+        //      t = .2666
+
+        // jump cancel
+        // instead of messing with initial velocity and duration
+        //      apply a a curve to the max speed
+        // when the user releases the button rapidly drop the speed to zero over multiple frames
+        // this will ensure the maximum height is as calculated
+        // and that when the user releases, they will go a little higher and drop normally
+
+        // two xaccelerations and two max speeds (1 and 1a)
+        // quickly ramp up to the first max speed
+        // slowly accelerate to the second max speed
+        // allow for higher jumps and running over gaps at the second speed
+        this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
+        this.xmaxspeed1a = this.xmaxspeed1*(2/3)
+
+        this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
+        this.xfriction = this.xmaxspeed1 / .5 // stop moving in .1 seconds
+        this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
+        this.xacceleration2 = (this.xmaxspeed1 - this.xmaxspeed1a) / 1
+
+        // horizontal direction in a wall jump
+        // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
+        this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
+         // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
+
+        this.jumpheight = config?.jumpheight??(64 + 8)
+        //this.jumpduration = .1875 // total duration divided by 4?
+        this.jumpduration =  config?.jumpduration??(.22) // total duration divided by 4?
+
+        if (config?.gravity===0) {
+            this.gravity = 0
+        } else {
+            this.gravity = this.jumpheight / (2*this.jumpduration*this.jumpduration)
+        }
+
+        this.jumpspeed = - Math.sqrt(2*this.jumpheight*this.gravity)
+
+        //const dt = 1/16
+        //console.log("xspeeds", Math.trunc(this.xjumpspeed*dt), Math.trunc(this.xmaxspeed1*dt), Math.trunc(this.xmaxspeed2*dt))
+        //console.log("yspeeds", Math.trunc(this.jumpspeed*dt))
+
+        this.wallfriction = .2
+
+        this.ymaxspeed = - this.jumpspeed
     }
 
     _update_neighborhood() {
@@ -775,7 +844,7 @@ export class Physics2dPlatformV2 {
         lut2[Direction.RIGHT] = {}
 
         lut2[Direction.UP   ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.UP   ,x:-(hw+0),y:-(hh+2)}
-        lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh-1)}
+        lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh+0)}
         lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
         lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
 
@@ -814,6 +883,21 @@ export class Physics2dPlatformV2 {
 
         this._lut_rotate_2 = lut2
         this._lut_rotate_3 = lut3
+
+
+        this._lut_step = {
+            [Direction.UP   ]: {x: 0, y: 1},
+            [Direction.DOWN ]: {x: 0, y:-1},
+            [Direction.LEFT ]: {x: 1, y: 0},
+            [Direction.RIGHT]: {x:-1, y: 0},
+        }
+
+        this._mask_movement = {
+            [Direction.UP   ]: Direction.LEFTRIGHT,
+            [Direction.DOWN ]: Direction.LEFTRIGHT,
+            [Direction.LEFT ]: Direction.UPDOWN,
+            [Direction.RIGHT]: Direction.UPDOWN,
+        }
     }
 
     _step_get_sensors(dx, dy) {
@@ -823,22 +907,27 @@ export class Physics2dPlatformV2 {
         let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
         let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
 
-        if (this.moving_direction == Direction.RIGHT) {sensor_r.x -= 1}
-        if (this.moving_direction == Direction.LEFT ) {sensor_l.x += 1}
-        if (this.moving_direction == Direction.UP   ) {sensor_u.y += 1}
-        if (this.moving_direction == Direction.DOWN ) {sensor_d.y -= 1}
+        //const mdir = this.moving_direction
+        const mdir = Direction.fromVector(dx, dy)
+
+        if (mdir == Direction.RIGHT) {sensor_r.x -= 1}
+        if (mdir == Direction.LEFT ) {sensor_l.x += 1}
+        if (mdir == Direction.UP   ) {sensor_u.y += 1}
+        if (mdir == Direction.DOWN ) {sensor_d.y -= 1}
 
         let sensor_next_u = {x: sensor_u.x+dx, y: sensor_u.y+dy}
         let sensor_next_d = {x: sensor_d.x+dx, y: sensor_d.y+dy}
         let sensor_next_l = {x: sensor_l.x+dx, y: sensor_l.y+dy}
         let sensor_next_r = {x: sensor_r.x+dx, y: sensor_r.y+dy}
 
-        let step; // which direction to 'step up'
         let sns = null;
-        if (this.standing_direction == Direction.UP)    { step = {x: 0, y: 1}; sns=sensor_u }
-        if (this.standing_direction == Direction.DOWN)  { step = {x: 0, y:-1}; sns=sensor_d }
-        if (this.standing_direction == Direction.LEFT)  { step = {x: 1, y: 0}; sns=sensor_l }
-        if (this.standing_direction == Direction.RIGHT) { step = {x:-1, y: 0}; sns=sensor_r }
+        if (this.standing_direction == Direction.UP)    { sns=sensor_u }
+        if (this.standing_direction == Direction.DOWN)  { sns=sensor_d }
+        if (this.standing_direction == Direction.LEFT)  { sns=sensor_l }
+        if (this.standing_direction == Direction.RIGHT) { sns=sensor_r }
+
+        // which direction to 'step up'
+        let step = this._lut_step[this.standing_direction]
 
         // can step up to solid
         let sensor_s1 = {x: sns.x + dx + 1*step.x, y: sns.y + dy + 1*step.y};
@@ -867,7 +956,7 @@ export class Physics2dPlatformV2 {
         // b: the bottom / foot of the entity
         let lut = {}
 
-        switch (this.moving_direction) {
+        switch (mdir) {
             case Direction.RIGHT:
                 lut.f = Direction.RIGHT
                 break;
@@ -916,7 +1005,7 @@ export class Physics2dPlatformV2 {
         }
     }
 
-    _step(dx, dy) {
+    _step(sensors, dx, dy) {
         // returns a number representing the amount of velocity units consumed
         // e.g. if a step was taken on an axis, this returns 1
         //      if a step was taken on a diagonal, this returns sqrt(2)
@@ -930,43 +1019,23 @@ export class Physics2dPlatformV2 {
         //       the bottom edge is y + h - 1
         //       The current rectangle class returns right = x + w
 
-        if (this.next_rect != null) {
-            // when walking off a cliff, change the standing direction
-            // this handles translating from one wall to another
-
-            let dx = this.target.rect.x - this.next_rect.x
-            let dy = this.target.rect.y - this.next_rect.y
-            let v = 0
-            if (dx < 0) {
-                this.target.rect.x += 1
-                v += 1
-            } else if (dx > 0) {
-                this.target.rect.x -= 1
-                v += 1
-            }
-
-            if (dy < 0) {
-                this.target.rect.y += 1
-                v += 1
-            } else if (dy > 0) {
-                this.target.rect.y -= 1
-                v += 1
-            }
-
-            if (dx != 0 || dy != 0) {
-                // consume 1.4 velocity units because it traveled on a diagonal
-                return v==2?1.4:1
-            }
-            if (dx == 0 && dy ==0) {
-                this.next_rect = null
-            }
+        const collisions = {
+            f: false,
+            t: false,
+            b: false,
+            fn: false,
+            tn: false,
+            bn: false,
+            s1: false,
+            s2: false,
+            g1: false,
         }
-
-        const sensors = this._step_get_sensors(dx, dy)
-        const collisions = {}
 
         this._neighbors.forEach(ent => {
             if (ent.entid == this.entid) { return }
+
+            // TODO: a potentail optimization is to store the collision data in the class
+            // if a sensor has collided, there is no reason to run that test again
 
             if (ent.collidePoint(sensors.f.x, sensors.f.y)) { collisions.f = true }
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
@@ -982,7 +1051,11 @@ export class Physics2dPlatformV2 {
 
         })
 
+        let step = this._lut_step[this.standing_direction]
+
         this.sensor_info = {sensors, collisions} // for painting
+
+        //this._collisions = collisions
 
         //this.trails[0].push({...d_sensor[this.standing_direction], c:d_collide_next[this.standing_direction]})
         //this.trails[1].push({...sensor_s1, c:collide_next_s1})
@@ -992,7 +1065,7 @@ export class Physics2dPlatformV2 {
         //while (this.trails[1].length > 48) { this.trails[1].shift() }
         //while (this.trails[2].length > 48) { this.trails[2].shift() }
 
-        let bonk =  collisions.t || collisions.fn
+        let bonk =  collisions.t || collisions.fn || collisions.tn
         let standing = collisions.b
 
         if (standing && !bonk && collisions.s1 && !collisions.s2) {
@@ -1019,7 +1092,7 @@ export class Physics2dPlatformV2 {
             return 1.4
         }
 
-        if (standing && !bonk && collisions.bn) {
+        if ((standing && !bonk && collisions.bn) || (!standing && !bonk)) {
             // step in the forward direction
             //console.log("step fd")
             this.target.rect.x += dx
@@ -1028,8 +1101,8 @@ export class Physics2dPlatformV2 {
         }
 
         // todo check if next rect is valid
-        if (standing && !collisions.bn && !collisions.t) {
-            console.log("rotate 2")
+        if (this.can_wallwalk && standing && !collisions.bn && !collisions.t) {
+            //console.log("rotate 2")
             //move to walk off the 'cliff'
             // it's a cliff from the perspective of the current downwards direction
 
@@ -1085,7 +1158,7 @@ export class Physics2dPlatformV2 {
         }
 
         // todo check if next rect is valid
-        if (standing && collisions.bn && !collisions.t && collisions.fn) {
+        if (this.can_wallwalk && standing && collisions.bn && !collisions.t && collisions.fn) {
             //console.log("rotate 3")
             // move to walk up a 'wall'
             // it's a wall from the perspective of the current downwards direction
@@ -1119,6 +1192,10 @@ export class Physics2dPlatformV2 {
             return 1
         }
 
+        if (!this.can_wallwalk) {
+            return 1
+        }
+
         //if (!d_collide[lut.b]) {
         //    this.rect.x += -step.x
         //    this.rect.y += -step.y
@@ -1146,7 +1223,41 @@ export class Physics2dPlatformV2 {
         //dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
         //console.log(dbgs)
 
-        throw {"error": "error"}
+        throw {"error": "error", dx, dy, next: this.next_rect, standing, bonk, sensors, collisions}
+    }
+
+    _step_target() {
+        // when walking off a cliff, change the standing direction
+        // this handles translating from one wall to another
+
+        let dx = this.target.rect.x - this.next_rect.x
+        let dy = this.target.rect.y - this.next_rect.y
+        let v = 0
+        if (dx < 0) {
+            this.target.rect.x += 1
+            v += 1
+        } else if (dx > 0) {
+            this.target.rect.x -= 1
+            v += 1
+        }
+
+        if (dy < 0) {
+            this.target.rect.y += 1
+            v += 1
+        } else if (dy > 0) {
+            this.target.rect.y -= 1
+            v += 1
+        }
+
+        if (dx != 0 || dy != 0) {
+            // consume 1.4 velocity units because it traveled on a diagonal
+            return v==2?1.4:1
+        }
+        if (dx == 0 && dy ==0) {
+            this.next_rect = null
+        }
+
+        return 0
     }
 
     update(dt) {
@@ -1168,12 +1279,116 @@ export class Physics2dPlatformV2 {
             this._init_step()
         }
 
-        // TODO: forward step and falling step (jumping, gravity)
-        this.vaccum += 20*dt
-        while (this.vaccum > 1.0) {
-            let v = Direction.vector(this.moving_direction)
-            this.vaccum -= this._step(v.x, v.y)
+        let sensors = this._step_get_sensors(0, 0)
+        let collisions = {}
+
+        this._neighbors.forEach(ent => {
+        if (ent.entid == this.entid) { return }
+            if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+            if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
+        })
+
+        // check if not standing and apply gravity
+        if (!collisions.b && this.next_rect === null) {
+            // fall / jump
+
+            let step = this._lut_step[this.standing_direction]
+
+            let gforce = this.gravity * dt
+
+            this.speed.x += -step.x*gforce
+            this.speed.y += -step.y*gforce
+
+        } else {
+            //let step = this._lut_step[this.standing_direction]
+            //this.speed.x *= (1-Math.abs(step.x))
+            //this.speed.y *= (1-Math.abs(step.y))
+            if (this.speed.y > 0) {
+                this.speed.y = 0
+            }
+
         }
+        this.accum.x += dt * this.speed.x
+        this.accum.y += dt * this.speed.y
+
+        if (this._mask_movement[this.standing_direction]&this.moving_direction) {
+            let v = Direction.vector(this.moving_direction)
+            this.accum.x += dt * this.moving_speed * v.x
+            this.accum.y += dt * this.moving_speed * v.y
+        }
+
+        let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
+
+        // horizontal step
+        if (true) {
+
+            let dx = Math.trunc(this.accum[sym.h])
+            let n = Math.abs(dx)
+            let s = Math.sign(dx)
+
+            let v = {}
+            let sdir = this.standing_direction
+            v.x = (this.standing_direction&Direction.UPDOWN)?s:0;
+            v.y = (this.standing_direction&Direction.UPDOWN)?0:s;
+            let k
+
+            while (n > 0) {
+
+
+                if (this.next_rect !== null) {
+                    k = this._step_target()
+                    this.accum[sym.h] -= s*k
+                    n -= k
+                } else {
+                    let sensors = this._step_get_sensors(v.x, v.y)
+                    if (!sensors.f) {
+                        console.error(Direction.name[this.moving_direction])
+                        console.error(sensors, v.x, v.y)
+                        throw 0
+                    }
+                    k = this._step(sensors, v.x, v.y)
+                    this.accum[sym.h] -= s*k
+                    n -= k
+
+                    if (sdir != this.standing_direction) {
+                        this.accum.x = 0
+                        this.accum.y = 0
+                        // TODO: figure out the rotation to keep going
+                        // e.g. standing up to standing left is a 90 degree rotation
+                        //      the vector (-1, 0) becomes (0, 1)
+                        // the question is: does the accumulation vector also rotate?
+                        break;
+                    }
+                }
+
+
+            }
+        }
+
+        // vertical step
+
+        if (true  && this.next_rect === null) {
+            let dy = Math.trunc(this.accum.y)
+            let n = Math.abs(dy)
+            let s = Math.sign(dy)
+            this.accum.y -= dy
+
+            while (n > 0) {
+                if (s > 0 && collisions.b) { break; }
+                if (s < 0 && collisions.t) { break; }
+                this.target.rect.y += s
+                n -= 1
+                let sensors = this._step_get_sensors(0, 0)
+                // check if standing again
+                this._neighbors.forEach(ent => {
+                if (ent.entid == this.entid) { return }
+                    if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+                    if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
+                })
+
+            }
+        }
+
     }
 
     paint(ctx) {

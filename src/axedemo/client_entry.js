@@ -10,7 +10,7 @@ $import("axertc_common", {
     Direction, Alignment, Rect,
 })
 $import("axedemo_common", {FireworksMap, PlatformMap})
-$import("axertc_physics", {Physics2dPlatform})
+$import("axertc_physics", {Physics2dPlatform, Physics2dPlatformV2})
 
 function debug(msg) {
 
@@ -30,7 +30,6 @@ function random( min, max ) {
 function random_squared( min, max ) {
     return Math.pow(Math.random(),2) * ( max - min ) + min;
 }
-
 
 function gamma(z) {
     const g = 7;
@@ -70,7 +69,6 @@ function poisson_pdf(x, k, theta) {
     let c2 = Math.exp(-x/theta)
     return (n/d) * c1 * c2
 }
-
 
 class DemoClient {
 
@@ -300,6 +298,7 @@ class CspController {
         if (whlid == 0) {
             const player = this.getPlayer1()
             if (!player) {
+                console.warn("player 1 not found")
                 return
             }
             player.ownedByClient = true
@@ -309,6 +308,7 @@ class CspController {
         } else {
             const player = this.getPlayer2()
             if (!player) {
+                console.warn("player 2 not found")
                 return
             }
             player.ownedByClient = true
@@ -792,6 +792,7 @@ class DemoScene extends AxeSimulatorScene {
         this.keyboard = new KeyboardInput(this.controller)
 
         Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
+        Physics2dPlatformV2.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
         FireworksMap.maprect = new Rect(0, 0, 211, Math.floor(360))
 
         this.event_player1_clicked = !(this.demo_mode&DEMO_MODE_FIREWORKS)
@@ -812,7 +813,12 @@ class DemoScene extends AxeSimulatorScene {
             const x2 = Physics2dPlatform.maprect.right() - 40
 
             if (this.demo_mode&DEMO_MODE_PLATFORM2) {
-                this.map_player1.map.sendObjectCreateEvent("PlayerV2", {x: 9, y:128, playerId: "player1"})
+                this.map_player1.map.sendObjectCreateEvent("PlayerV2",
+                    {
+                        x: Physics2dPlatform.maprect.w/2,
+                        y: Physics2dPlatform.maprect.h/2,
+                        playerId: "player1"
+                    })
             } else {
                 this.map_player1.map.sendObjectCreateEvent("Player", {x: 9, y:128, playerId: "player1"})
                 this.map_player2.map.sendObjectCreateEvent("Player", {x: 170, y:128, playerId: "player2"})
@@ -823,7 +829,18 @@ class DemoScene extends AxeSimulatorScene {
             // this.map_player2.map.setOwned("player2")
         }
 
-        if (this.demo_mode&DEMO_MODE_PLATFORM) {
+        if (this.demo_mode&DEMO_MODE_PLATFORM2) {
+            const x = Physics2dPlatform.maprect.x
+            const yb = Physics2dPlatform.maprect.bottom()
+            const w = Physics2dPlatform.maprect.w
+            const h = Physics2dPlatform.maprect.h
+            const d = 8
+
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:yb-d, w:w, h:d})
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:0, w:d, h:h})
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:w-d, y:0, w:d, h:h})
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:64, w:w, h:d})
+        } else if (this.demo_mode&DEMO_MODE_PLATFORM) {
             const y = Physics2dPlatform.maprect.bottom() - 64
             const x = Physics2dPlatform.maprect.cx() - 24
             this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:y, w:48, h:12})
@@ -833,6 +850,8 @@ class DemoScene extends AxeSimulatorScene {
             this.map_server.map.sendObjectCreateEvent("Slope", {
                 x:x2, y:y2, w:16, h:16, direction:Direction.UPLEFT})
         }
+
+
     }
 
 

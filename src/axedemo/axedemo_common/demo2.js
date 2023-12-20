@@ -272,7 +272,7 @@ class PlayerV2 extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
         this.playerId = props?.playerId??null
 
-        this.physics = new Physics2dPlatformV2(this)
+        this.physics = new Physics2dPlatformV2(this, {wallwalk: true})
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
@@ -295,6 +295,44 @@ class PlayerV2 extends PlatformerEntity {
     update(dt) {
 
         this.physics.update(dt)
+    }
+
+
+    onInput(payload) {
+
+        if ("whlid" in payload) {
+            let dir = Direction.fromVector(payload.vector.x, payload.vector.y)
+
+            if ( payload.vector.y < -0.7071) {
+
+                //let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
+
+                //if (standing) {
+                    this.physics.speed.y = this.physics.jumpspeed
+                    this.physics.accum.y = 0
+                    this.physics.gravityboost = false
+                    this.physics.doublejump = true
+                    console.log("jump", this.physics.speed.y)
+                //}
+
+            } else {
+                //this.physics.xspeed = 90 * payload.vector.x
+            }
+
+            if (dir&Direction.LEFTRIGHT) {
+                this.physics.moving_direction = dir&Direction.LEFTRIGHT
+                this.physics.xspeed = 90 * payload.vector.x
+            } else {
+                this.physics.moving_direction = Direction.NONE
+            }
+
+
+            //# down : left right
+            //# right: up down
+            //# left : up down
+            //# up   : left right
+
+        }
     }
 }
 

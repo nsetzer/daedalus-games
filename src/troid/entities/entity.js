@@ -3221,7 +3221,9 @@ export class CreeperV2 extends MobBase {
 
         this.solid = 1
 
-        this.physics = new Physics2dPlatformV2(this)
+        this.physics = new Physics2dPlatformV2(this, {wallwalk: true})
+        this.physics.moving_direction = Direction.RIGHT
+        this.physics.moving_speed = 45
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && ent instanceof PlatformBase})
