@@ -1647,12 +1647,17 @@ export class Player extends PlatformerEntity {
             if (this.charge_duration < this.charge_timeout) {
                 this.charge_duration += dt
                 if (this.charge_duration >= this.charge_timeout) {
+                    // keep a reference to current beam sfx
+                    // then stop those sounds on the current beam sfx changes
                     if (!!this._beam) {
                         gAssets.sfx.BEAM_FLAMETHROWER_CHARGE.stop()
                         gAssets.sfx.BEAM_FLAMETHROWER_STEADY.loop()
                     } else {
-                        gAssets.sfx.fireBeamCharge.stop()
-                        gAssets.sfx.fireBeamChargeLoop.loop()
+                        //gAssets.sfx.BEAM_CHARGE[WeaponType.ELEMENT.POWER].stop()
+                        gAssets.sounds.fireBeamCharge.stop()
+                        //gAssets.sfx.BEAM_CHARGE_LOOP[WeaponType.ELEMENT.POWER].loop()
+                        gAssets.sounds.fireBeamChargeLoop.loop()
+
                     }
                     this.charge_duration = this.charge_timeout
                 }
@@ -2165,6 +2170,7 @@ registerEditorEntity("Brick", Brick, [16,16], 'item', null, (entry)=> {
 })
 
 export class FakeBrick extends PlatformerEntity {
+    // a brick that disappears when stepped on
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
@@ -2247,6 +2253,8 @@ export class FakeBrick extends PlatformerEntity {
             if (objs.length > 0) {
                 const player = objs[0]
                 if (this.rect2.collideRect(player.rect)) {
+                    // TODO: with the new physics, this should check if the primary
+                    //       sensor for standing has collided with the object
                     let xp = player.rect.cx();
                     let x1 = this.rect.x
                     let x2 = this.rect.right() 
@@ -3213,11 +3221,11 @@ class CreeperPhysics {
         this.moving_direction = Direction.LEFT
         this.next_rect = null
 
-        //this.rect = target.rect
-
         this.vaccum = 0 // velocity accumulator
 
         this._init_lut()
+
+        this.sensor_info = null
     }
 
     _update_neighborhood() {
@@ -3334,6 +3342,106 @@ class CreeperPhysics {
         this._lut_rotate_3 = lut3
     }
 
+    _step_get_sensors(dx, dy) {
+
+        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
+        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
+        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
+        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
+
+        if (this.moving_direction == Direction.RIGHT) {sensor_r.x -= 1}
+        if (this.moving_direction == Direction.LEFT ) {sensor_l.x += 1}
+        if (this.moving_direction == Direction.UP   ) {sensor_u.y += 1}
+        if (this.moving_direction == Direction.DOWN ) {sensor_d.y -= 1}
+
+        let sensor_next_u = {x: sensor_u.x+dx, y: sensor_u.y+dy}
+        let sensor_next_d = {x: sensor_d.x+dx, y: sensor_d.y+dy}
+        let sensor_next_l = {x: sensor_l.x+dx, y: sensor_l.y+dy}
+        let sensor_next_r = {x: sensor_r.x+dx, y: sensor_r.y+dy}
+
+        let step; // which direction to 'step up'
+        let sns = null;
+        if (this.standing_direction == Direction.UP)    { step = {x: 0, y: 1}; sns=sensor_u }
+        if (this.standing_direction == Direction.DOWN)  { step = {x: 0, y:-1}; sns=sensor_d }
+        if (this.standing_direction == Direction.LEFT)  { step = {x: 1, y: 0}; sns=sensor_l }
+        if (this.standing_direction == Direction.RIGHT) { step = {x:-1, y: 0}; sns=sensor_r }
+
+        // can step up to solid
+        let sensor_s1 = {x: sns.x + dx + 1*step.x, y: sns.y + dy + 1*step.y};
+        let sensor_s2 = {x: sns.x + dx + 2*step.x, y: sns.y + dy + 2*step.y};
+
+        // can step down to solid
+        let sensor_g1 = {x: sns.x + dx - 1*step.x, y: sns.y + dy - 1*step.y};
+
+        let d_sensor = {
+            [Direction.RIGHT]: sensor_r,
+            [Direction.DOWN]:  sensor_d,
+            [Direction.LEFT]:  sensor_l,
+            [Direction.UP]:    sensor_u,
+        }
+
+        let d_sensor_next = {
+            [Direction.RIGHT]: sensor_next_r,
+            [Direction.DOWN]:  sensor_next_d,
+            [Direction.LEFT]:  sensor_next_l,
+            [Direction.UP]:    sensor_next_u,
+        }
+
+        // build a table for checking collisions on :
+        // t: the top / head of the entity
+        // f: the front / leading direction
+        // b: the bottom / foot of the entity
+        let lut = {}
+
+        switch (this.moving_direction) {
+            case Direction.RIGHT:
+                lut.f = Direction.RIGHT
+                break;
+            case Direction.DOWN:
+                lut.f = Direction.DOWN
+                break;
+            case Direction.LEFT:
+                lut.f = Direction.LEFT
+                break;
+            case Direction.UP:
+                lut.f = Direction.UP
+                break;
+        }
+
+        switch (this.standing_direction) {
+            case Direction.RIGHT:
+                lut.t = Direction.LEFT
+                lut.b = Direction.RIGHT
+                break;
+            case Direction.DOWN:
+                lut.t = Direction.UP
+                lut.b = Direction.DOWN
+                break;
+            case Direction.LEFT:
+                lut.t = Direction.RIGHT
+                lut.b = Direction.LEFT
+                break;
+            case Direction.UP:
+                lut.t = Direction.DOWN
+                lut.b = Direction.UP
+                break;
+        }
+
+        return {
+            "f": d_sensor[lut.f],
+            "t": d_sensor[lut.t],
+            "b": d_sensor[lut.b],
+
+            "fn": d_sensor_next[lut.f],
+            "tn": d_sensor_next[lut.t],
+            "bn": d_sensor_next[lut.b],
+
+            "s1": sensor_s1,
+            "s2": sensor_s2,
+            "g1": sensor_g1,
+        }
+    }
+
     _step(dx, dy) {
         // returns a number representing the amount of velocity units consumed
         // e.g. if a step was taken on an axis, this returns 1
@@ -3380,137 +3488,27 @@ class CreeperPhysics {
             }
         }
 
-        let collide_u = false;
-        let collide_d = false;
-        let collide_l = false;
-        let collide_r = false;
-        let collide_s1 = false; // the bottom edge (either u,d,l,r) but should not collide
-
-        let collide_next_u = false;
-        let collide_next_d = false;
-        let collide_next_l = false;
-        let collide_next_r = false;
-        let collide_next_s1 = false; // the bottom edge (either u,d,l,r) but should not collide
-        let collide_next_s2 = false; // the bottom edge (either u,d,l,r) but should not collide
-        let collide_next_g1 = false; // the bottom edge (either u,d,l,r) but should not collide
-
-        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
-        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
-        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
-        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
-
-        if (this.moving_direction == Direction.RIGHT) {sensor_r.x -= 1}
-        if (this.moving_direction == Direction.LEFT ) {sensor_l.x += 1}
-        if (this.moving_direction == Direction.UP   ) {sensor_u.y += 1}
-        if (this.moving_direction == Direction.DOWN ) {sensor_d.y -= 1}
-
-        let sensor_next_u = {x: sensor_u.x+dx, y: sensor_u.y+dy}
-        let sensor_next_d = {x: sensor_d.x+dx, y: sensor_d.y+dy}
-        let sensor_next_l = {x: sensor_l.x+dx, y: sensor_l.y+dy}
-        let sensor_next_r = {x: sensor_r.x+dx, y: sensor_r.y+dy}
-
-        let step; // which direction to 'step up'
-        let sns = null;
-        if (this.standing_direction == Direction.UP)    { step = {x: 0, y: 1}; sns=sensor_u }
-        if (this.standing_direction == Direction.DOWN)  { step = {x: 0, y:-1}; sns=sensor_d }
-        if (this.standing_direction == Direction.LEFT)  { step = {x: 1, y: 0}; sns=sensor_l }
-        if (this.standing_direction == Direction.RIGHT) { step = {x:-1, y: 0}; sns=sensor_r }
-
-        // can step up to solid
-        let sensor_s1 = {x: sns.x + dx + 1*step.x, y: sns.y + dy + 1*step.y};
-        let sensor_s2 = {x: sns.x + dx + 2*step.x, y: sns.y + dy + 2*step.y};
-
-        // can step down to solid
-        let sensor_g1 = {x: sns.x + dx - 1*step.x, y: sns.y + dy - 1*step.y};
+        const sensors = this._step_get_sensors(dx, dy)
+        const collisions = {}
 
         this._neighbors.forEach(ent => {
             if (ent.entid == this.entid) { return }
 
-            if (ent.collidePoint(sensor_u.x, sensor_u.y)) { collide_u = true }
-            if (ent.collidePoint(sensor_d.x, sensor_d.y)) { collide_d = true }
-            if (ent.collidePoint(sensor_l.x, sensor_l.y)) { collide_l = true }
-            if (ent.collidePoint(sensor_r.x, sensor_r.y)) { collide_r = true }
-            //if (ent.collidePoint(sensor_s1.x, sensor_s1.y)) { collide_s1 = true }
+            if (ent.collidePoint(sensors.f.x, sensors.f.y)) { collisions.f = true }
+            if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
+            if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
 
-            if (ent.collidePoint(sensor_next_u.x, sensor_next_u.y)) { collide_next_u = true }
-            if (ent.collidePoint(sensor_next_d.x, sensor_next_d.y)) { collide_next_d = true }
-            if (ent.collidePoint(sensor_next_l.x, sensor_next_l.y)) { collide_next_l = true }
-            if (ent.collidePoint(sensor_next_r.x, sensor_next_r.y)) { collide_next_r = true }
+            if (ent.collidePoint(sensors.fn.x, sensors.fn.y)) { collisions.fn = true }
+            if (ent.collidePoint(sensors.tn.x, sensors.tn.y)) { collisions.tn = true }
+            if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
 
-            if (ent.collidePoint(sensor_s1.x, sensor_s1.y)) { collide_next_s1 = true }
-            if (ent.collidePoint(sensor_s2.x, sensor_s2.y)) { collide_next_s2 = true }
+            if (ent.collidePoint(sensors.s1.x, sensors.s1.y)) { collisions.s1 = true }
+            if (ent.collidePoint(sensors.s2.x, sensors.s2.y)) { collisions.s2 = true }
+            if (ent.collidePoint(sensors.g1.x, sensors.g1.y)) { collisions.g1 = true }
 
-            if (ent.collidePoint(sensor_g1.x, sensor_g1.y)) { collide_next_g1 = true }
         })
 
-
-        let d_sensor = {
-            [Direction.RIGHT]: sensor_r,
-            [Direction.DOWN]:  sensor_d,
-            [Direction.LEFT]:  sensor_l,
-            [Direction.UP]:    sensor_u,
-        }
-
-        let d_sensor_next = {
-            [Direction.RIGHT]: sensor_next_r,
-            [Direction.DOWN]:  sensor_next_d,
-            [Direction.LEFT]:  sensor_next_l,
-            [Direction.UP]:    sensor_next_u,
-        }
-
-        let d_collide = {
-            [Direction.RIGHT]: collide_r,
-            [Direction.DOWN]: collide_d,
-            [Direction.LEFT]: collide_l,
-            [Direction.UP]: collide_u,
-        }
-
-        let d_collide_next = {
-            [Direction.RIGHT]: collide_next_r,
-            [Direction.DOWN]: collide_next_d,
-            [Direction.LEFT]: collide_next_l,
-            [Direction.UP]: collide_next_u,
-        }
-
-        // build a table for checking collisions on :
-        // t: the top / head of the entity
-        // f: the front / leading direction
-        // b: the bottom / foot of the entity
-        let lut = {}
-
-        switch (this.moving_direction) {
-            case Direction.RIGHT:
-                lut.f = Direction.RIGHT
-                break;
-            case Direction.DOWN:
-                lut.f = Direction.DOWN
-                break;
-            case Direction.LEFT:
-                lut.f = Direction.LEFT
-                break;
-            case Direction.UP:
-                lut.f = Direction.UP
-                break;
-        }
-
-        switch (this.standing_direction) {
-            case Direction.RIGHT:
-                lut.t = Direction.LEFT
-                lut.b = Direction.RIGHT
-                break;
-            case Direction.DOWN:
-                lut.t = Direction.UP
-                lut.b = Direction.DOWN
-                break;
-            case Direction.LEFT:
-                lut.t = Direction.RIGHT
-                lut.b = Direction.LEFT
-                break;
-            case Direction.UP:
-                lut.t = Direction.DOWN
-                lut.b = Direction.UP
-                break;
-        }
+        this.sensor_info = {sensors, collisions} // for painting
 
         //this.trails[0].push({...d_sensor[this.standing_direction], c:d_collide_next[this.standing_direction]})
         //this.trails[1].push({...sensor_s1, c:collide_next_s1})
@@ -3520,11 +3518,10 @@ class CreeperPhysics {
         //while (this.trails[1].length > 48) { this.trails[1].shift() }
         //while (this.trails[2].length > 48) { this.trails[2].shift() }
 
+        let bonk =  collisions.t || collisions.fn
+        let standing = collisions.b
 
-        let bonk =  d_collide_next[lut.t] || d_collide_next[lut.f]
-        let standing = d_collide[lut.b]
-
-        if (standing && !bonk && collide_next_s1 && !collide_next_s2) {
+        if (standing && !bonk && collisions.s1 && !collisions.s2) {
             // TODO: only step up on even frames otherwise don't move?
             //       to simulate slowly going up hill?
             //if (gEngine.frameIndex%2==1) {
@@ -3538,7 +3535,7 @@ class CreeperPhysics {
         // if standing, front and head will not collide, step forward
         }
 
-        if (standing && !bonk && !d_collide_next[lut.b] && collide_next_g1) {
+        if (standing && !bonk && !collisions.bn && collisions.g1) {
             //if ((gEngine.frameIndex%2)==1) {
             //    return
             //}
@@ -3548,7 +3545,7 @@ class CreeperPhysics {
             return 1.4
         }
 
-        if (standing && !bonk && d_collide_next[lut.b]) {
+        if (standing && !bonk && collisions.bn) {
             // step in the forward direction
             //console.log("step fd")
             this.target.rect.x += dx
@@ -3557,7 +3554,7 @@ class CreeperPhysics {
         }
 
         // todo check if next rect is valid
-        if (standing && !d_collide_next[lut.b] && !d_collide_next[lut.t]) {
+        if (standing && !collisions.bn && !collisions.t) {
             console.log("rotate 2")
             //move to walk off the 'cliff'
             // it's a cliff from the perspective of the current downwards direction
@@ -3613,10 +3610,9 @@ class CreeperPhysics {
             return 0
         }
 
-
-        if (standing && d_collide_next[lut.b] && !d_collide_next[lut.t] && d_collide_next[lut.f]) {
+        // todo check if next rect is valid
+        if (standing && collisions.bn && !collisions.t && collisions.fn) {
             //console.log("rotate 3")
-            this.collision_points = d_collide_next
             // move to walk up a 'wall'
             // it's a wall from the perspective of the current downwards direction
             //let ta, tmp
@@ -3655,26 +3651,26 @@ class CreeperPhysics {
         //    return 1
         //}
 
-        this.sns_points = {
-            "standing": d_sensor[this.standing_direction],
-            "standing_next": d_sensor_next[this.standing_direction],
-            "step_up": sensor_s1,
-            "step_dn": sensor_g1,
-        }
-        this.sns_result = {
-            "standing": d_collide[this.standing_direction],
-            "standing_next": d_collide_next[this.standing_direction],
-            "step_up": collide_next_s1,
-            "step_dn": collide_next_g1,
-        }
-        let dbgs = ""
-        dbgs += `d=${Direction.name[this.standing_direction]}`
-        dbgs += ` st=${this.sns_points['standing'].x},${this.sns_points['standing'].y}=${this.sns_result['standing']}`
-        dbgs += ` stn=${this.sns_points['standing_next'].x},${this.sns_points['standing_next'].y}=${this.sns_result['standing_next']}`
-        dbgs += ` step_up=${this.sns_points['step_up'].x},${this.sns_points['step_up'].y}=${collide_next_s1}+${collide_next_s2}`
-        dbgs += ` step_dn=${this.sns_points['step_dn'].x},${this.sns_points['step_dn'].y}=${collide_next_g1}`
-        dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
-        console.log(dbgs)
+        //this.sns_points = {
+        //    "standing": d_sensor[this.standing_direction],
+        //    "standing_next": d_sensor_next[this.standing_direction],
+        //    "step_up": sensor_s1,
+        //    "step_dn": sensor_g1,
+        //}
+        //this.sns_result = {
+        //    "standing": d_collide[this.standing_direction],
+        //    "standing_next": d_collide_next[this.standing_direction],
+        //    "step_up": collide_next_s1,
+        //    "step_dn": collide_next_g1,
+        //}
+        //let dbgs = ""
+        //dbgs += `d=${Direction.name[this.standing_direction]}`
+        //dbgs += ` st=${this.sns_points['standing'].x},${this.sns_points['standing'].y}=${this.sns_result['standing']}`
+        //dbgs += ` stn=${this.sns_points['standing_next'].x},${this.sns_points['standing_next'].y}=${this.sns_result['standing_next']}`
+        //dbgs += ` step_up=${this.sns_points['step_up'].x},${this.sns_points['step_up'].y}=${collide_next_s1}+${collide_next_s2}`
+        //dbgs += ` step_dn=${this.sns_points['step_dn'].x},${this.sns_points['step_dn'].y}=${collide_next_g1}`
+        //dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
+        //console.log(dbgs)
 
         throw {"error": "error"}
     }
@@ -3707,21 +3703,32 @@ class CreeperPhysics {
     }
 
     paint(ctx) {
-        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
-        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
-        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
-        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
 
+        if (!!this.sensor_info && !this.next_rect) {
+            const sensors = this.sensor_info.sensors
+            const collisions = this.sensor_info.collisions
+            ctx.beginPath()
+            ctx.fillStyle = "#FF0000"
+            ctx.lineWidth = 1
+            ctx.rect(sensors.f.x, sensors.f.y, 1, 1)
+            ctx.rect(sensors.t.x, sensors.t.y, 1, 1)
+            ctx.rect(sensors.b.x, sensors.b.y, 1, 1)
+            //ctx.rect(sensors.bn.x, sensors.bn.y, 1, 1)
+            //ctx.rect(sensors.g1.x, sensors.g1.y, 1, 1)
+            ctx.closePath()
+            ctx.fill();
 
-        ctx.beginPath()
-        ctx.fillStyle = "#FF0000"
-        ctx.lineWidth = 1
-        ctx.rect(sensor_u.x, sensor_u.y, 1, 1)
-        ctx.rect(sensor_d.x, sensor_d.y, 1, 1)
-        ctx.rect(sensor_l.x, sensor_l.y, 1, 1)
-        ctx.rect(sensor_r.x, sensor_r.y, 1, 1)
-        ctx.closePath()
-        ctx.fill();
+            //ctx.beginPath()
+            //ctx.fillStyle = "#FF00FF"
+            //ctx.lineWidth = 1
+            //ctx.rect(sensors.s1.x, sensors.s1.y, 1, 1)
+            //ctx.rect(sensors.s2.x, sensors.s2.y, 1, 1)
+            //ctx.rect(sensors.g1.x, sensors.g1.y, 1, 1)
+            //ctx.closePath()
+            //ctx.fill();
+
+        }
+        
 
     }
 }
