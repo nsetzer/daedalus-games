@@ -812,10 +812,10 @@ class DemoScene extends AxeSimulatorScene {
             const x1 = Physics2dPlatform.maprect.left() + 8
             const x2 = Physics2dPlatform.maprect.right() - 40
 
-            if (this.demo_mode&DEMO_MODE_PLATFORM2) {
+            if ((this.demo_mode&DEMO_MODE_PLATFORM2)==DEMO_MODE_PLATFORM2) {
                 this.map_player1.map.sendObjectCreateEvent("PlayerV2",
                     {
-                        x: Physics2dPlatform.maprect.w/2,
+                        x: Physics2dPlatform.maprect.w/4,
                         y: Physics2dPlatform.maprect.h/2,
                         playerId: "player1"
                     })
@@ -829,7 +829,7 @@ class DemoScene extends AxeSimulatorScene {
             // this.map_player2.map.setOwned("player2")
         }
 
-        if (this.demo_mode&DEMO_MODE_PLATFORM2) {
+        if ((this.demo_mode&DEMO_MODE_PLATFORM2)==DEMO_MODE_PLATFORM2) {
             const x = Physics2dPlatform.maprect.x
             const yb = Physics2dPlatform.maprect.bottom()
             const w = Physics2dPlatform.maprect.w
@@ -840,6 +840,7 @@ class DemoScene extends AxeSimulatorScene {
             this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:0, w:d, h:h})
             this.map_server.map.sendObjectCreateEvent("Wall", {x:w-d, y:0, w:d, h:h})
             this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:64, w:w, h:d})
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:w/2-16, y:64+(h-64)/2-16, w:32, h:32})
         } else if (this.demo_mode&DEMO_MODE_PLATFORM) {
             const y = Physics2dPlatform.maprect.bottom() - 64
             const x = Physics2dPlatform.maprect.cx() - 24
@@ -988,7 +989,8 @@ export default class Application extends ApplicationBase {
 
         const query = daedalus.util.parseParameters()
         let demo_mode;
-        switch (query?.mode?.[0]) {
+        let mode_name=query?.mode?.[0]
+        switch (mode_name) {
             case "clock":
                 demo_mode = DEMO_MODE_CLOCK;
                 break
@@ -1004,7 +1006,7 @@ export default class Application extends ApplicationBase {
             case "platform":
                 demo_mode = DEMO_MODE_PLATFORM;
                 break
-            case "platform":
+            case "platform2":
                 demo_mode = DEMO_MODE_PLATFORM2;
                 break
             case "bullet":
@@ -1015,6 +1017,7 @@ export default class Application extends ApplicationBase {
                 demo_mode = DEMO_MODE_PLATFORM
                 break
         }
+        console.log(`mode_name=${mode_name} demo_mode=${demo_mode}`)
 
         super({
             portrait: 0,

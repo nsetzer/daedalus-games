@@ -307,21 +307,36 @@ class PlayerV2 extends PlatformerEntity {
 
                 //let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
 
-                //if (standing) {
-                    this.physics.speed.y = this.physics.jumpspeed
-                    this.physics.accum.y = 0
+                // if standing and
+                if (this.physics.next_rect === null) {
+
+                    let v = Direction.vector(Direction.flip[this.physics.standing_direction])
+
+                    if (v.x) {
+                        this.physics.speed.x = v.x*Math.abs(this.physics.jumpspeed)
+                        this.physics.accum.x = 0
+                    } else {
+                        this.physics.speed.y = v.y*Math.abs(this.physics.jumpspeed)
+                        this.physics.accum.y = 0
+                    }
+
                     this.physics.gravityboost = false
                     this.physics.doublejump = true
-                    console.log("jump", this.physics.speed.y)
-                //}
+                    console.log("jump", v, this.physics.speed)
+                }
 
             } else {
                 //this.physics.xspeed = 90 * payload.vector.x
             }
 
             if (dir&Direction.LEFTRIGHT) {
-                this.physics.moving_direction = dir&Direction.LEFTRIGHT
-                this.physics.xspeed = 90 * payload.vector.x
+
+                this.physics.moving_direction = {
+                    [Direction.DOWN ]: {[Direction.LEFT]: Direction.LEFT, [Direction.RIGHT]: Direction.RIGHT},
+                    [Direction.UP   ]: {[Direction.LEFT]: Direction.RIGHT, [Direction.RIGHT]: Direction.LEFT},
+                    [Direction.LEFT ]: {[Direction.LEFT]: Direction.UP  , [Direction.RIGHT]: Direction.DOWN},
+                    [Direction.RIGHT]: {[Direction.LEFT]: Direction.DOWN  , [Direction.RIGHT]: Direction.UP},
+                }[this.physics.standing_direction][dir&Direction.LEFTRIGHT]
             } else {
                 this.physics.moving_direction = Direction.NONE
             }

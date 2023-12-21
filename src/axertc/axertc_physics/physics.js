@@ -837,17 +837,39 @@ export class Physics2dPlatformV2 {
 
         // look up table for walking off a cliff, which changes the standing direction
 
+        /*
+        rotate 2 translation matrix
+
+        [ cos() -sin()] :: [0 -1] :: [0 1]
+        [ sin()  cos()] :: [1  0] :: [1 0]
+
+        // clockwise
+        // (-1,  0) -> ( 0, -1)
+        // ( 0, -1) -> ( 1,  0)
+        // ( 1,  0) -> ( 0,  1)
+        // ( 0,  1) -> (-1,  0)
+
+        // counter-clockwise
+        // (-1,  0) -> ( 0,  1)
+        // ( 0, -1) -> (-1,  0)
+        // ( 1,  0) -> ( 0, -1)
+        // ( 0,  1) -> ( 1,  0)
+        */
+
         let lut2 = {}
         lut2[Direction.DOWN ] = {}
         lut2[Direction.LEFT ] = {}
         lut2[Direction.UP   ] = {}
         lut2[Direction.RIGHT] = {}
 
+        // clockwise [standing][moving]
+
         lut2[Direction.UP   ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.UP   ,x:-(hw+0),y:-(hh+2)}
         lut2[Direction.RIGHT][Direction.UP   ] = {standing: Direction.DOWN , moving: Direction.RIGHT,x:+(hw+2),y:-(hh+0)}
         lut2[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.DOWN ,x:+(hw+1),y:+(hh+2)}
         lut2[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.LEFT ,x:-(hw+2),y:+(hh+1)}
 
+        // counter-clockwise [standing][moving]
         lut2[Direction.UP   ][Direction.RIGHT] = {standing: Direction.LEFT , moving: Direction.UP   ,x:+(hw+1),y:-(hh+2)}
         lut2[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.UP   , moving: Direction.RIGHT,x:+(hw+2),y:+(hh+1)}
         lut2[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.RIGHT, moving: Direction.DOWN ,x:-(hw+0),y:+(hh+2)}
@@ -871,11 +893,13 @@ export class Physics2dPlatformV2 {
         lut3[Direction.UP   ] = {}
         lut3[Direction.RIGHT] = {}
 
+        // clockwise [standing][moving]
         lut3[Direction.UP   ][Direction.LEFT ] = {standing: Direction.LEFT  , moving: Direction.DOWN ,x:0,y:0}
         lut3[Direction.RIGHT][Direction.UP   ] = {standing: Direction.UP    , moving: Direction.LEFT ,x:0,y:0}
         lut3[Direction.DOWN ][Direction.RIGHT] = {standing: Direction.RIGHT , moving: Direction.UP   ,x:0,y:0}
         lut3[Direction.LEFT ][Direction.DOWN ] = {standing: Direction.DOWN  , moving: Direction.RIGHT,x:0,y:0}
 
+        // counter-clockwise [standing][moving]
         lut3[Direction.UP   ][Direction.RIGHT] = {standing: Direction.RIGHT , moving: Direction.DOWN ,x:0,y:0}
         lut3[Direction.RIGHT][Direction.DOWN ] = {standing: Direction.DOWN  , moving: Direction.LEFT ,x:0,y:0}
         lut3[Direction.DOWN ][Direction.LEFT ] = {standing: Direction.LEFT  , moving: Direction.UP   ,x:0,y:0}
@@ -1159,7 +1183,7 @@ export class Physics2dPlatformV2 {
 
         // todo check if next rect is valid
         if (this.can_wallwalk && standing && collisions.bn && !collisions.t && collisions.fn) {
-            //console.log("rotate 3")
+
             // move to walk up a 'wall'
             // it's a wall from the perspective of the current downwards direction
             //let ta, tmp
@@ -1171,8 +1195,11 @@ export class Physics2dPlatformV2 {
             //}
             let tmp = this._lut_rotate_3[this.standing_direction][this.moving_direction]
 
-            //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
-            //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
+            //console.log("rotate 3",
+            //    "standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing],
+            //    "moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving]
+            //    )
+
             this.moving_direction = tmp.moving
             this.standing_direction = tmp.standing
 
@@ -1222,8 +1249,17 @@ export class Physics2dPlatformV2 {
         //dbgs += ` step_dn=${this.sns_points['step_dn'].x},${this.sns_points['step_dn'].y}=${collide_next_g1}`
         //dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
         //console.log(dbgs)
+        if (!standing) {
+            return 1
+        }
 
-        throw {"error": "error", dx, dy, next: this.next_rect, standing, bonk, sensors, collisions}
+        throw {
+            "error": "error",
+            dx, dy, next: this.next_rect, standing, bonk,
+            standing: Direction.name[this.standing_direction],
+            moving: Direction.name[this.moving_direction],
+            sensors,
+            collisions}
     }
 
     _step_target() {
@@ -1232,6 +1268,7 @@ export class Physics2dPlatformV2 {
 
         let dx = this.target.rect.x - this.next_rect.x
         let dy = this.target.rect.y - this.next_rect.y
+
         let v = 0
         if (dx < 0) {
             this.target.rect.x += 1
@@ -1285,6 +1322,7 @@ export class Physics2dPlatformV2 {
         this._neighbors.forEach(ent => {
         if (ent.entid == this.entid) { return }
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+            //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
         })
 
@@ -1303,9 +1341,10 @@ export class Physics2dPlatformV2 {
             //let step = this._lut_step[this.standing_direction]
             //this.speed.x *= (1-Math.abs(step.x))
             //this.speed.y *= (1-Math.abs(step.y))
-            if (this.speed.y > 0) {
-                this.speed.y = 0
-            }
+            if (this.standing_direction == Direction.DOWN  && this.speed.y > 0) { this.speed.y = 0 }
+            if (this.standing_direction == Direction.UP    && this.speed.y < 0) { this.speed.y = 0 }
+            if (this.standing_direction == Direction.LEFT  && this.speed.x < 0) { this.speed.x = 0 }
+            if (this.standing_direction == Direction.RIGHT && this.speed.x > 0) { this.speed.x = 0 }
 
         }
         this.accum.x += dt * this.speed.x
@@ -1320,6 +1359,14 @@ export class Physics2dPlatformV2 {
         let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
 
         // horizontal step
+
+        if (false && this.next_rect !== null) {
+            // FIXME: take step towards target at fixed rate
+            // can this be fixed to allow reversing direction while transitioning?
+            // current fix is to disable jumping while transitioning
+            // k = this._step_target()
+        }
+
         if (true) {
 
             let dx = Math.trunc(this.accum[sym.h])
@@ -1353,6 +1400,8 @@ export class Physics2dPlatformV2 {
                     if (sdir != this.standing_direction) {
                         this.accum.x = 0
                         this.accum.y = 0
+                        this.speed.x = 0
+                        this.speed.y = 0
                         // TODO: figure out the rotation to keep going
                         // e.g. standing up to standing left is a 90 degree rotation
                         //      the vector (-1, 0) becomes (0, 1)
@@ -1368,24 +1417,34 @@ export class Physics2dPlatformV2 {
         // vertical step
 
         if (true  && this.next_rect === null) {
-            let dy = Math.trunc(this.accum.y)
+            let dy = Math.trunc(this.accum[sym.v])
             let n = Math.abs(dy)
             let s = Math.sign(dy)
-            this.accum.y -= dy
+            this.accum[sym.v] -= dy
 
             while (n > 0) {
-                if (s > 0 && collisions.b) { break; }
-                if (s < 0 && collisions.t) { break; }
-                this.target.rect.y += s
+                if (this.standing_direction == Direction.RIGHT && s > 0 && collisions.b) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+                if (this.standing_direction == Direction.RIGHT && s < 0 && collisions.t) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+
+                if (this.standing_direction == Direction.LEFT  && s < 0 && collisions.b) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+                if (this.standing_direction == Direction.LEFT  && s > 0 && collisions.t) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+
+                if (this.standing_direction == Direction.DOWN  && s > 0 && collisions.b) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+                if (this.standing_direction == Direction.DOWN  && s < 0 && collisions.t) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+
+                if (this.standing_direction == Direction.UP    && s < 0 && collisions.b) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+                if (this.standing_direction == Direction.UP    && s > 0 && collisions.t) { this.accum[sym.v] = 0; this.speed[sym.v] = 0; break; }
+
+                this.target.rect[sym.v] += s
                 n -= 1
                 let sensors = this._step_get_sensors(0, 0)
                 // check if standing again
                 this._neighbors.forEach(ent => {
-                if (ent.entid == this.entid) { return }
+                    if (ent.entid == this.entid) { return }
                     if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+                    //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
                     if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
                 })
-
             }
         }
 
