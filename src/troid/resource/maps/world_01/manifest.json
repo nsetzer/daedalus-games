@@ -1,1 +1,1 @@
-{"world": "world_01", "levels": [{"id": 1, "name": "level_01", "url": "maps/world_01/level_01.json"}, {"id": 2, "name": "level_02", "url": "maps/world_01/level_02.json"}, {"id": 3, "name": "level_03", "url": "maps/world_01/level_03.json"}]}
+{"world": "world_01", "levels": [{"id": 1, "name": "level_01", "url": "maps/world_01/level_01.json"}, {"id": 2, "name": "level_02", "url": "maps/world_01/level_02.json"}, {"id": 3, "name": "level_03", "url": "maps/world_01/level_03.json"}, {"id": 4, "name": "level_04", "url": "maps/world_01/level_04.json"}]}

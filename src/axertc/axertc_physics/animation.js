@@ -20,7 +20,8 @@ export class AnimationComponent {
         this.effect = null // deprecated?
 
         if (this.target.visible === undefined) {
-            throw {"error": "target.visible not set"}
+            console.warn({"error": "target.visible not set"})
+            this.target.visible = 1
         }
     }
 

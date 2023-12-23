@@ -300,6 +300,8 @@ class PlayerV2 extends PlatformerEntity {
 
     onInput(payload) {
 
+        //TODO: test impulse (towards a mouse click)
+
         if ("whlid" in payload) {
             let dir = Direction.fromVector(payload.vector.x, payload.vector.y)
 

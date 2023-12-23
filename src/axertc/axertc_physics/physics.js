@@ -1393,6 +1393,9 @@ export class Physics2dPlatformV2 {
                         console.error(sensors, v.x, v.y)
                         throw 0
                     }
+
+                    // TODO: cancel momentum on a collision
+                    // TODO: report if pressing in to an object
                     k = this._step(sensors, v.x, v.y)
                     this.accum[sym.h] -= s*k
                     n -= k
