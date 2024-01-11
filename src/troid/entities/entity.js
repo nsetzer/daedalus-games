@@ -1258,11 +1258,19 @@ export class Player extends PlatformerEntity {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
-        this.physics = new Physics2dPlatform(this,{
+
+        this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
             xmaxspeed2: 175,
             oneblock_walk: true
         })
+
+        //this.physics = new Physics2dPlatform(this,{
+        //    xmaxspeed1: 150,
+        //    xmaxspeed2: 175,
+        //    oneblock_walk: true
+        //})
+
         this.visible = true
         this.animation = new AnimationComponent(this)
 
@@ -1791,7 +1799,10 @@ export class Player extends PlatformerEntity {
                 payload.vector.x = 0
             }
 
+            // TODO: remove
             this.physics.direction = Direction.fromVector(payload.vector.x, 0)
+            // TODO V2
+            this.physics.moving_direction = Direction.fromVector(payload.vector.x, 0) 
             //console.log(payload.vector.x, payload.vector.y)
             //if (this.physics.direction&Direction.UP) {
             if ( payload.vector.y < -0.3535) {
@@ -1799,7 +1810,6 @@ export class Player extends PlatformerEntity {
             } else {
                 this.looking_up = false
             }
-
             // const maxspeed = 90
 
             //if (payload.vector.x > 0.3535) {
@@ -1996,8 +2006,13 @@ export class Player extends PlatformerEntity {
 
         if (standing) {
             gAssets.sfx.PLAYER_JUMP.play()
+            // TODO: old
             this.physics.yspeed = this.physics.jumpspeed
             this.physics.yaccum = 0
+            // TODO: new
+            this.physics.speed.y = this.physics.jumpspeed
+            this.physics.accum.y = 0
+
             this.physics.gravityboost = false
             this.physics.doublejump = true
         } else if (pressing && !standing) {
@@ -2006,18 +2021,30 @@ export class Player extends PlatformerEntity {
             this.physics.xaccum = 0
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.yaccum = 0
+
+            this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
+            this.physics.accum.x = 0
+            this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
+            this.physics.accum.y = 0
+
             this.physics.gravityboost = false
 
         } else if (!standing && this.physics.doublejump && this.physics.yspeed > 0) {
             gAssets.sfx.PLAYER_JUMP.play()
+
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.yaccum = 0
+
+            this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
+            this.physics.accum.y = 0
+
+
             this.physics.gravityboost = false
             this.physics.doublejump = false
             this.physics.doublejump_position = {x:this.physics.target.rect.cx(), y: this.physics.target.rect.bottom()}
             this.physics.doublejump_timer = .4
         } else {
-            console.log(`jump standing=${standing} pressing=${pressing}`)
+            console.log(`jump standing=${this.physics.standing_frame} pressing=${pressing}`)
         }
     }
 

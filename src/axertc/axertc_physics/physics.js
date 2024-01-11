@@ -696,6 +696,10 @@ export class Physics2dPlatformV2 {
         this.moving_speed = 90 // temporary FIXME
         this.next_rect = null
 
+        this.frame_index = 0;
+        this.standing_frame = -1;
+        this.pressing_frame = -1;
+
         this.vaccum = 0 // velocity accumulator
 
         // step_vector the direction considered up
@@ -1299,6 +1303,8 @@ export class Physics2dPlatformV2 {
 
     update(dt) {
 
+        this.frame_index += 1
+
         this._update_neighborhood()
 
         // if standing and velocity is greater than zero, take a step
@@ -1415,6 +1421,10 @@ export class Physics2dPlatformV2 {
 
 
             }
+
+            if (!!this.sensor_info && this.sensor_info.collisions.f) {
+                this.pressing_frame = this.frame_index
+            }
         }
 
         // vertical step
@@ -1449,6 +1459,43 @@ export class Physics2dPlatformV2 {
                     if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
                 })
             }
+
+            if (collisions.b) {
+                this.standing_frame = this.frame_index
+            }
+
+        }
+
+        sensors = this._step_get_sensors(0, 0)
+        this._neighbors.forEach(ent => {
+            if (ent.entid == this.entid) { return }
+            if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+            collisions.f = false
+            //if (ent.collidePoint(sensors.f.x, sensors.f.y)) { collisions.f = true }
+        })
+
+        let not_moving = this.moving_direction == 0 && Math.abs(this.speed.x) < 30
+        let falling = !collisions.b && this.speed.y > 0
+        let rising = this.speed.y < 0
+        let pressing = collisions.f
+        this.doublejump = false // FIXME
+
+        if (falling) {
+            if (pressing) {
+                this.action = "wall_slide"
+            } else {
+                this.action = "fall"
+            }
+        } else if (rising) {
+            if (!this.doublejump) {
+                this.action = "double_jump"
+            } else {
+                this.action = "jump"
+            }
+        } else if (not_moving) {
+            this.action = "idle"
+        } else {
+            this.action = "run"
         }
 
     }

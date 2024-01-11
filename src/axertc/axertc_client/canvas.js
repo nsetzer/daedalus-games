@@ -574,6 +574,8 @@ export class CanvasEngine extends DomElement {
     */
 
     render() {
+        window.requestAnimationFrame(this.render.bind(this));
+
         let now = performance.now()
 
         let dt = 1/60;
@@ -588,6 +590,7 @@ export class CanvasEngine extends DomElement {
             //}
             if (!this.paused) {
                 this.delta_accum += elapsed;
+                //console.log(this.delta_accum, elapsed, 1/60)
 
                 const p1 = performance.now()
                 let n = 0;
@@ -611,10 +614,12 @@ export class CanvasEngine extends DomElement {
 
                 }
                 const p3 = performance.now()
+                //console.log([p2-p1,p3-p2,elapsed])
                 //this.timings = [p2-p1,p3-p2]
             }
 
             this.timings = [Math.floor(1.0/this.spt_a), Math.floor(1.0/this.spt_b), Math.floor(1.0/this.spt_c)]
+            //console.log(this.timings)
             //this.fps = Math.floor(1.0/this.spt_b)
             // reduce the frequency that the fps updates when displayed
             this.fps_timer -= 1
@@ -631,7 +636,6 @@ export class CanvasEngine extends DomElement {
 
 
 
-        window.requestAnimationFrame(this.render.bind(this));
     }
 
 }
