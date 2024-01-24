@@ -447,18 +447,12 @@ export class Physics2dPlatform {
 
             } else {
 
-
-
                 this.target.rect.y += dy
             }
         }
 
-
         let sensor_floora = {x: this.target.rect.left(), y: this.target.rect.bottom() + 1}
         let sensor_floorb = {x: this.target.rect.right()-1, y: this.target.rect.bottom() + 1}
-
-
-
         let sensor_ceiling = {x: this.target.rect.cx(), y: this.target.rect.top() - 1}
         let sensor_pressing;
         if (this.facing == Direction.RIGHT) {
@@ -700,6 +694,11 @@ export class Physics2dPlatformV2 {
         this.standing_frame = -1;
         this.pressing_frame = -1;
 
+        this.gravityboost = false // more gravity when button not pressed
+        this.doublejump = false
+        this.doublejump_position = {x:0, y: 0} // animation center
+        this.doublejump_timer = 0 // for the animation duration
+
         this.vaccum = 0 // velocity accumulator
 
         // step_vector the direction considered up
@@ -743,11 +742,18 @@ export class Physics2dPlatformV2 {
         // allow for higher jumps and running over gaps at the second speed
         this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
         this.xmaxspeed1a = this.xmaxspeed1*(2/3)
-
         this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
+
+        this.speed_profiles = [
+            {speed: this.xmaxspeed1a, accel: (this.xmaxspeed1a) / .2},
+            {speed: this.xmaxspeed1, accel: (this.xmaxspeed1 - this.xmaxspeed1a) / 1},
+        ]
+
+        this.speed_profile_current = 0
+
         this.xfriction = this.xmaxspeed1 / .5 // stop moving in .1 seconds
-        this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
-        this.xacceleration2 = (this.xmaxspeed1 - this.xmaxspeed1a) / 1
+        //this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
+        //this.xacceleration2 = (this.xmaxspeed1 - this.xmaxspeed1a) / 1
 
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
@@ -1223,7 +1229,12 @@ export class Physics2dPlatformV2 {
             return 1
         }
 
+        // walk off the ledge
         if (!this.can_wallwalk) {
+            if (!bonk) {
+                this.target.rect.x += dx
+                this.target.rect.y += dy
+            }
             return 1
         }
 
@@ -1301,6 +1312,16 @@ export class Physics2dPlatformV2 {
         return 0
     }
 
+    is_rising() {
+        // return true if the velocity suggests moving away from the floor
+        let rising = false
+        if (this.standing_direction == Direction.DOWN ) { rising = this.speed.y < 0 }
+        if (this.standing_direction == Direction.UP   ) { rising = this.speed.y > 0 }
+        if (this.standing_direction == Direction.RIGHT) { rising = this.speed.x < 0 }
+        if (this.standing_direction == Direction.LEFT ) { rising = this.speed.x > 0 }
+        return rising
+    }
+
     update(dt) {
 
         this.frame_index += 1
@@ -1322,6 +1343,8 @@ export class Physics2dPlatformV2 {
             this._init_step()
         }
 
+        let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
+
         let sensors = this._step_get_sensors(0, 0)
         let collisions = {}
 
@@ -1332,6 +1355,8 @@ export class Physics2dPlatformV2 {
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
         })
 
+        //---------------------------------------
+        // Gravity
         // check if not standing and apply gravity
         if (!collisions.b && this.next_rect === null) {
             // fall / jump
@@ -1340,10 +1365,21 @@ export class Physics2dPlatformV2 {
 
             let gforce = this.gravity * dt
 
-            this.speed.x += -step.x*gforce
-            this.speed.y += -step.y*gforce
+            this.speed[sym.v] += -step[sym.v]*gforce
+            //this.speed.y += -step.y*gforce
+
+            if (this.gravityboost) {
+
+                let rising = this.is_rising()
+                if (rising) {
+                    this.speed[sym.v] += -step[sym.v]*gforce
+                    //this.speed.y += -step.y*gforce
+                }
+            }
 
         } else {
+            // not falling, cancel gravity ???
+
             //let step = this._lut_step[this.standing_direction]
             //this.speed.x *= (1-Math.abs(step.x))
             //this.speed.y *= (1-Math.abs(step.y))
@@ -1353,17 +1389,116 @@ export class Physics2dPlatformV2 {
             if (this.standing_direction == Direction.RIGHT && this.speed.x > 0) { this.speed.x = 0 }
 
         }
-        this.accum.x += dt * this.speed.x
-        this.accum.y += dt * this.speed.y
+
+        //---------------------------------------
+        // Movement Speed and Friction
 
         if (this._mask_movement[this.standing_direction]&this.moving_direction) {
-            let v = Direction.vector(this.moving_direction)
-            this.accum.x += dt * this.moving_speed * v.x
-            this.accum.y += dt * this.moving_speed * v.y
+            // profiles for {speed, accel}
+            this.speed_profile_current = -1
+            const fudge = 0.9
+            if (this.moving_direction == Direction.LEFT) {
+                // multi stage acceleration
+                for (let i=0; i < this.speed_profiles.length; i++) {
+                    const profile = this.speed_profiles[i]
+                    this.speed_profile_current = i
+                    if (this.speed.x > -profile.speed*fudge) {
+                        this.speed.x -= profile.accel * dt
+                        break
+                    }
+                }
+                // clamp top speed
+                if (this.speed.x < -this.xmaxspeed2) {
+                    this.speed.x = -this.xmaxspeed2
+                }
+                // apply friction
+                const profile = this.speed_profiles[this.speed_profiles.length - 1]
+                if (this.speed.x < -profile.speed) {
+                    this.speed.x += this.xfriction * dt
+                }
+            } 
+            else if (this.moving_direction == Direction.RIGHT) {
+                // multi stage acceleration
+                for (let i=0; i < this.speed_profiles.length; i++) {
+                    const profile = this.speed_profiles[i]
+                    this.speed_profile_current = i
+                    if (this.speed.x < profile.speed*fudge) {
+                        this.speed.x += profile.accel * dt
+                        break
+                    }
+                }
+                // clamp top speed
+                if (this.speed.x > this.xmaxspeed2) {
+                    this.speed.x = this.xmaxspeed2
+                }
+                // apply friction
+                const profile = this.speed_profiles[this.speed_profiles.length - 1]
+                if (this.speed.x > profile.speed) {
+                    this.speed.x -= this.xfriction * dt
+                }
+            }
+            else if (this.moving_direction == Direction.UP) {
+                // multi stage acceleration
+                for (let i=0; i < this.speed_profiles.length; i++) {
+                    const profile = this.speed_profiles[i]
+                    this.speed_profile_current = i
+                    if (this.speed.y > -profile.speed*fudge) {
+                        this.speed.y -= profile.accel * dt
+                        break
+                    }
+                }
+                // clamp top speed
+                if (this.speed.y < -this.xmaxspeed2) {
+                    this.speed.y = -this.xmaxspeed2
+                }
+                // apply friction
+                const profile = this.speed_profiles[this.speed_profiles.length - 1]
+                if (this.speed.y < -profile.speed) {
+                    this.speed.y += this.xfriction * dt
+                }
+            }
+            else if (this.moving_direction == Direction.DOWN) {
+                // multi stage acceleration
+                for (let i=0; i < this.speed_profiles.length; i++) {
+                    const profile = this.speed_profiles[i]
+                    this.speed_profile_current = i
+                    if (this.speed.y < profile.speed*fudge) {
+                        this.speed.y += profile.accel * dt
+                        break
+                    }
+                }
+                // clamp top speed
+                if (this.speed.y > this.xmaxspeed2) {
+                    this.speed.y = this.xmaxspeed2
+                }
+                // apply friction
+                const profile = this.speed_profiles[this.speed_profiles.length - 1]
+                if (this.speed.y > profile.speed) {
+                    this.speed.y -= this.xfriction * dt
+                }
+            }
+            console.log(
+                Direction.name[this.moving_direction], 
+                this.speed_profile_current,  this.speed_profiles.length, 
+                this.speed.x,
+                this.xmaxspeed2)
+            //let v = Direction.vector(this.moving_direction)
+            //this.accum.x += dt * this.moving_speed * v.x
+            //this.accum.y += dt * this.moving_speed * v.y
+        } else {
+            // friction when not moving
+            if (Math.abs(this.speed[sym.h]) < this.xfriction * dt) {
+                this.speed[sym.h] = 0
+            } else {
+                this.speed.x -= Math.sign(this.speed.x) * this.xfriction * dt
+            }
         }
 
-        let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
+        // finally update accumulators based on current speed
+        this.accum[sym.h] += dt * this.speed[sym.h]
+        this.accum[sym.v] += dt * this.speed[sym.v]
 
+        //---------------------------------------
         // horizontal step
 
         if (false && this.next_rect !== null) {
@@ -1422,11 +1557,10 @@ export class Physics2dPlatformV2 {
 
             }
 
-            if (!!this.sensor_info && this.sensor_info.collisions.f) {
-                this.pressing_frame = this.frame_index
-            }
+            
         }
 
+        //---------------------------------------
         // vertical step
 
         if (true  && this.next_rect === null) {
@@ -1466,19 +1600,31 @@ export class Physics2dPlatformV2 {
 
         }
 
-        sensors = this._step_get_sensors(0, 0)
+        //---------------------------------------
+        // summarize state
+        let v = Direction.vector(this.moving_direction)
+        sensors = this._step_get_sensors(v.x, v.y)
+        collisions.b = false
+        collisions.fn = false
         this._neighbors.forEach(ent => {
             if (ent.entid == this.entid) { return }
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
-            collisions.f = false
-            //if (ent.collidePoint(sensors.f.x, sensors.f.y)) { collisions.f = true }
+            if (!!sensors.fn && ent.collidePoint(sensors.fn.x, sensors.fn.y)) { collisions.fn = true }
         })
 
+        if (collisions.fn) {
+            this.pressing_frame = this.frame_index
+
+            if (this.moving_direction == Direction.LEFT ) {this.pressing_direction =  1}
+            if (this.moving_direction == Direction.RIGHT) {this.pressing_direction = -1}
+            if (this.moving_direction == Direction.UP   ) {this.pressing_direction = -1}
+            if (this.moving_direction == Direction.DOWN ) {this.pressing_direction =  1}
+        }
+
         let not_moving = this.moving_direction == 0 && Math.abs(this.speed.x) < 30
-        let falling = !collisions.b && this.speed.y > 0
-        let rising = this.speed.y < 0
-        let pressing = collisions.f
-        this.doublejump = false // FIXME
+        let rising = this.is_rising()
+        let falling = !collisions.b && !rising
+        let pressing = collisions.fn
 
         if (falling) {
             if (pressing) {

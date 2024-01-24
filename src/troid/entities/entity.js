@@ -1259,17 +1259,17 @@ export class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
 
-        this.physics = new Physics2dPlatformV2(this,{
-            xmaxspeed1: 150,
-            xmaxspeed2: 175,
-            oneblock_walk: true
-        })
-
-        //this.physics = new Physics2dPlatform(this,{
+        //this.physics = new Physics2dPlatformV2(this,{
         //    xmaxspeed1: 150,
         //    xmaxspeed2: 175,
         //    oneblock_walk: true
         //})
+
+        this.physics = new Physics2dPlatform(this,{
+            xmaxspeed1: 150,
+            xmaxspeed2: 175,
+            oneblock_walk: true
+        })
 
         this.visible = true
         this.animation = new AnimationComponent(this)
@@ -1803,6 +1803,16 @@ export class Player extends PlatformerEntity {
             this.physics.direction = Direction.fromVector(payload.vector.x, 0)
             // TODO V2
             this.physics.moving_direction = Direction.fromVector(payload.vector.x, 0) 
+            console.log("set movement", payload.vector.x, this.physics.moving_direction)
+
+            if (payload.vector.x > 0.3535) {
+                this.physics.facing = Direction.RIGHT
+            }
+
+            if (payload.vector.x < -0.3535) {
+                this.physics.facing = Direction.LEFT
+            }
+
             //console.log(payload.vector.x, payload.vector.y)
             //if (this.physics.direction&Direction.UP) {
             if ( payload.vector.y < -0.3535) {
@@ -1974,11 +1984,11 @@ export class Player extends PlatformerEntity {
         gAssets.sfx.PLAYER_BOUNCE.play()
 
         if (this.jump_pressed) {
-            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.speed.y = this.physics.jumpspeed
         } else {
-            this.physics.yspeed = this.physics.jumpspeed*.75
+            this.physics.speed.y = this.physics.jumpspeed*.75
         }
-        this.physics.yaccum = 0
+        this.physics.accum.y = 0
         this.physics.gravityboost = false
         this.physics.doublejump = true
     }
@@ -1988,11 +1998,11 @@ export class Player extends PlatformerEntity {
         gAssets.sfx.PLAYER_BOUNCE.play()
 
         if (this.jump_pressed) {
-            this.physics.yspeed = this.physics.jumpspeed*1.25
+            this.physics.speed.y = this.physics.jumpspeed*1.25
         } else {
-            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.speed.y = this.physics.jumpspeed
         }
-        this.physics.yaccum = 0
+        this.physics.accum.y = 0
         this.physics.gravityboost = false
         this.physics.doublejump = true
     }
@@ -2003,6 +2013,8 @@ export class Player extends PlatformerEntity {
 
         let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
+
+        let rising = this.physics.is_rising()
 
         if (standing) {
             gAssets.sfx.PLAYER_JUMP.play()
@@ -2016,6 +2028,7 @@ export class Player extends PlatformerEntity {
             this.physics.gravityboost = false
             this.physics.doublejump = true
         } else if (pressing && !standing) {
+            console.log(`wall jump standing=${this.physics.standing_frame} pressing=${pressing} m=${this.physics.pressing_direction}`)
             gAssets.sfx.PLAYER_JUMP.play()
             this.physics.xspeed = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.xaccum = 0
@@ -2029,7 +2042,8 @@ export class Player extends PlatformerEntity {
 
             this.physics.gravityboost = false
 
-        } else if (!standing && this.physics.doublejump && this.physics.yspeed > 0) {
+        } else if (!standing && this.physics.doublejump && !rising) {
+            console.log(`double jump standing=${this.physics.standing_frame} pressing=${pressing}`)
             gAssets.sfx.PLAYER_JUMP.play()
 
             this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
@@ -2037,7 +2051,6 @@ export class Player extends PlatformerEntity {
 
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.accum.y = 0
-
 
             this.physics.gravityboost = false
             this.physics.doublejump = false
@@ -3249,6 +3262,8 @@ export class CreeperV2 extends MobBase {
         this.solid = 1
 
         this.physics = new Physics2dPlatformV2(this, {wallwalk: true})
+        // todo init as 'clockwise' or 'counter-clockwise' then set the direction
+        // once the standing direction is determined
         this.physics.moving_direction = Direction.RIGHT
         this.physics.moving_speed = 45
 

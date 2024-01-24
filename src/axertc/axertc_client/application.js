@@ -214,8 +214,8 @@ export class ApplicationBase extends DomElement {
 
     handleResize() {
         const canvas = this.canvas.getDomNode()
-        canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
+        canvas.width = window.innerWidth>1920?1920:window.innerWidth
+        canvas.height = window.innerHeight>1080?1080:window.innerHeight
 
         // debounce
         // wait for the size to stop changing then issue a resize event

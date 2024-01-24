@@ -458,6 +458,7 @@ export class CanvasEngine extends DomElement {
             this.paused = ! this.paused
             this.scene.pause(this.paused)
             this.ctx.resetTransform()
+            
             this.ctx.fillStyle="yellow"
             this.ctx.font = '12px sans-serif';
             this.ctx.fillText("paused", 32, 32)
@@ -540,6 +541,9 @@ export class CanvasEngine extends DomElement {
             return;
         }
 
+        // TODO: use setTransform
+        // https://stackoverflow.com/questions/33515707/scaling-a-javascript-canvas-game-properly
+
         ctx.resetTransform()
         let canvas = this.getDomNode()
         ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -580,9 +584,11 @@ export class CanvasEngine extends DomElement {
 
         let dt = 1/60;
 
+        let elapsed = 0
+
         if (this.lastTime != null) {
 
-            const elapsed = (now - this.lastTime) / 1000.0
+            elapsed = (now - this.lastTime) / 1000.0
             this.spt_a = this.renderTimer()
 
             //if (this.touch_event) {
@@ -631,8 +637,11 @@ export class CanvasEngine extends DomElement {
 
         }
         this.lastTime = now;
+        //WebGLShaderPrecisionFormat()
 
-        now = performance.now()
+
+        //now = performance.now()
+        //console.log(elapsed*1000, now - this.lastTime)
 
 
 
