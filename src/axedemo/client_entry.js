@@ -9,7 +9,7 @@ $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
     Direction, Alignment, Rect,
 })
-$import("axedemo_common", {FireworksMap, PlatformMap})
+$import("axedemo_common", {ClockMap, MovementMap, FireworksMap, PlatformMap})
 $import("axertc_physics", {Physics2dPlatform, Physics2dPlatformV2})
 
 function debug(msg) {
@@ -337,6 +337,8 @@ class AxeSimulatorScene extends GameScene {
 
         super()
 
+        this.map_ctor = map_ctor
+
         this.map_player1 = new ClientCspMap(new map_ctor())
         this.map_player1.setPlayerId("player1")
         this.map_player2 = new ClientCspMap(new map_ctor())
@@ -362,10 +364,12 @@ class AxeSimulatorScene extends GameScene {
         const width = Math.floor(gEngine.view.width/3) - 2
         const height = 360 // gEngine.view.height
         this.views = [
-            {name: "Player 1", x: 0,y: 0, width: width, height: 360},
-            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width: width, height: 360},
-            {name: "Player 2",x: gEngine.view.width - width,y: 0, width: width, height: 360},
+            {name: "Player 1", x: 0,y: 0, width, height},
+            {name: "Server",x: Math.floor(gEngine.view.width/2 - width/2),y: 0, width, height},
+            {name: "Player 2",x: gEngine.view.width - width,y: 0, width, height},
         ]
+
+        this.map_ctor
     }
 
     update(dt) {
@@ -670,7 +674,7 @@ class AxeSimulatorScene extends GameScene {
             ctx.textAlign = "right"
             ctx.textBaseline = "top"
             const delta1 = map.world_step - this.map_server.map.local_step
-            ctx.fillText(`DELAY: ${delta1}`, 211, 0);
+            ctx.fillText(`DELAY: ${delta1} `, view.width, 0);
 
             if (i==0 || i==2) {
 
@@ -705,9 +709,9 @@ class AxeSimulatorScene extends GameScene {
             ctx.textBaseline = "top"
 
             if (i==1) {
-                ctx.fillText(view.name, 211/2, 2);
+                ctx.fillText(view.name, view.width/2, 2);
             } else {
-                ctx.fillText(view.name, 211/2, 2);
+                ctx.fillText(view.name, view.width/2, 2);
             }
 
 
@@ -716,11 +720,11 @@ class AxeSimulatorScene extends GameScene {
                 ctx.textBaseline = "middle"
 
                 let latency = (this.client.queues[0].latency*1000).toFixed(0)
-                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32+12);
+                ctx.fillText(`Latency: ${latency} ms`, view.width/2, 2+32+12);
 
                 if (this.demo_mode&DEMO_MODE_CLOCK) {
                     let delay = this.map_player1.step_delay
-                    ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64+12);
+                    ctx.fillText(`Step Delay: ${delay} `, view.width/2, 2+64+12);
                 }
             }
 
@@ -729,18 +733,25 @@ class AxeSimulatorScene extends GameScene {
                 ctx.textBaseline = "middle"
 
                 let latency = (this.client.queues[2].latency*1000).toFixed(0)
-                ctx.fillText(`Latency: ${latency} ms`, 211/2, 2+32+12);
+                ctx.fillText(`Latency: ${latency} ms`, view.width/2, 2+32+12);
 
                 if (this.demo_mode&DEMO_MODE_CLOCK) {
                     let delay = this.map_player2.step_delay
-                    ctx.fillText(`Step Delay: ${delay} `, 211/2, 2+64+12);
+                    ctx.fillText(`Step Delay: ${delay} `, view.width/2, 2+64+12);
                 }
             }
 
             if (this.demo_mode&DEMO_MODE_CLOCK) {
                 ctx.textBaseline = "top"
                 ctx.font = "24px mono";
-                ctx.fillText(`${fmtTime(map.map.local_step/60)} `, 211/2, 180);
+                ctx.textAlign = "center"
+                ctx.fillText(`${fmtTime(map.map.local_step/60)}`, view.width/2, 180);
+                
+
+                if (i==0||i==2) {
+                    const delta = map.map.local_step - this.maps[1].map.local_step
+                    ctx.fillText(`${(delta/60).toFixed(3)}`, view.width/2, 180+32);
+                }
             }
 
             ctx.restore()
@@ -780,7 +791,16 @@ class DemoScene extends AxeSimulatorScene {
 
     constructor(demo_mode) {
 
-        let map_ctor = (demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
+        let map_ctor;
+
+        if (demo_mode==DEMO_MODE_CLOCK) {
+            map_ctor = ClockMap
+        } else if (demo_mode==DEMO_MODE_MOVEMENT) {
+            map_ctor = MovementMap
+        } else {
+            map_ctor = (demo_mode&DEMO_MODE_PLATFORM)?PlatformMap:FireworksMap
+        }
+
         super(map_ctor)
         this.demo_mode = demo_mode
 
@@ -791,9 +811,14 @@ class DemoScene extends AxeSimulatorScene {
         this.touch = new TouchInput(this.controller)
         this.keyboard = new KeyboardInput(this.controller)
 
-        Physics2dPlatform.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
-        Physics2dPlatformV2.maprect = new Rect(0, 0, 211, Math.floor(360*2/3 - 16))
-        FireworksMap.maprect = new Rect(0, 0, 211, Math.floor(360))
+        const map_width = Math.floor(gEngine.view.width/3) - 2 // see resize()
+        const map_height = 360 // see resize()
+        //set the map size for physics
+        // TODO: copy to resize()
+        Physics2dPlatform.maprect = new Rect(0, 0, map_width, Math.floor(map_height*2/3 - 16))
+        Physics2dPlatformV2.maprect = new Rect(0, 0, map_width, Math.floor(map_height*2/3 - 16))
+
+        map_ctor.maprect = new Rect(0, 0, map_width, map_height)
 
         this.event_player1_clicked = !(this.demo_mode&DEMO_MODE_FIREWORKS)
         this.event_player2_clicked = !(this.demo_mode&DEMO_MODE_FIREWORKS)
@@ -820,6 +845,7 @@ class DemoScene extends AxeSimulatorScene {
                         playerId: "player1"
                     })
             } else {
+                console.log("create movement players")
                 this.map_player1.map.sendObjectCreateEvent("Player", {x: 9, y:128, playerId: "player1"})
                 this.map_player2.map.sendObjectCreateEvent("Player", {x: 170, y:128, playerId: "player2"})
             }

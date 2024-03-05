@@ -270,12 +270,12 @@ class Player extends Entity {
             this.y = 0
         }
 
-        if (this.x + 32 > FireworksMap.maprect.w) {
-            this.x = FireworksMap.maprect.w - 32
+        if (this.x + 32 > MovementMap.maprect.w) {
+            this.x = MovementMap.maprect.w - 32
         }
 
-        if (this.y + 32 > FireworksMap.maprect.h) {
-            this.y = FireworksMap.maprect.h - 32
+        if (this.y + 32 > MovementMap.maprect.h) {
+            this.y = MovementMap.maprect.h - 32
         }
 
         if (!!this.lerp) {
@@ -448,8 +448,72 @@ class Player extends Entity {
     }
 }
 
+export class ClockMap extends CspMap {
+
+    static maprect = new Rect(0,0,0,0)
+
+    constructor() {
+        super()
+    }
+
+    validateMessage(playerId, msg) {
+        this.sendNeighbors(playerId, msg)
+    }
+
+    update_main(dt, reconcile) {
+        super.update_main(dt, reconcile)
+    }
+
+    paint(ctx) {
+        for (const obj of Object.values(this.objects)) {
+            obj.paint(ctx)
+        }
+    }
+}
+
+
+export class MovementMap extends CspMap {
+
+    static maprect = new Rect(0,0,0,0)
+
+    constructor() {
+        super()
+        this.registerClass("Player", Player)
+    }
+
+    validateMessage(playerId, msg) {
+        this.sendNeighbors(playerId, msg)
+    }
+
+    update_main(dt, reconcile) {
+        super.update_main(dt, reconcile)
+    }
+
+    paint(ctx) {
+        let y =100
+        for (const obj of Object.values(this.objects)) {
+            obj.paint(ctx)
+            //console.log("paint", obj)
+
+            /*
+            for debugging pixel accuracy or movement
+
+            ctx.font = "12px bold";
+            ctx.fillStyle = "white"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText(`x=${obj.x} y=${obj.y}`, 100, y)
+            y+=16
+            */
+
+        }
+    }
+
+}
 
 export class FireworksMap extends CspMap {
+
+    static maprect = new Rect(0,0,0,0)
 
     constructor() {
         super()
@@ -481,11 +545,7 @@ export class FireworksMap extends CspMap {
 
             obj.paint(ctx)
         }
-
-
-
     }
 
 }
 
-FireworksMap.maprect = new Rect(0,0,0,0)

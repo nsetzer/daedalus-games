@@ -355,6 +355,8 @@ class PlayerV2 extends PlatformerEntity {
 
 export class PlatformMap extends CspMap {
 
+    static maprect = new Rect(0,0,0,0)
+    
     constructor() {
         super()
 
