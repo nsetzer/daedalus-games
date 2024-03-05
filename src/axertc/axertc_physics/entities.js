@@ -452,10 +452,12 @@ export class Slope extends PlatformBase {
         let r = this.rect.x+this.rect.w
         let b = this.rect.y+this.rect.h
 
-        //ctx.fillStyle = "#c3a3a388";
-        //ctx.beginPath();
-        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        //ctx.fill();
+        /*
+        ctx.fillStyle = "#c3a3a388";
+        ctx.beginPath();
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.fill();
+        */
 
         ctx.fillStyle = "#c3a3a3";
         ctx.beginPath();
