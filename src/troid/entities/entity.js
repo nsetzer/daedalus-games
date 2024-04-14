@@ -141,8 +141,8 @@ export class Bullet extends ProjectileBase {
         const d = props?.direction??Direction.RIGHT
         const v = Direction.vector(props?.direction??Direction.RIGHT)
 
-        this.physics.xspeed = 0
-        this.physics.yspeed = 0
+        this.physics.speed.x = 0
+        this.physics.speed.y = 0
 
         this.wave_counter = 0
         this.wave_loop = !!(props?.wave)
@@ -220,8 +220,8 @@ export class Bullet extends ProjectileBase {
 
         if (gEngine.frameIndex&1) {
             if (this.wave_counter < this.wave_profile.length) {
-                this.physics.xspeed = this.wave_profile[this.wave_counter].x/dt
-                this.physics.yspeed = this.wave_profile[this.wave_counter].y/dt
+                this.physics.speed.x = this.wave_profile[this.wave_counter].x/dt
+                this.physics.speed.y = this.wave_profile[this.wave_counter].y/dt
                 this.wave_counter += 1
             }
 
@@ -299,8 +299,8 @@ export class Bullet extends ProjectileBase {
 
     _kill() {
         this.animation.setAnimationById(this.animations["dead"])
-        this.physics.xspeed = 0
-        this.physics.yspeed = 0
+        this.physics.speed.x = 0
+        this.physics.speed.y = 0
         this.alive = false
     }
     onDeathAnimationEnd() {
@@ -466,20 +466,20 @@ export class BubbleBullet extends ProjectileBase {
 
         switch (props?.direction??0) {
         case Direction.LEFT:
-            this.physics.xspeed = -(base_speed + Math.random()*this.rect.w*1.5)
+            this.physics.speed.x = -(base_speed + Math.random()*this.rect.w*1.5)
             break;
         case Direction.RIGHT:
-            this.physics.xspeed = base_speed + Math.random()*this.rect.w*1.5
+            this.physics.speed.x = base_speed + Math.random()*this.rect.w*1.5
             break;
         case Direction.UPLEFT:
-            this.physics.xspeed = -(base_speed + Math.random()*this.rect.w*1.5)
-            this.physics.xspeed = .7071 * this.physics.xspeed
-            this.physics.yspeed = this.physics.xspeed
+            this.physics.speed.x = -(base_speed + Math.random()*this.rect.w*1.5)
+            this.physics.speed.x = .7071 * this.physics.speed.x
+            this.physics.speed.y = this.physics.speed.x
             break;
         case Direction.UPRIGHT:
-            this.physics.xspeed = base_speed + Math.random()*this.rect.w*1.5
-            this.physics.xspeed = .7071 * this.physics.xspeed
-            this.physics.yspeed = -this.physics.xspeed
+            this.physics.speed.x = base_speed + Math.random()*this.rect.w*1.5
+            this.physics.speed.x = .7071 * this.physics.speed.x
+            this.physics.speed.y = -this.physics.speed.x
             break;
         default:
             break;
@@ -572,21 +572,21 @@ export class BubbleBullet extends ProjectileBase {
                 this._kill()
             }
 
-            if (this.physics.xspeed >= 0) {
-                this.physics.xspeed -= 50 * dt
-                this.physics.yspeed -= 10 * dt
+            if (this.physics.speed.x >= 0) {
+                this.physics.speed.x -= 50 * dt
+                this.physics.speed.y -= 10 * dt
 
                 // todo use timer to destroy
-                //if (this.physics.xspeed < 5) {
+                //if (this.physics.speed.x < 5) {
                 //    this._kill()
                 //}
             }
 
-            if (this.physics.xspeed <= 0) {
-                this.physics.xspeed += 50 * dt
-                this.physics.yspeed -= 10 * dt
+            if (this.physics.speed.x <= 0) {
+                this.physics.speed.x += 50 * dt
+                this.physics.speed.y -= 10 * dt
                 // todo use timer to destroy
-                //if (this.physics.xspeed > -5) {
+                //if (this.physics.speed.x > -5) {
                 //    this._kill()
                 //}
             }
@@ -691,20 +691,20 @@ export class BounceBullet extends ProjectileBase {
         let xspeed = 180 // a bit faster than players maximum speed
         switch (props?.direction??0) {
         case Direction.LEFT:
-            this.physics.xspeed = -xspeed
+            this.physics.speed.x = -xspeed
             break;
         case Direction.RIGHT:
-            this.physics.xspeed = xspeed
+            this.physics.speed.x = xspeed
             break;
         case Direction.UPLEFT:
-            this.physics.xspeed = -xspeed
-            this.physics.xspeed = this.physics.xspeed
-            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.speed.x = -xspeed
+            this.physics.speed.x = this.physics.speed.x
+            this.physics.speed.y = this.physics.jumpspeed
             break;
         case Direction.UPRIGHT:
-            this.physics.xspeed = xspeed
-            this.physics.xspeed = this.physics.xspeed
-            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.speed.x = xspeed
+            this.physics.speed.x = this.physics.speed.x
+            this.physics.speed.y = this.physics.jumpspeed
             break;
         default:
             break;
@@ -766,8 +766,8 @@ export class BounceBullet extends ProjectileBase {
 
     _kill() {
         this.animation.setAnimationById(this.animations["dead"])
-        this.physics.xspeed = 0
-        this.physics.yspeed = 0
+        this.physics.speed.x = 0
+        this.physics.speed.y = 0
         this.alive = false
     }
     onDeathAnimationEnd() {
@@ -808,7 +808,7 @@ export class BounceBullet extends ProjectileBase {
         if (this.element == WeaponType.ELEMENT.WATER) {
             this._kill()
         } else {
-            this.physics.yspeed = this.physics.jumpspeed
+            this.physics.speed.y = this.physics.jumpspeed
             this.physics.yaccum = 0
             this.physics.gravityboost = false
             this.physics.doublejump = true
@@ -1259,16 +1259,14 @@ export class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
 
-        //this.physics = new Physics2dPlatformV2(this,{
-        //    xmaxspeed1: 150,
-        //    xmaxspeed2: 175,
-        //    oneblock_walk: true
-        //})
-
-        this.physics = new Physics2dPlatform(this,{
+        this.physics = 1 ? new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
             xmaxspeed2: 175,
             oneblock_walk: true
+        }) : new Physics2dPlatform(this,{
+                xmaxspeed1: 150,
+                xmaxspeed2: 175,
+                oneblock_walk: true
         })
 
         this.visible = true
@@ -1604,8 +1602,8 @@ export class Player extends PlatformerEntity {
         //ctx.strokeStyle = "yellow"
         //ctx.textAlign = "left"
         //ctx.textBaseline = "top"
-        ////ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.xspeed.toFixed(1)}`, this.rect.x, this.rect.y);
-        //ctx.fillText(`${Math.abs(this.physics.xspeed).toFixed(1)}/${this.physics.xmaxspeed1}/${this.physics.xmaxspeed1a}`, this.rect.x, this.rect.y);
+        ////ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.speed.x.toFixed(1)}`, this.rect.x, this.rect.y);
+        //ctx.fillText(`${Math.abs(this.physics.speed.x).toFixed(1)}/${this.physics.xmaxspeed1}/${this.physics.xmaxspeed1a}`, this.rect.x, this.rect.y);
         if (!!this._beam) {
             this._beam.paint(ctx)
         }
@@ -1824,26 +1822,26 @@ export class Player extends PlatformerEntity {
 
             //if (payload.vector.x > 0.3535) {
             //    this.physics.facing = Direction.RIGHT
-            //    if (this.physics.xspeed < maxspeed) {
-            //        this.physics.xspeed += maxspeed/10.0
-            //        if (this.physics.xspeed > maxspeed) {
-            //            this.physics.xspeed = maxspeed
+            //    if (this.physics.speed.x < maxspeed) {
+            //        this.physics.speed.x += maxspeed/10.0
+            //        if (this.physics.speed.x > maxspeed) {
+            //            this.physics.speed.x = maxspeed
             //        }
             //    }
             //}
 
             //else if (payload.vector.x < -0.3535) {
             //    this.physics.facing = Direction.LEFT
-            //    if (this.physics.xspeed > -maxspeed) {
-            //        this.physics.xspeed -= maxspeed/10.0
-            //        if (this.physics.xspeed < -maxspeed) {
-            //            this.physics.xspeed = -maxspeed
+            //    if (this.physics.speed.x > -maxspeed) {
+            //        this.physics.speed.x -= maxspeed/10.0
+            //        if (this.physics.speed.x < -maxspeed) {
+            //            this.physics.speed.x = -maxspeed
             //        }
             //    }
             //}
 
             //else {
-            //    this.physics.xspeed = 0
+            //    this.physics.speed.x = 0
             //}
 
         } else if (payload.btnid === 0) {
@@ -2014,13 +2012,14 @@ export class Player extends PlatformerEntity {
         let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
+        console.log(this.physics)
         let rising = this.physics.is_rising()
 
         if (standing) {
             gAssets.sfx.PLAYER_JUMP.play()
             // TODO: old
-            this.physics.yspeed = this.physics.jumpspeed
-            this.physics.yaccum = 0
+            //this.physics.speed.y = this.physics.jumpspeed
+            //this.physics.yaccum = 0
             // TODO: new
             this.physics.speed.y = this.physics.jumpspeed
             this.physics.accum.y = 0
@@ -2030,10 +2029,10 @@ export class Player extends PlatformerEntity {
         } else if (pressing && !standing) {
             console.log(`wall jump standing=${this.physics.standing_frame} pressing=${pressing} m=${this.physics.pressing_direction}`)
             gAssets.sfx.PLAYER_JUMP.play()
-            this.physics.xspeed = this.physics.pressing_direction * this.physics.xjumpspeed
-            this.physics.xaccum = 0
-            this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
-            this.physics.yaccum = 0
+            //this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
+            //this.physics.xaccum = 0
+            //this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
+            //this.physics.yaccum = 0
 
             this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.accum.x = 0
@@ -2046,8 +2045,8 @@ export class Player extends PlatformerEntity {
             console.log(`double jump standing=${this.physics.standing_frame} pressing=${pressing}`)
             gAssets.sfx.PLAYER_JUMP.play()
 
-            this.physics.yspeed = this.physics.jumpspeed / Math.sqrt(2)
-            this.physics.yaccum = 0
+            //this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
+            //this.physics.yaccum = 0
 
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.accum.y = 0
@@ -2075,7 +2074,7 @@ export class Player extends PlatformerEntity {
 
         this.physics.direction = Direction.NONE
         this.physics.xaccum = 0
-        this.physics.yspeed = this.physics.jumpspeed
+        this.physics.speed.y = this.physics.jumpspeed
         this.physics.yaccum = 0
         this.physics.gravityboost = false
         this.physics.doublejump = false
@@ -2990,9 +2989,9 @@ export class Door extends PlatformerEntity {
             this.spawn_target.physics.facing = this.direction
         }
 
-        this.spawn_target.physics.xspeed = 0
+        this.spawn_target.physics.speed.x = 0
         this.spawn_target.physics.xaccum = 0
-        this.spawn_target.physics.yspeed = 0
+        this.spawn_target.physics.speed.y = 0
         this.spawn_target.physics.yaccum = 0
         this.despawn = false
     }
@@ -3210,7 +3209,7 @@ export class Creeper extends MobBase {
         //ctx.strokeStyle = "yellow"
         //ctx.textAlign = "left"
         //ctx.textBaseline = "top"
-        //ctx.fillText(`${this.physics.xspeed} ${this.physics.direction}`, this.rect.x, this.rect.y);
+        //ctx.fillText(`${this.physics.speed.x} ${this.physics.direction}`, this.rect.x, this.rect.y);
     }
 
     update(dt) {
@@ -3219,10 +3218,10 @@ export class Creeper extends MobBase {
         }
         this.character.update(dt)
         if (this.physics.xcollide) {
-            //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
+            //console.log(this.physics.speed.x, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
             this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
             this.animation.setAnimationById(this.animations.run[this.physics.direction])
-            this.physics.xspeed = 0
+            this.physics.speed.x = 0
             this.physics.xaccum = 0
         }
         this.animation.update(dt)
@@ -3345,10 +3344,10 @@ export class CreeperV2 extends MobBase {
         }
         this.character.update(dt)
         //if (this.physics.xcollide) {
-        //    //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
+        //    //console.log(this.physics.speed.x, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
         //    this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
         //    this.animation.setAnimationById(this.animations.run[this.physics.direction])
-        //    this.physics.xspeed = 0
+        //    this.physics.speed.x = 0
         //    this.physics.xaccum = 0
         //}
         //this.animation.update(dt)
@@ -3496,10 +3495,10 @@ export class Shredder extends MobBase {
         }
         this.character.update(dt)
         if (this.physics.xcollide) {
-            //console.log(this.physics.xspeed, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
+            //console.log(this.physics.speed.x, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
             this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
             this.animation.setAnimationById(this.animations.run[this.physics.direction])
-            this.physics.xspeed = 0
+            this.physics.speed.x = 0
             this.physics.xaccum = 0
         }
         this.animation.update(dt)

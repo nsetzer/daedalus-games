@@ -28,10 +28,8 @@ export class Physics2dPlatform {
         this.ninputs = 0
         this.frame_index = 0 // candidate for 'world state'
         this.direction = 0
-        this.xspeed = 0
-        this.yspeed = 0
-        this.xaccum = 0
-        this.yaccum = 0
+        this.speed = {x:0, y:0}
+        this.accum = {x:0, y:0}
         this.gravityboost = false // more gravity when button not pressed
         this.doublejump = false
         this.doublejump_position = {x:0, y: 0} // animation center
@@ -226,7 +224,7 @@ export class Physics2dPlatform {
                         ndy = Math.min(dy, ent.rect.top() - this.target.rect.bottom())
                     } else if (dy < 0 && this.target.rect.top() >= ent.rect.bottom()) {
                         //
-                        //console.log("bonk t", ent.entid, this.yspeed, xmoved, dy, this.target.rect.top(), ent.rect.bottom())
+                        //console.log("bonk t", ent.entid, this.speed.y, xmoved, dy, this.target.rect.top(), ent.rect.bottom())
                         ndy = Math.max(dy, ent.rect.bottom() - 1 - this.target.rect.top())
                     } else {
                         console.log("no y bonk")
@@ -245,6 +243,12 @@ export class Physics2dPlatform {
 
         return null
 
+    }
+
+    is_rising() {
+        // return true if the velocity suggests moving away from the floor
+        let rising = this.speed.y < 0
+        return rising
     }
 
     update(dt) {
@@ -266,62 +270,62 @@ export class Physics2dPlatform {
 
             if ((this.direction & Direction.LEFT) > 0) {
                 this.facing = Direction.LEFT
-                if (this.xspeed > -this.xmaxspeed1) {
-                    if (this.xspeed > -this.xmaxspeed1a) {
-                        this.xspeed -= this.xacceleration * dt
+                if (this.speed.x > -this.xmaxspeed1) {
+                    if (this.speed.x > -this.xmaxspeed1a) {
+                        this.speed.x -= this.xacceleration * dt
                     } else {
-                        this.xspeed -= this.xacceleration2 * dt
+                        this.speed.x -= this.xacceleration2 * dt
                     }
 
-                    //console.log(this.facing, this.xspeed)
+                    //console.log(this.facing, this.speed.x)
                 }
             } else if ((this.direction & Direction.RIGHT) > 0) {
                 this.facing = Direction.RIGHT
-                if (this.xspeed < this.xmaxspeed1) {
-                    if (this.xspeed < this.xmaxspeed1a) {
-                        this.xspeed += this.xacceleration * dt
+                if (this.speed.x < this.xmaxspeed1) {
+                    if (this.speed.x < this.xmaxspeed1a) {
+                        this.speed.x += this.xacceleration * dt
                     } else {
-                        this.xspeed += this.xacceleration2 * dt
+                        this.speed.x += this.xacceleration2 * dt
                     }
-                    //console.log(this.facing, this.xspeed)
+                    //console.log(this.facing, this.speed.x)
                 }
             } else /*if (this.standing)*/ {
                 // apply friction while standing
-                if (Math.abs(this.xspeed) < this.xfriction * dt) {
-                    this.xspeed = 0
+                if (Math.abs(this.speed.x) < this.xfriction * dt) {
+                    this.speed.x = 0
                 } else {
-                    this.xspeed -= Math.sign(this.xspeed) * this.xfriction * dt
+                    this.speed.x -= Math.sign(this.speed.x) * this.xfriction * dt
                 }
             }
 
             // bounds check x velocity
-            if (this.xspeed > this.xmaxspeed2) {
-                this.xspeed = this.xmaxspeed2
+            if (this.speed.x > this.xmaxspeed2) {
+                this.speed.x = this.xmaxspeed2
             }
-            if (this.xspeed < -this.xmaxspeed2) {
-                this.xspeed = -this.xmaxspeed2
+            if (this.speed.x < -this.xmaxspeed2) {
+                this.speed.x = -this.xmaxspeed2
             }
 
             /////////////////////////////////////////////////////////////
             // apply y acceleration
-            //console.log(this.gravity, this.yspeed, dt, this.gravityboost)
+            //console.log(this.gravity, this.speed.y, dt, this.gravityboost)
 
-            this.yspeed += this.gravity * dt
+            this.speed.y += this.gravity * dt
 
             // increase gravity when not pressing a jump button
-            if (this.gravityboost && this.yspeed < 0) {
-                this.yspeed += this.gravity * dt
+            if (this.gravityboost && this.speed.y < 0) {
+                this.speed.y += this.gravity * dt
             }
 
             // check for terminal velocity
-            if (this.yspeed > this.ymaxspeed) {
-                this.yspeed = this.ymaxspeed
+            if (this.speed.y > this.ymaxspeed) {
+                this.speed.y = this.ymaxspeed
             }
 
             // reduce speed when pressed on a wall?
-            if (this.pressing && this.yspeed > 0) {
-                if (this.yspeed > this.ymaxspeed*this.wallfriction) {
-                    this.yspeed = this.ymaxspeed*this.wallfriction
+            if (this.pressing && this.speed.y > 0) {
+                if (this.speed.y > this.ymaxspeed*this.wallfriction) {
+                    this.speed.y = this.ymaxspeed*this.wallfriction
                 }
             }
         }
@@ -336,7 +340,7 @@ export class Physics2dPlatform {
                 this.target.rect.w + 64,
                 this.target.rect.h + 64,
             )
-            // rect.translate(8*Math.sign(this.xspeed), 8*Math.sign(this.yspeed))
+            // rect.translate(8*Math.sign(this.speed.x), 8*Math.sign(this.speed.y))
             for (const ent of this.group()) {
                 if ((!!ent.solid) && rect.collideRect(ent.rect)) {
                     solids.push(ent)
@@ -355,9 +359,9 @@ export class Physics2dPlatform {
 
         /////////////////////////////////////////////////////////////
         // move x
-        this.xaccum += dt*this.xspeed
-        dx = Math.trunc(this.xaccum)
-        this.xaccum -= dx
+        this.accum.x += dt*this.speed.x
+        dx = Math.trunc(this.accum.x)
+        this.accum.x -= dx
         if (dx != 0) {
 
             const dd = this._move_x(solids, dx)
@@ -377,8 +381,8 @@ export class Physics2dPlatform {
                 }
 
                 //if (dd.dx == 0) {
-                //    this.xspeed = 0
-                //    this.xaccum= 0
+                //    this.speed.x = 0
+                //    this.accum.x= 0
                 //}
             } else {
                 this.target.rect.x += dx
@@ -391,7 +395,7 @@ export class Physics2dPlatform {
         // validate that yspeed >= 0 and was standing
         let standing = false
 
-        if (this.standing && this.yspeed >= 0) {
+        if (this.standing && this.speed.y >= 0) {
             const dd = this._move_y(solids, 6)
             if (dd != null && dd.dy >= 0 && dd.dy <= 8) {
                 this.target.rect.y += dd.dy
@@ -402,17 +406,17 @@ export class Physics2dPlatform {
 
         /////////////////////////////////////////////////////////////
         // move y
-        this.yaccum += dt*this.yspeed
-        //console.log(this.target.entid, dt, this.yspeed, this.yaccum)
-        dy = Math.trunc(this.yaccum)
-        this.yaccum -= dy
+        this.accum.y += dt*this.speed.y
+        //console.log(this.target.entid, dt, this.speed.y, this.accum.y)
+        dy = Math.trunc(this.accum.y)
+        this.accum.y -= dy
 
         // if traveling at maximum speed, add an extra sensor infront
         // this sensor will prevent falling when there is a gap of 1
         if (this.enable_oneblock_walk) {
             let sensor_floorc = {x: this.target.rect.left() + 17, y: this.target.rect.bottom() + 1}
             let xpt = (this.xmaxspeed1 + this.xmaxspeed1a)/2
-            if (dy > 0 && this.xcollisions.length == 0 && Math.abs(this.xspeed) > xpt) {
+            if (dy > 0 && this.xcollisions.length == 0 && Math.abs(this.speed.x) > xpt) {
                 for (const ent of solids) {
                     if (!standing && (ent.collidePoint(sensor_floorc.x, sensor_floorc.y))) {
                         dy = 0
@@ -433,16 +437,16 @@ export class Physics2dPlatform {
                 this.target.rect.x += dd.dx
                 this.target.rect.y += dd.dy
 
-                if (this.yspeed < 0) {
-                    this.yspeed = 0
-                    this.yaccum = 0
+                if (this.speed.y < 0) {
+                    this.speed.y = 0
+                    this.accum.y = 0
                 }
 
-                if (this.yspeed > 0) {
+                if (this.speed.y > 0) {
                     //if (this.target.playerId=="player1") {console.error("set standing yspeed");}
                     standing = true
-                    this.yspeed = 0
-                    this.yaccum = 0
+                    this.speed.y = 0
+                    this.accum.y = 0
                 }
 
             } else {
@@ -466,9 +470,9 @@ export class Physics2dPlatform {
 
             //if (ent.collidePoint(sensor_ceiling.x, sensor_ceiling.y)) {
             //    // bonk
-            //    if (this.yspeed < 0) {
-            //        this.yspeed = 0
-            //        this.yaccum = 0
+            //    if (this.speed.y < 0) {
+            //        this.speed.y = 0
+            //        this.accum.y = 0
             //    }
             //}
 
@@ -503,21 +507,21 @@ export class Physics2dPlatform {
         if (this.checkbounds && Physics2dPlatform.maprect.w > 0) {
             if (this.target.rect.x < Physics2dPlatform.maprect.x) {
                 this.target.rect.x = Physics2dPlatform.maprect.x
-                this.xspeed = 0
+                this.speed.x = 0
                 this.xcollide = true
             }
 
             let maxx = Physics2dPlatform.maprect.w - this.target.rect.w
             if (this.target.rect.x > maxx) {
                 this.target.rect.x = maxx
-                this.xspeed = 0
+                this.speed.x = 0
                 this.xcollide = true
             }
 
             // TODO: troid gutter
             if (this.target.rect.y < Physics2dPlatform.maprect.y - 96) {
                 this.target.rect.y = Physics2dPlatform.maprect.y - 96
-                this.yspeed = 0
+                this.speed.y = 0
                 this.ycollide = true
             }
 
@@ -527,7 +531,7 @@ export class Physics2dPlatform {
                 //if (this.target.playerId=="player1") {console.error("set standing bounds");}
                 standing = true
                 this.target.rect.y = maxy
-                this.yspeed = 0
+                this.speed.y = 0
                 this.ycollide = true
             }
         }
@@ -535,12 +539,12 @@ export class Physics2dPlatform {
         this.collide = this.xcollide || this.ycollide
 
         //if (this.xcollide) {
-        //    this.xspeed = 0
-        //    this.xaccum = 0
+        //    this.speed.x = 0
+        //    this.accum.x = 0
         //}
         //if (this.ycollide) {
-        //    this.yspeed = 0
-        //    this.yaccum = 0
+        //    this.speed.y = 0
+        //    this.accum.y = 0
         //}
 
         /////////////////////////////////////////////////////////////
@@ -579,9 +583,9 @@ export class Physics2dPlatform {
         // run
         // wall_slide
 
-        let not_moving = this.direction == 0 && Math.abs(this.xspeed) < 30
-        let falling = !this.standing && this.yspeed > 0
-        let rising = this.yspeed < 0
+        let not_moving = this.direction == 0 && Math.abs(this.speed.x) < 30
+        let falling = !this.standing && this.speed.y > 0
+        let rising = this.speed.y < 0
         if (falling) {
             if (this.pressing) {
                 this.action = "wall_slide"
@@ -607,10 +611,10 @@ export class Physics2dPlatform {
             this.target.rect.x,
             this.target.rect.y,
             this.direction,
-            this.xspeed,
-            this.yspeed,
-            this.xaccum,
-            this.yaccum,
+            this.speed.x,
+            this.speed.y,
+            this.accum.x,
+            this.accum.y,
             this.gravityboost,
             this.doublejump,
             this.doublejump_position,
@@ -620,52 +624,19 @@ export class Physics2dPlatform {
             this.facing,
         ]
 
-        //const state = {
-        //    x: this.target.rect.x,
-        //    y: this.target.rect.y,
-        //    //frame_index: this.frame_index,
-        //    //clock: CspReceiver.instance.input_clock,
-        //    direction: this.direction,
-        //    xspeed: this.xspeed,
-        //    yspeed: this.yspeed,
-        //    xaccum: this.xaccum,
-        //    yaccum: this.yaccum,
-        //    gravityboost: this.gravityboost,
-        //    doublejump: this.doublejump,
-        //    doublejump_position: this.doublejump_position,
-        //    doublejump_timer: this.doublejump_timer,
-        //    pressing: this.pressing,
-        //    standing: this.standing,
-        //    facing: this.facing,
-        //    //ninputs: this.ninputs,
-        //}
         return state
     }
 
     setState(state) {
 
-        //this.target.rect.x = state.x
-        //this.target.rect.y = state.y
-        //this.direction = state.direction
-        //this.xspeed = state.xspeed
-        //this.yspeed = state.yspeed
-        //this.xaccum = state.xaccum
-        //this.yaccum = state.yaccum
-        //this.gravityboost = state.gravityboost
-        //this.doublejump = state.doublejump
-        //this.doublejump_position = state.doublejump_position
-        //this.doublejump_timer = state.doublejump_timer
-        //this.pressing = state.pressing
-        //this.standing = state.standing
-        //this.facing = state.facing
         [
             this.target.rect.x,
             this.target.rect.y,
             this.direction,
-            this.xspeed,
-            this.yspeed,
-            this.xaccum,
-            this.yaccum,
+            this.speed.x,
+            this.speed.y,
+            this.accum.x,
+            this.accum.y,
             this.gravityboost,
             this.doublejump,
             this.doublejump_position,
