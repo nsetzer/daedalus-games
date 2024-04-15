@@ -43,6 +43,13 @@ function registerDefaultEntity(name, ctor, onLoad=null) {
     })
 }
 
+const EntityCategory = {
+    item: "item",
+    switch: "switch",
+    small_mob: "small_mob",
+    door: "door",
+}
+
 export const editorEntities = []
 function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=null) {
     if (onLoad === null) {
@@ -113,6 +120,7 @@ export class Bullet extends ProjectileBase {
         this.solid = 0
         this.collide = 1
         this.visible = 1
+        this.power = props?.power??0
 
         this.level = props?.level??1
 
@@ -258,7 +266,7 @@ export class Bullet extends ProjectileBase {
 
         for (const ent of this.targets()) {
             if (ent.character.alive && this.rect.collideRect(ent.rect)) {
-                ent.character.hit({element: this.element, level:this.level})
+                ent.hit({element: this.element, level:this.level, power: this.power})
                 this._kill()
             }
         }
@@ -430,6 +438,7 @@ export class BubbleBullet extends ProjectileBase {
         this.wave = (!!props?.wave)??0
         this.bounce = (!!props?.wave)??0
         this.element = props?.element??WeaponType.ELEMENT.POWER
+        this.power = props?.power??0
 
         let base_speed = 100
         if (props?.power < .8) {
@@ -463,21 +472,22 @@ export class BubbleBullet extends ProjectileBase {
         this.animation = new AnimationComponent(this)
         this.buildAnimations()
 
+        let variance = (props?.variance)??Math.random()*this.rect.w*1.5
 
         switch (props?.direction??0) {
         case Direction.LEFT:
-            this.physics.speed.x = -(base_speed + Math.random()*this.rect.w*1.5)
+            this.physics.speed.x = -(base_speed + variance)
             break;
         case Direction.RIGHT:
-            this.physics.speed.x = base_speed + Math.random()*this.rect.w*1.5
+            this.physics.speed.x = base_speed + variance
             break;
         case Direction.UPLEFT:
-            this.physics.speed.x = -(base_speed + Math.random()*this.rect.w*1.5)
+            this.physics.speed.x = -(base_speed + variance)
             this.physics.speed.x = .7071 * this.physics.speed.x
             this.physics.speed.y = this.physics.speed.x
             break;
         case Direction.UPRIGHT:
-            this.physics.speed.x = base_speed + Math.random()*this.rect.w*1.5
+            this.physics.speed.x = base_speed + variance
             this.physics.speed.x = .7071 * this.physics.speed.x
             this.physics.speed.y = -this.physics.speed.x
             break;
@@ -555,10 +565,10 @@ export class BubbleBullet extends ProjectileBase {
         this.animation.setAnimationById(this.animations["dead"])
         this.alive = false
     }
+
     onDeathAnimationEnd() {
         this.destroy()
     }
-
 
     update(dt) {
 
@@ -597,8 +607,11 @@ export class BubbleBullet extends ProjectileBase {
 
 
             for (const ent of this.targets()) {
+                if (ent.rect == undefined) {
+                    console.log(ent)
+                }
                 if (this.rect.collideRect(ent.rect)) {
-                    ent.character.hit({element: this.element, level:this.level})
+                    ent.hit({element: this.element, level:this.level, power:this.power})
                     this._kill()
                 }
             }
@@ -669,6 +682,7 @@ export class BounceBullet extends ProjectileBase {
         this.rect = new Rect((props?.x??0) - 2, (props?.y??0) - 2, 4, 4)
         this.color = props?.color??0
         this.element = props?.element??WeaponType.ELEMENT.POWER
+        this.power = props?.power??0
 
         this.physics = new Physics2dPlatform(this,{
             xmaxspeed1: 200,
@@ -781,7 +795,7 @@ export class BounceBullet extends ProjectileBase {
 
             for (const ent of this.targets()) {
                 if (this.rect.collideRect(ent.rect)) {
-                    ent.character.hit({element: this.element, level:this.level})
+                    ent.hit({element: this.element, level:this.level, power: this.power})
                     this._kill()
                 }
             }
@@ -898,7 +912,7 @@ export class BeamBase extends ProjectileBase {
         let rect = new Rect(p.x - 4, p.y - 4, 8, 8)
         for (const ent of this.targets2()) {
             if (rect.collideRect(ent.rect)) {
-                ent.character.hit({element: WeaponType.ELEMENT.POWER, level: 1, dot: true})
+                ent.hit({element: WeaponType.ELEMENT.POWER, level: 1, power: this.power, dot: true})
             }
         }
 
@@ -982,6 +996,7 @@ export class WaterBeam extends BeamBase {
         // TODO: wave beam should not have gravity
         this.strength = 9
         this.final_maximum = 4 * this.strength //(20 + this.strength * 2)
+        this.power = 0
 
         this.tiles = {}
 
@@ -1037,6 +1052,7 @@ registerDefaultEntity("WaterBeam", WaterBeam, (entry)=> {
 export class FireBeam extends BeamBase {
     constructor(parent, wave) {
         super(parent, wave)
+        this.power = 0
 
         // only draws every other point
         // this improves the collision detection
@@ -1106,6 +1122,9 @@ registerDefaultEntity("FireBeam", FireBeam, (entry)=> {
 
 // TODO: projectiles reduce framerate if they move off screen on large maps
 function generateProjectiles(x,y,direction, power) {
+    // x,y: center to generate project at
+    // direction: direction projectile will travel
+    // power: charge percent
 
     let projectiles = []
 
@@ -1130,11 +1149,14 @@ function generateProjectiles(x,y,direction, power) {
     }
 
     let element = gCharacterInfo.element
-    let wave = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
-    let bounce = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
+
+    // booleans
+    let wave : bool = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
+    let bounce : bool = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
 
     let normal = gCharacterInfo.modifier == WeaponType.MODIFIER.NORMAL
 
+    // one of LEVEL1, LEVEL2, LEVEL3
     let level = gCharacterInfo.level
 
     // ice should generate 1 projectile, which may animate with a split profile
@@ -1259,7 +1281,7 @@ export class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
 
-        this.physics = 1 ? new Physics2dPlatformV2(this,{
+        this.physics = 0 ? new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
             xmaxspeed2: 175,
             oneblock_walk: true
@@ -1897,6 +1919,7 @@ export class Player extends PlatformerEntity {
                     }
 
                     if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
+                        console.log("shot power", power)
                         this._shoot(power)
                     } else {
                         if (!!this._beam) {
@@ -2012,7 +2035,7 @@ export class Player extends PlatformerEntity {
         let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
-        console.log(this.physics)
+        console.log({standing, pressing})
         let rising = this.physics.is_rising()
 
         if (standing) {
@@ -2581,6 +2604,10 @@ export class MobBase extends PlatformerEntity {
         this.character = new MobCharacterComponent(this)
     }
 
+    hit(props) {
+        this.character.hit(props)
+    }
+
     _kill() {
         this.character.alive = false
     }
@@ -2822,6 +2849,151 @@ Spawn.editorSchema = [
 registerEditorEntity("Spawn", Spawn, [32,32], "small_mob", null, (entry)=> {
     Spawn.sheet = gAssets.sheets.pipes32
     Spawn.icon = editorIcon(Spawn.sheet)
+})
+
+export class BubbleCannon extends PlatformerEntity {
+    // todo: add a synchonization property
+    //       'A' cannnons fire on a set interval
+    //       'B' cannons fire on the same interval, offset by 1/2
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.solid = 1
+
+        let tid = 0
+        this.direction = props?.direction??Direction.RIGHT
+        switch(this.direction) {
+            case Direction.LEFT:
+                this.spawn_dx = -8
+                this.spawn_dy = 8
+                break;
+            case Direction.DOWN:
+                this.spawn_dx = 8
+                this.spawn_dy = this.rect.h + 8
+                break;
+            case Direction.RIGHT:
+                this.spawn_dx = this.rect.w+8
+                this.spawn_dy = 8
+                break;
+            case Direction.UP:
+            default:
+                this.spawn_dx = 8
+                this.spawn_dy = -8
+                break;
+        }
+        this.tid = tid
+
+        this.spawn_timer = 0
+        this.spawn_timeout = 2.5;
+
+    }
+
+    paint(ctx) {
+        BubbleCannon.sheet.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
+    }
+
+    collide(other, dx, dy) {
+
+        // TODO: can default collision functions be removed?
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    update(dt) {
+
+        this.spawn_timer += dt;
+        if (this.spawn_timer > this.spawn_timeout) {
+            this.spawn_timer -= this.spawn_timeout
+
+
+            const projectile = {
+                name: "BubbleBullet", 
+                props: {
+                    x: this.rect.x + this.spawn_dx, 
+                    y: this.rect.y + this.spawn_dy,
+                    direction: this.direction,
+                    color: 4,
+                    element: WeaponType.ELEMENT.BUBBLE,
+                    wave: 0,
+                    bounce: 1,
+                    level: WeaponType.LEVEL.LEVEL1,
+                    power:1.0,
+                    split:3,
+                    variance: 1
+                }
+            }
+            this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), projectile.name, projectile.props)
+
+        }
+
+
+        /*
+            if (this.spawn_check()) {
+                const props = {
+                    x: this.rect.x + this.spawn_dx, 
+                    y: this.rect.y + this.spawn_dy
+                }
+                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
+            }
+        */        
+    }
+}
+/*
+BubbleCannon.sheet = null
+BubbleCannon.size = [32, 32]
+BubbleCannon.icon = null
+BubbleCannon.editorIcon = (props) => {
+    let tid = 0
+    switch(props?.direction) {
+        case Direction.LEFT:
+            tid = 0;
+            break;
+
+        case Direction.DOWN:
+            tid = 2;
+            break;
+        case Direction.RIGHT:
+            tid = 3;
+            break;
+        case Direction.UP:
+        default:
+            tid = 1;
+            break;
+    }
+
+    return gAssets.sheets.pipes32.tile(tid)
+}
+*/
+BubbleCannon.editorSchema = [
+    {control: EditorControl.DIRECTION_4WAY, "default": Direction.RIGHT},
+]
+
+registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.item, null, (entry)=> {
+    BubbleCannon.sheet = gAssets.sheets.cannon
+    BubbleCannon.icon = editorIcon(BubbleCannon.sheet)
 })
 
 export class Door extends PlatformerEntity {
@@ -3075,6 +3247,168 @@ Door.editorSchema = [
 registerEditorEntity("Door", Door, [32,32], "door", null, (entry)=> {
     Door.sheet = gAssets.sheets.pipes32
     Door.icon = editorIcon(Door.sheet, 1)
+})
+
+export class ExplodingBrick extends MobBase {
+    // a brick which can be destroyed with the charge beam
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.character.health = 1
+
+        this.animation = new AnimationComponent(this)
+        this.visible = true
+
+        this.breakable = 0
+        this.character.alive = true
+        this.solid = 1
+
+        //this.physics = new Physics2dPlatform(this,{
+        //    xmaxspeed1: 35,
+        //    xmaxspeed2: 35, // 35 seems right
+        //})
+
+        //this.physics.direction = Direction.LEFT
+
+        //this.physics.group = () => {
+        //    return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        //}
+
+
+        //this.buildAnimations()
+
+        this.particles = []
+        this.timer = 0
+        this.timeout = 2 // enough time for particles to fall off the screen
+    
+    }
+
+    collide(other, dx, dy) {
+
+        if (!this.alive) {
+            return null
+        }
+
+        let rect = other.rect
+        let update = rect.copy()
+
+        if (dx > 0 && rect.right() <= this.rect.left()) {
+            update.set_right(this.rect.left())
+            return update
+        }
+
+        if (dx < 0 && rect.left() >= this.rect.right()) {
+            update.set_left(this.rect.right())
+            return update
+        }
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+            update.set_bottom(this.rect.top())
+            return update
+        }
+
+        if (dy < 0 && rect.top() >= this.rect.top()) {
+            update.set_top(this.rect.bottom())
+            return update
+        }
+
+        return null
+    }
+
+    hit(props) {
+        console.log("on hit", props)
+        if (0 && props.power < 0.8) {
+            return
+        } else {
+            this.character.hit(props)
+        }
+
+    }
+
+    paint(ctx) {
+
+        if (this.character.alive) {
+            this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+        } else {
+            // draw a quarter of the brick
+            this.particles.forEach(p => {
+                ctx.drawImage(this.constructor.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
+            })
+        }
+    }
+
+    update(dt) {
+
+        if (!this.character.alive) {
+
+            this.particles.forEach(p => {
+                p.x += p.dx*dt
+                p.y += p.dy*dt
+                p.dy += 500 * dt
+            })
+
+            this.timer += dt
+            if (this.timer >= this.timeout) {
+                this.destroy()
+            }
+        } else {
+            if (this.kill_timer > 0) {
+                this.kill_timer -= dt
+                if (this.kill_timer < 0.0) {
+                    this._kill()
+                }
+            }
+        }
+    }
+
+    _delay_kill() {
+        this.kill_timer = 0.25
+    }
+    _kill() {
+        if (!this.character.alive) {
+            return
+        }
+
+        this.character.alive = false
+        this.solid = 0
+
+        this.particles = []
+        
+        let dx;
+        dx = ((Math.random() * 4) + 2)*10
+        this.particles.push({x:this.rect.x, y: this.rect.y, dx: dx, dy: -100})
+        this.particles.push({x:this.rect.x+8, y: this.rect.y, dx: -dx, dy: -100})
+        dx = ((Math.random() * 4) + 2)*10
+        this.particles.push({x:this.rect.x, y: this.rect.y+8, dx: dx, dy: 0})
+        this.particles.push({x:this.rect.x+8, y: this.rect.y+8, dx: -dx, dy: 0})
+
+        let cx = this.rect.cx()
+        let cy = this.rect.cy()
+        this._x_debug_map.queryObjects({"className": "Brick"}).forEach(obj => {
+            let ox = obj.rect.cx()
+            let oy = obj.rect.cy()
+            let distance_squared = Math.pow(ox-cx,2) + Math.pow(oy-cy, 2)
+            if (distance_squared <= 40*40) {
+                obj._kill()
+            }
+        })
+        this._x_debug_map.queryObjects({"className": "ExplodingBrick"}).forEach(obj => {
+            let ox = obj.rect.cx()
+            let oy = obj.rect.cy()
+            let distance_squared = Math.pow(ox-cx,2) + Math.pow(oy-cy, 2)
+            if (distance_squared <= 40*40) {
+                obj._delay_kill()
+            }
+        })
+
+    }
+}
+ExplodingBrick.sheet = null
+ExplodingBrick.size = [16, 16]
+ExplodingBrick.icon = null
+registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.item, null, (entry)=> {
+    ExplodingBrick.sheet = gAssets.sheets.brick
+    ExplodingBrick.icon = gAssets.sheets.brick.tile(4)
 })
 
 export class Creeper extends MobBase {

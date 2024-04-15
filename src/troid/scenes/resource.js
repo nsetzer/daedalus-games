@@ -350,6 +350,13 @@ class AssetLoader {
             .layout(2, 4)
             .offset(1, 18)
             .spacing(1, 1)
+    
+        this.loader.addSpriteSheet("cannon")
+            .path(RES_ROOT + "/sprites/mobs/cannon.png")
+            .dimensions(16, 16)
+            .layout(1, 1)
+            .offset(1, 18)
+            .spacing(1, 1)
 
         this.loader.addSpriteSheet("zone_01_sheet_01")
             .path(RES_ROOT + "/themes/plains/tile_ground_01.png")
