@@ -62,7 +62,7 @@ export default class Application extends ApplicationBase {
             screen_height: 7*32
         }, () => {
 
-            const edit = false
+            const edit = query.edit == "true"
             // mapid can be null or a filename
             const mapurl = daedalus.env.debug?"maps/world_01/level_04.json":"maps/world_01/level_01.json"
 

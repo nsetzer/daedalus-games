@@ -43,11 +43,12 @@ function registerDefaultEntity(name, ctor, onLoad=null) {
     })
 }
 
-const EntityCategory = {
+export const EntityCategory = {
     item: "item",
     switch: "switch",
     small_mob: "small_mob",
     door: "door",
+    hazard: "hazard"
 }
 
 export const editorEntities = []
@@ -73,7 +74,7 @@ function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=nu
     })
 }
 
-export const editorIcon = (sheet, tid=0) => {
+export const makeEditorIcon = (sheet, tid=0) => {
         let icon = new SpriteSheet()
         icon.tw = 16
         icon.th = 16
@@ -94,6 +95,7 @@ EditorControl.DOOR_TARGET = 2  // {}
 EditorControl.DOOR_ID = 3      // {}
 EditorControl.DIRECTION_4WAY = 4    // {default: value}
 EditorControl.TEXT = 8         // {property: value, default: value}
+EditorControl.RESIZE = 9         // {property: value, default: value}
 
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
@@ -266,8 +268,10 @@ export class Bullet extends ProjectileBase {
 
         for (const ent of this.targets()) {
             if (ent.character.alive && this.rect.collideRect(ent.rect)) {
-                ent.hit({element: this.element, level:this.level, power: this.power})
-                this._kill()
+                let props = {element: this.element, level:this.level, power: this.power, dot: false}
+                if (ent.hit(this, props)) {
+                    this._kill()
+                }
             }
         }
 
@@ -611,7 +615,7 @@ export class BubbleBullet extends ProjectileBase {
                     console.log(ent)
                 }
                 if (this.rect.collideRect(ent.rect)) {
-                    ent.hit({element: this.element, level:this.level, power:this.power})
+                    ent.hit({element: this.element, level:this.level, power:this.power, dot: false})
                     this._kill()
                 }
             }
@@ -795,8 +799,10 @@ export class BounceBullet extends ProjectileBase {
 
             for (const ent of this.targets()) {
                 if (this.rect.collideRect(ent.rect)) {
-                    ent.hit({element: this.element, level:this.level, power: this.power})
-                    this._kill()
+                    let props = {element: this.element, level:this.level, power: this.power, dot: false};
+                    if (ent.hit(this, props)) {
+                        this._kill()
+                    }
                 }
             }
 
@@ -835,10 +841,11 @@ registerDefaultEntity("BounceBullet", BounceBullet, (entry)=> {
 })
 
 export class BeamBase extends ProjectileBase {
-    constructor(parent, wave) {
+    constructor(parent, element, wave) {
         super("", {})
 
         this.parent = parent
+        this.element = element
         //this.group = this.parent.physics.group
         let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>ent?.solid)
         this.group = () => Object.values(this.parent._x_debug_map.objects).filter(rule)
@@ -912,7 +919,12 @@ export class BeamBase extends ProjectileBase {
         let rect = new Rect(p.x - 4, p.y - 4, 8, 8)
         for (const ent of this.targets2()) {
             if (rect.collideRect(ent.rect)) {
-                ent.hit({element: WeaponType.ELEMENT.POWER, level: 1, power: this.power, dot: true})
+
+                let props = {element: this.element, level: 1, power: this.power, dot: true}
+                if (ent.hit(this, props)) {
+                    //this._kill()
+                }
+
             }
         }
 
@@ -992,7 +1004,7 @@ export class BeamBase extends ProjectileBase {
 
 export class WaterBeam extends BeamBase {
     constructor(parent, wave) {
-        super(parent, wave)
+        super(parent, WeaponType.ELEMENT.WATER, wave)
         // TODO: wave beam should not have gravity
         this.strength = 9
         this.final_maximum = 4 * this.strength //(20 + this.strength * 2)
@@ -1051,7 +1063,7 @@ registerDefaultEntity("WaterBeam", WaterBeam, (entry)=> {
 
 export class FireBeam extends BeamBase {
     constructor(parent, wave) {
-        super(parent, wave)
+        super(parent, WeaponType.ELEMENT.FIRE, wave)
         this.power = 0
 
         // only draws every other point
@@ -2604,8 +2616,10 @@ export class MobBase extends PlatformerEntity {
         this.character = new MobCharacterComponent(this)
     }
 
-    hit(props) {
+    hit(projectile, props) {
+        // return true if the projectile collides
         this.character.hit(props)
+        return true
     }
 
     _kill() {
@@ -2848,7 +2862,7 @@ Spawn.editorSchema = [
 
 registerEditorEntity("Spawn", Spawn, [32,32], "small_mob", null, (entry)=> {
     Spawn.sheet = gAssets.sheets.pipes32
-    Spawn.icon = editorIcon(Spawn.sheet)
+    Spawn.icon = makeEditorIcon(Spawn.sheet)
 })
 
 export class BubbleCannon extends PlatformerEntity {
@@ -2865,19 +2879,23 @@ export class BubbleCannon extends PlatformerEntity {
         this.direction = props?.direction??Direction.RIGHT
         switch(this.direction) {
             case Direction.LEFT:
+                tid = 3
                 this.spawn_dx = -8
                 this.spawn_dy = 8
                 break;
             case Direction.DOWN:
+                tid = 2
                 this.spawn_dx = 8
                 this.spawn_dy = this.rect.h + 8
                 break;
             case Direction.RIGHT:
+                tid = 1
                 this.spawn_dx = this.rect.w+8
                 this.spawn_dy = 8
                 break;
             case Direction.UP:
             default:
+                tid = 0
                 this.spawn_dx = 8
                 this.spawn_dy = -8
                 break;
@@ -2965,35 +2983,39 @@ export class BubbleCannon extends PlatformerEntity {
 BubbleCannon.sheet = null
 BubbleCannon.size = [32, 32]
 BubbleCannon.icon = null
-BubbleCannon.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 0;
-            break;
-
-        case Direction.DOWN:
-            tid = 2;
-            break;
-        case Direction.RIGHT:
-            tid = 3;
-            break;
-        case Direction.UP:
-        default:
-            tid = 1;
-            break;
-    }
-
-    return gAssets.sheets.pipes32.tile(tid)
-}
 */
+
+
 BubbleCannon.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.RIGHT},
 ]
 
 registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.item, null, (entry)=> {
     BubbleCannon.sheet = gAssets.sheets.cannon
-    BubbleCannon.icon = editorIcon(BubbleCannon.sheet)
+    BubbleCannon.icon = makeEditorIcon(BubbleCannon.sheet)
+
+    // dynamic icon in editor
+    BubbleCannon.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 3;
+                break;
+            case Direction.DOWN:
+                tid = 2;
+                break;
+            case Direction.RIGHT:
+                tid = 1;
+                break;
+            case Direction.UP:
+            default:
+                tid = 0;
+                break;
+        }
+    
+        return BubbleCannon.sheet.tile(tid)
+    }
+
 })
 
 export class Door extends PlatformerEntity {
@@ -3246,7 +3268,7 @@ Door.editorSchema = [
 
 registerEditorEntity("Door", Door, [32,32], "door", null, (entry)=> {
     Door.sheet = gAssets.sheets.pipes32
-    Door.icon = editorIcon(Door.sheet, 1)
+    Door.icon = makeEditorIcon(Door.sheet, 1)
 })
 
 export class ExplodingBrick extends MobBase {
@@ -3262,6 +3284,7 @@ export class ExplodingBrick extends MobBase {
         this.breakable = 0
         this.character.alive = true
         this.solid = 1
+        this.alive = 1
 
         //this.physics = new Physics2dPlatform(this,{
         //    xmaxspeed1: 35,
@@ -3286,6 +3309,10 @@ export class ExplodingBrick extends MobBase {
     collide(other, dx, dy) {
 
         if (!this.alive) {
+            return null
+        }
+
+        if (other instanceof ProjectileBase) {
             return null
         }
 
@@ -3315,14 +3342,11 @@ export class ExplodingBrick extends MobBase {
         return null
     }
 
-    hit(props) {
-        console.log("on hit", props)
-        if (0 && props.power < 0.8) {
-            return
-        } else {
+    hit(projectile, props) {
+        if (props.power >= 0.8) {
             this.character.hit(props)
         }
-
+        return true
     }
 
     paint(ctx) {
@@ -3364,6 +3388,7 @@ export class ExplodingBrick extends MobBase {
     _delay_kill() {
         this.kill_timer = 0.25
     }
+
     _kill() {
         if (!this.character.alive) {
             return
@@ -3384,31 +3409,34 @@ export class ExplodingBrick extends MobBase {
 
         let cx = this.rect.cx()
         let cy = this.rect.cy()
+
         this._x_debug_map.queryObjects({"className": "Brick"}).forEach(obj => {
             let ox = obj.rect.cx()
             let oy = obj.rect.cy()
             let distance_squared = Math.pow(ox-cx,2) + Math.pow(oy-cy, 2)
-            if (distance_squared <= 40*40) {
+            if (distance_squared <= 32*32+1) {
                 obj._kill()
             }
         })
+
         this._x_debug_map.queryObjects({"className": "ExplodingBrick"}).forEach(obj => {
             let ox = obj.rect.cx()
             let oy = obj.rect.cy()
             let distance_squared = Math.pow(ox-cx,2) + Math.pow(oy-cy, 2)
-            if (distance_squared <= 40*40) {
+            if (distance_squared <= 32*32+1) {
+                console.log("delay brick", Math.sqrt(distance_squared))
                 obj._delay_kill()
             }
         })
 
     }
 }
-ExplodingBrick.sheet = null
-ExplodingBrick.size = [16, 16]
-ExplodingBrick.icon = null
+//ExplodingBrick.sheet = null
+//ExplodingBrick.size = [16, 16]
+//ExplodingBrick.icon = null
 registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.item, null, (entry)=> {
     ExplodingBrick.sheet = gAssets.sheets.brick
-    ExplodingBrick.icon = gAssets.sheets.brick.tile(4)
+    ExplodingBrick.icon = gAssets.sheets.brick.tile(12)
 })
 
 export class Creeper extends MobBase {
@@ -3582,7 +3610,7 @@ Creeper.icon = null
 
 registerEditorEntity("Creeper", Creeper, [16,16], "small_mob", null, (entry)=> {
     Creeper.sheet = gAssets.sheets.creeper
-    Creeper.icon = editorIcon(Creeper.sheet)
+    Creeper.icon = makeEditorIcon(Creeper.sheet)
 })
 
 export class CreeperV2 extends MobBase {
@@ -3708,7 +3736,7 @@ CreeperV2.icon = null
 
 registerEditorEntity("CreeperV2", CreeperV2, [16,16], "small_mob", null, (entry)=> {
     CreeperV2.sheet = gAssets.sheets.ruler
-    CreeperV2.icon = editorIcon(CreeperV2.sheet)
+    CreeperV2.icon = makeEditorIcon(CreeperV2.sheet)
 })
 
 export class Shredder extends MobBase {
@@ -3845,7 +3873,7 @@ Shredder.icon = null
 
 registerEditorEntity("Shredder", Shredder, [16,16], "small_mob", null, (entry)=> {
     Shredder.sheet = gAssets.sheets.shredder
-    Shredder.icon = editorIcon(Shredder.sheet)
+    Shredder.icon = makeEditorIcon(Shredder.sheet)
 })
 
 export class Coin extends PlatformerEntity {
@@ -4123,7 +4151,7 @@ HelpFlower.editorSchema = [
 
 registerEditorEntity("HelpFlower", HelpFlower, [32,32], "friendly", null, (entry)=> {
     HelpFlower.sheet = gAssets.sheets.help_flower
-    HelpFlower.icon = editorIcon(HelpFlower.sheet)
+    HelpFlower.icon = makeEditorIcon(HelpFlower.sheet)
 })
 
 export class EquipmentItem extends MobBase {
@@ -4268,7 +4296,7 @@ Flipper.editorSchema = [
 
 registerEditorEntity("Flipper", Flipper, [48,32], "item", null, (entry)=> {
     Flipper.sheet = gAssets.sheets.flipper
-    Flipper.icon = editorIcon(Flipper.sheet)
+    Flipper.icon = makeEditorIcon(Flipper.sheet)
 })
 
 export class Bumper extends PlatformerEntity {
@@ -4336,9 +4364,200 @@ Bumper.editorSchema = []
 
 registerEditorEntity("Bumper", Bumper, [32,16], "item", null, (entry)=> {
     Bumper.sheet = gAssets.sheets.bumper
-    Bumper.icon = editorIcon(Bumper.sheet)
+    Bumper.icon = makeEditorIcon(Bumper.sheet)
 })
 
+export class WaterHazard extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+
+        this.rect = new Rect(props.x, props.y, props.width, props.height)
+        this.visible = 1
+        this.solid = 1
+
+        this.physics = {
+            resolution: 6,         // distance between points
+            spring_constant: 0.005, //
+            spring_baseline: 0.005,
+            damping: 0.99,
+            impulse: 5,
+        }
+
+        let n = Math.floor(this.rect.w / this.physics.resolution);
+        let step = this.rect.w / n;
+        
+        this.points = [];
+        for (let i=0; i < n+1; i++) {
+            this.points.push({
+                x: i*step,
+                y: 0,
+                spd: {y:0},
+                mass: 1,
+            })
+        }
+
+        this.sines = [ 
+            {
+                sequence: [2,1,0,1,2,3],
+                magnitude: 1,
+                rate: 1
+            },
+            {
+                sequence: [1,0,1,0,],
+                magnitude: 1,
+                rate: 2
+            }
+        ]
+
+        this.offset = 0
+
+        this.timer = 0;
+        this.timeout = 0.1
+
+        this.points[0].y -= 10
+
+    }
+
+    collide(other, dx, dy) {
+
+        let rect = other.rect
+
+        if (dy > 0 && rect.bottom() <= this.rect.top()) {
+
+            let p = Math.floor(((rect.cx() - this.rect.x)/this.rect.w)*this.points.length)
+            if (p > 0 && p < this.points.length) {
+                this.points[p].y += 7
+                console.log("impulse", p, 7)
+            }
+        }
+
+
+        return null
+    }
+
+    sumSines(x) {
+        let k = 0 ;
+        this.sines.forEach(ptn => {
+            let o = Math.floor(ptn.rate*this.offset)
+            k += ptn.magnitude*ptn.sequence[(o+x)%ptn.sequence.length]
+        })
+        return k;
+    }
+    paint(ctx) {
+        ctx.strokeStyle = '#0000aa44'
+        ctx.fillStyle = '#0000aa44'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+
+        let r = Math.floor(this.physics.resolution/2)
+        let pt;
+
+        for (let i=0; i <this.points.length; i++) {
+            let pt = this.points[i]
+            pt.draw_y = this.rect.y + this.points[i].y + this.sumSines(i)
+            pt.draw_x = this.rect.x + this.points[i].x
+        }
+
+        ctx.beginPath();
+        pt = this.points[0]
+        ctx.moveTo(pt.draw_x, pt.draw_y)
+        for (let i=0; i <this.points.length; i++) {
+            pt = this.points[i]
+            ctx.lineTo(pt.draw_x, pt.draw_y)
+        }
+        ctx.stroke();
+
+        ctx.beginPath();
+        pt = this.points[0]
+        ctx.moveTo(pt.draw_x, pt.draw_y)
+        for (let i=0; i <this.points.length; i++) {
+            pt = this.points[i]
+            ctx.lineTo(pt.draw_x, pt.draw_y)
+        }
+        ctx.lineTo(this.rect.right(), this.rect.bottom())
+        ctx.lineTo(this.rect.left(), this.rect.bottom())
+        ctx.closePath();
+        ctx.fill();
+
+        /*
+        this.points.forEach((pt,i) => {
+            let k = 0 ;
+            this.sines.forEach(ptn => {
+                let o = Math.floor(ptn.rate*this.offset)
+                k += ptn.magnitude*ptn.sequence[(o+i)%ptn.sequence.length]
+            })
+            ctx.arc(this.rect.x+pt.x,this.rect.y + pt.y - k,r,0,360)
+        })
+        */
+        ctx.stroke()
+    }
+
+    update(dt) {
+        this.timer += dt
+        if (this.timer > this.timeout) {
+            this.offset += 1;
+            this.timer -= this.timeout
+            
+            /*
+            let p = this.points[0]
+            if (p.spd.y < 0) {
+                p.y -= this.physics.impulse
+            } else {
+                p.y += this.physics.impulse
+            }
+            */
+        }
+        for (let i=0; i < this.points.length; i++) {
+            let p = this.points[i]
+            let forceFromLeft, forceFromRight, forceToBaseline;
+            let dy;
+
+            // wrap around edges
+            if (i==0) {
+                dy = this.points[this.points.length - 1].y - p.y
+            } else {
+                dy = this.points[i - 1].y - p.y
+            }
+            forceFromLeft = this.physics.spring_constant * dy
+
+            if (i == this.points.length - 1) {
+                dy = this.points[0].y - p.y
+            } else {
+                dy = this.points[i + 1].y - p.y
+            }
+            forceFromRight = this.physics.spring_constant * dy
+
+            forceToBaseline = this.physics.spring_baseline * (- p.y)
+
+            let force = forceFromLeft+forceFromRight+forceToBaseline;
+            let acceleration = force / p.mass
+            p.spd.y = this.physics.damping * p.spd.y + acceleration
+            p.y += p.spd.y
+
+        }
+    }
+
+}
+
+registerEditorEntity("WaterHazard", WaterHazard, [16,16], EntityCategory.hazard, null, (entry)=> {
+    WaterHazard.sheet = gAssets.sheets.ruler
+    WaterHazard.icon = makeEditorIcon(WaterHazard.sheet)
+    WaterHazard.editorSchema = [
+        {control: EditorControl.RESIZE, "min_width": 32, "min_height": 32},
+    ]
+    /*WaterHazard.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 6;
+                break;
+            case Direction.RIGHT:
+            default:
+                tid = 2;
+                break;
+        }
+        return gAssets.sheets.bumper.tile(tid)
+    }*/
+})
 
 export function registerEntityAssets() {
 

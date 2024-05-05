@@ -354,7 +354,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("cannon")
             .path(RES_ROOT + "/sprites/mobs/cannon.png")
             .dimensions(16, 16)
-            .layout(1, 1)
+            .layout(1, 4)
             .offset(1, 18)
             .spacing(1, 1)
 

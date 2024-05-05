@@ -4,6 +4,8 @@
 //       during chunking, they are painted on top of layer zero
 //       after all other tiles are painted.
 
+import { Alignment, Direction } from "@axertc/axertc_common"
+
 // todo: keyboad controls
 //       activate a fake cursor object which simulates touch events
 //       arrow keys move the cursor. primary fire button clicks
@@ -30,7 +32,7 @@ $import("axertc_physics", {
 $import("store", {MapInfo, gAssets})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {editorEntities, EditorControl})
+$import("entities", {editorEntities, EditorControl, EntityCategory})
 $import("maps", {PlatformMap})
 $import("api", {post_map_level})
 
@@ -514,6 +516,36 @@ class ObjectMenu {
         this.rect = new Rect(0,24,8 + 24 * 6, 8 + 24 * 5)
         this.parent = parent
 
+        this.actions = []
+
+        // header scroll up
+        this.actions.push({x:8,y: 32 + 24*3, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+            if (this.parent.objmenu_page_scroll_index > 0) {
+                this.parent.objmenu_page_scroll_index -= 1;
+            }
+        }})
+        // header scroll down
+        this.actions.push({x:8,y: 32 + 24*4, icon:this.parent.editor_icons.arrow_down, action: ()=>{
+            if (this.parent.objmenu_page_scroll_index > this.parent.object_pages.length - 3) {
+                this.parent.objmenu_page_scroll_index += 1;
+            }
+        }})
+
+        // page scroll up
+        this.actions.push({x:8 + 24*5,y: 32, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+            if (this.parent.objmenu_object_scroll_index > 0) {
+                this.parent.objmenu_object_scroll_index -= 4
+            }
+        }})
+        // page scroll down
+        this.actions.push({x:8 + 24*5,y: 32 + 24 * 4, icon:this.parent.editor_icons.arrow_down, action: ()=>{
+            let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+            if (this.parent.objmenu_object_scroll_index < n-4) {
+                this.parent.objmenu_object_scroll_index += 4
+            }
+        }})
+
+
     }
 
     handleTouches(touches) {
@@ -531,16 +563,36 @@ class ObjectMenu {
                 return
             }
 
+            this.actions.forEach(action => {
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                    }
+                }
+            })
+
             let tx = Math.floor((t.x -  8) / 24)
             let ty = Math.floor((t.y - 32) / 24)
 
-            if (tx < 0) {
-                return
-            }
+            if (tx < 1 || tx > 4 || ty < 0 || ty > 4) {
 
-            if (tx > 0) {
+                if (tx == 0 && ty < 3) {
+
+                    let n = this.parent.objmenu_page_scroll_index + ty;
+                    if (n < this.parent.object_pages.length) {
+                        this.parent.objmenu_current_page = n;
+                        this.parent.objmenu_current_object = 0;
+                    }
+
+                } else {
+                    console.log("object menu invalid index", {tx, ty})
+                }
+                return
+            } else {
                 tx -= 1
-                let n = ty * 4 + tx
+
+                let n = this.parent.objmenu_object_scroll_index + ty * 4 + tx
 
                 if (n < this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
                     this.parent.objmenu_current_object = n
@@ -596,12 +648,7 @@ class ObjectMenu {
             y += 24
         }
 
-        // header scroll
-        x = 8
-        y = 32 + 24*3
-        this.parent.editor_icons.arrow_up.draw(ctx, x,y)
-        y += 24
-        this.parent.editor_icons.arrow_down.draw(ctx, x,y)
+
 
         // object info
         x = 8
@@ -609,7 +656,7 @@ class ObjectMenu {
 
         const page = this.parent.object_pages[this.parent.objmenu_current_page]
 
-        let n = 0;
+        let n = this.parent.objmenu_object_scroll_index;
         for (let j=0; j < 5; j++) {
 
             x = 8 + 24
@@ -646,14 +693,13 @@ class ObjectMenu {
             y += 24
         }
 
-        // object scroll
-        x = 8 + 24*5
-        y = 32
-        this.parent.editor_icons.arrow_up.draw(ctx, x,y)
-
-        y += 24 * 4
-        this.parent.editor_icons.arrow_down.draw(ctx, x,y)
-
+        this.actions.forEach(action => {
+            if (!!action.render) {
+                action.render(ctx,action.x, action.y)
+            } else {
+                action.icon.draw(ctx, action.x, action.y)
+            }
+        })
 
     }
 
@@ -796,6 +842,7 @@ class ObjectPropertyEditMenu {
             for (let i=0; i < this.schemaList.length; i++) {
 
                 let schema = this.schemaList[i]
+
                 if (schema.control == EditorControl.CHOICE) {
                     this.addChoiceWidget(schema)
                 }
@@ -814,6 +861,23 @@ class ObjectPropertyEditMenu {
                     this.addDoorIdWidget(schema)
                 }
 
+                if (schema.control == EditorControl.RESIZE) {
+                    this.addSpinBoxWidget({
+                        "name": "width", 
+                        "default": 0, 
+                        "step": 16, 
+                        "min": schema.min_width??0,
+                        "max": schema.max_width??0xFFFF,
+                    })
+                    this.addSpinBoxWidget({
+                        "name": "height", 
+                        "default": 0, 
+                        "step": 16, 
+                        "min": schema.min_height??0,
+                        "max": schema.max_height??0xFFFF,
+                    })
+                }
+
                 if (schema.control == EditorControl.DIRECTION_4WAY) {
                     this.addChoiceWidget({
                         "name": "direction",
@@ -825,6 +889,7 @@ class ObjectPropertyEditMenu {
                         "LEFT": Direction.LEFT,
                     }})
                 }
+
                 if (schema.control == EditorControl.TEXT) {
                     this.addTextWidget(schema)
                 }
@@ -963,6 +1028,84 @@ class ObjectPropertyEditMenu {
         this._y += 16
     }
 
+    addSpinBoxWidget(schema) {
+
+        // title case the name
+        let name = schema.name.replaceAll("_", " ")
+            .split(" ") \
+            .map(s => s.charAt(0).toUpperCase() + s.slice(1)) \
+            .join(" ")
+
+        let obj = this.parent.map.objects[this.oid]
+
+        // TODO: fix objects when loading? delete malformed object when loading?
+        if (!Object.hasOwn(obj, 'props')) {
+            obj.props = {}
+            obj.props[schema.name] = schema['default']
+        }
+
+        const y = this._y
+        const root = {
+            render: (ctx) => {
+
+                ctx.strokeStyle = "black"
+                ctx.lineWidth = 2
+                ctx.moveTo(8,y-2)
+                ctx.lineTo(8+6*16, y-2)
+                ctx.stroke()
+
+                ctx.font = "8px serif";
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "top"
+                ctx.fillText(name, 8, y);
+            },
+
+            // default index from schema
+            //index: root_index
+        }
+
+        this.actions.push(root)
+
+        this.actions.push({
+            render: (ctx) => {
+
+                ctx.font = "8px serif";
+                ctx.fillStyle = "black"
+                ctx.strokeStyle = "black"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+                let option_name = "" + obj.props[schema.name]
+                ctx.fillText(option_name, 8+16+32, y+12 + 8);
+            }
+        })
+
+        this.actions.push({
+            x:8,
+            y:y+10,
+            icon:this.parent.editor_icons.arrow_left,
+            action: ()=>{
+                if (obj.props[schema.name] > schema.min) {
+                    obj.props[schema.name] -= schema.step
+                }
+        }})
+
+        this.actions.push({
+            x:8+5*16,
+            y:y+10,
+            icon:this.parent.editor_icons.arrow_right,
+            action: ()=>{
+
+                if (obj.props[schema.name] < schema.max) {
+                    obj.props[schema.name] += schema.step
+                }
+        }})
+
+        this._y += 16 + 16
+
+    }
+
     addChoiceWidget(schema) {
 
         // title case the name
@@ -993,7 +1136,7 @@ class ObjectPropertyEditMenu {
         }
 
         // determine the initial index
-        // use the current object property, or set form the schema
+        // use the current object property, or set from the schema
         let root_index;
         if (Object.hasOwn(obj.props, schema.name)) {
             root_index = options.map(x=>x[1]).indexOf(obj.props[schema.name])
@@ -1194,6 +1337,14 @@ export class LevelEditScene extends GameScene {
             {
                 icon: gAssets.sheets.editor.tile(1),
                 objects: [...editorEntities]
+            },
+            {
+                icon: gAssets.sheets.editor.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.item)
+            },
+            {
+                icon: gAssets.sheets.editor.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
             },
         ]
         this.objmenu_current_page = 0
@@ -1714,7 +1865,7 @@ export class LevelEditScene extends GameScene {
 
     _paint_objects(ctx) {
         ctx.save()
-        ctx.setLineDash([3]);
+        
         for (const [oid, obj] of Object.entries(this.map.objects)) {
 
             let y = 16*Math.floor(oid/512 - 4)
@@ -1733,9 +1884,47 @@ export class LevelEditScene extends GameScene {
                 entry.icon.draw(ctx, x, y)
             }
 
+            let w = entry.size[0]
+            let h = entry.size[1]
+
+            if (!!entry?.editorSchema) {
+                let resizeable = entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+
+                if (resizeable) {
+                    w = obj.props.width
+                    h = obj.props.height
+                }
+
+                if (resizeable && this.active_tool === EditorTool.SELECT_OBJECT) {
+
+                    //console.log(obj)
+                    let r = 4;
+                    ctx.strokeStyle = "blue"
+                    ctx.setLineDash([]);
+                    ctx.beginPath()
+                    ctx.arc(x,y,r,0,2*Math.PI);
+                    ctx.stroke()
+                    ctx.closePath()
+                    ctx.beginPath()
+                    ctx.arc(x+w,y,r,0,2*Math.PI);
+                    ctx.stroke()
+                    ctx.closePath()
+                    ctx.beginPath()
+                    ctx.arc(x,y+h,r,0,2*Math.PI);
+                    ctx.stroke()
+                    ctx.closePath()
+                    ctx.beginPath()
+                    ctx.arc(x+w,y+h,r,0,2*Math.PI);
+                    ctx.stroke()
+                    ctx.closePath()
+
+                }
+            }
+
             ctx.beginPath()
             ctx.strokeStyle = "blue"
-            ctx.rect(x,y,entry.size[0],entry.size[1])
+            ctx.setLineDash([3]);
+            ctx.rect(x,y,w,h)
             ctx.closePath()
             ctx.stroke()
 
@@ -1868,13 +2057,75 @@ export class LevelEditScene extends GameScene {
         return false
     }
 
-    moveObject(x, y, onpress) {
-        const oid = (y + 4)*512+x
+    _objectShape(oid, obj) {
+        let entry = this.editor_objects[obj.name]
+        let ox = 16*(oid%512)
+        let oy = 16*Math.floor(oid/512 - 4)
+        let ow = entry.size[0]
+        let oh = entry.size[1]
+
+        if (!!entry?.editorSchema) {
+            if (entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)) {
+                ow = obj.props.width
+                oh = obj.props.height
+            }
+        }
+
+        return new Rect(ox,oy,ow,oh)
+
+    }
+
+    moveObject(mx, my, onpress) {
+        let oid = (my + 4)*512+mx
         if (onpress) {
+
+            // if there is no object directly under the mouse click
+            // scan to find any objects which have a size greater than 1 tile.
+            // and test to see if that object overlaps.
+            if (!this.map.objects[oid]) {
+                for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
+                    
+                    let rect = this._objectShape(obj_oid, obj)
+
+                    if (rect.collidePoint(mx*16, my*16)) {
+                        //let obj_oid = (oy/16 + 4) * 512 + (ox / 16);
+                        
+                        //if (!!this.map.objects[obj_oid]) {
+                        console.log("!bang", obj_oid, !!this.map.objects[obj_oid])
+                        oid = obj_oid
+                        break;
+                        //}
+                    }
+                }
+            }
 
             if (!!this.map.objects[oid]) {
                 this.selected_object = this.map.objects[oid]
                 this.selected_object.oid = oid
+
+                let entry = this.editor_objects[this.selected_object.name]
+                let resizeable = entry.editorSchema && entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+                if (resizeable) {
+                    let rect = this._objectShape(oid, this.selected_object)
+                    let px = mx * 16;
+                    let py = my * 16;
+
+
+                    if (px < rect.left() + 16 && py < rect.top() + 16) {
+                        this.selected_object_corner = Direction.UPLEFT
+                    }
+                    else if (px >= rect.right() - 16 && py < rect.top() + 16) {
+                        this.selected_object_corner = Direction.UPRIGHT
+                    }
+                    else if (px < rect.left() + 16 && py >= rect.bottom() - 16) {
+                        this.selected_object_corner = Direction.DOWNLEFT
+                    }
+                    else if (px >= rect.right() - 16 && py >= rect.bottom() - 16) {
+                        this.selected_object_corner = Direction.DOWNRIGHT
+                    } else {
+                        this.selected_object_corner = Direction.NONE
+                    }
+                }
             } else {
                 this.selected_object = null
             }
@@ -1883,19 +2134,127 @@ export class LevelEditScene extends GameScene {
             // check to see if there is a selected object
             // and the current mouse position does not match the object position
             if (!!this.selected_object && this.selected_object.oid != oid) {
-                // check that the new mouse position is empty
-                if (!this.map.objects[oid]) {
-                    // move the object
-                    delete this.map.objects[this.selected_object.oid]
-                    this.selected_object.oid = oid
-                    this.map.objects[oid] = this.selected_object
 
-                    return true
+                let entry = this.editor_objects[this.selected_object.name]
+                let resizeable = entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+
+                if (resizeable) {
+
+                    let ox = 16*(oid%512)
+                    let oy = 16*Math.floor(oid/512 - 4)
+
+                    let rect = this._objectShape(this.selected_object.oid, this.selected_object)
+                    let min_width = 32;
+                    let min_height = 32;
+                    if (this.selected_object_corner == Direction.UPLEFT) {
+                        if (ox <= rect.right() - min_width) {
+                            let r = rect.right()
+                            let l = ox
+                            rect.x = l
+                            rect.w = r - l
+                        }
+                        if (oy <= rect.bottom() - min_height) {
+                            let b = rect.bottom()
+                            let t = oy
+                            rect.y = t
+                            rect.h = b - t
+                        }
+                    } else if (this.selected_object_corner == Direction.UPRIGHT) {
+                        if (ox >= rect.left() + min_width) {
+                            rect.w = ox - rect.x
+                        }
+                        if (oy <= rect.bottom() - min_height) {
+                            let b = rect.bottom()
+                            let t = oy
+                            rect.y = t
+                            rect.h = b - t
+                        }
+                    } else if (this.selected_object_corner == Direction.DOWNLEFT) {
+                        if (ox <= rect.right() - min_width) {
+                            let r = rect.right()
+                            let l = ox
+                            rect.x = l
+                            rect.w = r - l
+                        }
+                        if (oy >= rect.top() + min_height) {
+                            rect.h = oy - rect.y
+                        }
+                    } else if (this.selected_object_corner == Direction.DOWNRIGHT) {
+                        if (ox >= rect.left() + min_width) {
+                            rect.w = ox - rect.x
+                        }
+                        if (oy >= rect.top() + min_height) {
+                            rect.h = oy - rect.y
+                        }
+                    } else {
+
+                    }
+
+                    let new_oid = (Math.floor(rect.y/16)+4)*512 + Math.floor(rect.x/16)
+
+                    if (rect.w != this.selected_object.props.width || 
+                        this.selected_object.props.height != rect.h || 
+                        new_oid != this.selected_object.oid) {
+
+                        // update props
+                        this.selected_object.props.width = rect.w
+                        this.selected_object.props.height = rect.h
+
+                        // update oid
+                        
+                        delete this.map.objects[this.selected_object.oid]
+                        this.selected_object.oid = new_oid
+                        this.map.objects[new_oid] = this.selected_object
+
+                    }
+                    
+
+
+                } else {
+                    // check that the new mouse position is empty
+                    if (!this.map.objects[oid]) {
+                        // move the object
+                        delete this.map.objects[this.selected_object.oid]
+                        this.selected_object.oid = oid
+                        this.map.objects[oid] = this.selected_object
+                        console.log("moved", oid)
+
+                        return true
+                    }
                 }
             }
         }
 
         return false
+    }
+
+    editObject(mx, my) {
+        let oid = (my + 4)*512+mx
+
+        // if there is no object directly under the mouse click
+        // scan to find any objects which have a size greater than 1 tile.
+        // and test to see if that object overlaps.
+        if (!this.map.objects[oid]) {
+            for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
+                
+                let rect = this._objectShape(obj_oid, obj)
+
+                if (rect.collidePoint(mx*16, my*16)) {
+                    //let obj_oid = (oy/16 + 4) * 512 + (ox / 16);
+                    
+                    //if (!!this.map.objects[obj_oid]) {
+                    console.log("!bang", obj_oid, !!this.map.objects[obj_oid])
+                    oid = obj_oid
+                    break;
+                    //}
+                }
+            }
+        }
+
+        if (!!this.map.objects[oid]) {
+            this.active_menu = new ObjectPropertyEditMenu(this, oid)
+        }
+
     }
 
     _hydrateObject(oid, name, schemaList) {
@@ -1929,6 +2288,11 @@ export class LevelEditScene extends GameScene {
 
             if (schema.control == EditorControl.TEXT) {
                 props[schema['property']??"text"] = schema['default']??"default text"
+            }
+
+            if (schema.control == EditorControl.RESIZE) {
+                props["width"] = schema['min_width'] ?? 1
+                props["height"] = schema['min_height'] ?? 1
             }
         }
 
@@ -2420,10 +2784,8 @@ export class LevelEditScene extends GameScene {
 
                         else if (this.active_tool === EditorTool.EDIT_OBJECT) {
                             if (!t.first) {
-                                const oid = (t.y + 4)*512+t.x
-                                if (!!this.map.objects[oid]) {
-                                    this.active_menu = new ObjectPropertyEditMenu(this, oid)
-                                }
+                                this.editObject(t.x, t.y)
+                                
                             }
 
                         }
