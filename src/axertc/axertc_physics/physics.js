@@ -672,6 +672,9 @@ export class Physics2dPlatformV2 {
 
         this.vaccum = 0 // velocity accumulator
 
+        this.group = () => []
+        this.fluid_group = () => []
+
         // step_vector the direction considered up
         this._step_vector = {x: 0, y:0}
         this._init_gravity(config)
@@ -750,12 +753,15 @@ export class Physics2dPlatformV2 {
         this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
+
+        this.terminal_velocity = 400
     }
 
     _update_neighborhood() {
         let rect = this.target.rect
         this._neighborhood = new Rect(rect.x - 8, rect.y - 8, rect.w + 16, rect.h + 16);
         this._neighbors = this.group().filter(ent => ent.rect.collideRect(this._neighborhood))
+        this._fluid_neighbors = this.fluid_group().filter(ent => ent.rect.collideRect(this._neighborhood))
     }
 
     _init_step() {
@@ -1100,6 +1106,9 @@ export class Physics2dPlatformV2 {
         if ((standing && !bonk && collisions.bn) || (!standing && !bonk)) {
             // step in the forward direction
             //console.log("step fd")
+            if (collisions.s1 && collisions.s2) {
+                return 1
+            }
             this.target.rect.x += dx
             this.target.rect.y += dy
             return 1
@@ -1119,6 +1128,11 @@ export class Physics2dPlatformV2 {
             //    }
             //}
             let tmp = this._lut_rotate_2[this.standing_direction][this.moving_direction]
+
+            if (!tmp) {
+                console.warn(`unexpected undefined reference standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                return 1;
+            }
 
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
@@ -1175,6 +1189,11 @@ export class Physics2dPlatformV2 {
             //    }
             //}
             let tmp = this._lut_rotate_3[this.standing_direction][this.moving_direction]
+
+            if (!tmp) {
+                console.warn(`unexpected undefined reference standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                return 1;
+            }
 
             //console.log("rotate 3",
             //    "standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing],
@@ -1320,11 +1339,21 @@ export class Physics2dPlatformV2 {
         let collisions = {}
 
         this._neighbors.forEach(ent => {
-        if (ent.entid == this.entid) { return }
+            if (ent.entid == this.entid) { return }
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
             //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
         })
+
+        this._fluid_factor = 0
+        this._fluid_neighbors.forEach(ent => {
+            if (ent.collidePoint(sensors.s1.x, sensors.s1.y)) { 
+                if (!!ent.fluid) {
+                    this._fluid_factor = ent.fluid
+                }
+            }
+        })
+        
 
         //---------------------------------------
         // Gravity
@@ -1333,10 +1362,23 @@ export class Physics2dPlatformV2 {
             // fall / jump
 
             let step = this._lut_step[this.standing_direction]
+            let gforce;
 
-            let gforce = this.gravity * dt
-
-            this.speed[sym.v] += -step[sym.v]*gforce
+            if (true) { // this._fluid_factor < 1e-5) {
+                gforce = this.gravity * dt
+                this.speed[sym.v] += -step[sym.v]*gforce
+            } else {
+                if (Math.sign(this.speed[sym.v]) == Math.sign(-step[sym.v])) {
+                    // if traveling in the direction of gravity.
+                    gforce = (1 + -0.5*this._fluid_factor) * this.gravity * dt
+                    this.speed[sym.v] += -step[sym.v]*gforce
+                } else {
+                    // if traveling opposite of gravity.
+                    gforce = (0 + 2*this._fluid_factor) * this.gravity * dt
+                    this.speed[sym.v] += -step[sym.v]*gforce
+                }
+            }
+            
             //this.speed.y += -step.y*gforce
 
             if (this.gravityboost) {
@@ -1347,6 +1389,16 @@ export class Physics2dPlatformV2 {
                     //this.speed.y += -step.y*gforce
                 }
             }
+
+            /*
+            let tv = Math.sign(-step[sym.v]) * this.terminal_velocity * (1 + -0.5*this._fluid_factor)
+            console.log((1 + -0.5*this._fluid_factor), this.speed[sym.v], tv)
+            if (Math.sign(-step[sym.v])==Math.sign(this.speed[sym.v]) &&
+                Math.abs(this.speed[sym.v]) > tv) {
+
+                this.speed[sym.v] = Math.sign(this.speed[sym.v])*tv
+            }
+            */
 
         } else {
             // not falling, cancel gravity ???
@@ -1448,11 +1500,14 @@ export class Physics2dPlatformV2 {
                     this.speed.y -= this.xfriction * dt
                 }
             }
+            
+            /*
             console.log(
                 Direction.name[this.moving_direction], 
                 this.speed_profile_current,  this.speed_profiles.length, 
                 this.speed.x,
                 this.xmaxspeed2)
+            */
             //let v = Direction.vector(this.moving_direction)
             //this.accum.x += dt * this.moving_speed * v.x
             //this.accum.y += dt * this.moving_speed * v.y

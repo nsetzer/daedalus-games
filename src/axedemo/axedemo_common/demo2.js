@@ -278,6 +278,8 @@ class PlayerV2 extends PlatformerEntity {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
         }
 
+        this.physics.can_wallwalk = false
+
         this.hue = random(0, 360)
         this.brightness = random(50, 80)
     }

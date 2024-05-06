@@ -867,6 +867,8 @@ class DemoScene extends AxeSimulatorScene {
             this.map_server.map.sendObjectCreateEvent("Wall", {x:w-d, y:0, w:d, h:h})
             this.map_server.map.sendObjectCreateEvent("Wall", {x:x, y:64, w:w, h:d})
             this.map_server.map.sendObjectCreateEvent("Wall", {x:w/2-16, y:64+(h-64)/2-16, w:32, h:32})
+
+            this.map_server.map.sendObjectCreateEvent("Wall", {x:w/2-16, y:yb-d-6, w:32, h:6})
         } else if (this.demo_mode&DEMO_MODE_PLATFORM) {
             const y = Physics2dPlatform.maprect.bottom() - 64
             const x = Physics2dPlatform.maprect.cx() - 24

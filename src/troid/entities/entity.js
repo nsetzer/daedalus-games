@@ -74,28 +74,61 @@ function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=nu
     })
 }
 
+// return a new 16x16 tile icon from an existing sheet
 export const makeEditorIcon = (sheet, tid=0) => {
-        let icon = new SpriteSheet()
-        icon.tw = 16
-        icon.th = 16
-        icon.rows = 1
-        icon.cols = tid+1
-        icon.xspacing = 1
-        icon.yspacing = 1
-        icon.xoffset = 1
-        icon.yoffset = 1
-        icon.image = sheet.image
-        return icon.tile(tid)
-    }
+    let icon = new SpriteSheet()
+    icon.tw = 16
+    icon.th = 16
+    icon.rows = 1
+    icon.cols = tid+1
+    icon.xspacing = 1
+    icon.yspacing = 1
+    icon.xoffset = 1
+    icon.yoffset = 1
+    icon.image = sheet.image
+    return icon.tile(tid)
+}
 
 export const EditorControl = {}
-EditorControl.CHOICE = 1       // {name: str, default: value, choices: list-or-map}
+// Choice
+// parameters: {name: str, default: value, choices: list-or-map}
+// allows picking an item out of a set of choices.
+// adds a property by name to the target object
+// if choices is a map: then the key is the display name.
+// if choices is a list: then the list must be a list of strings or numbers
+EditorControl.CHOICE = 1
+
 //EditorControl.CHOOSE_ENTITY = x  // like CHOICE but shows icons from a list of named entities
-EditorControl.DOOR_TARGET = 2  // {}
-EditorControl.DOOR_ID = 3      // {}
-EditorControl.DIRECTION_4WAY = 4    // {default: value}
-EditorControl.TEXT = 8         // {property: value, default: value}
-EditorControl.RESIZE = 9         // {property: value, default: value}
+
+// Door Target
+// parameters: {}
+// adds "target_world_id", "target_level_id", "target_door_id" as dynamic properties
+// these properties can be edited to set where the door should open up
+EditorControl.DOOR_TARGET = 2  
+
+// Door ID
+// parameters: {}
+// automatically adds a unique door identifier to this object
+EditorControl.DOOR_ID = 3      
+
+// 4-Way Direction
+// parameters: {default: value}
+// allows picking one of 4 directions: Up, Down, Left, Right
+// adds a property "direction" to an object
+EditorControl.DIRECTION_4WAY = 4    
+
+// Text
+// parameters: {property: value, default: value}
+// allow editing a text property
+// adds a property with a given name to the object
+EditorControl.TEXT = 8         
+
+// Resize
+// parameters: {min_width, max_width, min_height, max_height}
+// adds properties to an object "width" and "height"
+// the map editor can resize instead of moving
+// the property dialog uses spin boxes to edit width and height
+EditorControl.RESIZE = 9         
 
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
@@ -1293,7 +1326,7 @@ export class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
 
-        this.physics = 0 ? new Physics2dPlatformV2(this,{
+        this.physics = 1 ? new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
             xmaxspeed2: 175,
             oneblock_walk: true
@@ -1310,6 +1343,10 @@ export class Player extends PlatformerEntity {
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+        this.physics.fluid_group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.fluid})
         }
 
         this.character = new CharacterComponent(this)
@@ -1641,6 +1678,8 @@ export class Player extends PlatformerEntity {
         if (!!this._beam) {
             this._beam.paint(ctx)
         }
+
+        this.physics.paint(ctx)
     }
 
     _updateAnimation() {
@@ -4374,6 +4413,7 @@ export class WaterHazard extends PlatformerEntity {
         this.rect = new Rect(props.x, props.y, props.width, props.height)
         this.visible = 1
         this.solid = 0
+        this.fluid = 1.5
 
         this.physics = {
             resolution: 6,         // distance between points
@@ -4515,6 +4555,13 @@ export class WaterHazard extends PlatformerEntity {
         let margin = 4
         this._x_debug_map.queryObjects({"instancein": [Player, MobBase, ProjectileBase]}).forEach(obj => {
             if (obj.rect.left() >= this.rect.left() && obj.rect.right() <= this.rect.right()) {
+                if (obj.rect.bottom() > this.rect.top() && obj.rect.top() < this.rect.top()) {
+                    let p = Math.floor(((obj.rect.cx() - this.rect.x)/this.rect.w)*this.points.length)
+                    if (p >=0 && p < this.points.length && this.points[p].y < 5) {
+                        this.points[p].y += 2 // dt*spd
+                    }
+                }
+                /*
                 if (obj.rect.bottom() > this.rect.top() - margin && obj.rect.bottom() < this.rect.top() + margin) {
                     //console.log(obj._classname, obj.physics)
                     let spd = obj.physics?.speed?.y??0
@@ -4523,11 +4570,11 @@ export class WaterHazard extends PlatformerEntity {
                         let p = Math.floor(((obj.rect.cx() - this.rect.x)/this.rect.w)*this.points.length)
                         if (p >=0 && p < this.points.length) {
                             console.log("obj", obj._classname, "collide", p, dt*spd)
-                            this.points[p].y += dt*spd
+                            this.points[p].y += 3 // dt*spd
                         }
                     }
-                    
                 }
+                */
             }
         })
 

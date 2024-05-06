@@ -1882,6 +1882,7 @@ export class LevelEditScene extends GameScene {
 
                 if (action.name == "tile-place") {
 
+                    // draw the current tool or the tile template
                     if (this.active_tool == EditorTool.ERASE_TILE) {
 
                         this.editor_icons.erase.draw(ctx, x+1, y+1)
@@ -1894,6 +1895,7 @@ export class LevelEditScene extends GameScene {
 
                         this.editor_icons.pointer.draw(ctx, x+1, y+1)
                     } else {
+                        // TODO: cache the template tile as part of the tile menu
                         let points;
                         switch (this.tile_shape) {
                             case TileShape.HALF:
@@ -1922,6 +1924,7 @@ export class LevelEditScene extends GameScene {
                 }
                 else if (action.name == "object-place") {
 
+                    // drwa the current object icon, or the tool icon
                     if (this.active_tool == EditorTool.PLACE_OBJECT) {
                         let page = this.object_pages[this.objmenu_current_page]
                         let obj = page.objects[this.objmenu_current_object]
