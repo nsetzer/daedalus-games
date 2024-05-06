@@ -45,7 +45,7 @@ function registerDefaultEntity(name, ctor, onLoad=null) {
 
 export const EntityCategory = {
     item: "item",
-    switch: "switch",
+    switches: "switch",
     small_mob: "small_mob",
     door: "door",
     hazard: "hazard"
@@ -2238,7 +2238,7 @@ Brick.sheet = null
 Brick.size = [16, 16]
 Brick.icon = null
 
-registerEditorEntity("Brick", Brick, [16,16], 'item', null, (entry)=> {
+registerEditorEntity("Brick", Brick, [16,16], EntityCategory.item, null, (entry)=> {
     Brick.sheet = gAssets.sheets.brick
     Brick.icon = gAssets.sheets.brick.tile(0)
 })
@@ -2366,7 +2366,7 @@ FakeBrick.sheet = null
 FakeBrick.size = [16, 16]
 FakeBrick.icon = null
 
-registerEditorEntity("FakeBrick", FakeBrick, [16,16], 'item', null, (entry)=> {
+registerEditorEntity("FakeBrick", FakeBrick, [16,16], EntityCategory.item, null, (entry)=> {
     FakeBrick.sheet = gAssets.sheets.brick
     FakeBrick.icon = gAssets.sheets.brick.tile(4)
 })
@@ -2400,7 +2400,7 @@ RedSwitch.sheet = null
 RedSwitch.size = [16, 16]
 RedSwitch.icon = null
 
-registerEditorEntity("RedSwitch", RedSwitch, [16,16], 'switch', null, (entry)=> {
+registerEditorEntity("RedSwitch", RedSwitch, [16,16], EntityCategory.switches, null, (entry)=> {
     RedSwitch.sheet = gAssets.sheets.brick
     RedSwitch.icon = gAssets.sheets.brick.tile(1)
 })
@@ -2434,7 +2434,7 @@ BlueSwitch.sheet = null
 BlueSwitch.size = [16, 16]
 BlueSwitch.icon = null
 
-registerEditorEntity("BlueSwitch", BlueSwitch, [16,16], 'switch', null, (entry)=> {
+registerEditorEntity("BlueSwitch", BlueSwitch, [16,16], EntityCategory.switches, null, (entry)=> {
     BlueSwitch.sheet = gAssets.sheets.brick
     BlueSwitch.icon = gAssets.sheets.brick.tile(5)
 })
@@ -2453,7 +2453,7 @@ RedPlatform.sheet = null
 RedPlatform.size = [16, 16]
 RedPlatform.icon = null
 
-registerEditorEntity("RedPlatform", RedPlatform, [16,16], 'switch', null, (entry)=> {
+registerEditorEntity("RedPlatform", RedPlatform, [16,16], EntityCategory.switches, null, (entry)=> {
     RedPlatform.sheet = gAssets.sheets.brick
     RedPlatform.icon = gAssets.sheets.brick.tile(2)
 
@@ -2477,7 +2477,7 @@ BluePlatform.sheet = null
 BluePlatform.size = [16, 16]
 BluePlatform.icon = null
 
-registerEditorEntity("BluePlatform", BluePlatform, [16,16], 'switch', null, (entry)=> {
+registerEditorEntity("BluePlatform", BluePlatform, [16,16], EntityCategory.switches, null, (entry)=> {
     BluePlatform.sheet = gAssets.sheets.brick
     BluePlatform.icon = gAssets.sheets.brick.tile(6)
 })
@@ -2712,7 +2712,7 @@ Spikes.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
 
-registerEditorEntity("Spikes", Spikes, [16,16], "small_mob", null, (entry)=> {
+registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.small_mob, null, (entry)=> {
     Spikes.sheet = gAssets.sheets.spikes
     Spikes.icon = gAssets.sheets.spikes.tile(0)
 })
@@ -2860,7 +2860,7 @@ Spawn.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
 
-registerEditorEntity("Spawn", Spawn, [32,32], "small_mob", null, (entry)=> {
+registerEditorEntity("Spawn", Spawn, [32,32], EntityCategory.small_mob, null, (entry)=> {
     Spawn.sheet = gAssets.sheets.pipes32
     Spawn.icon = makeEditorIcon(Spawn.sheet)
 })
@@ -3608,7 +3608,7 @@ Creeper.sheet = null
 Creeper.size = [16, 16]
 Creeper.icon = null
 
-registerEditorEntity("Creeper", Creeper, [16,16], "small_mob", null, (entry)=> {
+registerEditorEntity("Creeper", Creeper, [16,16], EntityCategory.small_mob, null, (entry)=> {
     Creeper.sheet = gAssets.sheets.creeper
     Creeper.icon = makeEditorIcon(Creeper.sheet)
 })
@@ -3734,7 +3734,7 @@ CreeperV2.sheet = null
 CreeperV2.size = [16, 16]
 CreeperV2.icon = null
 
-registerEditorEntity("CreeperV2", CreeperV2, [16,16], "small_mob", null, (entry)=> {
+registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, null, (entry)=> {
     CreeperV2.sheet = gAssets.sheets.ruler
     CreeperV2.icon = makeEditorIcon(CreeperV2.sheet)
 })
@@ -3871,7 +3871,7 @@ Shredder.sheet = null
 Shredder.size = [16, 16]
 Shredder.icon = null
 
-registerEditorEntity("Shredder", Shredder, [16,16], "small_mob", null, (entry)=> {
+registerEditorEntity("Shredder", Shredder, [16,16], EntityCategory.small_mob, null, (entry)=> {
     Shredder.sheet = gAssets.sheets.shredder
     Shredder.icon = makeEditorIcon(Shredder.sheet)
 })
@@ -3941,7 +3941,7 @@ Coin.sheet = null
 Coin.size = [16, 16]
 Coin.icon = null
 
-registerEditorEntity("Coin", Coin, [16,16], 'item', null, (entry)=> {
+registerEditorEntity("Coin", Coin, [16,16], EntityCategory.item, null, (entry)=> {
     Coin.sheet = gAssets.sheets.coin
     Coin.icon = gAssets.sheets.coin.tile(0)
 })
@@ -4149,7 +4149,7 @@ HelpFlower.editorSchema = [
     {control: EditorControl.TEXT, "property": "helpText"},
 ]
 
-registerEditorEntity("HelpFlower", HelpFlower, [32,32], "friendly", null, (entry)=> {
+registerEditorEntity("HelpFlower", HelpFlower, [32,32], EntityCategory.small_mob, null, (entry)=> {
     HelpFlower.sheet = gAssets.sheets.help_flower
     HelpFlower.icon = makeEditorIcon(HelpFlower.sheet)
 })
@@ -4169,7 +4169,7 @@ EquipmentItem.editorSchema = [
     //{name: str, default: value, choices: list-or-map}
 ]
 
-registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], "item", null, (entry)=> {
+registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], EntityCategory.item, null, (entry)=> {
     EquipmentItem.sheet = gAssets.sheets.brick
     EquipmentItem.icon = gAssets.sheets.brick.tile(0)
 })
@@ -4294,7 +4294,7 @@ Flipper.editorSchema = [
     },
 ]
 
-registerEditorEntity("Flipper", Flipper, [48,32], "item", null, (entry)=> {
+registerEditorEntity("Flipper", Flipper, [48,32], EntityCategory.item, null, (entry)=> {
     Flipper.sheet = gAssets.sheets.flipper
     Flipper.icon = makeEditorIcon(Flipper.sheet)
 })
@@ -4362,7 +4362,7 @@ Bumper.editorIcon = (props) => {
 }
 Bumper.editorSchema = []
 
-registerEditorEntity("Bumper", Bumper, [32,16], "item", null, (entry)=> {
+registerEditorEntity("Bumper", Bumper, [32,16], EntityCategory.item, null, (entry)=> {
     Bumper.sheet = gAssets.sheets.bumper
     Bumper.icon = makeEditorIcon(Bumper.sheet)
 })
@@ -4373,7 +4373,7 @@ export class WaterHazard extends PlatformerEntity {
 
         this.rect = new Rect(props.x, props.y, props.width, props.height)
         this.visible = 1
-        this.solid = 1
+        this.solid = 0
 
         this.physics = {
             resolution: 6,         // distance between points
@@ -4396,6 +4396,10 @@ export class WaterHazard extends PlatformerEntity {
             })
         }
 
+        // pre computed sine waves can be stacked
+        // the waves are summed using an offset which advances
+        // at a given rate.
+        // this can give the illusion of standing waves
         this.sines = [ 
             {
                 sequence: [2,1,0,1,2,3],
@@ -4408,17 +4412,16 @@ export class WaterHazard extends PlatformerEntity {
                 rate: 2
             }
         ]
+        this.sines=[]
 
         this.offset = 0
 
         this.timer = 0;
         this.timeout = 0.1
 
-        this.points[0].y -= 10
-
     }
 
-    collide(other, dx, dy) {
+    _x_collide(other, dx, dy) {
 
         let rect = other.rect
 
@@ -4443,9 +4446,10 @@ export class WaterHazard extends PlatformerEntity {
         })
         return k;
     }
+
     paint(ctx) {
-        ctx.strokeStyle = '#0000aa44'
-        ctx.fillStyle = '#0000aa44'
+        ctx.strokeStyle = '#0000cc7f'
+        ctx.fillStyle = '#0000cc7f'
         ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
 
         let r = Math.floor(this.physics.resolution/2)
@@ -4506,6 +4510,27 @@ export class WaterHazard extends PlatformerEntity {
             }
             */
         }
+
+
+        let margin = 4
+        this._x_debug_map.queryObjects({"instancein": [Player, MobBase, ProjectileBase]}).forEach(obj => {
+            if (obj.rect.left() >= this.rect.left() && obj.rect.right() <= this.rect.right()) {
+                if (obj.rect.bottom() > this.rect.top() - margin && obj.rect.bottom() < this.rect.top() + margin) {
+                    //console.log(obj._classname, obj.physics)
+                    let spd = obj.physics?.speed?.y??0
+                    if (Math.abs(spd) > 1e-5) {
+                        
+                        let p = Math.floor(((obj.rect.cx() - this.rect.x)/this.rect.w)*this.points.length)
+                        if (p >=0 && p < this.points.length) {
+                            console.log("obj", obj._classname, "collide", p, dt*spd)
+                            this.points[p].y += dt*spd
+                        }
+                    }
+                    
+                }
+            }
+        })
+
         for (let i=0; i < this.points.length; i++) {
             let p = this.points[i]
             let forceFromLeft, forceFromRight, forceToBaseline;

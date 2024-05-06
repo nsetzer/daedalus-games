@@ -378,7 +378,8 @@ class TileMenu {
 class SettingsMenu {
     constructor(parent) {
 
-        this.rect = new Rect(0,24,8 + 24 * 5, 8 + 24 * 3)
+
+        this.rect = new Rect(0,24,8 + 24 * 7, 8 + 24 * 3)
         this.parent = parent
 
         this.actions = []
@@ -389,29 +390,33 @@ class SettingsMenu {
         this.themes = Object.keys(gAssets.themes)
         this.theme_index =  this.themes.indexOf(this.parent.current_theme)
 
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
+        this.actions.push({x:x+1*24,y,render: (ctx,x,y)=>{ctx.fillText(`Map Width:`, x+8,y+8)}})
+        this.actions.push({x:x+3*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeMapSize(-1, 0)
         }})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.width / 16 / 24)}`, x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+        this.actions.push({x:x+4*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.width / 16 / 24)}`, x+24,y+8)}})
+        this.actions.push({x:x+6*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
             this.changeMapSize(1, 0)
         }})
 
         y += 24
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
+
+        this.actions.push({x:x+1*24,y,render: (ctx,x,y)=>{ctx.fillText(`Map Height:`, x+8,y+8)}})
+        this.actions.push({x:x+3*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeMapSize(0, -1)
         }})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.height / 16 / 14)}`, x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+        this.actions.push({x:x+4*24,y,render: (ctx,x,y)=>{ctx.fillText(`${Math.floor(this.parent.map.height / 16 / 14)}`, x+24,y+8)}})
+        this.actions.push({x:x+6*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
             this.changeMapSize(0, 1)
         }})
 
         y += 24
-        this.actions.push({x:x+2*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
+        this.actions.push({x:x+1*24,y,render: (ctx,x,y)=>{ctx.fillText(`Map Theme:`, x+8,y+8)}})
+        this.actions.push({x:x+3*24,y,icon:this.parent.editor_icons.arrow_left, action: ()=>{
             this.changeTheme(-1)
         }})
-        this.actions.push({x:x+3*24,y,render: (ctx,x,y)=>{ctx.fillText(this.themes[this.theme_index], x+8,y+8)}})
-        this.actions.push({x:x+4*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
+        this.actions.push({x:x+4*24,y,render: (ctx,x,y)=>{ctx.fillText(this.themes[this.theme_index], x+24,y+8)}})
+        this.actions.push({x:x+6*24,y,icon:this.parent.editor_icons.arrow_right, action: ()=>{
             this.changeTheme(1)
         }})
 
@@ -510,35 +515,42 @@ class SettingsMenu {
 
 }
 
+// a menu for selecting an object to place
 class ObjectMenu {
     constructor(parent) {
 
-        this.rect = new Rect(0,24,8 + 24 * 6, 8 + 24 * 5)
+        this.objects_per_row = 4
+        this.number_of_rows = 5
+        this.margin = 8
+
+        this.rect = new Rect(0,24,this.margin + 24 * (this.objects_per_row+2), this.margin + 24 * (this.number_of_rows+1))
         this.parent = parent
 
         this.actions = []
 
         // header scroll up
-        this.actions.push({x:8,y: 32 + 24*3, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+        this.actions.push({x:this.margin,y: 32 + 24*4, icon:this.parent.editor_icons.arrow_up, action: ()=>{
             if (this.parent.objmenu_page_scroll_index > 0) {
                 this.parent.objmenu_page_scroll_index -= 1;
             }
         }})
         // header scroll down
-        this.actions.push({x:8,y: 32 + 24*4, icon:this.parent.editor_icons.arrow_down, action: ()=>{
-            if (this.parent.objmenu_page_scroll_index > this.parent.object_pages.length - 3) {
+        this.actions.push({x:this.margin,y: 32 + 24*5, icon:this.parent.editor_icons.arrow_down, action: ()=>{
+            let n = this.parent.object_pages.length
+            if (this.parent.objmenu_page_scroll_index < n-1) {
                 this.parent.objmenu_page_scroll_index += 1;
             }
         }})
 
-        // page scroll up
-        this.actions.push({x:8 + 24*5,y: 32, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+        // object page scroll up
+        this.actions.push({x:this.margin + 24*(this.objects_per_row+1),y: 32 + 24*1, icon:this.parent.editor_icons.arrow_up, action: ()=>{
             if (this.parent.objmenu_object_scroll_index > 0) {
                 this.parent.objmenu_object_scroll_index -= 4
             }
         }})
-        // page scroll down
-        this.actions.push({x:8 + 24*5,y: 32 + 24 * 4, icon:this.parent.editor_icons.arrow_down, action: ()=>{
+
+        // object page scroll down
+        this.actions.push({x:this.margin + 24*(this.objects_per_row+1),y: 32 + 24 * (this.number_of_rows), icon:this.parent.editor_icons.arrow_down, action: ()=>{
             let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
             if (this.parent.objmenu_object_scroll_index < n-4) {
                 this.parent.objmenu_object_scroll_index += 4
@@ -572,33 +584,37 @@ class ObjectMenu {
                 }
             })
 
-            let tx = Math.floor((t.x -  8) / 24)
-            let ty = Math.floor((t.y - 32) / 24)
+            if (t.x <= this.margin + 24) {
 
-            if (tx < 1 || tx > 4 || ty < 0 || ty > 4) {
+                let tx = Math.floor((t.x - this.rect.x - this.margin - 24) / 24)
+                let ty = Math.floor((t.y - this.margin - this.rect.y) / 24)
 
-                if (tx == 0 && ty < 3) {
-
+                if (ty >= 0 && ty < this.number_of_rows - 1) {
+                    console.log("xlick", tx, ty)
                     let n = this.parent.objmenu_page_scroll_index + ty;
-                    if (n < this.parent.object_pages.length) {
+                    if (n >= 0 && n < this.parent.object_pages.length) {
                         this.parent.objmenu_current_page = n;
                         this.parent.objmenu_current_object = 0;
+                    } else {
+                        console.warn("object menu invalid index", n)
                     }
-
-                } else {
-                    console.log("object menu invalid index", {tx, ty})
                 }
-                return
-            } else {
-                tx -= 1
+                
 
-                let n = this.parent.objmenu_object_scroll_index + ty * 4 + tx
+            } else if (t.x <= this.margin + 24 + this.objects_per_row*24) {
+                let tx = Math.floor((t.x - this.rect.x - this.margin - 24) / 24)
+                let ty = Math.floor((t.y - this.rect.y - 24) / 24)
 
+                console.log("xlick", tx, ty)
+                
+                let n = this.parent.objmenu_object_scroll_index + ty * this.objects_per_row + tx
                 if (n < this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
                     this.parent.objmenu_current_object = n
                 }
-
+                
             }
+            
+
 
         }
     }
@@ -609,31 +625,60 @@ class ObjectMenu {
         ctx.fillStyle = "#a2baa2"
         ctx.strokeStyle = "#526a52"
         ctx.lineWidth = 2
-        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 8)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
 
         ctx.beginPath();
-        ctx.moveTo(8+18+2,this.rect.y)
-        ctx.lineTo(8+18+2,this.rect.y + this.rect.h)
+        ctx.moveTo(this.margin+18+2,this.rect.y)
+        ctx.lineTo(this.margin+18+2,this.rect.y + this.rect.h)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
 
-        let x = 8
+        /*
+        ctx.beginPath();
+        ctx.moveTo(this.margin + ((this.objects_per_row)*24) + 18+2,this.rect.y)
+        ctx.lineTo(this.margin + ((this.objects_per_row)*24) + 18+2,this.rect.y + this.rect.h)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+        */
+
+
+        let x = this.margin
         let y = 32
-
-
+        let n;
 
         ctx.fillStyle = "#0000FF"
 
-        // headers
-        x = 8
-        y = 32
-        for (let j=0; j < 3; j++) {
+        const page = this.parent.object_pages[this.parent.objmenu_current_page]
+        const obj = page.objects[this.parent.objmenu_current_object]
 
-            if (this.parent.objmenu_current_page == j) {
+        // headers
+
+        ctx.fillStyle = "black"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.font = "bold 10px serif"
+        ctx.fillText(`${page.title}`, this.rect.x + 24 + this.margin, this.rect.y + this.margin - 4);
+        ctx.font = "8px serif"
+        ctx.fillText(`${obj.name}`, this.rect.x + 24 + this.margin, this.rect.y + this.margin - 4 + 12);
+
+
+        // headers
+        x = this.margin
+        y = this.margin + 24 
+        n = this.parent.objmenu_page_scroll_index
+        for (let j=0; j < 4; j++) {
+
+            if (n+j >= this.parent.object_pages.length) {
+                break
+            }
+
+            if (this.parent.objmenu_current_page == n+j) {
                 ctx.beginPath()
                 ctx.strokeStyle = "gold"
                 ctx.roundRect(x-2,y-2,16+4,16+4, 4)
@@ -651,15 +696,15 @@ class ObjectMenu {
 
 
         // object info
-        x = 8
-        y = 32
+        x = this.margin
+        y = this.margin + 24 + 24
 
-        const page = this.parent.object_pages[this.parent.objmenu_current_page]
+        
 
-        let n = this.parent.objmenu_object_scroll_index;
+        n = this.parent.objmenu_object_scroll_index;
         for (let j=0; j < 5; j++) {
 
-            x = 8 + 24
+            x = this.margin + 24
 
             for (let i=0; i < 4; i++) {
 
@@ -705,6 +750,7 @@ class ObjectMenu {
 
 }
 
+// a menu for selecting a tool for editing objects
 class ObjectEditMenu {
     constructor(parent) {
 
@@ -815,6 +861,7 @@ class ObjectEditMenu {
     }
 }
 
+// a menu for editing the properties of an object
 class ObjectPropertyEditMenu {
     // TODO: when this menu opens
     // scroll the camera over .5 seconds to put the object in the center?
@@ -864,14 +911,12 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.RESIZE) {
                     this.addSpinBoxWidget({
                         "name": "width", 
-                        "default": 0, 
                         "step": 16, 
                         "min": schema.min_width??0,
                         "max": schema.max_width??0xFFFF,
                     })
                     this.addSpinBoxWidget({
                         "name": "height", 
-                        "default": 0, 
                         "step": 16, 
                         "min": schema.min_height??0,
                         "max": schema.max_height??0xFFFF,
@@ -993,6 +1038,15 @@ class ObjectPropertyEditMenu {
     addDoorIdWidget(schema) {
         // title case the name
 
+        // TODO: fix objects when loading? delete malformed object when loading?
+        let obj = this.parent.map.objects[this.oid]
+        if (!Object.hasOwn(obj, 'props')) {
+            obj.props = {}
+        }
+        if (obj.props["door_id"]==undefined) {
+            obj.props["door_id"] = 0
+        }
+
         const y = this._y
         const root = {
             render: (ctx) => {
@@ -1041,7 +1095,9 @@ class ObjectPropertyEditMenu {
         // TODO: fix objects when loading? delete malformed object when loading?
         if (!Object.hasOwn(obj, 'props')) {
             obj.props = {}
-            obj.props[schema.name] = schema['default']
+        }
+        if (obj.props[schema.name]==undefined) {
+            obj.props[schema.name] = schema['min']
         }
 
         const y = this._y
@@ -1116,7 +1172,6 @@ class ObjectPropertyEditMenu {
 
         let options = null
         let option_index = 0
-        console.log("!!", schema.choices)
         if (!Array.isArray(schema.choices)) {
             options = Object.entries(schema.choices)
             option_index = 0
@@ -1124,14 +1179,14 @@ class ObjectPropertyEditMenu {
             options = Object.entries(schema.choices)
             option_index = 1
         }
-        console.log("!!", options)
-        console.log("!!", option_index)
 
         let obj = this.parent.map.objects[this.oid]
 
         // TODO: fix objects when loading? delete malformed object when loading?
         if (!Object.hasOwn(obj, 'props')) {
             obj.props = {}
+        }
+        if (obj.props[schema.name]==undefined) {
             obj.props[schema.name] = schema['default']
         }
 
@@ -1282,6 +1337,8 @@ export class LevelEditScene extends GameScene {
     constructor() {
         super()
 
+        this._touches = []
+
         this.history = []
         this.history_index = 0
 
@@ -1335,14 +1392,32 @@ export class LevelEditScene extends GameScene {
         this.object_pages = [
 
             {
+                title: "All Objects",
                 icon: gAssets.sheets.editor.tile(1),
                 objects: [...editorEntities]
             },
             {
+                title: "Items",
                 icon: gAssets.sheets.editor.tile(1),
                 objects: editorEntities.filter(ent => ent.category == EntityCategory.item)
             },
             {
+                title: "Small Mobs",
+                icon: gAssets.sheets.editor.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.small_mob)
+            },
+            {
+                title: "Switches",
+                icon: gAssets.sheets.editor.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.switches)
+            },
+            {
+                title: "Doors",
+                icon: gAssets.sheets.editor.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.door)
+            },
+            {
+                title: "Hazards",
                 icon: gAssets.sheets.editor.tile(1),
                 objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
             },
@@ -1899,23 +1974,23 @@ export class LevelEditScene extends GameScene {
 
                     //console.log(obj)
                     let r = 4;
-                    ctx.strokeStyle = "blue"
-                    ctx.setLineDash([]);
+                    ctx.fillStyle = "blue"
+                    //ctx.setLineDash([]);
                     ctx.beginPath()
-                    ctx.arc(x,y,r,0,2*Math.PI);
-                    ctx.stroke()
+                    ctx.arc(x+8,y+8,r,0,2*Math.PI);
+                    ctx.fill()
                     ctx.closePath()
                     ctx.beginPath()
-                    ctx.arc(x+w,y,r,0,2*Math.PI);
-                    ctx.stroke()
+                    ctx.arc(x+w-8,y+8,r,0,2*Math.PI);
+                    ctx.fill()
                     ctx.closePath()
                     ctx.beginPath()
-                    ctx.arc(x,y+h,r,0,2*Math.PI);
-                    ctx.stroke()
+                    ctx.arc(x+8,y+h-8,r,0,2*Math.PI);
+                    ctx.fill()
                     ctx.closePath()
                     ctx.beginPath()
-                    ctx.arc(x+w,y+h,r,0,2*Math.PI);
-                    ctx.stroke()
+                    ctx.arc(x+w-8,y+h-8,r,0,2*Math.PI);
+                    ctx.fill()
                     ctx.closePath()
 
                 }
@@ -1963,6 +2038,17 @@ export class LevelEditScene extends GameScene {
         if (!!this.active_menu) {
             this.active_menu.paint(ctx)
         }
+
+        let r = 2
+        ctx.fillStyle = "#aaaaaa77"
+        this._touches.forEach(t => {
+
+            ctx.beginPath()
+            ctx.arc(t.x,t.y,r,0,2*Math.PI);
+            ctx.closePath()
+            ctx.fill()
+
+        })
 
 
     }
@@ -2160,8 +2246,8 @@ export class LevelEditScene extends GameScene {
                             rect.h = b - t
                         }
                     } else if (this.selected_object_corner == Direction.UPRIGHT) {
-                        if (ox >= rect.left() + min_width) {
-                            rect.w = ox - rect.x
+                        if ((ox+16) >= rect.left() + min_width) {
+                            rect.w = (ox+16) - rect.x
                         }
                         if (oy <= rect.bottom() - min_height) {
                             let b = rect.bottom()
@@ -2176,18 +2262,19 @@ export class LevelEditScene extends GameScene {
                             rect.x = l
                             rect.w = r - l
                         }
-                        if (oy >= rect.top() + min_height) {
-                            rect.h = oy - rect.y
+
+                        if ((oy+16) >= rect.top() + min_height) {
+                            rect.h = (oy+16) - rect.y
                         }
                     } else if (this.selected_object_corner == Direction.DOWNRIGHT) {
-                        if (ox >= rect.left() + min_width) {
-                            rect.w = ox - rect.x
+                        if ((ox+16) >= rect.left() + min_width) {
+                            rect.w = (ox+16) - rect.x
                         }
-                        if (oy >= rect.top() + min_height) {
-                            rect.h = oy - rect.y
+                        if ((oy+16) >= rect.top() + min_height) {
+                            rect.h = (oy+16) - rect.y
                         }
                     } else {
-
+                        console.log("resize object: invalid corner selected")
                     }
 
                     let new_oid = (Math.floor(rect.y/16)+4)*512 + Math.floor(rect.x/16)
@@ -2205,6 +2292,8 @@ export class LevelEditScene extends GameScene {
                         delete this.map.objects[this.selected_object.oid]
                         this.selected_object.oid = new_oid
                         this.map.objects[new_oid] = this.selected_object
+
+                        return true
 
                     }
                     
@@ -2573,8 +2662,6 @@ export class LevelEditScene extends GameScene {
 
     }
 
-
-
     historyPush(change_tile, change_object) {
 
         // remove old entries that were discarded by the user
@@ -2661,6 +2748,8 @@ export class LevelEditScene extends GameScene {
     }
 
     handleTouches(touches) {
+        this._touches = touches
+
         if (touches.length > 0) {
             // transform the touch into a tile index
             if (touches[0].y < 24) {
