@@ -2712,7 +2712,7 @@ Spikes.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
 ]
 
-registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.small_mob, null, (entry)=> {
+registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.hazard, null, (entry)=> {
     Spikes.sheet = gAssets.sheets.spikes
     Spikes.icon = gAssets.sheets.spikes.tile(0)
 })
@@ -2990,7 +2990,7 @@ BubbleCannon.editorSchema = [
     {control: EditorControl.DIRECTION_4WAY, "default": Direction.RIGHT},
 ]
 
-registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.item, null, (entry)=> {
+registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.hazard, null, (entry)=> {
     BubbleCannon.sheet = gAssets.sheets.cannon
     BubbleCannon.icon = makeEditorIcon(BubbleCannon.sheet)
 
@@ -3266,7 +3266,7 @@ Door.editorSchema = [
     {control: EditorControl.DOOR_TARGET},
 ]
 
-registerEditorEntity("Door", Door, [32,32], "door", null, (entry)=> {
+registerEditorEntity("Door", Door, [32,32], EntityCategory.door, null, (entry)=> {
     Door.sheet = gAssets.sheets.pipes32
     Door.icon = makeEditorIcon(Door.sheet, 1)
 })
@@ -4294,7 +4294,7 @@ Flipper.editorSchema = [
     },
 ]
 
-registerEditorEntity("Flipper", Flipper, [48,32], EntityCategory.item, null, (entry)=> {
+registerEditorEntity("Flipper", Flipper, [48,32], EntityCategory.hazard, null, (entry)=> {
     Flipper.sheet = gAssets.sheets.flipper
     Flipper.icon = makeEditorIcon(Flipper.sheet)
 })
@@ -4362,7 +4362,7 @@ Bumper.editorIcon = (props) => {
 }
 Bumper.editorSchema = []
 
-registerEditorEntity("Bumper", Bumper, [32,16], EntityCategory.item, null, (entry)=> {
+registerEditorEntity("Bumper", Bumper, [32,16], EntityCategory.hazard, null, (entry)=> {
     Bumper.sheet = gAssets.sheets.bumper
     Bumper.icon = makeEditorIcon(Bumper.sheet)
 })

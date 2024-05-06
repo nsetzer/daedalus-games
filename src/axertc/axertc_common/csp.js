@@ -844,7 +844,15 @@ export class CspMap {
                     if (obj._classname != item) {
                         return false
                     }
-                } else {
+                } else if (property == 'instanceof') {
+                    if (!(obj instanceof item)) {
+                        return false
+                    }
+                } else if (property == 'instancein') {
+                    if (!item.some(T => obj instanceof T)) {
+                        return false
+                    }
+                }else {
                     if (!obj.hasOwnProperty(property)) {
                         return false
                     }

@@ -159,15 +159,17 @@ class TileMenu {
                 }
             }
             else if (ty == 1) {
-                if (tx < 6) {
+                if (tx < 4) {
                     this.parent.tile_property = 1 + tx
                     console.log("set prop", 1 + tx)
+                    /*
                     if (this.parent.tile_property > 4) {
                         this.parent.tile_shape = 1
                     }
                     if (this.parent.tile_property > 4) {
                         this.parent.tile_sheet = 1
                     }
+                    */
 
                 }
 
@@ -178,10 +180,12 @@ class TileMenu {
                         this.parent.tile_shape = 1 + tx
                         console.log("set shape", 1 + tx)
                     }
-                    this.parent.active_tool = EditorTool.PLACE_TILE
-                    this.parent.active_menu = null
+                    //this.parent.active_tool = EditorTool.PLACE_TILE
+                    //this.parent.active_menu = null
                 } else if (tx  == 4) {
                     this.parent.tile_shape = 7 // alt full
+                    //this.parent.active_tool = EditorTool.PLACE_TILE
+                    //this.parent.active_menu = null
 
                 }
                 console.log(tx)
@@ -192,12 +196,22 @@ class TileMenu {
             else if (ty == 3) {
 
                 if (tx == 0) {
-                    this.parent.active_tool = EditorTool.PAINT_TILE
+                    this.parent.active_tool = EditorTool.PLACE_TILE
                     this.parent.active_menu = null
                 }
 
                 if (tx == 1) {
+                    this.parent.active_tool = EditorTool.PAINT_TILE
+                    this.parent.active_menu = null
+                }
+
+                if (tx == 2) {
                     this.parent.active_tool = EditorTool.ERASE_TILE
+                    this.parent.active_menu = null
+                }
+
+                if (tx == 3) {
+                    this.parent.active_tool = EditorTool.SELECT_TILE
                     this.parent.active_menu = null
                 }
 
@@ -287,6 +301,7 @@ class TileMenu {
         ctx.fill()
 
         // water
+        /*
         x += 24
         ctx.fillStyle = "#364de3"
         ctx.beginPath();
@@ -299,6 +314,7 @@ class TileMenu {
         ctx.beginPath();
         ctx.rect(x,y,16,16)
         ctx.fill()
+        */
 
         // ---------------------------------------------------------------
         // Row 2 Shape
@@ -359,11 +375,16 @@ class TileMenu {
         ctx.fillStyle = "#000000"
         x = 8
         y = 32 + 24 + 24 + 24
+        this.parent.editor_icons.new.draw(ctx, x, y)
 
+        x += 24
         this.parent.editor_icons.brush.draw(ctx, x, y)
 
         x += 24
         this.parent.editor_icons.erase.draw(ctx, x, y)
+
+        x += 24
+        this.parent.editor_icons.pointer.draw(ctx, x, y)
         //points = this.parent.slopes_twothird[Direction.UPRIGHT]
         //ctx.beginPath();
         //ctx.moveTo(x + points[0].x, y + points[0].y);
@@ -523,19 +544,27 @@ class ObjectMenu {
         this.number_of_rows = 5
         this.margin = 8
 
-        this.rect = new Rect(0,24,this.margin + 24 * (this.objects_per_row+2), this.margin + 24 * (this.number_of_rows+1))
+        this.rect = new Rect(0,24,this.margin + 24 * (this.objects_per_row+3), this.margin + 24 * (this.number_of_rows+1))
         this.parent = parent
 
         this.actions = []
 
         // header scroll up
-        this.actions.push({x:this.margin,y: 32 + 24*4, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+        this.actions.push({
+            x: this.margin,
+            y: 32 + 24*4, 
+            icon:this.parent.editor_icons.arrow_up, 
+            action: ()=>{
             if (this.parent.objmenu_page_scroll_index > 0) {
                 this.parent.objmenu_page_scroll_index -= 1;
             }
         }})
         // header scroll down
-        this.actions.push({x:this.margin,y: 32 + 24*5, icon:this.parent.editor_icons.arrow_down, action: ()=>{
+        this.actions.push({
+            x: this.margin,
+            y: 32 + 24*5, 
+            icon:this.parent.editor_icons.arrow_down,
+            action: ()=>{
             let n = this.parent.object_pages.length
             if (this.parent.objmenu_page_scroll_index < n-1) {
                 this.parent.objmenu_page_scroll_index += 1;
@@ -543,20 +572,64 @@ class ObjectMenu {
         }})
 
         // object page scroll up
-        this.actions.push({x:this.margin + 24*(this.objects_per_row+1),y: 32 + 24*1, icon:this.parent.editor_icons.arrow_up, action: ()=>{
+        this.actions.push({
+            x: this.margin + 24*(this.objects_per_row+1),
+            y: 32 + 24*1, 
+            icon:this.parent.editor_icons.arrow_up, 
+            action: ()=>{
             if (this.parent.objmenu_object_scroll_index > 0) {
                 this.parent.objmenu_object_scroll_index -= 4
             }
         }})
 
         // object page scroll down
-        this.actions.push({x:this.margin + 24*(this.objects_per_row+1),y: 32 + 24 * (this.number_of_rows), icon:this.parent.editor_icons.arrow_down, action: ()=>{
+        this.actions.push({
+            x: this.margin + 24*(this.objects_per_row+1),
+            y: 32 + 24 * (this.number_of_rows), 
+            icon:this.parent.editor_icons.arrow_down, 
+            action: ()=>{
             let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
             if (this.parent.objmenu_object_scroll_index < n-4) {
                 this.parent.objmenu_object_scroll_index += 4
             }
         }})
 
+        let x,y;
+        x = this.margin + 24*(this.objects_per_row+2)
+        y = 32 
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.new, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.PLACE_OBJECT
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.hand, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.SELECT_OBJECT
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.erase, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.ERASE_OBJECT
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.pencil, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.EDIT_OBJECT
+            this.parent.active_menu = null
+        }})
 
     }
 
@@ -590,11 +663,12 @@ class ObjectMenu {
                 let ty = Math.floor((t.y - this.margin - this.rect.y) / 24)
 
                 if (ty >= 0 && ty < this.number_of_rows - 1) {
-                    console.log("xlick", tx, ty)
+                    
                     let n = this.parent.objmenu_page_scroll_index + ty;
                     if (n >= 0 && n < this.parent.object_pages.length) {
                         this.parent.objmenu_current_page = n;
                         this.parent.objmenu_current_object = 0;
+                        this.parent.objmenu_object_scroll_index = 0;
                     } else {
                         console.warn("object menu invalid index", n)
                     }
@@ -604,8 +678,6 @@ class ObjectMenu {
             } else if (t.x <= this.margin + 24 + this.objects_per_row*24) {
                 let tx = Math.floor((t.x - this.rect.x - this.margin - 24) / 24)
                 let ty = Math.floor((t.y - this.rect.y - 24) / 24)
-
-                console.log("xlick", tx, ty)
                 
                 let n = this.parent.objmenu_object_scroll_index + ty * this.objects_per_row + tx
                 if (n < this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
@@ -637,14 +709,14 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
-        /*
+        
         ctx.beginPath();
-        ctx.moveTo(this.margin + ((this.objects_per_row)*24) + 18+2,this.rect.y)
-        ctx.lineTo(this.margin + ((this.objects_per_row)*24) + 18+2,this.rect.y + this.rect.h)
+        ctx.moveTo(this.margin + ((this.objects_per_row+1)*24) + 18+2,this.rect.y)
+        ctx.lineTo(this.margin + ((this.objects_per_row+1)*24) + 18+2,this.rect.y + this.rect.h)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
-        */
+        
 
 
         let x = this.margin
@@ -686,10 +758,17 @@ class ObjectMenu {
                 ctx.stroke()
             }
 
-            ctx.beginPath()
-            ctx.rect(x,y,16,16)
-            ctx.closePath()
-            ctx.fill()
+            let icon = this.parent.object_pages[n+j]?.icon
+            if (!!icon) {
+                icon.draw(ctx, x+1, y+1)
+            } else {
+                ctx.beginPath()
+                ctx.rect(x,y,16,16)
+                ctx.closePath()
+                ctx.fill()
+            }
+
+            
             y += 24
         }
 
@@ -1362,7 +1441,6 @@ export class LevelEditScene extends GameScene {
             this.setTileTheme("plains")
         }
 
-
         this.editor_icons = {
             "pencil": gAssets.sheets.editor.tile(0),
             "erase": gAssets.sheets.editor.tile(1),
@@ -1389,44 +1467,48 @@ export class LevelEditScene extends GameScene {
 
         this.editor_objects = Object.fromEntries(editorEntities.map(entry=>[entry.name,entry]))
 
-        this.object_pages = [
+        this._init_objectMenu()
 
-            {
-                title: "All Objects",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: [...editorEntities]
-            },
-            {
-                title: "Items",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.item)
-            },
-            {
-                title: "Small Mobs",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.small_mob)
-            },
-            {
-                title: "Switches",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.switches)
-            },
-            {
-                title: "Doors",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.door)
-            },
-            {
-                title: "Hazards",
-                icon: gAssets.sheets.editor.tile(1),
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
-            },
-        ]
-        this.objmenu_current_page = 0
-        this.objmenu_current_object = 0
-        this.objmenu_page_scroll_index = 0
-        this.objmenu_object_scroll_index = 0
+        this._init_menu()
 
+        this._init_slopes()
+
+        const mapinfo = gAssets.mapinfo
+
+        this.map.width = mapinfo.width
+        this.map.height = mapinfo.height
+        this.map.layers = mapinfo.layers
+
+        //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
+        //    const tid = (x >> 13)&0x3ffff
+        //    const shape = (x >> 10) & 0x07
+        //    const property = (x >> 7) & 0x07
+        //    const sheet = (x >> 4) & 0x07
+        //    const direction = x & 0x0F
+        //    const tile = {shape, property, sheet, direction}
+        //    return [tid, tile]
+        //}))
+
+        this.tile_shape = TileShape.FULL // full, half, one third, two third
+        this.tile_property = 1 // 1: solid, 2: not solid, 3: ice (solid), 4: water (not solid), 5: lava (not solid)
+        this.tile_sheet = 1 // 1: ground, 2: pipes, 3: omake
+
+        this.active_menu = null
+        this.active_tool = EditorTool.PLACE_TILE
+
+        this.ygutter = 64 // allow 4 tiles to be place out of bounds at the top of the map
+
+        // init history to the current state
+        this.historyPush(true, true)
+    }
+
+    setTileTheme(theme) {
+        this.current_theme = theme
+        this.theme_sheets = gAssets.themes[theme]
+        this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
+    }
+
+    _init_menu() {
         this.actions = [
             {
                 name: "file",
@@ -1454,24 +1536,34 @@ export class LevelEditScene extends GameScene {
             },
             {
                 name: "object-place",
-                icon: this.editor_icons.hand,
+                //icon: this.editor_icons.hand,
+                icon2: ()=> {
+                    if (this.active_tool == EditorTool.PLACE_OBJECT) {
+                        console.warn("no default icon for place object")
+                    }
+                    if (this.active_tool == EditorTool.SELECT_OBJECT) {
+                        return this.editor_icons.hand
+                    }
+                    if (this.active_tool == EditorTool.EDIT_OBJECT) {
+                        return this.editor_icons.pencil
+                    }
+                    if (this.active_tool == EditorTool.ERASE_OBJECT) {
+                        return this.editor_icons.erase
+                    }
+                    return this.editor_icons.hand
+                },
                 action: () => {
                     gAssets.sounds.click1.play()
-                    this.active_tool = EditorTool.PLACE_OBJECT;
+                    //this.active_tool = EditorTool.PLACE_OBJECT;
                     this.active_menu = new ObjectMenu(this)
                 },
-                selected: () => this.active_tool == EditorTool.PLACE_OBJECT,
+                selected: () => [EditorTool.PLACE_OBJECT, EditorTool.SELECT_OBJECT, EditorTool.EDIT_OBJECT, EditorTool.ERASE_OBJECT].includes(this.active_tool),
             },
             {
-                name: "object-move",
-                icon2: ()=> {return (this.active_tool == EditorTool.ERASE_OBJECT)?this.editor_icons.erase:this.editor_icons.hand},
-                action: () => {
-                    gAssets.sounds.click1.play()
-                    //this.active_tool = EditorTool.SELECT_OBJECT;
-                    //this.active_menu = new ObjectMenu(this)
-                    this.active_menu = new ObjectEditMenu(this)
-                },
-                selected: () => this.active_tool == EditorTool.SELECT_OBJECT || this.active_tool == EditorTool.ERASE_OBJECT || this.active_tool == EditorTool.EDIT_OBJECT,
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
             },
             {
                 name: "tile-place",
@@ -1482,18 +1574,14 @@ export class LevelEditScene extends GameScene {
                     this.active_menu = new TileMenu(this)
                 },
                 selected: () => {
-                    return [EditorTool.PLACE_TILE,EditorTool.ERASE_TILE,EditorTool.PAINT_TILE].indexOf(this.active_tool) >= 0
+                    return [EditorTool.PLACE_TILE,EditorTool.SELECT_TILE,EditorTool.ERASE_TILE,EditorTool.PAINT_TILE].includes(this.active_tool)
                 }
             },
             {
-                name: "tile-select",
-                icon: this.editor_icons.pointer,
-                action: () => {
-                    gAssets.sounds.click1.play()
-                    this.active_tool = EditorTool.SELECT_TILE;
-                    //this.active_menu = new TileMenu(this)
-                },
-                selected: () => this.active_tool == EditorTool.SELECT_TILE,
+                name: null,
+                icon: null,
+                action: null,
+                selected: null,
             },
             {
                 name: null,
@@ -1607,42 +1695,59 @@ export class LevelEditScene extends GameScene {
                 selected: null,
             },
         ]
-
-        this._init_slopes()
-
-        const mapinfo = gAssets.mapinfo
-
-        this.map.width = mapinfo.width
-        this.map.height = mapinfo.height
-        this.map.layers = mapinfo.layers
-
-        //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
-        //    const tid = (x >> 13)&0x3ffff
-        //    const shape = (x >> 10) & 0x07
-        //    const property = (x >> 7) & 0x07
-        //    const sheet = (x >> 4) & 0x07
-        //    const direction = x & 0x0F
-        //    const tile = {shape, property, sheet, direction}
-        //    return [tid, tile]
-        //}))
-
-        this.tile_shape = TileShape.FULL // full, half, one third, two third
-        this.tile_property = 1 // 1: solid, 2: not solid, 3: ice (solid), 4: water (not solid), 5: lava (not solid)
-        this.tile_sheet = 1 // 1: ground, 2: pipes, 3: omake
-
-        this.active_menu = null
-        this.active_tool = EditorTool.PLACE_TILE
-
-        this.ygutter = 64
-
-        // init history to the current state
-        this.historyPush(true, true)
     }
 
-    setTileTheme(theme) {
-        this.current_theme = theme
-        this.theme_sheets = gAssets.themes[theme]
-        this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
+    _init_objectMenu() {
+        this.object_pages = [
+
+            {
+                title: "All Objects",
+                icon: gAssets.sheets.coin.tile(0),
+                objects: [...editorEntities]
+            },
+            {
+                title: "Items",
+                icon: gAssets.sheets.brick.tile(0),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.item)
+            },
+            {
+                title: "Small Mobs",
+                icon: this.editor_objects['Creeper'].icon,
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.small_mob)
+            },
+            {
+                title: "Switches",
+                icon: gAssets.sheets.brick.tile(1),
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.switches)
+            },
+            {
+                title: "Doors",
+                icon: this.editor_objects['Door'].icon,
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.door)
+            },
+            {
+                title: "Hazards",
+                icon: this.editor_objects['WaterHazard'].icon,
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
+            },
+        ]
+
+        this.object_pages.forEach(page => {
+            page.objects.sort((a,b) => {
+                if (a.category < b.category) return -1;
+                if (a.category > b.category) return 1;
+                
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                
+                return 0; // Objects are considered equal
+            })
+        })
+
+        this.objmenu_current_page = 0
+        this.objmenu_current_object = 0
+        this.objmenu_page_scroll_index = 0
+        this.objmenu_object_scroll_index = 0
     }
 
     _init_slopes() {
@@ -1767,7 +1872,6 @@ export class LevelEditScene extends GameScene {
 
             if (!!action.action) {
 
-
                 ctx.beginPath();
                 ctx.fillStyle = "#00FF00"
                 const x = 3 + 24*index
@@ -1778,21 +1882,6 @@ export class LevelEditScene extends GameScene {
 
                 if (action.name == "tile-place") {
 
-                    let points;
-                    switch (this.tile_shape) {
-                    case TileShape.HALF:
-                        points = this.slopes_half[Direction.UPRIGHT]
-                        break
-                    case TileShape.ONETHIRD:
-                        points = this.slopes_onethird[Direction.UPRIGHT]
-                        break
-                    case TileShape.TWOTHIRD:
-                        points = this.slopes_twothird[Direction.UPRIGHT]
-                        break
-                    default:
-                        break
-                    }
-
                     if (this.active_tool == EditorTool.ERASE_TILE) {
 
                         this.editor_icons.erase.draw(ctx, x+1, y+1)
@@ -1800,7 +1889,26 @@ export class LevelEditScene extends GameScene {
                     } else if (this.active_tool == EditorTool.PAINT_TILE) {
 
                         this.editor_icons.brush.draw(ctx, x+1, y+1)
+
+                    } else if (this.active_tool == EditorTool.SELECT_TILE) {
+
+                        this.editor_icons.pointer.draw(ctx, x+1, y+1)
                     } else {
+                        let points;
+                        switch (this.tile_shape) {
+                            case TileShape.HALF:
+                                points = this.slopes_half[Direction.UPRIGHT]
+                                break
+                            case TileShape.ONETHIRD:
+                                points = this.slopes_onethird[Direction.UPRIGHT]
+                                break
+                            case TileShape.TWOTHIRD:
+                                points = this.slopes_twothird[Direction.UPRIGHT]
+                                break
+                            default:
+                                break
+                        }
+
                         const tile = {
                             shape: this.tile_shape,
                             property: this.tile_property,
@@ -1808,17 +1916,23 @@ export class LevelEditScene extends GameScene {
                             direction: Direction.UPRIGHT,
                             points: points,
                         }
-                        paintTile(ctx, x+1, y+1, tile)
+
+                        paintTile(ctx, x+1, y+1, tile, this.theme_sheets)
                     }
                 }
                 else if (action.name == "object-place") {
 
-                    let page = this.object_pages[this.objmenu_current_page]
-                    let obj = page.objects[this.objmenu_current_object]
-                    let icon = obj?.ctor?.icon
-                    if (!!icon) {
-                        icon.draw(ctx, x+1, y+1)
+                    if (this.active_tool == EditorTool.PLACE_OBJECT) {
+                        let page = this.object_pages[this.objmenu_current_page]
+                        let obj = page.objects[this.objmenu_current_object]
+                        let icon = obj?.ctor?.icon
+                        if (!!icon) {
+                            icon.draw(ctx, x+1, y+1)
+                        }
+                    } else {
+                        action.icon2().draw(ctx, x+1, y+1)
                     }
+                    
                 }
                 else if (!!action.icon2) {
                     action.icon2().draw(ctx, x+1, y+1)
@@ -1963,7 +2077,7 @@ export class LevelEditScene extends GameScene {
             let h = entry.size[1]
 
             if (!!entry?.editorSchema) {
-                let resizeable = entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+                let resizeable = entry.editorSchema && entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
 
                 if (resizeable) {
                     w = obj.props.width
@@ -2222,7 +2336,7 @@ export class LevelEditScene extends GameScene {
             if (!!this.selected_object && this.selected_object.oid != oid) {
 
                 let entry = this.editor_objects[this.selected_object.name]
-                let resizeable = entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+                let resizeable = entry.editorSchema && entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
 
                 if (resizeable) {
 
