@@ -2086,7 +2086,6 @@ export class Player extends PlatformerEntity {
         let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
         let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
 
-        console.log({standing, pressing})
         let rising = this.physics.is_rising()
 
         if (standing) {

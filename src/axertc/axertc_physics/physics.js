@@ -784,16 +784,20 @@ export class Physics2dPlatformV2 {
             if (ent.collidePoint(sensor_r.x, sensor_r.y)) { collide_r = true }
         })
 
-        if (collide_d) {
-            this.standing_direction = Direction.DOWN
-        } else if (collide_u) {
-            this.standing_direction = Direction.UP
-        } else if (collide_l) {
-            this.standing_direction = Direction.LEFT
-        } else if (collide_r) {
-            this.standing_direction = Direction.RIGHT
+        if (this.can_wallwalk) {
+            if (collide_d) {
+                this.standing_direction = Direction.DOWN
+            } else if (collide_u) {
+                this.standing_direction = Direction.UP
+            } else if (collide_l) {
+                this.standing_direction = Direction.LEFT
+            } else if (collide_r) {
+                this.standing_direction = Direction.RIGHT
+            } else {
+                // falling
+                this.standing_direction = Direction.DOWN
+            }
         } else {
-            // falling
             this.standing_direction = Direction.DOWN
         }
     }
@@ -1106,9 +1110,9 @@ export class Physics2dPlatformV2 {
         if ((standing && !bonk && collisions.bn) || (!standing && !bonk)) {
             // step in the forward direction
             //console.log("step fd")
-            if (collisions.s1 && collisions.s2) {
-                return 1
-            }
+            //if (collisions.s1 && collisions.s2) {
+            //    return 1
+            //}
             this.target.rect.x += dx
             this.target.rect.y += dy
             return 1
@@ -1616,7 +1620,7 @@ export class Physics2dPlatformV2 {
                     if (ent.entid == this.entid) { return }
                     if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
                     //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
-                    if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
+                    if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true; console.log("bonk", ent._classname) }
                 })
             }
 

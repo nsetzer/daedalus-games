@@ -284,7 +284,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("editor")
             .path(RES_ROOT + "/sprites/editor.png")
             .dimensions(16, 16)
-            .layout(2, 8)
+            .layout(3, 8)
             .offset(1, 1)
             .spacing(1, 1)
 

@@ -1446,23 +1446,31 @@ export class LevelEditScene extends GameScene {
             "erase": gAssets.sheets.editor.tile(1),
             "zoom_in": gAssets.sheets.editor.tile(2),
             "zoom_out": gAssets.sheets.editor.tile(3),
+            "dropper": gAssets.sheets.editor.tile(4),
             "brush": gAssets.sheets.editor.tile(5),
             "arrow_up": gAssets.sheets.editor.tile(6),
             "arrow_down": gAssets.sheets.editor.tile(7),
-            "arrow_left": gAssets.sheets.editor.tile(1*8+6),
-            "arrow_right": gAssets.sheets.editor.tile(1*8+7),
 
+            
             "save": gAssets.sheets.editor.tile(1*8+0),
             "load": gAssets.sheets.editor.tile(1*8+1),
             "trash": gAssets.sheets.editor.tile(1*8+2),
             "gear": gAssets.sheets.editor.tile(1*8+3),
+            "x": gAssets.sheets.editor.tile(1*8+4),
             "hand": gAssets.sheets.editor.tile(1*8+5),
-            "pointer": gAssets.sheets.editor.tile(2*8+1),
+            "arrow_left": gAssets.sheets.editor.tile(1*8+6),
+            "arrow_right": gAssets.sheets.editor.tile(1*8+7),
+
             "play": gAssets.sheets.editor.tile(2*8+0),
-            "undo": gAssets.sheets.editor.tile(2*8+6),
-            "redo": gAssets.sheets.editor.tile(2*8+7),
+            "pointer": gAssets.sheets.editor.tile(2*8+1),
+            "hamburger": gAssets.sheets.editor.tile(2*8+2),
             "exit": gAssets.sheets.editor.tile(2*8+3),
             "new": gAssets.sheets.editor.tile(2*8+4),
+            "undo": gAssets.sheets.editor.tile(2*8+6),
+            "redo": gAssets.sheets.editor.tile(2*8+7),
+
+            "visible": gAssets.sheets.editor.tile(3*8+0),
+            "not_visible": gAssets.sheets.editor.tile(3*8+1),
         }
 
         this.editor_objects = Object.fromEntries(editorEntities.map(entry=>[entry.name,entry]))
@@ -1500,6 +1508,8 @@ export class LevelEditScene extends GameScene {
 
         // init history to the current state
         this.historyPush(true, true)
+
+        this.tile_selection = null
     }
 
     setTileTheme(theme) {
@@ -2052,6 +2062,28 @@ export class LevelEditScene extends GameScene {
 
             paintTile(ctx, x, y, tile, this.theme_sheets)
 
+        
+        }
+
+        if (!!this.tile_selection && !!this.tile_selection.rect) {
+            ctx.beginPath()
+            let {x,y,w,h} = this.tile_selection.rect
+            ctx.rect(x*16,y*16,w*16,h*16)
+            ctx.closePath()
+            ctx.strokeStyle = "#1212127F"
+            ctx.setLineDash([]);
+            ctx.stroke()
+            ctx.strokeStyle = "#AAAAAA"
+            ctx.setLineDash([2]);
+            ctx.stroke()
+            if (!!this.tile_selection.p3) { 
+                ctx.beginPath()
+                let {x, y} = this.tile_selection.p3;
+                ctx.rect(x*16,y*16,16,16)
+                ctx.fillStyle = "#7f0000"
+                ctx.fill()
+            }
+            
         }
     }
 
@@ -2250,15 +2282,7 @@ export class LevelEditScene extends GameScene {
 
     }
 
-    eraseObject(x, y, onpress) {
-        const oid = (y + 4)*512+x
 
-        if (!!this.map.objects[oid]) {
-            delete this.map.objects[oid]
-            return true
-        }
-        return false
-    }
 
     _objectShape(oid, obj) {
         let entry = this.editor_objects[obj.name]
@@ -2278,29 +2302,35 @@ export class LevelEditScene extends GameScene {
 
     }
 
-    moveObject(mx, my, onpress) {
+    _getObjectId(mx, my) {
         let oid = (my + 4)*512+mx
-        if (onpress) {
 
+        // if there is no object directly under the mouse click
+        // scan to find any objects which have a size greater than 1 tile.
+        // and test to see if that object overlaps.
+        if (!this.map.objects[oid]) {
+            for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
+                
+                let rect = this._objectShape(obj_oid, obj)
+
+                if (rect.collidePoint(mx*16, my*16)) {
+                    oid = obj_oid
+                    break;
+                    //}
+                }
+            }
+        }
+
+        return oid
+    }
+
+    moveObject(mx, my, onpress) {
+        
+        if (onpress) {
             // if there is no object directly under the mouse click
             // scan to find any objects which have a size greater than 1 tile.
             // and test to see if that object overlaps.
-            if (!this.map.objects[oid]) {
-                for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
-                    
-                    let rect = this._objectShape(obj_oid, obj)
-
-                    if (rect.collidePoint(mx*16, my*16)) {
-                        //let obj_oid = (oy/16 + 4) * 512 + (ox / 16);
-                        
-                        //if (!!this.map.objects[obj_oid]) {
-                        console.log("!bang", obj_oid, !!this.map.objects[obj_oid])
-                        oid = obj_oid
-                        break;
-                        //}
-                    }
-                }
-            }
+            let oid = this._getObjectId(mx, my)
 
             if (!!this.map.objects[oid]) {
                 this.selected_object = this.map.objects[oid]
@@ -2333,6 +2363,7 @@ export class LevelEditScene extends GameScene {
                 this.selected_object = null
             }
         } else {
+            let oid = (my + 4)*512+mx
 
             // check to see if there is a selected object
             // and the current mouse position does not match the object position
@@ -2413,8 +2444,6 @@ export class LevelEditScene extends GameScene {
                         return true
 
                     }
-                    
-
 
                 } else {
                     // check that the new mouse position is empty
@@ -2432,35 +2461,27 @@ export class LevelEditScene extends GameScene {
         }
 
         return false
+    
+        
     }
 
     editObject(mx, my) {
-        let oid = (my + 4)*512+mx
-
-        // if there is no object directly under the mouse click
-        // scan to find any objects which have a size greater than 1 tile.
-        // and test to see if that object overlaps.
-        if (!this.map.objects[oid]) {
-            for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
-                
-                let rect = this._objectShape(obj_oid, obj)
-
-                if (rect.collidePoint(mx*16, my*16)) {
-                    //let obj_oid = (oy/16 + 4) * 512 + (ox / 16);
-                    
-                    //if (!!this.map.objects[obj_oid]) {
-                    console.log("!bang", obj_oid, !!this.map.objects[obj_oid])
-                    oid = obj_oid
-                    break;
-                    //}
-                }
-            }
-        }
+        const oid = this._getObjectId(mx, my)
 
         if (!!this.map.objects[oid]) {
             this.active_menu = new ObjectPropertyEditMenu(this, oid)
         }
 
+    }
+
+    eraseObject(mx, my, onpress) {
+        const oid = this._getObjectId(mx, my)
+
+        if (!!this.map.objects[oid]) {
+            delete this.map.objects[oid]
+            return true
+        }
+        return false
     }
 
     _hydrateObject(oid, name, schemaList) {
@@ -2569,6 +2590,75 @@ export class LevelEditScene extends GameScene {
 
         return false
 
+    }
+
+    _moveTiles(rect, dx, dy) {
+
+        let cached = {}
+        for (let i=rect.left(); i < rect.right(); i++) {
+            for (let j=rect.top(); j < rect.bottom(); j++) {
+                
+                let tid1 = ((j) + 4)*512+i
+                let tid2 = ((j+dy) + 4)*512+(i+dx)
+                if (!!this.map.layers[0][tid1]) {
+                    cached[tid2] = this.map.layers[0][tid1]
+                    delete this.map.layers[0][tid1];
+                }
+            }
+        }
+        this.map.layers[0] = {...this.map.layers[0], ...cached}
+        console.log("moved", Object.keys(cached).length)
+        return Object.keys(cached).length > 0;
+    }
+
+    moveTile(mx, my, onpress) {
+
+        if (onpress) {
+
+            if (!!this.tile_selection && 
+                !!this.tile_selection.rect && 
+                this.tile_selection.rect.collidePoint(mx, my)) {
+                this.tile_selection.update = false
+                this.tile_selection.p3 = {x:mx, y:my}
+            } else {
+                this.tile_selection = {p1: {x:mx, y:my}, update: true}
+            }
+
+        } else if (!!this.tile_selection) {
+
+            if (this.tile_selection.update) {
+                // update selection size
+                this.tile_selection.p2 = {x:mx, y:my}
+                let p1 = this.tile_selection.p1
+                let p2 = this.tile_selection.p2
+
+                let x = Math.min(p1.x, p2.x)
+                let y = Math.min(p1.y, p2.y)
+                let w = Math.max(Math.abs(p1.x - p2.x)+1, 1)
+                let h = Math.max(Math.abs(p1.y - p2.y)+1, 1)
+                this.tile_selection.rect = new Rect(x,y,w,h)
+            } else {
+                // move
+
+                let dx = mx - this.tile_selection.p3.x
+                let dy = my - this.tile_selection.p3.y
+                
+                if (dx != 0 || dy != 0) {
+                    
+
+                    let rv = this._moveTiles(this.tile_selection.rect, dx, dy)
+
+                    this.tile_selection.p3.x += dx
+                    this.tile_selection.p3.y += dy
+                    this.tile_selection.rect.x += dx;
+                    this.tile_selection.rect.y += dy;
+
+                    return rv;
+                }
+            }
+        }
+
+        return false;
     }
 
     eraseTile(x, y) {
@@ -2981,6 +3071,8 @@ export class LevelEditScene extends GameScene {
                             change_object = this.moveObject(t.x, t.y, t.first)
                         }
 
+                        
+
                         else if (this.active_tool === EditorTool.ERASE_OBJECT) {
                             if (!t.first) {
                                 change_object = this.eraseObject(t.x, t.y)
@@ -3014,6 +3106,11 @@ export class LevelEditScene extends GameScene {
                             }
 
                         }
+                        else if (this.active_tool === EditorTool.SELECT_TILE) {
+                            // first touch required to select the object to drag
+                            change_tile = this.moveTile(t.x, t.y, t.first)
+                        }
+
                     }
 
                     if (!t.pressed) {
@@ -3025,7 +3122,7 @@ export class LevelEditScene extends GameScene {
                     this.change_object = this.change_object||change_object
 
                     // push a history state on touch release
-                    if (!t.pressed) {
+                    if (!t.pressed && (this.change_tile || this.change_object)) {
 
                         this.historyPush(this.change_tile, this.change_object)
 
