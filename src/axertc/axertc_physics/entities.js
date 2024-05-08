@@ -3,7 +3,7 @@
 
 import {Entity, Direction, Rect} from "@axertc/axertc_common"
 
-import {Physics2dPlatform} from "./physics.js"
+import {Physics2dPlatform} from "./physics_v1.js"
 
 export class PlatformerEntity extends Entity {
 
@@ -461,9 +461,12 @@ export class Slope extends PlatformBase {
 
         ctx.fillStyle = "#c3a3a3";
         ctx.beginPath();
-        ctx.moveTo(this.points[0].x, this.points[0].y);
-        ctx.lineTo(this.points[1].x, this.points[1].y);
-        ctx.lineTo(this.points[2].x, this.points[2].y);
+        let pts = this.points;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.closePath();
         ctx.fill();
 
 
@@ -509,6 +512,11 @@ export class OneWayWall extends PlatformBase {
         this.breakable = 0
         this.alive = 1
         this.solid = 1
+    }
+
+    isSolid(other) {
+        //console.log(other.rect.bottom(), this.rect.top(), other.rect.bottom() < this.rect.top())
+        return other.rect.bottom() <= this.rect.top()
     }
 
     collide(other, dx, dy) {

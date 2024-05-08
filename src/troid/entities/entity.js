@@ -1865,17 +1865,18 @@ export class Player extends PlatformerEntity {
             this._x_input = payload.vector
             this.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
 
-            // dead zone on mobile
+            // TODO: dead zone on mobile in the wheel
             if (Math.abs(payload.vector.x) < 0.3535) {
                 payload.vector.x = 0
             }
 
             // TODO: remove
-            this.physics.direction = Direction.fromVector(payload.vector.x, 0)
+            //this.physics.direction = Direction.fromVector(payload.vector.x, 0)
             // TODO V2
             this.physics.moving_direction = Direction.fromVector(payload.vector.x, 0) 
-            console.log("set movement", payload.vector.x, this.physics.moving_direction)
+            //console.log("set movement", payload.vector.x, this.physics.moving_direction)
 
+            // TODO: facing for v2, is not part of physics?
             if (payload.vector.x > 0.3535) {
                 this.physics.facing = Direction.RIGHT
             }
@@ -2193,6 +2194,15 @@ export class Brick extends PlatformerEntity {
         this.timeout = 2 // enough time for particles to fall off the screen
     }
 
+    onPress(other, vector) {
+        console.log(other._classname, vector)
+
+        if (other instanceof Player && vector.y < 0) {
+            this._kill()
+        }
+
+    }
+
     collide(other, dx, dy) {
 
         if (!this.alive) {
@@ -2407,6 +2417,79 @@ FakeBrick.icon = null
 registerEditorEntity("FakeBrick", FakeBrick, [16,16], EntityCategory.item, null, (entry)=> {
     FakeBrick.sheet = gAssets.sheets.brick
     FakeBrick.icon = gAssets.sheets.brick.tile(4)
+})
+
+export class Crate extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
+
+        this.physics = new Physics2dPlatformV2(this,{
+            xmaxspeed1: 150,
+            xmaxspeed2: 175,
+            oneblock_walk: true
+        })
+
+        this.visible = true
+        this.animation = new AnimationComponent(this)
+
+        this.spawning = false // spawning or despawning, lose direct control
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+        this.physics.fluid_group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.fluid})
+        }
+
+        this.physics.standing_direction = Direction.DOWN
+
+        this.breakable = 0
+        this.alive = 1
+        this.solid = 1
+
+        this.particles = []
+        this.timer = 0
+        this.timeout = 2 // enough time for particles to fall off the screen
+    }
+
+    onPress(other, vector) {
+        console.log(other._classname, vector)
+
+        if (vector.x != 0) {
+            this.physics.step(vector.x, 0)
+
+            //this.physics.speed.x = 60 * vector.x
+            //this.physics.moving_direction = Direction.fromVector(vector.x, 0)
+        }
+
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath()
+        ctx.fillStyle = 'red'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+
+        ctx.font = "bold 10px";
+        ctx.fillStyle = "black"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.fillText(`${Math.floor(this.physics.speed.x)}, ${Math.floor(this.physics.speed.y)}`, this.rect.x, this.rect.y);
+        ctx.fillText(`${Math.floor(this.physics.accum.x)}, ${Math.floor(this.physics.accum.y)}`, this.rect.x, this.rect.y+12);
+        ctx.fillText(`${Direction.name[this.physics.moving_direction]}`, this.rect.x, this.rect.y+24);
+
+    }
+
+    update(dt) {
+
+        this.physics.update(dt)
+    }
+}
+
+registerEditorEntity("Crate", Crate, [32,32], EntityCategory.item, null, (entry)=> {
 })
 
 /**
@@ -4223,7 +4306,7 @@ export class Flipper extends Slope {
         props.h = 27
         super(entid, props)
 
-        this.rect2 = new Rect(this.rect.x,  this.rect.bottom() - 12, this.rect.w, 12)
+        
         this.visible =1
 
         let tid = 0
@@ -4240,6 +4323,12 @@ export class Flipper extends Slope {
         this.timer = 0
     }
 
+    isSolid(other) {
+        //console.log(other.rect.bottom(), this.rect.top(), other.rect.bottom() < this.rect.top())
+        //return other.rect.bottom() <= this.rect.top()
+        return true
+    }
+
     init_points() {
         this.points = []
         // points are organized such that:
@@ -4252,12 +4341,16 @@ export class Flipper extends Slope {
                 this.points.push({x: this.rect.left() + 12 - 12, y: this.rect.top() + 27})
                 this.points.push({x: this.rect.left() + 38 - 12, y: this.rect.top() + 27})
                 this.points.push({x: this.rect.left() + 12 - 12, y: this.rect.top()})
+                this.rect3 = new Rect(this.rect.left()-10, this.rect.top(), 10, 12)
+                this.rect2 = new Rect(this.rect.right()-12,  this.rect.bottom() - 12, 12, 12)
                 //this.direction = Direction.UPRIGHT
                 break
             case Direction.LEFT:
                 this.points.push({x: this.rect.right() - 12 + 12, y: this.rect.top() + 27})
                 this.points.push({x: this.rect.right() - 38 + 12, y: this.rect.top() + 27})
                 this.points.push({x: this.rect.right() - 12 + 12, y: this.rect.top()})
+                this.rect3 = new Rect(this.rect.right(), this.rect.top(), 10, 12)
+                this.rect2 = new Rect(this.rect.x,  this.rect.bottom() - 12, 12, 12)
                 //this.direction = Direction.UPLEFT
                 break
             default:
@@ -4265,6 +4358,9 @@ export class Flipper extends Slope {
         }
     }
 
+    collidePoint(x, y) {
+        return super.collidePoint(x, y) || this.rect3.collidePoint(x,y)
+    }
     paint(ctx) {
 
         let tid = this.tid
@@ -4277,11 +4373,17 @@ export class Flipper extends Slope {
         } else {
             Flipper.sheet.drawTile(ctx, tid, this.rect.x-12, this.rect.y)
         }
-        //super.paint(ctx)
-        //ctx.strokeStyle = 'blue'
-        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        //ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
-        //ctx.stroke()
+
+        super.paint(ctx)
+
+        
+        ctx.strokeStyle = 'blue'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+        ctx.rect(this.rect3.x, this.rect3.y, this.rect3.w, this.rect3.h)
+        ctx.stroke()
+        
+
     }
 
     update(dt) {
