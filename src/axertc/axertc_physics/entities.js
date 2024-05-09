@@ -267,6 +267,18 @@ export class Slope extends PlatformBase {
 
     }
 
+    isSolid(other) {
+        //console.log(other.rect.bottom(), this.rect.top(), other.rect.bottom() < this.rect.top())
+        if (!this.oneway) {
+            return true
+        }
+        let yp = this._fx(other.rect.cx(), other.rect.bottom())
+        if (yp == null) {
+            return true
+        }
+        return other.rect.bottom() <= yp
+    }
+
     collide(other, dx, dy) {
 
         // TODO: this needs to be re-written
@@ -318,7 +330,6 @@ export class Slope extends PlatformBase {
         rect = rect.copy()
         //rect.translate(this._ceil_away(dx*.7071), this._ceil_away(dy*.7071))
         rect.translate(dx, dy)
-
 
         if (this.direction&Direction.LEFT && original_rect.left() >= this.rect.right()) {
             let update = original_rect.copy()
@@ -423,12 +434,12 @@ export class Slope extends PlatformBase {
     }
 
     collidePoint(x, y) {
-        let yp = this._fx(x, y)
 
         if (!super.collidePoint(x, y)) {
             return false
         }
 
+        let yp = this._fx(x, y)
         if (yp == null) {
             return false
         }

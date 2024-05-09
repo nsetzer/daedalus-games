@@ -4361,6 +4361,7 @@ export class Flipper extends Slope {
     collidePoint(x, y) {
         return super.collidePoint(x, y) || this.rect3.collidePoint(x,y)
     }
+    
     paint(ctx) {
 
         let tid = this.tid
@@ -4376,13 +4377,30 @@ export class Flipper extends Slope {
 
         super.paint(ctx)
 
-        
+
+
+        ctx.strokeStyle = 'red'
+        ctx.fillStyle = "#c3a3a3";
+        ctx.beginPath();
+        let pts = this.points;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath()
         ctx.strokeStyle = 'blue'
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
-        ctx.rect(this.rect3.x, this.rect3.y, this.rect3.w, this.rect3.h)
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
         ctx.stroke()
-        
+
+        ctx.beginPath()
+        ctx.strokeStyle = 'green'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.stroke()
 
     }
 

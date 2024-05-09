@@ -278,14 +278,18 @@ export class CanvasEngine extends DomElement {
         return touches.map(touch => {
 
             if (this.view.rotate) {
-                return {
+                let new_touch = {
                     "x": (touch.clientY - rect.top)/this.view.scale  - this.view.x,
-                    "y": this.view.height - (touch.clientX - rect.left)/this.view.scale - this.view.y,
+                    "y": this.view.height - ((touch.clientX - rect.left)/this.view.scale - this.view.y),
                     "id": touch.identifier,
                     "pressed": !!pressed[touch.identifier],
                     "buttons": 1,
                     first,
                 }
+                //console.log(this.view.height, (touch.clientX - rect.left)/this.view.scale, this.view.y)
+                //console.log(touch.clientY, rect.width, new_touch.y, this.view.y, this.view.height)
+                //console.log(this.view, rect, {x: touch.clientX, y: touch.clientY}, new_touch)
+                return new_touch
             } else {
                 return {
                     "x": (touch.clientX - rect.left)/this.view.scale - this.view.x,
@@ -429,9 +433,12 @@ export class CanvasEngine extends DomElement {
             // center x
             this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.min(32, Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale)))
+            
         } else if (daedalus.platform.isMobile) {
             this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale))
+            //this.view.x = 0
+            //this.view.y = 100
         } else {
             this.view.x = 0
             this.view.y = 0
@@ -553,13 +560,25 @@ export class CanvasEngine extends DomElement {
             ctx.translate(0,-this.props.width/this.view.scale)
         }
         ctx.translate(this.view.x, this.view.y)
-        //ctx.rect(0, 0, this.view.width, this.view.height());
+        
         //ctx.clip();
         ctx.webkitImageSmoothingEnabled = false;
         ctx.mozImageSmoothingEnabled = false;
         ctx.imageSmoothingEnabled = false;
 
         this.scene.paint(ctx)
+
+        /* draw the viewport and offset from the real screen edge
+        ctx.strokeStyle = 'red'
+        ctx.beginPath()
+        ctx.rect(0, 0, this.view.width, this.view.height);
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(0,0);
+        ctx.lineTo(-this.view.x, -this.view.y);
+        ctx.closePath()
+        ctx.stroke()
+        */
 
     }
 

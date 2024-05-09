@@ -717,7 +717,23 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
         
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.margin+1, 32 + 24*4+2, 14, 24*2-12, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
 
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.margin + 24*(this.objects_per_row+1) + 1, 32 + 24*1+2, 14, 24*5-12, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
 
         let x = this.margin
         let y = 32
@@ -1661,7 +1677,7 @@ export class LevelEditScene extends GameScene {
                 name: "zoom-in",
                 icon: this.editor_icons.zoom_in,
                 action: () => {
-                    if (this.camera.scale > 1.0) {
+                    if (this.camera.scale > 0.5) {
                         gAssets.sounds.click1.play()
                         // comput the transform to zoom in/out at a point px,py
                         let px = gEngine.view.width/2
@@ -1669,7 +1685,7 @@ export class LevelEditScene extends GameScene {
                         let cx = (this.camera.x + px) * this.camera.scale
                         let cy = (this.camera.y + py) * this.camera.scale
 
-                        this.camera.scale = Math.max(1.0, this.camera.scale - 0.5)
+                        this.camera.scale = Math.max(0.5, this.camera.scale - 0.5)
 
                         this.camera.x = (cx / this.camera.scale) - px
                         this.camera.y = (cy / this.camera.scale) - py
@@ -1977,8 +1993,8 @@ export class LevelEditScene extends GameScene {
 
         const sw = gEngine.view.width * this.camera.scale
         const sh = gEngine.view.height * this.camera.scale
-        let x1 = Math.max(0, this.camera.x)
-        let y1 = Math.max(0, this.camera.y)
+        let x1 = Math.max(0, this.camera.x* this.camera.scale)
+        let y1 = Math.max(0, this.camera.y* this.camera.scale)
         let x2 = Math.min((this.camera.x + gEngine.view.width) * this.camera.scale, this.map.width)
         let y2 = Math.min((this.camera.y + gEngine.view.height) * this.camera.scale, this.map.height)
         ctx.rect(
@@ -1991,7 +2007,7 @@ export class LevelEditScene extends GameScene {
 
         // draw orange for the -y gutter
         ctx.beginPath()
-        x1 = Math.max(0, this.camera.x)
+        x1 = Math.max(0, this.camera.x* this.camera.scale)
         y1 = -this.ygutter//Math.max(-this.ygutter, this.camera.y)
         x2 = Math.min((this.camera.x + gEngine.view.width) * this.camera.scale, this.map.width)
         y2 = Math.min((this.camera.y + gEngine.view.height) * this.camera.scale, 0)
