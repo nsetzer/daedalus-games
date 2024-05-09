@@ -542,16 +542,17 @@ class ObjectMenu {
 
         this.objects_per_row = 4
         this.number_of_rows = 5
-        this.margin = 8
+        this.margin1 = 8
+        this.margin2 = 8 + 16 + 8 + 8
 
-        this.rect = new Rect(0,24,this.margin + 24 * (this.objects_per_row+3), this.margin + 24 * (this.number_of_rows+1))
+        this.rect = new Rect(0,24,this.margin2 + 24 * (this.objects_per_row+2), this.margin1 + 24 * (this.number_of_rows+1))
         this.parent = parent
 
         this.actions = []
 
         // header scroll up
         this.actions.push({
-            x: this.margin,
+            x: this.margin1,
             y: 32 + 24*4, 
             icon:this.parent.editor_icons.arrow_up, 
             action: ()=>{
@@ -561,7 +562,7 @@ class ObjectMenu {
         }})
         // header scroll down
         this.actions.push({
-            x: this.margin,
+            x: this.margin1,
             y: 32 + 24*5, 
             icon:this.parent.editor_icons.arrow_down,
             action: ()=>{
@@ -573,7 +574,7 @@ class ObjectMenu {
 
         // object page scroll up
         this.actions.push({
-            x: this.margin + 24*(this.objects_per_row+1),
+            x: this.margin2 + 24*(this.objects_per_row),
             y: 32 + 24*1, 
             icon:this.parent.editor_icons.arrow_up, 
             action: ()=>{
@@ -584,7 +585,7 @@ class ObjectMenu {
 
         // object page scroll down
         this.actions.push({
-            x: this.margin + 24*(this.objects_per_row+1),
+            x: this.margin2 + 24*(this.objects_per_row),
             y: 32 + 24 * (this.number_of_rows), 
             icon:this.parent.editor_icons.arrow_down, 
             action: ()=>{
@@ -595,7 +596,7 @@ class ObjectMenu {
         }})
 
         let x,y;
-        x = this.margin + 24*(this.objects_per_row+2)
+        x = this.margin2 + 24*(this.objects_per_row+1)
         y = 32 
         this.actions.push({
             x,y,icon:this.parent.editor_icons.new, 
@@ -631,6 +632,8 @@ class ObjectMenu {
             this.parent.active_menu = null
         }})
 
+        
+
     }
 
     handleTouches(touches) {
@@ -657,10 +660,10 @@ class ObjectMenu {
                 }
             })
 
-            if (t.x <= this.margin + 24) {
+            if (t.x <= this.margin1 + 24) {
 
-                let tx = Math.floor((t.x - this.rect.x - this.margin - 24) / 24)
-                let ty = Math.floor((t.y - this.margin - this.rect.y) / 24)
+                let tx = Math.floor((t.x - this.rect.x - this.margin1 - 24) / 24)
+                let ty = Math.floor((t.y - this.margin1 - this.rect.y) / 24)
 
                 if (ty >= 0 && ty < this.number_of_rows - 1) {
                     
@@ -675,13 +678,14 @@ class ObjectMenu {
                 }
                 
 
-            } else if (t.x <= this.margin + 24 + this.objects_per_row*24) {
-                let tx = Math.floor((t.x - this.rect.x - this.margin - 24) / 24)
+            } else if (t.x <= this.margin2 + this.objects_per_row*24) {
+                let tx = Math.floor((t.x - this.rect.x - this.margin2) / 24)
                 let ty = Math.floor((t.y - this.rect.y - 24) / 24)
                 
                 let n = this.parent.objmenu_object_scroll_index + ty * this.objects_per_row + tx
                 if (n < this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
                     this.parent.objmenu_current_object = n
+                    this.parent.active_tool = EditorTool.PLACE_OBJECT
                 }
                 
             }
@@ -702,40 +706,44 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
+        // line separating first and second panel
         ctx.beginPath();
-        ctx.moveTo(this.margin+18+2,this.rect.y)
-        ctx.lineTo(this.margin+18+2,this.rect.y + this.rect.h)
+        ctx.moveTo(this.margin2-this.margin1,this.rect.y)
+        ctx.lineTo(this.margin2-this.margin1,this.rect.y + this.rect.h)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
 
         
+        // line separating second and third panel
         ctx.beginPath();
-        ctx.moveTo(this.margin + ((this.objects_per_row+1)*24) + 18+2,this.rect.y)
-        ctx.lineTo(this.margin + ((this.objects_per_row+1)*24) + 18+2,this.rect.y + this.rect.h)
+        ctx.moveTo(this.margin2 + ((this.objects_per_row)*24) + 18+2,this.rect.y)
+        ctx.lineTo(this.margin2 + ((this.objects_per_row)*24) + 18+2,this.rect.y + this.rect.h)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
         
+        // background for object menu scroll bar
         ctx.beginPath();
         ctx.fillStyle = "#888888"
         ctx.strokeStyle = "#888888"
         ctx.lineWidth = 2
-        ctx.roundRect(this.margin+1, 32 + 24*4+2, 14, 24*2-12, 3)
+        ctx.roundRect(this.margin1+1, 32 + 24*4+2, 14, 24*2-12, 3)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
 
+        // background for object list scroll bar
         ctx.beginPath();
         ctx.fillStyle = "#888888"
         ctx.strokeStyle = "#888888"
         ctx.lineWidth = 2
-        ctx.roundRect(this.margin + 24*(this.objects_per_row+1) + 1, 32 + 24*1+2, 14, 24*5-12, 3)
+        ctx.roundRect(this.margin2 + 24*(this.objects_per_row) + 1, 32 + 24*1+2, 14, 24*5-12, 3)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
 
-        let x = this.margin
+        let x = this.margin1
         let y = 32
         let n;
 
@@ -751,14 +759,14 @@ class ObjectMenu {
         ctx.textAlign = "left"
         ctx.textBaseline = "top"
         ctx.font = "bold 10px serif"
-        ctx.fillText(`${page.title}`, this.rect.x + 24 + this.margin, this.rect.y + this.margin - 4);
+        ctx.fillText(`${page.title}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4);
         ctx.font = "8px serif"
-        ctx.fillText(`${obj.name}`, this.rect.x + 24 + this.margin, this.rect.y + this.margin - 4 + 12);
+        ctx.fillText(`${obj.name}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4 + 12);
 
 
         // headers
-        x = this.margin
-        y = this.margin + 24 
+        x = this.margin1
+        y = this.margin1 + 24 
         n = this.parent.objmenu_page_scroll_index
         for (let j=0; j < 4; j++) {
 
@@ -791,15 +799,15 @@ class ObjectMenu {
 
 
         // object info
-        x = this.margin
-        y = this.margin + 24 + 24
+        x = this.margin2
+        y = this.margin1 + 24 + 24
 
         
 
         n = this.parent.objmenu_object_scroll_index;
         for (let j=0; j < 5; j++) {
 
-            x = this.margin + 24
+            x = this.margin2
 
             for (let i=0; i < 4; i++) {
 
@@ -840,6 +848,26 @@ class ObjectMenu {
                 action.icon.draw(ctx, action.x, action.y)
             }
         })
+
+        let idx = [
+            EditorTool.PLACE_OBJECT,
+            EditorTool.SELECT_OBJECT,
+            EditorTool.ERASE_OBJECT,
+            EditorTool.EDIT_OBJECT
+        ].indexOf(this.parent.active_tool)
+
+        if (idx >= 0) {
+            let x,y;
+            x = this.margin2 + 24*(this.objects_per_row+1)
+            y = 32 + 24 * idx
+
+            ctx.beginPath()
+            ctx.strokeStyle = "gold"
+            ctx.roundRect(x-2,y-2,16+4,16+4, 4)
+            ctx.closePath()
+            ctx.stroke()
+        }
+
 
     }
 

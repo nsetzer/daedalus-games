@@ -769,7 +769,7 @@ export class Physics2dPlatformV2 {
 
         this._neighbors.forEach(ent => {
             if (ent.entid == this.target.entid) { return }
-            if (ent.isSolid) { if (!ent.isSolid(this.target)) { return }}
+            if (ent.isSolid) { if (!ent.isSolid(this.target)) { return; }}
 
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
             //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
@@ -1165,8 +1165,8 @@ export class Physics2dPlatformV2 {
             let xi = polygon[i].x, yi = polygon[i].y;
             let xj = polygon[j].x, yj = polygon[j].y;
             
-            let intersect = ((yi > y) != (yj > y))
-                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            let intersect = ((yi > y) != (yj > y)) && \
+                             (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
 
             if (intersect) { 
                 inside = !inside

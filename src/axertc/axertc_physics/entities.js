@@ -268,15 +268,19 @@ export class Slope extends PlatformBase {
     }
 
     isSolid(other) {
-        //console.log(other.rect.bottom(), this.rect.top(), other.rect.bottom() < this.rect.top())
         if (!this.oneway) {
             return true
         }
-        let yp = this._fx(other.rect.cx(), other.rect.bottom())
+        let x = Math.floor(other.rect.cx())
+        let y = Math.floor(other.rect.bottom())
+        let yp = this._fx(x,y)
         if (yp == null) {
             return true
         }
-        return other.rect.bottom() <= yp
+        // checking y speed is helpful because of the slope
+        // objects tend to get stuck on invisible cliffs
+        // and then start walking down the slope
+        return  other.physics.speed.y >= 0 || y <= yp
     }
 
     collide(other, dx, dy) {
@@ -516,21 +520,20 @@ export class OneWayWall extends PlatformBase {
         this.rect = new Rect(props?.x??0, props?.y??0, props?.w??0, props?.h??0)
         this.visible = props?.visible??true
 
-        this.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.playerId})
-        }
+        //this.group = () => {
+        //    return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.playerId})
+        //}
 
-        this.breakable = 0
-        this.alive = 1
+        //this.breakable = 0
+        //this.alive = 1
         this.solid = 1
     }
 
     isSolid(other) {
-        //console.log(other.rect.bottom(), this.rect.top(), other.rect.bottom() < this.rect.top())
-        return other.rect.bottom() <= this.rect.top()
+        return Math.floor(other.rect.bottom()) <= Math.floor(this.rect.top())
     }
 
-    collide(other, dx, dy) {
+    _x_collide(other, dx, dy) {
 
         let rect = other.rect
 
