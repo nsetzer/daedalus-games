@@ -40,6 +40,9 @@ const style = {
 
     "hidden": StyleSheet({
         "visibility": "collapse"
+    }),
+    "hiddenPopover": StyleSheet({
+        "display": "none"
     })
 }
 
@@ -62,6 +65,13 @@ StyleSheet("", "@media screen and (min-width: 720)", {
     },
 })
 */
+/*
+StyleSheet("", "", {
+    ".popover div:backdrop": {
+        "background": "#AAAAAA",
+    },
+})
+*/
 
 class TextInput extends DomElement {
     constructor(parent) {
@@ -78,11 +88,17 @@ class TextInput extends DomElement {
     }
 
     onChange(event) {
-        console.log(event)
+        //console.log("on change", event)
     }
 
     onInput(event) {
-        console.log(event)
+        //console.log("on input", event)
+    }
+
+    onKeyDown(event) {
+        if (event.key == "Enter") {
+            this.parent.submit()
+        }
     }
 
     onFocusOut(event) {
@@ -131,22 +147,28 @@ class TextInputContainer extends DomElement {
 
         this.addClassName(style.hidden)
         this.focus_widget = null
+        this.submit_callback = null
     }
 
     elementMounted() {
 
         //console.log("on touch mount", this.getDomNode().contains(this.text.getDomNode()))
     }
+
     submit() {
+
         this.addClassName(style.hidden)
-        if (this.focus_widget) {
+
+        if (!!this.submit_callback) {
+            this.submit_callback(this.text.getDomNode().value)
+        }
+        if (!!this.focus_widget) {
             this.focus_widget.handleMobileInput(true, this.text.getDomNode().value)
             this.focus_widget = null
         }
     }
 
-    requestKeyboardFocus(settings, widget) {
-
+    requestKeyboardFocus(settings, widget, callback) {
         // TODO: add setting for 'submit':
         //   if submit is true, show the button
         // e.g. a registration page would have submit false
@@ -156,9 +178,12 @@ class TextInputContainer extends DomElement {
         this.text.getDomNode().value = settings.text ?? ""
         this.text.update()
         this.focus_widget = widget
+        this.submit_callback = callback
 
         this.removeClassName(style.hidden)
-        this.text.getDomNode().focus()
+        
+        // delay focus call on pc
+        setTimeout(()=>{this.text.getDomNode().focus()},0);
     }
 
     hasKeyboardFocus() {
@@ -172,6 +197,21 @@ class TextInputContainer extends DomElement {
         }
         this.focus_widget = null
 
+    }
+}
+
+class PopOver extends DomElement {
+    constructor() {
+        super("div", {
+            id: "mypopover", 
+            className: [style.input], // , style.hiddenPopover
+            popover: "auto",
+        }, [new TextElement("hello world")])
+    }
+
+    elementMounted() {
+        this.getDomNode().hidePopover()
+        console.log("hide popover")
     }
 }
 
@@ -198,8 +238,8 @@ export class ApplicationBase extends DomElement {
             window.innerWidth, window.innerHeight, this.settings))
 
         window.gEngine = this.canvas
+        window.gApplication = this
         window.hiddenInput = this.appendChild(new TextInputContainer())
-
 
         this.canvas.onReady = () => {
             this.canvas.scene = this.initialScene();
@@ -209,6 +249,8 @@ export class ApplicationBase extends DomElement {
         window.addEventListener("keydown", this.canvas.handleKeyPress.bind(this.canvas))
         window.addEventListener("keyup", this.canvas.handleKeyRelease.bind(this.canvas))
         window.addEventListener("resize", this.handleResize.bind(this))
+
+        //this.popover = this.appendChild(new PopOver())
 
     }
 
@@ -228,5 +270,11 @@ export class ApplicationBase extends DomElement {
         }, 100)
 
 
+    }
+
+    togglePopUp() {
+        this.popover.getDomNode().hidePopover()
+        console.log("toggle popover", this.popover.getDomNode().matches(":popover-open"))
+        console.log(this.popover.getDomNode())
     }
 }

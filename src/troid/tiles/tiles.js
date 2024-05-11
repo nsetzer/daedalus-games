@@ -91,7 +91,7 @@ let TT_3_00 = 3*11 + 0 // alt full
 
 
 export function updateTile(layer:Layer, map_width:number, map_height:number, sheets:any, x:number, y:number, tile: Tile) {
-    // layer: the layer of tiles
+    // layer: the layer of tiles as a map tid => tile
     // map_width: the width of the map in pixels. used for bounds checks
     // map_height: the height of the map in pixels. used for bounds checks
     // sheets: (deprecated) no longer used
@@ -258,8 +258,6 @@ export function updateTile(layer:Layer, map_width:number, map_height:number, she
 
     } else if (tile.shape == TileShape.HALF) {
         let tid = -1
-
-
 
         if (tile.property == TileProperty.NOTSOLID) {
             if (tile.direction == Direction.UPRIGHT) { tid = TT_2_06}

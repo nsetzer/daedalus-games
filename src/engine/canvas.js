@@ -498,10 +498,10 @@ export class CanvasEngine extends DomElement {
 
     }
 
-    requestKeyboardFocus(settings, widget) {
+    requestKeyboardFocus(settings, widget, callback) {
 
-        if (daedalus.platform.isMobile) {
-            window.hiddenInput.requestKeyboardFocus(settings, widget)
+        if (daedalus.platform.isMobile || widget === null) {
+            window.hiddenInput.requestKeyboardFocus(settings, widget, callback)
         } else {
             this.keyboard_focus_widget = widget
         }

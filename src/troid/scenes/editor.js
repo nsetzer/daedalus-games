@@ -5,6 +5,7 @@
 //       after all other tiles are painted.
 
 import { Alignment, Direction } from "@axertc/axertc_common"
+import { TileShape } from "@troid/tiles"
 
 // todo: keyboad controls
 //       activate a fake cursor object which simulates touch events
@@ -337,38 +338,67 @@ class TileMenu {
         ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
         ctx.stroke()
 
+        if (false) {
+            // render the true icon in the third row
 
-        ctx.beginPath();
-        ctx.rect(x,y,16,16)
-        ctx.fill()
+            let shapes = [TileShape.FULL, TileShape.HALF, TileShape.ONETHIRD, TileShape.TWOTHIRD, TileShape.ALT_FULL]
+            let tiles = []
 
-        if (this.parent.tile_property <= 4) {
-            x += 24
-            points = this.parent.slopes_half[Direction.UPRIGHT]
+            for (let i=0; i < shapes.length; i++) {
+                let tile = {
+                    shape: shapes[i],
+                    property: TileProperty.SOLID, // this.parent.tile_property,
+                    sheet: this.parent.tile_sheet,
+                    direction: Direction.UPRIGHT,
+                }
+                updateTile({[4*512]:tile}, 0, 0, this.parent.theme_sheets, 0, 0, tile)
+                tile.x = x + 24*i
+                tile.y = y
+                tiles.push(tile)
+            }
+
+            tiles.forEach(tile => {
+                paintTile(ctx, tile.x, tile.y, tile, this.parent.theme_sheets)
+            })
+
+        } else {
+            // render a shape in the third row
+
             ctx.beginPath();
-            ctx.moveTo(x + points[0].x, y + points[0].y);
-            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.rect(x,y,16,16)
             ctx.fill()
 
-            x += 24
-            points = this.parent.slopes_onethird[Direction.UPRIGHT]
-            ctx.beginPath();
-            ctx.moveTo(x + points[0].x, y + points[0].y);
-            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
-            ctx.fill()
+            if (this.parent.tile_property <= 4) {
+                x += 24
+                points = this.parent.slopes_half[Direction.UPRIGHT]
+
+                
+
+                ctx.beginPath();
+                ctx.moveTo(x + points[0].x, y + points[0].y);
+                points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+                ctx.fill()
+
+                x += 24
+                points = this.parent.slopes_onethird[Direction.UPRIGHT]
+                ctx.beginPath();
+                ctx.moveTo(x + points[0].x, y + points[0].y);
+                points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+                ctx.fill()
+
+                x += 24
+                points = this.parent.slopes_twothird[Direction.UPRIGHT]
+                ctx.beginPath();
+                ctx.moveTo(x + points[0].x, y + points[0].y);
+                points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+                ctx.fill()
+            }
 
             x += 24
-            points = this.parent.slopes_twothird[Direction.UPRIGHT]
             ctx.beginPath();
-            ctx.moveTo(x + points[0].x, y + points[0].y);
-            points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+            ctx.rect(x,y,16,16)
             ctx.fill()
         }
-
-        x += 24
-        ctx.beginPath();
-        ctx.rect(x,y,16,16)
-        ctx.fill()
 
         // ---------------------------------------------------------------
         // Row 4 Shape
@@ -1510,6 +1540,7 @@ export class LevelEditScene extends GameScene {
             "hamburger": gAssets.sheets.editor.tile(2*8+2),
             "exit": gAssets.sheets.editor.tile(2*8+3),
             "new": gAssets.sheets.editor.tile(2*8+4),
+            "stamp": gAssets.sheets.editor.tile(2*8+5),
             "undo": gAssets.sheets.editor.tile(2*8+6),
             "redo": gAssets.sheets.editor.tile(2*8+7),
 
@@ -1583,9 +1614,18 @@ export class LevelEditScene extends GameScene {
                 selected: null,
             },
             {
-                name: null,
-                icon: null,
-                action: null,
+                name: "test",
+                icon: this.editor_icons.x,
+                action: () => {
+                    gAssets.sounds.click1.play()
+                    //gApplication.togglePopUp()
+                    gEngine.requestKeyboardFocus({
+                        "type": "text",
+                        "placeholder": "",
+                        "text": this.text
+                    }, null, (text)=>console.log(text))
+
+                },
                 selected: null,
             },
             {
@@ -1783,6 +1823,11 @@ export class LevelEditScene extends GameScene {
                 title: "Hazards",
                 icon: this.editor_objects['WaterHazard'].icon,
                 objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
+            },
+            {
+                title: "Stamps",
+                icon: this.editor_icons.stamp,
+                objects: editorEntities.filter(ent => ent.category == EntityCategory.stamp)
             },
         ]
 
@@ -2326,8 +2371,6 @@ export class LevelEditScene extends GameScene {
 
     }
 
-
-
     _objectShape(oid, obj) {
         let entry = this.editor_objects[obj.name]
         let ox = 16*(oid%512)
@@ -2414,56 +2457,61 @@ export class LevelEditScene extends GameScene {
             if (!!this.selected_object && this.selected_object.oid != oid) {
 
                 let entry = this.editor_objects[this.selected_object.name]
-                let resizeable = entry.editorSchema && entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)
+                // select the resize schema
+                let resizeable = entry.editorSchema && entry.editorSchema.filter(schema => schema.control == EditorControl.RESIZE)
 
-                if (resizeable) {
+                if (!!resizeable) {
+                    let schema = resizeable[0]
 
                     let ox = 16*(oid%512)
                     let oy = 16*Math.floor(oid/512 - 4)
 
                     let rect = this._objectShape(this.selected_object.oid, this.selected_object)
-                    let min_width = 32;
-                    let min_height = 32;
+                    let min_width = schema?.min_width??32;
+                    let min_height = schema?.min_height??32;
                     if (this.selected_object_corner == Direction.UPLEFT) {
+                        // else case on UPLEFT gives the special property 
+                        // of moving the object without reszing when grabing
+                        // only that corner
                         if (ox <= rect.right() - min_width) {
                             let r = rect.right()
                             let l = ox
                             rect.x = l
-                            rect.w = r - l
-                        }
+                            rect.w = Math.max(min_width, r - l)
+                        } else { rect.x = ox }
                         if (oy <= rect.bottom() - min_height) {
                             let b = rect.bottom()
                             let t = oy
                             rect.y = t
-                            rect.h = b - t
-                        }
+                            rect.h = Math.min(min_height, b - t)
+                        } else { rect.y = oy }
                     } else if (this.selected_object_corner == Direction.UPRIGHT) {
                         if ((ox+16) >= rect.left() + min_width) {
-                            rect.w = (ox+16) - rect.x
-                        }
+                            rect.w = Math.max(min_width, (ox+16) - rect.x)
+                        } else { rect.x = ox }
                         if (oy <= rect.bottom() - min_height) {
                             let b = rect.bottom()
                             let t = oy
                             rect.y = t
-                            rect.h = b - t
-                        }
+                            rect.h = Math.min(min_height, b - t)
+                        } else { rect.y = oy }
                     } else if (this.selected_object_corner == Direction.DOWNLEFT) {
                         if (ox <= rect.right() - min_width) {
                             let r = rect.right()
                             let l = ox
                             rect.x = l
-                            rect.w = r - l
+                            rect.w = Math.max(min_width, r - l)
                         }
 
                         if ((oy+16) >= rect.top() + min_height) {
-                            rect.h = (oy+16) - rect.y
+                            rect.h = Math.max(min_height, (oy+16) - rect.y)
                         }
                     } else if (this.selected_object_corner == Direction.DOWNRIGHT) {
                         if ((ox+16) >= rect.left() + min_width) {
-                            rect.w = (ox+16) - rect.x
+                            rect.w = Math.max(min_width, (ox+16) - rect.x)
                         }
                         if ((oy+16) >= rect.top() + min_height) {
-                            rect.h = (oy+16) - rect.y
+                            rect.h = Math.max(min_height, (oy+16) - rect.y)
                         }
                     } else {
                         console.log("resize object: invalid corner selected")
@@ -3011,8 +3059,6 @@ export class LevelEditScene extends GameScene {
                 //
                 let ix = Math.floor((t.x - 3) / 24)
                 let iclicked = ((t.x - 3) % 24) < 18
-
-                console.log("menu clicked", ix, iclicked)
 
                 if (!t.pressed) {
 

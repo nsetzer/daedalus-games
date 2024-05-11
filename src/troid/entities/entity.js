@@ -27,6 +27,16 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
+export const EntityCategory = {
+    item: 1,
+    switches: 2,
+    hazard: 3,
+    door: 4,
+    small_mob: 5,
+
+    stamp: 9
+}
+
 // entities that can be created in a level,
 // but cannot be created in the editor
 export const defaultEntities = []
@@ -43,16 +53,8 @@ function registerDefaultEntity(name, ctor, onLoad=null) {
     })
 }
 
-export const EntityCategory = {
-    item: "item",
-    switches: "switch",
-    small_mob: "small_mob",
-    door: "door",
-    hazard: "hazard"
-}
-
 export const editorEntities = []
-function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=null) {
+export function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=null) {
     if (onLoad === null) {
         onLoad = ((entry) => {})
     }
@@ -73,6 +75,28 @@ function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=nu
         editorIcon: null,
     })
 }
+
+export function registerStamp(name, icon) {
+
+}
+
+export function registerEntityAssets() {
+
+    defaultEntities.forEach(entry => {
+        entry.onLoad(entry)
+    })
+
+    editorEntities.forEach(entry => {
+        entry.onLoad(entry)
+        if (entry.icon === null) {
+            console.log("fix oldstyle entity", entry.name)
+            entry.icon = entry.ctor.icon
+            entry.editorIcon = entry.ctor.editorIcon
+            entry.editorSchema = entry.ctor.editorSchema
+        }
+    })
+}
+
 
 // return a new 16x16 tile icon from an existing sheet
 export const makeEditorIcon = (sheet, tid=0) => {
@@ -2241,7 +2265,7 @@ export class Brick extends PlatformerEntity {
     paint(ctx) {
 
         if (this.alive) {
-            this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+            gAssets.sheets.brick.tile(0).draw(ctx, this.rect.x, this.rect.y)
         } else {
             // draw a quarter of the brick
             this.particles.forEach(p => {
@@ -2282,13 +2306,12 @@ export class Brick extends PlatformerEntity {
         this.particles.push({x:this.rect.x+8, y: this.rect.y+8, dx: -dx, dy: 0})
     }
 }
-Brick.sheet = null
-Brick.size = [16, 16]
-Brick.icon = null
 
 registerEditorEntity("Brick", Brick, [16,16], EntityCategory.item, null, (entry)=> {
     Brick.sheet = gAssets.sheets.brick
-    Brick.icon = gAssets.sheets.brick.tile(0)
+    entry.icon = gAssets.sheets.brick.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class FakeBrick extends PlatformerEntity {
@@ -2410,13 +2433,12 @@ export class FakeBrick extends PlatformerEntity {
     }
 
 }
-FakeBrick.sheet = null
-FakeBrick.size = [16, 16]
-FakeBrick.icon = null
 
 registerEditorEntity("FakeBrick", FakeBrick, [16,16], EntityCategory.item, null, (entry)=> {
     FakeBrick.sheet = gAssets.sheets.brick
-    FakeBrick.icon = gAssets.sheets.brick.tile(4)
+    entry.icon = gAssets.sheets.brick.tile(4)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class Crate extends PlatformerEntity {
@@ -2490,6 +2512,9 @@ export class Crate extends PlatformerEntity {
 }
 
 registerEditorEntity("Crate", Crate, [32,32], EntityCategory.item, null, (entry)=> {
+    entry.icon = gAssets.sheets.brick.tile(4)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 /**
@@ -2500,7 +2525,7 @@ registerEditorEntity("Crate", Crate, [32,32], EntityCategory.item, null, (entry)
 export class RedSwitch extends Brick {
 
     paint(ctx) {
-        this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+        gAssets.sheets.brick.tile(1).draw(ctx, this.rect.x, this.rect.y)
     }
 
     _kill() {
@@ -2517,13 +2542,12 @@ export class RedSwitch extends Brick {
         console.log("reveal red")
     }
 }
-RedSwitch.sheet = null
-RedSwitch.size = [16, 16]
-RedSwitch.icon = null
 
 registerEditorEntity("RedSwitch", RedSwitch, [16,16], EntityCategory.switches, null, (entry)=> {
     RedSwitch.sheet = gAssets.sheets.brick
-    RedSwitch.icon = gAssets.sheets.brick.tile(1)
+    entry.icon = gAssets.sheets.brick.tile(1)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 /**
@@ -2534,7 +2558,7 @@ registerEditorEntity("RedSwitch", RedSwitch, [16,16], EntityCategory.switches, n
 export class BlueSwitch extends Brick {
 
     paint(ctx) {
-        this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+        gAssets.sheets.brick.tile(5).draw(ctx, this.rect.x, this.rect.y)
     }
 
     _kill() {
@@ -2551,13 +2575,12 @@ export class BlueSwitch extends Brick {
     }
 
 }
-BlueSwitch.sheet = null
-BlueSwitch.size = [16, 16]
-BlueSwitch.icon = null
 
 registerEditorEntity("BlueSwitch", BlueSwitch, [16,16], EntityCategory.switches, null, (entry)=> {
     BlueSwitch.sheet = gAssets.sheets.brick
-    BlueSwitch.icon = gAssets.sheets.brick.tile(5)
+    entry.icon = gAssets.sheets.brick.tile(5)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class RedPlatform extends Brick {
@@ -2570,14 +2593,12 @@ export class RedPlatform extends Brick {
 
     }
 }
-RedPlatform.sheet = null
-RedPlatform.size = [16, 16]
-RedPlatform.icon = null
 
 registerEditorEntity("RedPlatform", RedPlatform, [16,16], EntityCategory.switches, null, (entry)=> {
     RedPlatform.sheet = gAssets.sheets.brick
-    RedPlatform.icon = gAssets.sheets.brick.tile(2)
-
+    entry.icon = gAssets.sheets.brick.tile(2)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class BluePlatform extends Brick {
@@ -2594,13 +2615,12 @@ export class BluePlatform extends Brick {
 
     }
 }
-BluePlatform.sheet = null
-BluePlatform.size = [16, 16]
-BluePlatform.icon = null
 
 registerEditorEntity("BluePlatform", BluePlatform, [16,16], EntityCategory.switches, null, (entry)=> {
     BluePlatform.sheet = gAssets.sheets.brick
-    BluePlatform.icon = gAssets.sheets.brick.tile(6)
+    entry.icon = gAssets.sheets.brick.tile(6)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 
@@ -2806,36 +2826,33 @@ export class Spikes extends PlatformerEntity {
     }
 
 }
-Spikes.sheet = null
-Spikes.size = [16, 16]
-Spikes.icon = null
-Spikes.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 3;
-            break;
-        case Direction.DOWN:
-            tid = 2;
-            break;
-        case Direction.RIGHT:
-            tid = 1;
-            break;
-        case Direction.UP:
-        default:
-            tid = 0;
-            break;
-    }
-
-    return gAssets.sheets.spikes.tile(tid)
-}
-Spikes.editorSchema = [
-    {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
-]
 
 registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.hazard, null, (entry)=> {
     Spikes.sheet = gAssets.sheets.spikes
-    Spikes.icon = gAssets.sheets.spikes.tile(0)
+    entry.icon = gAssets.sheets.spikes.tile(0)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 3;
+                break;
+            case Direction.DOWN:
+                tid = 2;
+                break;
+            case Direction.RIGHT:
+                tid = 1;
+                break;
+            case Direction.UP:
+            default:
+                tid = 0;
+                break;
+        }
+
+        return gAssets.sheets.spikes.tile(tid)
+    }
+    entry.editorSchema = [
+        {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
+    ]
 })
 
 export class Spawn extends PlatformerEntity {
@@ -2953,37 +2970,35 @@ export class Spawn extends PlatformerEntity {
 
     }
 }
-Spawn.sheet = null
-Spawn.size = [32, 32]
-Spawn.icon = null
-Spawn.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 0;
-            break;
-
-        case Direction.DOWN:
-            tid = 2;
-            break;
-        case Direction.RIGHT:
-            tid = 3;
-            break;
-        case Direction.UP:
-        default:
-            tid = 1;
-            break;
-    }
-
-    return gAssets.sheets.pipes32.tile(tid)
-}
-Spawn.editorSchema = [
-    {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
-]
 
 registerEditorEntity("Spawn", Spawn, [32,32], EntityCategory.small_mob, null, (entry)=> {
     Spawn.sheet = gAssets.sheets.pipes32
-    Spawn.icon = makeEditorIcon(Spawn.sheet)
+    entry.icon = makeEditorIcon(Spawn.sheet)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 0;
+                break;
+    
+            case Direction.DOWN:
+                tid = 2;
+                break;
+            case Direction.RIGHT:
+                tid = 3;
+                break;
+            case Direction.UP:
+            default:
+                tid = 1;
+                break;
+        }
+    
+        return gAssets.sheets.pipes32.tile(tid)
+    }
+
+    entry.editorSchema = [
+        {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
+    ]
 })
 
 export class BubbleCannon extends PlatformerEntity {
@@ -3100,23 +3115,13 @@ export class BubbleCannon extends PlatformerEntity {
         */        
     }
 }
-/*
-BubbleCannon.sheet = null
-BubbleCannon.size = [32, 32]
-BubbleCannon.icon = null
-*/
-
-
-BubbleCannon.editorSchema = [
-    {control: EditorControl.DIRECTION_4WAY, "default": Direction.RIGHT},
-]
 
 registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.hazard, null, (entry)=> {
     BubbleCannon.sheet = gAssets.sheets.cannon
-    BubbleCannon.icon = makeEditorIcon(BubbleCannon.sheet)
+    entry.icon = makeEditorIcon(BubbleCannon.sheet)
 
     // dynamic icon in editor
-    BubbleCannon.editorIcon = (props) => {
+    entry.editorIcon = (props) => {
         let tid = 0
         switch(props?.direction) {
             case Direction.LEFT:
@@ -3136,6 +3141,10 @@ registerEditorEntity("BubbleCannon", BubbleCannon, [16,16], EntityCategory.hazar
     
         return BubbleCannon.sheet.tile(tid)
     }
+
+    entry.editorSchema = [
+        {control: EditorControl.DIRECTION_4WAY, "default": Direction.RIGHT},
+    ]
 
 })
 
@@ -3357,39 +3366,36 @@ export class Door extends PlatformerEntity {
         }
     }
 }
-Door.sheet = null
-Door.size = [32, 32]
-Door.icon = null
-Door.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 0;
-            break;
-
-        case Direction.DOWN:
-            tid = 2;
-            break;
-        case Direction.RIGHT:
-            tid = 3;
-            break;
-        case Direction.UP:
-        default:
-            tid = 1;
-            break;
-    }
-
-    return gAssets.sheets.pipes32.tile(tid)
-}
-Door.editorSchema = [
-    {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
-    {control: EditorControl.DOOR_ID},
-    {control: EditorControl.DOOR_TARGET},
-]
 
 registerEditorEntity("Door", Door, [32,32], EntityCategory.door, null, (entry)=> {
     Door.sheet = gAssets.sheets.pipes32
-    Door.icon = makeEditorIcon(Door.sheet, 1)
+    entry.icon = makeEditorIcon(Door.sheet, 1)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 0;
+                break;
+    
+            case Direction.DOWN:
+                tid = 2;
+                break;
+            case Direction.RIGHT:
+                tid = 3;
+                break;
+            case Direction.UP:
+            default:
+                tid = 1;
+                break;
+        }
+    
+        return gAssets.sheets.pipes32.tile(tid)
+    }
+    entry.editorSchema = [
+        {control: EditorControl.DIRECTION_4WAY, "default": Direction.UP},
+        {control: EditorControl.DOOR_ID},
+        {control: EditorControl.DOOR_TARGET},
+    ]
 })
 
 export class ExplodingBrick extends MobBase {
@@ -3473,7 +3479,7 @@ export class ExplodingBrick extends MobBase {
     paint(ctx) {
 
         if (this.character.alive) {
-            this.constructor.icon.draw(ctx, this.rect.x, this.rect.y)
+            gAssets.sheets.brick.tile(12).draw(ctx, this.rect.x, this.rect.y)
         } else {
             // draw a quarter of the brick
             this.particles.forEach(p => {
@@ -3552,12 +3558,12 @@ export class ExplodingBrick extends MobBase {
 
     }
 }
-//ExplodingBrick.sheet = null
-//ExplodingBrick.size = [16, 16]
-//ExplodingBrick.icon = null
+
 registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.item, null, (entry)=> {
     ExplodingBrick.sheet = gAssets.sheets.brick
-    ExplodingBrick.icon = gAssets.sheets.brick.tile(12)
+    entry.icon = gAssets.sheets.brick.tile(12)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class Creeper extends MobBase {
@@ -3725,13 +3731,12 @@ export class Creeper extends MobBase {
         this.destroy()
     }
 }
-Creeper.sheet = null
-Creeper.size = [16, 16]
-Creeper.icon = null
 
 registerEditorEntity("Creeper", Creeper, [16,16], EntityCategory.small_mob, null, (entry)=> {
     Creeper.sheet = gAssets.sheets.creeper
-    Creeper.icon = makeEditorIcon(Creeper.sheet)
+    entry.icon = makeEditorIcon(Creeper.sheet)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class CreeperV2 extends MobBase {
@@ -3851,13 +3856,12 @@ export class CreeperV2 extends MobBase {
         //this.destroy()
     }
 }
-CreeperV2.sheet = null
-CreeperV2.size = [16, 16]
-CreeperV2.icon = null
 
 registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, null, (entry)=> {
     CreeperV2.sheet = gAssets.sheets.ruler
-    CreeperV2.icon = makeEditorIcon(CreeperV2.sheet)
+    entry.icon = CreeperV2.sheet.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class Shredder extends MobBase {
@@ -3988,13 +3992,12 @@ export class Shredder extends MobBase {
 
     }
 }
-Shredder.sheet = null
-Shredder.size = [16, 16]
-Shredder.icon = null
 
 registerEditorEntity("Shredder", Shredder, [16,16], EntityCategory.small_mob, null, (entry)=> {
     Shredder.sheet = gAssets.sheets.shredder
-    Shredder.icon = makeEditorIcon(Shredder.sheet)
+    entry.icon = makeEditorIcon(Shredder.sheet)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class Coin extends PlatformerEntity {
@@ -4058,13 +4061,12 @@ export class Coin extends PlatformerEntity {
         }
     }
 }
-Coin.sheet = null
-Coin.size = [16, 16]
-Coin.icon = null
 
 registerEditorEntity("Coin", Coin, [16,16], EntityCategory.item, null, (entry)=> {
     Coin.sheet = gAssets.sheets.coin
-    Coin.icon = gAssets.sheets.coin.tile(0)
+    entry.icon = gAssets.sheets.coin.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 class TextTyper {
@@ -4259,40 +4261,29 @@ export class HelpFlower extends MobBase {
     _kill2() {
     }
 }
-HelpFlower.sheet = null
-HelpFlower.size = [32, 32]
-HelpFlower.icon = null
-HelpFlower.editorIcon = (props) => {
-    let tid = 0
-    return gAssets.sheets.help_flower.tile(tid)
-}
-HelpFlower.editorSchema = [
-    {control: EditorControl.TEXT, "property": "helpText"},
-]
 
 registerEditorEntity("HelpFlower", HelpFlower, [32,32], EntityCategory.small_mob, null, (entry)=> {
     HelpFlower.sheet = gAssets.sheets.help_flower
-    HelpFlower.icon = makeEditorIcon(HelpFlower.sheet)
+    entry.icon = makeEditorIcon(HelpFlower.sheet)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        return gAssets.sheets.help_flower.tile(tid)
+    }
+    entry.editorSchema = [
+        {control: EditorControl.TEXT, "property": "helpText"},
+    ]
 })
+
 
 export class EquipmentItem extends MobBase {
 
 }
-EquipmentItem.sheet = null
-EquipmentItem.size = [16, 16]
-EquipmentItem.icon = null
-EquipmentItem.editorIcon = (props) => {
-    let tid = 0
-    return gAssets.sheets.brick.tile(tid)
-}
-EquipmentItem.editorSchema = [
-    {control: EditorControl.TEXT, "property": "helpText"},
-    //{name: str, default: value, choices: list-or-map}
-]
 
 registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], EntityCategory.item, null, (entry)=> {
     EquipmentItem.sheet = gAssets.sheets.brick
-    EquipmentItem.icon = gAssets.sheets.brick.tile(0)
+    entry.icon = gAssets.sheets.brick.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
 })
 
 export class Flipper extends Slope {
@@ -4423,38 +4414,35 @@ export class Flipper extends Slope {
     }
 
 }
-Flipper.sheet = null
-Flipper.size = [48, 32]
-Flipper.icon = null
-Flipper.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 6;
-            break;
-        case Direction.RIGHT:
-        default:
-            tid = 2;
-            break;
-    }
-
-    return gAssets.sheets.flipper.tile(tid)
-}
-Flipper.editorSchema = [
-    {
-        control: EditorControl.CHOICE,
-        name: "direction",
-        "default": Direction.RIGHT,
-        choices: {
-            "RIGHT": Direction.RIGHT,
-            "LEFT": Direction.LEFT
-        }
-    },
-]
 
 registerEditorEntity("Flipper", Flipper, [48,32], EntityCategory.hazard, null, (entry)=> {
     Flipper.sheet = gAssets.sheets.flipper
-    Flipper.icon = makeEditorIcon(Flipper.sheet)
+    entry.icon = makeEditorIcon(Flipper.sheet)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 6;
+                break;
+            case Direction.RIGHT:
+            default:
+                tid = 2;
+                break;
+        }
+    
+        return gAssets.sheets.flipper.tile(tid)
+    }
+    entry.editorSchema = [
+        {
+            control: EditorControl.CHOICE,
+            name: "direction",
+            "default": Direction.RIGHT,
+            choices: {
+                "RIGHT": Direction.RIGHT,
+                "LEFT": Direction.LEFT
+            }
+        },
+    ]
 })
 
 export class Bumper extends PlatformerEntity {
@@ -4501,28 +4489,25 @@ export class Bumper extends PlatformerEntity {
     }
 
 }
-Bumper.sheet = null
-Bumper.size = [32, 16]
-Bumper.icon = null
-Bumper.editorIcon = (props) => {
-    let tid = 0
-    switch(props?.direction) {
-        case Direction.LEFT:
-            tid = 6;
-            break;
-        case Direction.RIGHT:
-        default:
-            tid = 2;
-            break;
-    }
-
-    return gAssets.sheets.bumper.tile(tid)
-}
-Bumper.editorSchema = []
 
 registerEditorEntity("Bumper", Bumper, [32,16], EntityCategory.hazard, null, (entry)=> {
     Bumper.sheet = gAssets.sheets.bumper
-    Bumper.icon = makeEditorIcon(Bumper.sheet)
+    entry.icon = makeEditorIcon(Bumper.sheet)
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 6;
+                break;
+            case Direction.RIGHT:
+            default:
+                tid = 2;
+                break;
+        }
+    
+        return gAssets.sheets.bumper.tile(tid)
+    }
+    entry.editorSchema = []
 })
 
 export class WaterHazard extends PlatformerEntity {
@@ -4731,8 +4716,9 @@ export class WaterHazard extends PlatformerEntity {
 
 registerEditorEntity("WaterHazard", WaterHazard, [16,16], EntityCategory.hazard, null, (entry)=> {
     WaterHazard.sheet = gAssets.sheets.ruler
-    WaterHazard.icon = makeEditorIcon(WaterHazard.sheet)
-    WaterHazard.editorSchema = [
+    entry.icon = WaterHazard.sheet.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = [
         {control: EditorControl.RESIZE, "min_width": 32, "min_height": 32},
     ]
     /*WaterHazard.editorIcon = (props) => {
@@ -4750,21 +4736,70 @@ registerEditorEntity("WaterHazard", WaterHazard, [16,16], EntityCategory.hazard,
     }*/
 })
 
-export function registerEntityAssets() {
+export class Bridge extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
 
-    defaultEntities.forEach(entry => {
-        entry.onLoad(entry)
-    })
+        this.rect = new Rect(props.x, props.y, props.width, props.height)
+        this.visible = 1
+        this.solid = 1
+    }
 
-    editorEntities.forEach(entry => {
-        entry.onLoad(entry)
-        if (entry.icon === null) {
-            console.log("fix oldstyle entity", entry.name)
-            entry.icon = entry.ctor.icon
-            entry.editorIcon = entry.ctor.editorIcon
-            entry.editorSchema = entry.ctor.editorSchema
+    paint(ctx) {
+        ctx.strokeStyle = '#0000cc7f'
+        ctx.fillStyle = '#0000cc7f'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        for(let x=this.rect.x; x < this.rect.right(); x+=16) {
+            gAssets.sheets.ruler.tile(0).draw(ctx, x, this.rect.y)
         }
-    })
+        ctx.stroke()
+    }
+
+    update(dt) {
+    }
+
 }
+
+registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.hazard, null, (entry)=> {
+    Bridge.sheet = gAssets.sheets.ruler
+    entry.icon = Bridge.sheet.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {control: EditorControl.RESIZE, "min_width": 48, "min_height": 16},
+        {control: EditorControl.CHOICE, name: "opened", "default": 1, choices: {opened:1,closed:0}}
+    ]
+
+})
+
+export class Stamp extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+
+        this.rect = new Rect(props.x, props.y, props.width, props.height)
+        this.visible = 1
+        this.solid = 0
+    }
+
+    paint(ctx) {
+        ctx.strokeStyle = '#0000cc7f'
+        ctx.fillStyle = '#0000cc7f'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        gAssets.sheets.ruler.tile(0).draw(ctx, this.rect.x, this.rect.y)
+        ctx.stroke()
+    }
+
+    update(dt) {
+    }
+
+}
+
+registerEditorEntity("Stamp", Stamp, [16,16], EntityCategory.stamp, null, (entry)=> {
+    Stamp.sheet = gAssets.sheets.ruler
+    entry.icon = Stamp.sheet.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+
+
 
 

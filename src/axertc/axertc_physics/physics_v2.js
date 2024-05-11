@@ -53,6 +53,8 @@ export class Physics2dPlatformV2 {
         this.standing_frame = -1;
         this.pressing_frame = -1;
 
+        this.oneblock_walk = config.oneblock_walk??0
+
         this.gravityboost = false // more gravity when button not pressed
         this.doublejump = false
         this.doublejump_position = {x:0, y: 0} // animation center
@@ -74,6 +76,8 @@ export class Physics2dPlatformV2 {
 
         this.speed = {x:0, y:0}
         this.accum = {x:0, y:0}
+
+        this._x_prev_summary = {standing: false}
     }
 
     _init_gravity(config) {
@@ -147,7 +151,10 @@ export class Physics2dPlatformV2 {
 
     _update_neighborhood() {
         let rect = this.target.rect
-        this._neighborhood = new Rect(rect.x - 8, rect.y - 8, rect.w + 16, rect.h + 16);
+        // todo: neighborhood size must be bigger for oneblock_walk
+        // was an 8px border
+        // needs to be at least 16px for oneblock walk
+        this._neighborhood = new Rect(rect.x - 24, rect.y - 24, rect.w + 48, rect.h + 48);
         this._neighbors = this.group().filter(ent => ent.rect.collideRect(this._neighborhood))
         this._fluid_neighbors = this.fluid_group().filter(ent => ent.rect.collideRect(this._neighborhood))
     }
@@ -441,7 +448,7 @@ export class Physics2dPlatformV2 {
             if (ent.entid == this.target.entid) { return }
             if (ent.isSolid) { if (!ent.isSolid(this.target)) { return }}
 
-            // TODO: a potentail optimization is to store the collision data in the class
+            // TODO: a potential optimization is to store the collision data in the class
             // if a sensor has collided, there is no reason to run that test again
 
             if (ent.collidePoint(sensors.f.x, sensors.f.y)) { 
@@ -450,19 +457,54 @@ export class Physics2dPlatformV2 {
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
 
+            
+
             if (ent.collidePoint(sensors.fn.x, sensors.fn.y)) { 
                 collisions.fn = true; 
                 //console.log("press f", ent._classname)
-                if (ent.onPress) {ent.onPress(this.target, {x:dx, y:dy})}
+                if (ent.onPress) {
+                    ent.onPress(this.target, {x:dx, y:dy})
+                    // this helps with pushing crates
+                    collisions.fn = ent.collidePoint(sensors.fn.x, sensors.fn.y)
+                }
             }
             if (ent.collidePoint(sensors.tn.x, sensors.tn.y)) { collisions.tn = true }
             if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
+
+            // todo: investigate speed profiles and one block walk.
+            // set a requirement of being max speed, or 90% max speed,
+            // todo: investigate one block walk for all directions, not just horizontal
+            if (this._enable_oneblock_walk && Math.abs(this.speed.x) > this.speed_profiles[0].speed && !collisions.b) {
+                if (ent.collidePoint(sensors.b.x+Math.sign(this.speed.x)*16, sensors.b.y)) { 
+                    collisions.b1 = collisions.b
+                    collisions.b = true 
+                    collisions.b2 = true 
+                } else {
+                    collisions.b1 = false
+                }
+            }
+
+            // todo: investigate speed profiles and one block walk.
+            // set a requirement of being max speed, or 90% max speed,
+            // todo: investigate one block walk for all directions, not just horizontal
+            if (this._enable_oneblock_walk && Math.abs(this.speed.x) > this.speed_profiles[0].speed && !collisions.bn) {
+                if (ent.collidePoint(sensors.bn.x+Math.sign(this.speed.x)*16, sensors.bn.y)) { 
+                    collisions.bn1 = collisions.b
+                    collisions.bn = true 
+                    collisions.bn2 = true 
+                } else {
+                    collisions.bn1 = false
+                }
+            }
+
 
             if (ent.collidePoint(sensors.s1.x, sensors.s1.y)) { collisions.s1 = true }
             if (ent.collidePoint(sensors.s2.x, sensors.s2.y)) { collisions.s2 = true }
             if (ent.collidePoint(sensors.g1.x, sensors.g1.y)) { collisions.g1 = true }
 
         })
+
+        this._x_step_collisions = collisions; //fixme _step/collisions
 
         let step = this._lut_step[this.standing_direction]
 
@@ -509,12 +551,12 @@ export class Physics2dPlatformV2 {
         if ((standing && !bonk && collisions.bn)) {
             // step in the forward direction
             //console.log("step fd")
-            if (collisions.s1 && collisions.s2) {
+            // !b covers the walking case, and walking with oneblock walk active
+            if (!collisions.b && collisions.s1 && collisions.s2) {
                 return 1
             }
             this.target.rect.x += dx
             this.target.rect.y += dy
-            //console.log(__LINE__, "standing step")
             return 1
         }
 
@@ -595,7 +637,7 @@ export class Physics2dPlatformV2 {
             let y2 = this.target.rect.cy()
             //console.log("delta", tmp, Math.abs(x2-x1), Math.abs(y2-y2))
 
-            return 0
+            return 1
         }
 
         // todo check if next rect is valid
@@ -646,7 +688,6 @@ export class Physics2dPlatformV2 {
             if (!bonk) {
                 this.target.rect.x += dx
                 this.target.rect.y += dy
-                console.log("", __LINE__)
             }
             return 1
         }
@@ -678,6 +719,7 @@ export class Physics2dPlatformV2 {
         //dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
         //console.log(dbgs)
         if (!standing) {
+            console.log(__LINE__)
             return 1
         }
 
@@ -738,12 +780,13 @@ export class Physics2dPlatformV2 {
     step(dx, dy) {
         const sensors = this._step_get_sensors(dx, dy)
         let rv = this._step(sensors, dx, dy)
-        console.log("step", rv)
     }
 
     update(dt) {
 
         this.frame_index += 1
+
+        this._enable_oneblock_walk = this.oneblock_walk && this._x_prev_summary.standing
 
         this._update_neighborhood()
 
@@ -765,13 +808,28 @@ export class Physics2dPlatformV2 {
         let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
 
         let sensors = this._step_get_sensors(0, 0)
-        let collisions = {}
+        let collisions = {b:false,t:false,f:false}
 
         this._neighbors.forEach(ent => {
             if (ent.entid == this.target.entid) { return }
             if (ent.isSolid) { if (!ent.isSolid(this.target)) { return; }}
 
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
+
+            // todo: investigate speed profiles and one block walk.
+            // set a requirement of being max speed, or 90% max speed,
+            // todo: investigate one block walk for all directions, not just horizontal
+            if (this._enable_oneblock_walk && Math.abs(this.speed.x) > this.speed_profiles[0].speed && !collisions.b) {
+                
+                if (ent.collidePoint(sensors.b.x+Math.sign(this.speed.x)*16, sensors.b.y)) { 
+                    collisions.b1 = collisions.b
+                    collisions.b = true 
+                    collisions.b2 = true 
+                } else {
+                    collisions.b1 = false
+                }
+            }
+
             //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
         })
@@ -792,6 +850,12 @@ export class Physics2dPlatformV2 {
         // check if not standing and apply gravity
         if (!collisions.b && this.next_rect === null) {
             // fall / jump
+            /*
+            console.log("falling", 
+                Math.floor(this.target.rect.x)%16, 
+                Math.floor(this.target.rect.y)%16, 
+                collisions, Object.keys(this._neighbors).length)
+            */
 
             let step = this._lut_step[this.standing_direction]
             let gforce;
@@ -843,6 +907,10 @@ export class Physics2dPlatformV2 {
             if (this.standing_direction == Direction.LEFT  && this.speed.x < 0) { this.speed.x = 0 }
             if (this.standing_direction == Direction.RIGHT && this.speed.x > 0) { this.speed.x = 0 }
 
+        }
+
+        this._x_prev_summary = {
+            standing: collisions.b
         }
 
         //---------------------------------------
@@ -979,10 +1047,7 @@ export class Physics2dPlatformV2 {
             v.y = (this.standing_direction&Direction.UPDOWN)?0:s;
             let k
 
-            
-
             while (n > 0) {
-
 
                 if (this.next_rect !== null) {
                     k = this._step_target()
@@ -1000,8 +1065,13 @@ export class Physics2dPlatformV2 {
                     // TODO: cancel momentum on a collision
                     // TODO: report if pressing in to an object
                     k = this._step(sensors, v.x, v.y)
-
-                    
+                    //console.log(this._x_step_collisions)
+                    if (this._x_step_collisions.fn) {
+                        console.log("move break")
+                        this.accum[sym.h] = 0
+                        this.speed[sym.h] = 0
+                        break;
+                    }
 
                     this.accum[sym.h] -= s*k
                     n -= k
@@ -1102,6 +1172,8 @@ export class Physics2dPlatformV2 {
         let rising = this.is_rising()
         let falling = !collisions.b && !rising
         let pressing = collisions.fn
+
+        
 
         if (falling) {
             if (pressing) {
