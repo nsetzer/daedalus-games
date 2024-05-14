@@ -78,6 +78,7 @@ export class Physics2dPlatformV2 {
         this.accum = {x:0, y:0}
 
         this._x_prev_summary = {standing: false}
+        this._x_step_collisions = {fn:false}
     }
 
     _init_gravity(config) {
@@ -1067,7 +1068,7 @@ export class Physics2dPlatformV2 {
                     k = this._step(sensors, v.x, v.y)
                     //console.log(this._x_step_collisions)
                     if (this._x_step_collisions.fn) {
-                        console.log("move break")
+                        //console.log("move break")
                         this.accum[sym.h] = 0
                         this.speed[sym.h] = 0
                         break;
@@ -1121,22 +1122,28 @@ export class Physics2dPlatformV2 {
                 n -= 1
                 let sensors = this._step_get_sensors(0, 0)
                 // check if standing again
+                this._x_step_collisions.b = false
+                this._x_step_collisions.t = false
                 this._neighbors.forEach(ent => {
                     if (ent.entid == this.target.entid) { return }
                     if (ent.isSolid) { if (!ent.isSolid(this.target)) { return }}
 
                     if (ent.collidePoint(sensors.b.x, sensors.b.y)) { 
                         collisions.b = true; 
+                        this._x_step_collisions.b = true
                         //console.log("press d", ent._classname, s)
                         if (ent.onPress) {ent.onPress(this.target, {[sym.v]:s, [sym.h]:0})}
                     }
                     //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
                     if (ent.collidePoint(sensors.t.x, sensors.t.y)) { 
                         collisions.t = true; 
+                        this._x_step_collisions.t = true
                         //console.log("press u", ent._classname) 
                         if (ent.onPress) {ent.onPress(this.target, {[sym.v]:s, [sym.h]:0})}
                     }
                 })
+
+
             }
 
             if (collisions.b) {

@@ -2855,6 +2855,7 @@ registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.hazard, null, (en
     ]
 })
 
+// TODO: create separate spawner for flies which can spawn 1-5 flies
 export class Spawn extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -2947,6 +2948,9 @@ export class Spawn extends PlatformerEntity {
                 if (objs.length < 3) {
 
                     // create a dummy object
+                    // TODO: create, then move to be centered up/down
+                    // or aligned bottom for left/right
+                    // TODO: allow selecting what gets spawned
                     const props = {x: this.rect.x + 8, y:this.rect.y + 8}
                     this.spawn_target = new Creeper(-1, props)
                 }
@@ -2958,7 +2962,7 @@ export class Spawn extends PlatformerEntity {
             this.spawn_target.rect.y += this.spawn_dy * dt
             if (this.spawn_check()) {
                 let rect = this.spawn_target.rect
-                const props = {x: rect.x, y: rect.y}
+                const props = {x: Math.floor(rect.x), y: Math.floor(rect.y)}
                 // replace the dummy with a real object
                 // this is closer to the correct behavior in multiplayer
                 this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
@@ -3570,19 +3574,17 @@ export class Creeper extends MobBase {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 14)
+        this.visible = true
+        this.solid = 0
 
         this.animation = new AnimationComponent(this)
-        this.visible = true
 
-        this.breakable = 0
-        this.solid = 1
-
-        this.physics = new Physics2dPlatform(this,{
+        this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 35,
             xmaxspeed2: 35, // 35 seems right
         })
 
-        this.physics.direction = Direction.LEFT
+        this.physics.moving_direction = Direction.LEFT
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
@@ -3641,7 +3643,19 @@ export class Creeper extends MobBase {
 
     }
 
-    collide(other, dx, dy) {
+    _x_onPress(other, vector) {
+        //console.log(other._classname, vector)
+
+        if (other instanceof Player && vector.y > 0) {
+            other._bounce()
+            console.log("bounce")
+            this.solid = 0
+            this._kill2()
+        }
+
+    }
+
+    _x_collide(other, dx, dy) {
 
         let rect = other.rect
         let update = rect.copy()
@@ -3693,25 +3707,48 @@ export class Creeper extends MobBase {
         //ctx.fill()
 
 
-        //ctx.font = "bold 16px";
-        //ctx.fillStyle = "yellow"
-        //ctx.strokeStyle = "yellow"
-        //ctx.textAlign = "left"
-        //ctx.textBaseline = "top"
-        //ctx.fillText(`${this.physics.speed.x} ${this.physics.direction}`, this.rect.x, this.rect.y);
+        /*
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        let s3 = this.physics._x_prev_summary.standing
+        ctx.fillText(`${Math.floor(this.physics.speed.y)} ${this.physics.moving_direction} ${s3}`, this.rect.x, this.rect.y-12);
+        */
     }
 
     update(dt) {
         if (!this.character.frozen && this.character.alive) {
             this.physics.update(dt)
+
+            let objs = this._x_debug_map.queryObjects({"className": "Player"})
+            if (objs.length > 0) {
+                let player = objs[0]
+
+                if (this.rect.collideRect(player.rect)) {
+                    if (player.physics.speed.y > 0 && player.rect.bottom() < this.rect.cy()) {
+                        player._bounce()
+                        this._kill2()
+                    } else {
+                        player.character.hit()
+                    }
+                }
+
+            }
+
         }
+
         this.character.update(dt)
-        if (this.physics.xcollide) {
-            //console.log(this.physics.speed.x, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
-            this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
-            this.animation.setAnimationById(this.animations.run[this.physics.direction])
+        this.solid = this.character.frozen
+
+        if (this.physics._x_step_collisions.fn) {
+            this.physics.moving_direction = (this.physics.moving_direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+            this.animation.setAnimationById(this.animations.run[this.physics.moving_direction])
             this.physics.speed.x = 0
             this.physics.xaccum = 0
+            //console.log(this.physics.speed.x, this.physics.moving_direction)
+            this.physics._x_step_collisions.fn = 0
         }
         this.animation.update(dt)
 
@@ -3862,6 +3899,192 @@ registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, 
     entry.icon = CreeperV2.sheet.tile(0)
     entry.editorIcon = null
     entry.editorSchema = []
+})
+
+export class Flyer extends MobBase {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 14)
+        this.visible = true
+        this.solid = 0
+
+        this.animation = new AnimationComponent(this)
+
+        this.physics = new Physics2dPlatformV2(this,{
+            xmaxspeed1: 35,
+            xmaxspeed2: 35, // 35 seems right
+            gravity: 0
+        })
+
+        this.physics.speed.x = -35
+        this.physics.speed.y = 20
+
+
+        this.physics.moving_direction = Direction.LEFT
+
+        this.physics.group = () => {
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+        }
+
+
+        this.buildAnimations()
+    }
+
+    buildAnimations() {
+
+        let spf = 1/16
+        let xoffset = - 2
+        let yoffset = - 6
+
+        this.animations = {
+            "idle":{},
+            "run":{},
+            "wall_slide":{},
+            "jump":{},
+            "fall":{},
+            "hit":{},
+            "ball":{},
+            "dead":{},
+            "dead2":{}
+        }
+
+        let sheet = Creeper.sheet
+        let ncols = sheet.cols
+        let nrows = sheet.rows
+        let aid;
+
+        aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
+        this.animations["idle"][Direction.RIGHT] = aid
+
+        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2, 0*ncols+1, 0*ncols+0, 0*ncols+3, 0*ncols+4, 0*ncols+3], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2, 1*ncols+1, 1*ncols+0, 1*ncols+3, 1*ncols+4, 1*ncols+3], spf, {xoffset, yoffset})
+        this.animations["run"][Direction.RIGHT] = aid
+
+        this.animations["dead"][Direction.NONE] = this.animation.register(
+            sheet,
+            [3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
+            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+
+        // flat then poof
+        this.animations["dead2"][Direction.NONE] = this.animation.register(
+            sheet,
+            [3*ncols+0, 3*ncols+0, 3*ncols+0, 3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
+            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
+
+        this.animation.setAnimationById(this.animations.run[Direction.LEFT])
+
+    }
+
+  
+
+    paint(ctx) {
+        //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
+
+        this.animation.paint(ctx)
+
+        //ctx.fillStyle = "red"
+        //ctx.beginPath()
+        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //ctx.closePath()
+        //ctx.fill()
+
+        /*
+        ctx.font = "bold 16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        let s3 = this.physics._x_prev_summary.standing
+        ctx.fillText(`${this.physics.speed.x.toFixed(2)}, ${this.physics.speed.y.toFixed(2)}`, this.rect.x, this.rect.y-12);
+        ctx.fillText(`${this.physics.accum.x.toFixed(2)}, ${this.physics.accum.y.toFixed(2)}`, this.rect.x, this.rect.y);
+        */
+    }
+
+    update(dt) {
+        if (!this.character.frozen && this.character.alive) {
+            this.physics.update(dt)
+            //console.log(this.physics.speed.x.toFixed(2), this.physics.speed.y.toFixed(2))
+
+            let objs = this._x_debug_map.queryObjects({"className": "Player"})
+            if (objs.length > 0) {
+                let player = objs[0]
+                if (this.rect.collideRect(player.rect)) {
+                    player.character.hit()
+                }
+            }
+
+            if (this.physics._x_step_collisions.fn) {
+                this.physics.xaccum = 0
+                if (this.physics.moving_direction == Direction.LEFT) {
+                    this.physics.moving_direction = Direction.RIGHT
+                    this.physics.speed.x = 35
+                } else {
+                    this.physics.moving_direction = Direction.LEFT
+                    this.physics.speed.x = -35
+                }
+                this.physics.accum.x = 0
+                this.animation.setAnimationById(this.animations.run[this.physics.moving_direction])
+                //console.log(this.physics.speed.x, this.physics.moving_direction)
+                this.physics._x_step_collisions.fn = 0
+            }
+
+            if (this.physics._x_step_collisions.b) {
+                // note: top and bottom trigger twice
+                // first time sets the direction, but depending on the speed
+                // a  single frame may not accumulate enough delta
+                // eventually the accumulator passes 1, and a step is made, but
+                // this will still trigger once more
+                // => toggling direction on collision won't work in general because of this
+                this.physics.speed.y = -20
+                //this.physics.accum.y = 0
+                //console.log(this.physics.speed.x, this.physics.moving_direction)
+                this.physics._x_step_collisions.b = 0
+            }
+    
+            if (this.physics._x_step_collisions.t) {
+                this.physics.speed.y = 20
+                //this.physics.accum.y = 0
+                this.physics._x_step_collisions.t = 0
+            }
+
+        }
+
+        this.character.update(dt)
+        this.solid = this.character.frozen
+
+        this.animation.update(dt)
+
+    }
+
+    _kill() {
+        this.character.alive = false
+        this.animation.setAnimationById(this.animations["dead"][Direction.NONE])
+    }
+
+    onDeathAnimationEnd() {
+        this.destroy()
+    }
+}
+
+registerEditorEntity("Flyer", Flyer, [16,16], EntityCategory.small_mob, null, (entry)=> {
+    Flyer.sheet = gAssets.sheets.creeper
+    entry.icon = makeEditorIcon(Flyer.sheet)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {
+            control: EditorControl.CHOICE,
+            name: "direction",
+            "default": Direction.RIGHT,
+            choices: {
+                "RIGHT": Direction.RIGHT,
+                "LEFT": Direction.LEFT
+            }
+        },
+    ]
 })
 
 export class Shredder extends MobBase {

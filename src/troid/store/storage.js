@@ -73,7 +73,7 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.POWER
+        this.element = WeaponType.ELEMENT.ICE
         this.beam = WeaponType.BEAM.NORMAL
         this.level = WeaponType.LEVEL.LEVEL1
         this.modifier = WeaponType.MODIFIER.CHARGE

@@ -2027,7 +2027,7 @@ export class LevelEditScene extends GameScene {
                     if (this.active_tool == EditorTool.PLACE_OBJECT) {
                         let page = this.object_pages[this.objmenu_current_page]
                         let obj = page.objects[this.objmenu_current_object]
-                        let icon = obj?.ctor?.icon
+                        let icon = obj?.icon
                         if (!!icon) {
                             icon.draw(ctx, x+1, y+1)
                         }
@@ -2460,7 +2460,7 @@ export class LevelEditScene extends GameScene {
                 // select the resize schema
                 let resizeable = entry.editorSchema && entry.editorSchema.filter(schema => schema.control == EditorControl.RESIZE)
 
-                if (!!resizeable) {
+                if (resizeable.length==1) {
                     let schema = resizeable[0]
 
                     let ox = 16*(oid%512)

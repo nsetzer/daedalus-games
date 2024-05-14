@@ -168,7 +168,7 @@ export class Physics2dPlatform {
                     } else if (dx < 0 && this.target.rect.left() >= ent.rect.right()) {
                         ndx = Math.max(dx, ent.rect.right() - this.target.rect.left())
                     } else {
-                        console.log("no x bonk")
+                        //console.log("no x bonk")
                        // throw {message: "no x bonk"}
                     }
 
@@ -227,7 +227,7 @@ export class Physics2dPlatform {
                         //console.log("bonk t", ent.entid, this.speed.y, xmoved, dy, this.target.rect.top(), ent.rect.bottom())
                         ndy = Math.max(dy, ent.rect.bottom() - 1 - this.target.rect.top())
                     } else {
-                        console.log("no y bonk")
+                        //console.log("no y bonk")
                         //throw {message: "no bonk"}
                     }
 
