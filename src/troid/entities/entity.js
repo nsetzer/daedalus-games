@@ -1385,6 +1385,7 @@ export class Player extends PlatformerEntity {
 
         this.charge_duration = 0.0
         this.charge_timeout = 1.1
+        this.charge_count = 1.1
         this.charging = false
 
         this.jump_pressed = false
@@ -1731,6 +1732,40 @@ export class Player extends PlatformerEntity {
         this.animation.setAnimationById(aid, frame_id)
     }
 
+
+    _chargeTimeout() {
+        let timeout = this.charge_timeout
+        if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
+
+            let factor = 0.6
+
+            if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+                factor = 0.2
+            }
+
+            if (gCharacterInfo.element == WeaponType.ELEMENT.POWER) {
+                factor = 0.33
+            }
+
+            if (gCharacterInfo.element == WeaponType.ELEMENT.ICE) {
+                factor = 0.75
+            }
+
+            // slowly increase the speed
+            factor = factor *(5 - this.charge_count)/5
+            
+            timeout = timeout*factor
+        }
+
+        return timeout
+
+    }
+    
+    _chargePower() {
+        let power = this.charge_duration / this.charge_timeout
+        return power
+    }
+    
     update(dt) {
 
         if (this.spawning) {
@@ -1767,20 +1802,14 @@ export class Player extends PlatformerEntity {
             }
 
             if (!this._beam && gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
-                let factor = 0.6
-                if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
-                    factor = 0.2
-                }
-                if (gCharacterInfo.element == WeaponType.ELEMENT.POWER) {
-                    factor = 0.33
-                }
-                if (gCharacterInfo.element == WeaponType.ELEMENT.ICE) {
-                    factor = 0.75
-                }
-                let timeout = this.charge_timeout*factor
+                
+                let timeout = this._chargeTimeout()
                 // TODO: timeout should depend on element (power faster, ice slower)
                 //       or special weapon. lazer types don't need this feature
                 if (this.charge_duration > timeout) {
+                    if (this.charge_count < 3) {
+                        this.charge_count += 1
+                    }
                     this._shoot(0)
                     this.charge_duration -= timeout
                 }
@@ -1960,6 +1989,7 @@ export class Player extends PlatformerEntity {
                     let charge_sound = null
                     if (gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL) {
                         this.charging = true
+                        this.charge_count = 0
 
                         charge_sound = gAssets.sounds.fireBeamCharge
                     }
@@ -1983,7 +2013,8 @@ export class Player extends PlatformerEntity {
                         charge_sound.play()
                     }
                 } else {
-                    let power = this.charge_duration / this.charge_timeout
+                    
+                    let power = this._chargePower()
                     this.charge_duration = 0.0
                     this.charging = false
                     if (!!this._beam) {
@@ -1995,7 +2026,6 @@ export class Player extends PlatformerEntity {
                     }
 
                     if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
-                        console.log("shot power", power)
                         this._shoot(power)
                     } else {
                         if (!!this._beam) {
@@ -2856,6 +2886,10 @@ registerEditorEntity("Spikes", Spikes, [16,16], EntityCategory.hazard, null, (en
 })
 
 // TODO: create separate spawner for flies which can spawn 1-5 flies
+// TODO: be able to spawn crates.
+// TODO: tag entities, count the number of entities with the spawn id
+//       set a maximum that a spawn can create at one time. 1-5
+//       if the count of tagged entities is below this, spawn a new one
 export class Spawn extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -3783,17 +3817,23 @@ export class CreeperV2 extends MobBase {
 
         this.visible = true
 
-        this.solid = 1
+        this.solid = 0
 
-        this.physics = new Physics2dPlatformV2(this, {wallwalk: true})
+        this.physics = new Physics2dPlatformV2(this, {
+            xmaxspeed1: 35,
+            xmaxspeed2: 35, // 35 seems right
+            wallwalk: true
+        })
         // todo init as 'clockwise' or 'counter-clockwise' then set the direction
         // once the standing direction is determined
         this.physics.moving_direction = Direction.RIGHT
-        this.physics.moving_speed = 45
+        this.physics.moving_speed = 35
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && ent instanceof PlatformBase})
         }
+
+        this.animation = {}
         //this.buildAnimations()
     }
 
@@ -3866,8 +3906,18 @@ export class CreeperV2 extends MobBase {
 
         if (!this.character.frozen && this.character.alive) {
             this.physics.update(dt)
+
+            let objs = this._x_debug_map.queryObjects({"className": "Player"})
+            if (objs.length > 0) {
+                let player = objs[0]
+                if (this.rect.collideRect(player.rect)) {
+                    player.character.hit()
+                }
+            }
+
         }
         this.character.update(dt)
+        this.solid = this.character.frozen
         //if (this.physics.xcollide) {
         //    //console.log(this.physics.speed.x, this.rect.left(), this.physics.xcollisions.map(ent => ent.ent.rect.right()))
         //    this.physics.direction = (this.physics.direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT

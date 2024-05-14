@@ -37,6 +37,7 @@ jumpspeed = - sqrt(2*H*g)
 
 */
 
+// TODO: v3: no gravity, 2 sensors for x and y direction
 export class Physics2dPlatformV2 {
 
     static maprect = new Rect(0,0,0,0);
@@ -613,6 +614,7 @@ export class Physics2dPlatformV2 {
                 this.target.rect.w,
                 this.target.rect.h
             )
+            //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, "set next rect")
 
             // probably need to do 4 tests
             //neighbors.forEach(ent => {
@@ -759,8 +761,10 @@ export class Physics2dPlatformV2 {
 
         if (dx != 0 || dy != 0) {
             // consume 1.4 velocity units because it traveled on a diagonal
+            //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, {v,dx,dy})
             return v==2?1.4:1
         }
+
         if (dx == 0 && dy ==0) {
             this.next_rect = null
         }
@@ -1052,6 +1056,7 @@ export class Physics2dPlatformV2 {
 
                 if (this.next_rect !== null) {
                     k = this._step_target()
+                    //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, this.accum[sym.h], s, k, n)
                     this.accum[sym.h] -= s*k
                     n -= k
                 } else {
@@ -1067,25 +1072,43 @@ export class Physics2dPlatformV2 {
                     // TODO: report if pressing in to an object
                     k = this._step(sensors, v.x, v.y)
                     //console.log(this._x_step_collisions)
-                    if (this._x_step_collisions.fn) {
-                        //console.log("move break")
-                        this.accum[sym.h] = 0
-                        this.speed[sym.h] = 0
-                        break;
-                    }
+                    
 
                     this.accum[sym.h] -= s*k
                     n -= k
 
+                    
+
                     if (sdir != this.standing_direction) {
-                        this.accum.x = 0
-                        this.accum.y = 0
-                        this.speed.x = 0
-                        this.speed.y = 0
+                        //if (this.target._classname == "CreeperV2") {
+                        //    console.log("move break 2", this.speed, this.accum, Direction.name[this.moving_direction])
+                        //}
+                        // preserve forward momentum
+                        // Note: this cancels vertical momentum
+                        let sy=0, sx=0;
+                        if (this.moving_direction == Direction.UP   ) {sy = -1}
+                        if (this.moving_direction == Direction.DOWN ) {sy =  1}
+                        if (this.moving_direction == Direction.RIGHT) {sx =  1}
+                        if (this.moving_direction == Direction.LEFT ) {sx = -1}
+
+                        // swap x and y and apply the correct sign to continue traveling
+                        // in the new direction at the same speed
+                        [this.accum.x,this.accum.y] = [sx*Math.abs(this.accum.y),sy*Math.abs(this.accum.x)]
+                        [this.speed.x,this.speed.y] = [sx*Math.abs(this.speed.y),sy*Math.abs(this.speed.x)]
                         // TODO: figure out the rotation to keep going
                         // e.g. standing up to standing left is a 90 degree rotation
                         //      the vector (-1, 0) becomes (0, 1)
                         // the question is: does the accumulation vector also rotate?
+                        break;
+                    } else if (this._x_step_collisions.fn && !this.next_rect) {
+                        //if (this.target._classname == "CreeperV2") {
+                        //    console.log("move break 1")
+                        //    //gEngine.paused=true
+                        //}
+                        // cancel forward momentum when running into a wall
+                        // when wall walking, preserve that momentum instead
+                        this.accum[sym.h] = 0
+                        this.speed[sym.h] = 0
                         break;
                     }
                 }

@@ -650,7 +650,7 @@ export class CanvasEngine extends DomElement {
             // reduce the frequency that the fps updates when displayed
             this.fps_timer -= 1
             if (this.fps_timer <= 0) {
-                this.fps = Math.floor(1.0/this.spt_b)
+                this.fps = Math.round(1.0/this.spt_b)
                 this.fps_timer = 30
             }
 

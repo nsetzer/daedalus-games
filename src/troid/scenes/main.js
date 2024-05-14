@@ -562,9 +562,9 @@ export class MainScene extends GameScene {
             align: Alignment.LEFT|Alignment.BOTTOM,
             //symbols: ["W", "D", "S", "A"],
         })
-        this.touch.addButton(120, -40, 32, {text: "Z"})
-        this.touch.addButton(40, -120, 32, {text: "X"})
-        this.touch.addButton(40, -40, 32, {text: "C"})
+        this.touch.addButton(120, -40, 40, {text: "Z"})
+        this.touch.addButton(40, -120, 40, {text: "X"})
+        this.touch.addButton(40, -40, 40, {text: "C"})
 
         this.keyboard.addWheel_ArrowKeys()
 
@@ -622,18 +622,42 @@ export class MainScene extends GameScene {
         ctx.rect(gEngine.view.width/2 - 18, barHeight/2 - 9, 18, 18);
         ctx.stroke();
 
-        for (let i=0; i < 3; i++) {
+        for (let i=0; i < 12; i++) {
             ctx.beginPath();
             ctx.fillStyle = "pink";
             ctx.strokeStyle = "purple";
-            ctx.lineWidth = 2;
-            ctx.rect(12 + 24*i, barHeight/2 - 6, 12, 12);
+            ctx.lineWidth = 1;
+            ctx.rect(12 + 8*i, barHeight/2 - 6, 4, 8);
             ctx.fill();
             ctx.stroke();
         }
 
+        ctx.beginPath();
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "silver";
+        ctx.lineWidth = 1;
+        ctx.rect(12, barHeight/2 - 6 + 10, 8*12 - 4, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "gold";
+        let d = this.map.map._x_player.charge_duration
+        let m = this.map.map._x_player._chargeTimeout()
+        let p = Math.min(1.0, d/m)
+        ctx.beginPath();
+        ctx.rect(12+1, barHeight/2 - 6 + 10+1, p*(8*12 - 6), 2);
+        ctx.fill();
+
+
+        // draw the hamburger menu
         gAssets.sheets.editor.drawTile(ctx, 2*8+2, gEngine.view.width - 20, 4)
 
+        ctx.font = "6pt";
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "right"
+        ctx.textBaseline = "middle"
+        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 20, 4+8);
 
     }
 
@@ -758,13 +782,7 @@ export class MainScene extends GameScene {
             this.touch.paint(ctx)
         }
 
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "white"
-        ctx.strokeStyle = "white"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "middle"
-
-        ctx.fillText(`${gEngine.fps}`, 8 + 3*24 + 16, 12);
+        
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
         //ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
 
