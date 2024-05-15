@@ -577,6 +577,7 @@ export class MainScene extends GameScene {
 
         this.dialog = null // something that implements paint(ctx), update(dt), dismiss()
 
+        this.coin_icon = gAssets.sheets.coin.tile(0)
     }
 
     pause(paused) {
@@ -648,16 +649,42 @@ export class MainScene extends GameScene {
         ctx.rect(12+1, barHeight/2 - 6 + 10+1, p*(8*12 - 6), 2);
         ctx.fill();
 
+        this.coin_icon.draw(ctx, 8*13+12, 4)
+        
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "white"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        ctx.fillText(`x${gCharacterInfo.coins}`, 8*13+16+12, 4+8+1);
 
         // draw the hamburger menu
         gAssets.sheets.editor.drawTile(ctx, 2*8+2, gEngine.view.width - 20, 4)
 
-        ctx.font = "6pt";
+        // draw a map
+        let x = gEngine.view.width - 24 - 25
+        let y = 2
+        ctx.strokeStyle = '#aaaaaa'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        for (let i=0; i<=25; i+=5) {
+            ctx.moveTo(x+i, y);
+            ctx.lineTo(x+i, y+20);
+        }
+        for (let j=0; j<=20; j+=4) {
+            ctx.moveTo(x,    y+j);
+            ctx.lineTo(x+25, y+j);
+        }
+        ctx.moveTo(x, y)
+        ctx.rect(x,y,25,20)
+        ctx.stroke()
+
+        ctx.font = "6px Arial";
         ctx.fillStyle = "white"
         ctx.strokeStyle = "white"
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
-        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 20, 4+8);
+        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64, 4+8);
 
     }
 

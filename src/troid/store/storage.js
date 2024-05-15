@@ -73,10 +73,11 @@ WeaponType.MODIFIER = WeaponModifierType
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.ICE
+        this.element = WeaponType.ELEMENT.FIRE
         this.beam = WeaponType.BEAM.NORMAL
-        this.level = WeaponType.LEVEL.LEVEL1
-        this.modifier = WeaponType.MODIFIER.RAPID
+        this.level = WeaponType.LEVEL.LEVEL3
+        this.modifier = WeaponType.MODIFIER.NORMAL
+        this.coins = 0
 
         // where to spawn the player when they die
         this.current_map_spawn = {world_id:"",level_id:0,door_id:0}
