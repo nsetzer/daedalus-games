@@ -1,21 +1,14 @@
-import { gCharacterInfo } from "@troid/store"
-
+import { Physics2dPlatformV2, PlatformerEntity, Wall, Slope, OneWayWall, AnimationComponent } from "@axertc/axertc_physics"
+import { MapInfo, gAssets, gCharacterInfo, WeaponType } from "@troid/store"
  
-$import("axertc_common", {
-    CspMap, ClientCspMap, ServerCspMap, fmtTime
+import {
+    CspMap, ClientCspMap, ServerCspMap, fmtTime,
     Direction, Alignment, Rect,
-})
+} from "@axertc/axertc_common"
 
-$import("axertc_physics", {
-    Physics2dPlatform, PlatformerEntity, Wall, Slope, OneWayWall,
-    AnimationComponent
-})
-
-$import("store", {MapInfo, gAssets, gCharacterInfo, WeaponType})
-
-$import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {Player})
-$import("maps", {PlatformMap})
+import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
+import {Player} from "@troid/entities"
+import {PlatformMap} from "@troid/maps"
 
 class CspController {
     constructor(map) {
@@ -227,8 +220,8 @@ class Camera extends CameraBase {
         if (x < -input_border) { x = -input_border}
         //if (y < -32) { y = -32 }
 
-        let mx = Physics2dPlatform.maprect.w - gEngine.view.width + input_border
-        let my = Physics2dPlatform.maprect.h - gEngine.view.height
+        let mx = Physics2dPlatformV2.maprect.w - gEngine.view.width + input_border
+        let my = Physics2dPlatformV2.maprect.h - gEngine.view.height
         if (x > mx) { x = mx }
         if (y > my) { y = my }
 
@@ -619,11 +612,27 @@ export class MainScene extends GameScene {
         ctx.rect(0,0, gEngine.view.width, barHeight)
         ctx.fill()
 
-        ctx.beginPath();
-        ctx.strokeStyle = "gold";
-        ctx.lineWidth = 3;
-        ctx.rect(gEngine.view.width/2 - 18, barHeight/2 - 9, 18, 18);
-        ctx.stroke();
+        if (true) {
+            let x = gEngine.view.width/2 - 12
+            let y = barHeight/2 - 9
+            gAssets.sheets.pause_items.tile((0 * 3) + 2).draw(ctx, x, y)
+            gAssets.sheets.pause_items.tile((0 * 3) + 0).draw(ctx, x+24, y)
+
+            ctx.beginPath();
+            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+                ctx.strokeStyle = "#CD7F32";
+            }
+            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
+                ctx.strokeStyle = "#C0C0C0";
+            }
+            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
+                ctx.strokeStyle = "#FFD700";
+            }
+            
+            ctx.lineWidth = 3;
+            ctx.rect(x, y, 20, 18);
+            ctx.stroke();
+        }
 
         let max_health = 12
 

@@ -171,8 +171,8 @@ export class Bullet extends ProjectileBase {
         this.rect = new Rect(props?.x??0 - 1, props?.y??0 - 1, 2, 2)
         this.split = props?.split??1
         this.color = props?.color??0
-        this.physics = new Physics2dPlatform(this,{
-            slope_walk: false,
+        this.physics = new Physics2dPlatformV2(this,{
+            /*slope_walk: false,*/
         })
         this.physics.gravity = 0
         this.physics.xfriction = 0
@@ -332,7 +332,7 @@ export class Bullet extends ProjectileBase {
             }
         }
 
-        if (!!this.physics.collide) {
+        if (this.physics._x_step_collisions.b||this.physics._x_step_collisions.t||this.physics._x_step_collisions.fn) {
             this._kill()
         }
 
@@ -511,8 +511,7 @@ export class BubbleBullet extends ProjectileBase {
             base_speed = 60
         }
 
-        this.physics = new Physics2dPlatform(this)
-        this.physics.gravity = 0
+        this.physics = new Physics2dPlatformV2(this, {gravity: 0})
         this.physics.xfriction = 0
 
         if (this.wave) {
@@ -662,7 +661,7 @@ export class BubbleBullet extends ProjectileBase {
                 //}
             }
 
-            if (!this.bounce && this.physics.collide) {
+            if (!this.bounce && (this.physics._x_step_collisions.b||this.physics._x_step_collisions.t||this.physics._x_step_collisions.fn)) {
                 this._kill()
             }
 
@@ -672,7 +671,7 @@ export class BubbleBullet extends ProjectileBase {
                     console.log(ent)
                 }
                 if (this.rect.collideRect(ent.rect)) {
-                    ent.hit({element: this.element, level:this.level, power:this.power, dot: false})
+                    ent.hit(this, {element: this.element, level:this.level, power:this.power, dot: false})
                     this._kill()
                 }
             }
@@ -745,7 +744,7 @@ export class BounceBullet extends ProjectileBase {
         this.element = props?.element??WeaponType.ELEMENT.POWER
         this.power = props?.power??0
 
-        this.physics = new Physics2dPlatform(this,{
+        this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 200,
             xmaxspeed2: 200,
             jumpheight: 20,
@@ -860,11 +859,11 @@ export class BounceBullet extends ProjectileBase {
                 }
             }
 
-            if (this.physics.standing) {
+            if (this.physics._x_step_collisions.b) {
             this._bounce()
             }
 
-            if (this.physics.xcollide) {
+            if (this.physics._x_step_collisions.fn) {
                 this._kill()
             }
 
@@ -1347,14 +1346,10 @@ export class Player extends PlatformerEntity {
         this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
         this.playerId = props?.playerId??null
 
-        this.physics = 1 ? new Physics2dPlatformV2(this,{
+        this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
             xmaxspeed2: 175,
             oneblock_walk: true
-        }) : new Physics2dPlatform(this,{
-                xmaxspeed1: 150,
-                xmaxspeed2: 175,
-                oneblock_walk: true
         })
 
         this.visible = true
@@ -1905,7 +1900,16 @@ export class Player extends PlatformerEntity {
                 if (this.morphed && payload.direction == Direction.UP) {
                     this._unmorph()
                     this._updateAnimation()
+                } else if (this.morphed && payload.direction == Direction.DOWN) {
+                    //
+                    this.physics.can_wallwalk = !this.physics.can_wallwalk 
+                    if (!this.physics.can_wallwalk) {
+                        this.physics.standing_direction = Direction.DOWN
+                    }
+                    console.log("todo: toggle spider ball")
                 } else if (!this.morphed && payload.direction == Direction.DOWN) {
+                    this.physics.can_wallwalk = false
+                    this.physics.standing_direction = Direction.DOWN
                     this._morph()
                     this._updateAnimation()
                 }
@@ -1923,7 +1927,19 @@ export class Player extends PlatformerEntity {
             // TODO: remove
             //this.physics.direction = Direction.fromVector(payload.vector.x, 0)
             // TODO V2
-            this.physics.moving_direction = Direction.fromVector(payload.vector.x, 0) 
+            if (this.physics.standing_direction == Direction.DOWN) {
+                this.physics.moving_direction = Direction.fromVector(payload.vector.x, 0)
+            }
+            if (this.physics.standing_direction == Direction.RIGHT) {
+                this.physics.moving_direction = Direction.fromVector(0, -payload.vector.x)
+            }
+            if (this.physics.standing_direction == Direction.LEFT) {
+                this.physics.moving_direction = Direction.fromVector(0, payload.vector.x)
+            }
+            if (this.physics.standing_direction == Direction.UP) {
+                this.physics.moving_direction = Direction.fromVector(-payload.vector.x, 0)
+            }
+             
             //console.log("set movement", payload.vector.x, this.physics.moving_direction)
 
             // TODO: facing for v2, is not part of physics?
@@ -1942,6 +1958,13 @@ export class Player extends PlatformerEntity {
             } else {
                 this.looking_up = false
             }
+
+            console.log("move",{
+                vector: payload.vector,
+                standing_direction: Direction.name[this.physics.standing_direction],
+                moving_direction: Direction.name[this.physics.moving_direction],  
+            })
+
             // const maxspeed = 90
 
             //if (payload.vector.x > 0.3535) {
@@ -2034,6 +2057,10 @@ export class Player extends PlatformerEntity {
             }
 
         } else {
+            console.log({
+                standing_direction: Direction.name[this.physics.standing_direction],
+                moving_direction: Direction.name[this.physics.moving_direction],  
+            })
             console.log(payload)
         }
     }

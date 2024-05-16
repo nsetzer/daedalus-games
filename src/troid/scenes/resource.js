@@ -22,6 +22,9 @@
 //  place unpositioned levels along the bottom in way that
 //  that does not overlap
 //
+
+import { Physics2dPlatformV2 } from "@axertc/axertc_physics"
+
  
 $import("axertc_client", {
     GameScene,
@@ -40,10 +43,6 @@ const RES_ROOT = "static"
 $import("store", {MapInfo, gAssets, SoundEffectPalette})
 $import("maps", {PlatformMap})
 $import("entities", {registerEntityAssets, editorEntities})
-
-$import("axertc_physics", {
-    Physics2dPlatform
-})
 
 //https://gist.github.com/nektro/84654b5183ddd1ccb7489607239c982d
 if (!('createImageBitmap' in window)) {
@@ -711,8 +710,7 @@ class MapBuilder {
         gAssets.map = this.map
 
         // TODO 4 tile gutter in the -y direction
-        Physics2dPlatform.maprect = new Rect(0, 0, gAssets.mapinfo.width, gAssets.mapinfo.height)
-        console.log(gAssets.mapinfo.width, gAssets.mapinfo.height,Physics2dPlatform.maprect)
+        Physics2dPlatformV2.maprect = new Rect(0, -64, gAssets.mapinfo.width, gAssets.mapinfo.height+64)
 
         this.createObject = (t, p) => {return this.map.createObject(this.map._x_nextEntId(), t, p)}
 

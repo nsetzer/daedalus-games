@@ -361,7 +361,7 @@ export class CanvasEngine extends DomElement {
         this.view.availWidth = availWidth
         this.view.availHeight = availHeight
 
-        // detect if the new resolution is full scren
+        // detect if the new resolution is full screen
         if (daedalus.platform.isMobile) {
             this.view.fullscreen = !!document.fullscreenElement
         } else {

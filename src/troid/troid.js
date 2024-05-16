@@ -57,7 +57,7 @@ export default class Application extends ApplicationBase {
 
         super({
             portrait: 0,
-            fullscreen: 0,
+            fullscreen: 1,
             screen_width: 12*32,
             screen_height: 7*32
         }, () => {

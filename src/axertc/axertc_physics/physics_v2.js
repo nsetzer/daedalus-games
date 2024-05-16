@@ -525,6 +525,10 @@ export class Physics2dPlatformV2 {
         let bonk =  collisions.t || collisions.fn || collisions.tn
         let standing = collisions.b
 
+        //if (this.target._classname == 'Player') {
+        //    console.log({wallwalk: this.can_wallwalk, standing, bonk, collisions})
+        //}
+
         if (standing && !bonk && collisions.s1 && !collisions.s2) {
             // TODO: only step up on even frames otherwise don't move?
             //       to simulate slowly going up hill?
@@ -580,10 +584,11 @@ export class Physics2dPlatformV2 {
         }
 
 
+        //move to walk off the 'cliff'
         // todo check if next rect is valid
         if (this.can_wallwalk && standing && !collisions.bn && !collisions.t) {
             //console.log("rotate 2")
-            //move to walk off the 'cliff'
+            
             // it's a cliff from the perspective of the current downwards direction
 
             //let ta, tmp
@@ -643,10 +648,10 @@ export class Physics2dPlatformV2 {
             return 1
         }
 
+        // move to walk up a 'wall'
         // todo check if next rect is valid
         if (this.can_wallwalk && standing && collisions.bn && !collisions.t && collisions.fn) {
 
-            // move to walk up a 'wall'
             // it's a wall from the perspective of the current downwards direction
             //let ta, tmp
             //for (let i=0; i < lut3.length; i++) {
@@ -722,15 +727,14 @@ export class Physics2dPlatformV2 {
         //dbgs += ` t=${d_collide_next[lut.t]} f=${d_collide_next[lut.f]}`
         //console.log(dbgs)
         if (!standing) {
-            console.log(__LINE__)
             return 1
         }
 
         throw {
             "error": "error",
             dx, dy, next: this.next_rect, standing, bonk,
-            standing: Direction.name[this.standing_direction],
-            moving: Direction.name[this.moving_direction],
+            standing_direction: Direction.name[this.standing_direction],
+            moving_direction: Direction.name[this.moving_direction],
             sensors,
             collisions}
     }
@@ -767,6 +771,11 @@ export class Physics2dPlatformV2 {
 
         if (dx == 0 && dy ==0) {
             this.next_rect = null
+
+            if (this.target._classname == 'Player') {
+                console.log({speed:this.speed})
+            }
+
         }
 
         return 0
@@ -984,6 +993,10 @@ export class Physics2dPlatformV2 {
                 if (this.speed.y < -profile.speed) {
                     this.speed.y += this.xfriction * dt
                 }
+                /*
+                if (this.target._classname == 'Player') {
+                    console.log("!!", this.speed.y, this.xfriction)
+                }*/
             }
             else if (this.moving_direction == Direction.DOWN) {
                 // multi stage acceleration
@@ -1021,7 +1034,7 @@ export class Physics2dPlatformV2 {
             if (Math.abs(this.speed[sym.h]) < this.xfriction * dt) {
                 this.speed[sym.h] = 0
             } else {
-                this.speed.x -= Math.sign(this.speed.x) * this.xfriction * dt
+                this.speed[sym.h] -= Math.sign(this.speed[sym.h]) * this.xfriction * dt
             }
         }
 
@@ -1174,6 +1187,24 @@ export class Physics2dPlatformV2 {
             }
 
         }
+
+        //---------------------------------------
+        // bounds check
+        if (Physics2dPlatformV2.maprect.w) {
+            if (this.target.rect.x < Physics2dPlatformV2.maprect.x) {
+                this.target.rect.x = Physics2dPlatformV2.maprect.x
+            }
+            if (this.target.rect.y < Physics2dPlatformV2.maprect.y) {
+                this.target.rect.y = Physics2dPlatformV2.maprect.y
+            }
+            if (this.target.rect.x > Physics2dPlatformV2.maprect.w-this.target.rect.w) {
+                this.target.rect.x = Physics2dPlatformV2.maprect.w-this.target.rect.w
+            }
+            if (this.target.rect.y > Physics2dPlatformV2.maprect.h-this.target.rect.h) {
+                this.target.rect.y = Physics2dPlatformV2.maprect.h-this.target.rect.h
+            }
+        }
+
 
         //---------------------------------------
         // summarize state
