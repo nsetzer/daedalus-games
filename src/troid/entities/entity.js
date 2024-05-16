@@ -3674,58 +3674,6 @@ export class Creeper extends MobBase {
 
     }
 
-    _x_onPress(other, vector) {
-        //console.log(other._classname, vector)
-
-        if (other instanceof Player && vector.y > 0) {
-            other._bounce()
-            console.log("bounce")
-            this.solid = 0
-            this._kill2()
-        }
-
-    }
-
-    _x_collide(other, dx, dy) {
-
-        let rect = other.rect
-        let update = rect.copy()
-
-        //if (dx > 0 && rect.right() <= this.rect.left()) {
-        //    update.set_right(this.rect.left())
-        //    return update
-        //}
-
-        //if (dx < 0 && rect.left() >= this.rect.right()) {
-        //    update.set_left(this.rect.right())
-        //    return update
-        //}
-
-        //TODO: wider collision on head the head
-        if (dy > 0 && rect.bottom() <= this.rect.top()) {
-
-            if (!this.character.frozen) {
-                if (other instanceof Player) {
-                    other._bounce()
-                    this._kill2()
-                    return null
-                }
-            } else {
-                update.set_bottom(this.rect.top())
-                return update
-            }
-
-        }
-
-        //if (dy < 0 && rect.top() >= this.rect.top()) {
-        //    //this.destroy()
-        //    update.set_top(this.rect.bottom())
-        //    return update
-        //}
-
-        return null
-    }
-
     paint(ctx) {
         //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
 

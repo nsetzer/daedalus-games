@@ -78,6 +78,8 @@ export class CharacterInfo {
         this.level = WeaponType.LEVEL.LEVEL3
         this.modifier = WeaponType.MODIFIER.NORMAL
         this.coins = 0
+        this.current_health = 3
+        this.max_health = 12
 
         // where to spawn the player when they die
         this.current_map_spawn = {world_id:"",level_id:0,door_id:0}

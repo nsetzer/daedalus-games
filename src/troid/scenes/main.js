@@ -1,3 +1,5 @@
+import { gCharacterInfo } from "@troid/store"
+
  
 $import("axertc_common", {
     CspMap, ClientCspMap, ServerCspMap, fmtTime
@@ -623,10 +625,20 @@ export class MainScene extends GameScene {
         ctx.rect(gEngine.view.width/2 - 18, barHeight/2 - 9, 18, 18);
         ctx.stroke();
 
-        for (let i=0; i < 12; i++) {
+        let max_health = 12
+
+        for (let i=0; i < gCharacterInfo.max_health; i++) {
             ctx.beginPath();
-            ctx.fillStyle = "pink";
-            ctx.strokeStyle = "purple";
+            if (i < gCharacterInfo.current_health) {
+                //ctx.fillStyle = "pink";
+                //ctx.strokeStyle = "purple";
+                ctx.fillStyle = "purple";
+                ctx.strokeStyle = "pink";
+            } else {
+                ctx.fillStyle = "white";
+                ctx.strokeStyle = "silver";
+            }
+            
             ctx.lineWidth = 1;
             ctx.rect(12 + 8*i, barHeight/2 - 6, 4, 8);
             ctx.fill();
@@ -637,7 +649,7 @@ export class MainScene extends GameScene {
         ctx.fillStyle = "white";
         ctx.strokeStyle = "silver";
         ctx.lineWidth = 1;
-        ctx.rect(12, barHeight/2 - 6 + 10, 8*12 - 4, 4);
+        ctx.rect(12, barHeight/2 - 6 + 10, 8*max_health - 4, 4);
         ctx.fill();
         ctx.stroke();
 
@@ -646,10 +658,10 @@ export class MainScene extends GameScene {
         let m = this.map.map._x_player._chargeTimeout()
         let p = Math.min(1.0, d/m)
         ctx.beginPath();
-        ctx.rect(12+1, barHeight/2 - 6 + 10+1, p*(8*12 - 6), 2);
+        ctx.rect(12+1, barHeight/2 - 6 + 10+1, p*(8*max_health - 6), 2);
         ctx.fill();
 
-        this.coin_icon.draw(ctx, 8*13+12, 4)
+        this.coin_icon.draw(ctx, 8*(max_health+1)+12, 4)
         
         ctx.font = "12px Arial";
         ctx.fillStyle = "white"
