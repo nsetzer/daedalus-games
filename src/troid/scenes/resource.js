@@ -276,7 +276,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("coin")
             .path(RES_ROOT + "/sprites/coin.png")
             .dimensions(16, 16)
-            .layout(1, 7)
+            .layout(3, 7)
             .offset(0, 0)
             .spacing(0, 0)
 

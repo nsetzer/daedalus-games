@@ -2561,16 +2561,12 @@ export class Crate extends PlatformerEntity {
     }
 
     onPress(other, vector) {
-        console.log(other._classname, vector)
-        
-        
 
         if (vector.x != 0) {
             this.physics.step(vector.x, 0)
 
             this.physics.moving_direction = Direction.fromVector(vector.x, 0)
             this.moving_timer = .1
-            console.log("move", vector.x)
 
             //this.physics.speed.x = 60 * vector.x
             //this.physics.moving_direction = Direction.fromVector(vector.x, 0)
@@ -2600,7 +2596,6 @@ export class Crate extends PlatformerEntity {
         this.physics.update(dt)
 
         if (this.moving_timer > 0) {
-            console.log("move update", this.moving_timer)
             this.moving_timer -= dt
             if (this.moving_timer <= 0) {
                 this.physics.moving_direction = Direction.NONE
@@ -4315,23 +4310,20 @@ registerEditorEntity("Shredder", Shredder, [16,16], EntityCategory.small_mob, nu
     entry.editorSchema = []
 })
 
-export class Coin extends PlatformerEntity {
-    constructor(entid, props) {
+class CoinBase extends PlatformerEntity {
+    constructor(entid, props, color, value) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
-        this.value = 1
+        this.value = value
+        this.color = color
 
-        if (!Coin.tiles) {
-            Coin.tiles = Coin.sheet.tiles()
-        }
+        this.tiles = gAssets.sheets.coin.tiles().slice(color*Coin.sheet.cols, (color+1)*Coin.sheet.cols)
+        console.log(this.tiles, color*Coin.sheet.cols, (color+1)*Coin.sheet.cols)
     }
 
     paint(ctx) {
-
-        let i = Math.floor(gEngine.frameIndex / 6) % Coin.tiles.length
-        Coin.sheet.drawTile(ctx, Coin.tiles[i], this.rect.x, this.rect.y)
-        //Coin.icon.draw(ctx, this.rect.x, this.rect.y)
-
+        let i = Math.floor(gEngine.frameIndex / 6) % this.tiles.length
+        Coin.sheet.drawTile(ctx, this.tiles[i], this.rect.x, this.rect.y)
     }
 
     update(dt) {
@@ -4379,9 +4371,42 @@ export class Coin extends PlatformerEntity {
     }
 }
 
+export class Coin extends CoinBase {
+    constructor(entid, props) {
+        super(entid, props, 0, 1);
+    }
+}
+
+export class CoinRed extends CoinBase {
+    constructor(entid, props) {
+        super(entid, props, 1, 10);
+    }
+}
+
+
+export class CoinBlue extends CoinBase {
+    constructor(entid, props) {
+        super(entid, props, 2, 25);
+    }
+}
+
 registerEditorEntity("Coin", Coin, [16,16], EntityCategory.item, null, (entry)=> {
     Coin.sheet = gAssets.sheets.coin
     entry.icon = gAssets.sheets.coin.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+
+registerEditorEntity("CoinRed", CoinRed, [16,16], EntityCategory.item, null, (entry)=> {
+    Coin.sheet = gAssets.sheets.coin
+    entry.icon = gAssets.sheets.coin.tile(1*Coin.sheet.cols)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+
+registerEditorEntity("CoinBlue", CoinBlue, [16,16], EntityCategory.item, null, (entry)=> {
+    Coin.sheet = gAssets.sheets.coin
+    entry.icon = gAssets.sheets.coin.tile(2*Coin.sheet.cols)
     entry.editorIcon = null
     entry.editorSchema = []
 })
