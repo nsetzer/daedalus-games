@@ -533,14 +533,23 @@ export class CanvasEngine extends DomElement {
                 while (this.delta_accum > dt) {
                     this.delta_accum -= dt
                     this.spt_b = this.updateTimer()
-                    this.scene.update(dt)
+                    try {
+                        this.scene.update(dt)
+                    } catch (error) {
+                        console.error(error);
+                        return;
+                    }
                     n += 1;
                 }
                 const p2 = performance.now()
                 if (n > 0) {
                     this.spt_c = this.frameTimer()
-                    this.renderFrame();
-
+                    try {
+                        this.renderFrame();
+                    } catch (error) {
+                        console.error(error);
+                        return;
+                    }
                 }
                 const p3 = performance.now()
                 //this.timings = [p2-p1,p3-p2]

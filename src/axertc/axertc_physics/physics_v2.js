@@ -120,11 +120,12 @@ export class Physics2dPlatformV2 {
         this.speed_profile_current = 0
 
         this.xfriction = this.xmaxspeed1 / .5 // stop moving in .1 seconds
-        //this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
         //this.xacceleration2 = (this.xmaxspeed1 - this.xmaxspeed1a) / 1
+
 
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
+        this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
         this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
          // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
 
@@ -226,6 +227,7 @@ export class Physics2dPlatformV2 {
         let hw = Math.floor(this.target.rect.w/2)
         let hh = Math.floor(this.target.rect.h/2)
 
+        console.log("init lut", this.target._classname, {hw, hh})
         // look up table for walking off a cliff, which changes the standing direction
 
         /*
@@ -435,15 +437,15 @@ export class Physics2dPlatformV2 {
         //       The current rectangle class returns right = x + w
 
         const collisions = {
-            f: false,
-            t: false,
-            b: false,
-            fn: false,
-            tn: false,
-            bn: false,
-            s1: false,
-            s2: false,
-            g1: false,
+            f: false,       // facing direction, within the body
+            t: false,       // head within body
+            b: false,       // feet within body
+            fn: false,      // f + one step 'forward'
+            tn: false,      // t + one step 'forward'
+            bn: false,      // b + one step 'forward'
+            s1: false,      // slope, one step 'up' from the ground
+            s2: false,      // slope, one step 'up' from s1
+            g1: false,      // ground level
         }
 
         this._neighbors.forEach(ent => {
@@ -459,15 +461,13 @@ export class Physics2dPlatformV2 {
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
 
-            
-
             if (ent.collidePoint(sensors.fn.x, sensors.fn.y)) { 
                 collisions.fn = true; 
                 //console.log("press f", ent._classname)
                 if (ent.onPress) {
                     ent.onPress(this.target, {x:dx, y:dy})
                     // this helps with pushing crates
-                    collisions.fn = ent.collidePoint(sensors.fn.x, sensors.fn.y)
+                    //collisions.fn = ent.collidePoint(sensors.fn.x, sensors.fn.y)
                 }
             }
             if (ent.collidePoint(sensors.tn.x, sensors.tn.y)) { collisions.tn = true }
@@ -522,7 +522,8 @@ export class Physics2dPlatformV2 {
         //while (this.trails[1].length > 48) { this.trails[1].shift() }
         //while (this.trails[2].length > 48) { this.trails[2].shift() }
 
-        let bonk =  collisions.t || collisions.fn || collisions.tn
+        // TODO: revist including s2 in the bonk. it does prevent walking through solid walls
+        let bonk =  collisions.t || collisions.fn || collisions.tn || collisions.s2
         let standing = collisions.b
 
         //if (this.target._classname == 'Player') {
@@ -605,6 +606,18 @@ export class Physics2dPlatformV2 {
                 return 1;
             }
 
+            /*
+            if (this.target._classname == 'Player') {
+                console.log("set next rect", {
+                    ...tmp,
+                    w: this.target.rect.w,
+                    h: this.target.rect.h,
+                    standing: Direction.name[this.standing_direction],
+                    moving: Direction.name[this.moving_direction],  
+                }) 
+            }
+            */
+
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
             this.moving_direction = tmp.moving
@@ -613,6 +626,7 @@ export class Physics2dPlatformV2 {
             // in order to support objects that are not square and 16x16
             //let x1 = this.target.rect.cx()
             //let y1 = this.target.rect.cy()
+
             let next_rect = new Rect(
                 this.target.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x)/8)*8,
                 this.target.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y)/8)*8,
@@ -629,6 +643,8 @@ export class Physics2dPlatformV2 {
             //}
 
             this.next_rect = next_rect
+            this.prev_rect = new Rect(this.target.rect.x, this.target.rect.y, this.target.rect.w, this.target.rect.h)
+
 
             //this.rect.x += dx
             //this.rect.y += dy
@@ -771,11 +787,6 @@ export class Physics2dPlatformV2 {
 
         if (dx == 0 && dy ==0) {
             this.next_rect = null
-
-            if (this.target._classname == 'Player') {
-                console.log({speed:this.speed})
-            }
-
         }
 
         return 0
@@ -800,6 +811,8 @@ export class Physics2dPlatformV2 {
 
         this.frame_index += 1
 
+
+
         this._enable_oneblock_walk = this.oneblock_walk && this._x_prev_summary.standing
 
         this._update_neighborhood()
@@ -820,6 +833,19 @@ export class Physics2dPlatformV2 {
         }
 
         let sym = (this.standing_direction&Direction.UPDOWN)?{h:"x", v:"y"}:{h:"y", v:"x"}
+
+        // unconditional step to the target rect,
+        // use the existing horizontal speed with a minimum value
+        // this works around an acceleration bug when used down below
+        // Maybe that can be fixed instead?
+        if (this.next_rect !== null) {
+            this.accum[sym.h] += Math.min(dt * this.speed[sym.h], 1*Math.sign(this.accum[sym.h]))
+            while (Math.abs(this.accum[sym.h]) > 1 && this.next_rect !== null) {
+                let k = this._step_target()
+                this.accum[sym.h] -= Math.sign(this.accum[sym.h]) * k
+            }
+            return
+        }
 
         let sensors = this._step_get_sensors(0, 0)
         let collisions = {b:false,t:false,f:false}
@@ -1045,20 +1071,16 @@ export class Physics2dPlatformV2 {
         //---------------------------------------
         // horizontal step
 
-        if (false && this.next_rect !== null) {
-            // FIXME: take step towards target at fixed rate
-            // can this be fixed to allow reversing direction while transitioning?
-            // current fix is to disable jumping while transitioning
-            // k = this._step_target()
-        }
-
         if (true) {
 
             let dx = Math.trunc(this.accum[sym.h])
             let n = Math.abs(dx)
             let s = Math.sign(dx)
-            
 
+            if (isNaN(dx)) {
+                throw {"error": "nan", accum:this.accum, speed: this.speed}
+            }
+            
             let v = {}
             let sdir = this.standing_direction
             v.x = (this.standing_direction&Direction.UPDOWN)?s:0;
@@ -1069,6 +1091,9 @@ export class Physics2dPlatformV2 {
 
                 if (this.next_rect !== null) {
                     k = this._step_target()
+                    if (this.target._classname == "Player") {
+                        console.log(gEngine.frameIndex, "step target", k);
+                    }
                     //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, this.accum[sym.h], s, k, n)
                     this.accum[sym.h] -= s*k
                     n -= k
@@ -1234,8 +1259,6 @@ export class Physics2dPlatformV2 {
         let falling = !collisions.b && !rising
         let pressing = collisions.fn
 
-        
-
         if (falling) {
             if (pressing) {
                 this.action = "wall_slide"
@@ -1258,9 +1281,29 @@ export class Physics2dPlatformV2 {
 
     paint(ctx) {
 
+        if (true) {
+            ctx.beginPath()
+            ctx.fillStyle = "#FFFFFF64"
+            let {x,y,w,h} = this.target.rect
+            ctx.rect(x,y,w,h)
+            ctx.fill();
+        }
+        
+        if (!!this.next_rect) {
+            ctx.beginPath()
+            ctx.fillStyle = "#0000FF64"
+            let {x,y,w,h} = this.next_rect
+            ctx.rect(x,y,w,h)
+            ctx.fill();
+        }
+
         if (!!this.sensor_info && !this.next_rect) {
             const sensors = this.sensor_info.sensors
             const collisions = this.sensor_info.collisions
+
+            
+
+
             ctx.beginPath()
             ctx.fillStyle = "#FF0000"
             ctx.lineWidth = 1
@@ -1269,7 +1312,6 @@ export class Physics2dPlatformV2 {
             ctx.rect(sensors.b.x, sensors.b.y, 1, 1)
             //ctx.rect(sensors.bn.x, sensors.bn.y, 1, 1)
             //ctx.rect(sensors.g1.x, sensors.g1.y, 1, 1)
-            ctx.closePath()
             ctx.fill();
 
             //ctx.beginPath()

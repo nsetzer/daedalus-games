@@ -1696,7 +1696,17 @@ export class Player extends PlatformerEntity {
             this._beam.paint(ctx)
         }
 
-        this.physics.paint(ctx)
+        //this.physics.paint(ctx)
+
+        if (this.physics.can_wallwalk) {
+            // draw a glowing circle
+            ctx.beginPath()
+            ctx.arc(this.rect.cx(), this.rect.cy()-1, 8, 0, 2*Math.PI)
+            ctx.fillStyle = "#FF000033"
+            ctx.strokeStyle = "#FF0000"
+            ctx.fill()
+            ctx.stroke()
+        }
     }
 
     _updateAnimation() {
@@ -1763,6 +1773,13 @@ export class Player extends PlatformerEntity {
         if (this.spawning) {
             this.animation.update(dt)
             return
+        }
+
+        //
+        if (this.physics.can_wallwalk && this.physics.standing_direction != Direction.DOWN && !this.physics._x_step_collisions.b) {
+            this.physics.standing_direction = Direction.DOWN
+
+            console.log("!!fixme set moving", this.physics.moving_direction)
         }
 
         this.physics.update(dt)
@@ -1900,18 +1917,20 @@ export class Player extends PlatformerEntity {
                 if (this.morphed && payload.direction == Direction.UP) {
                     this._unmorph()
                     this._updateAnimation()
+                    console.log("toggle unmorph")
                 } else if (this.morphed && payload.direction == Direction.DOWN) {
                     //
                     this.physics.can_wallwalk = !this.physics.can_wallwalk 
                     if (!this.physics.can_wallwalk) {
                         this.physics.standing_direction = Direction.DOWN
                     }
-                    console.log("todo: toggle spider ball")
+                    console.log("toggle spider ball", {enabled: this.physics.can_wallwalk})
                 } else if (!this.morphed && payload.direction == Direction.DOWN) {
                     this.physics.can_wallwalk = false
                     this.physics.standing_direction = Direction.DOWN
                     this._morph()
                     this._updateAnimation()
+                    console.log("toggle morph")
                 }
             }
         } else if ("whlid" in payload) {
@@ -1959,11 +1978,13 @@ export class Player extends PlatformerEntity {
                 this.looking_up = false
             }
 
+            /*
             console.log("move",{
                 vector: payload.vector,
                 standing_direction: Direction.name[this.physics.standing_direction],
                 moving_direction: Direction.name[this.physics.moving_direction],  
             })
+            */
 
             // const maxspeed = 90
 
@@ -2060,6 +2081,7 @@ export class Player extends PlatformerEntity {
             console.log({
                 standing_direction: Direction.name[this.physics.standing_direction],
                 moving_direction: Direction.name[this.physics.moving_direction],  
+                physics: this.physics,
             })
             console.log(payload)
         }
@@ -2068,12 +2090,16 @@ export class Player extends PlatformerEntity {
     onMorphEnd() {
         this.rect.h = 12
         this.rect.y += 12
+        // TODO: better way to reinit lut?
+        this.physics._init_lut()
         this.morphing = false
         this.morphed = true
+        //this.physics.can_wallwalk = true
         this._updateAnimation()
     }
 
     onUnmorphEnd() {
+        this.physics.can_wallwalk = false
         this.morphing = false
         this.morphed = false
         this._updateAnimation()
@@ -2091,7 +2117,10 @@ export class Player extends PlatformerEntity {
         if (!this.morphing && this.morphed) {
             this.rect.h = 24
             this.rect.y -= 12
+            // TODO: better way to reinit lut?
+            this.physics._init_lut()
             this.morphing = true
+            this.physics.can_wallwalk = false // paranoid, sprinkled everywhere
             //this.morphed = false
             this._updateAnimation()
             gAssets.sfx.PLAYER_UNMORPH.play()
@@ -2186,6 +2215,7 @@ export class Player extends PlatformerEntity {
             //this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
             //this.physics.yaccum = 0
 
+            console.log(this.physics.pressing_direction, this.physics.xjumpspeed)
             this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.accum.x = 0
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
@@ -2224,7 +2254,7 @@ export class Player extends PlatformerEntity {
         let aid = this.animations["hit"][Direction.RIGHT]
         this.animation.setAnimationById(aid)
 
-        this.physics.direction = Direction.NONE
+        this.physics.moving_direction = Direction.NONE
         this.physics.xaccum = 0
         this.physics.speed.y = this.physics.jumpspeed
         this.physics.yaccum = 0
@@ -2532,9 +2562,15 @@ export class Crate extends PlatformerEntity {
 
     onPress(other, vector) {
         console.log(other._classname, vector)
+        
+        
 
         if (vector.x != 0) {
             this.physics.step(vector.x, 0)
+
+            this.physics.moving_direction = Direction.fromVector(vector.x, 0)
+            this.moving_timer = .1
+            console.log("move", vector.x)
 
             //this.physics.speed.x = 60 * vector.x
             //this.physics.moving_direction = Direction.fromVector(vector.x, 0)
@@ -2562,6 +2598,15 @@ export class Crate extends PlatformerEntity {
     update(dt) {
 
         this.physics.update(dt)
+
+        if (this.moving_timer > 0) {
+            console.log("move update", this.moving_timer)
+            this.moving_timer -= dt
+            if (this.moving_timer <= 0) {
+                this.physics.moving_direction = Direction.NONE
+            }
+        }
+
     }
 }
 
@@ -3368,7 +3413,7 @@ export class Door extends PlatformerEntity {
         ent.rect.y = this.rect.cy() - Math.floor(ent.rect.h/2)
         this.spawn_target = ent
         this.spawn_target.setSpawning(this.direction)
-        this.spawn_target.physics.direction = Direction.NONE
+        this.spawn_target.physics.moving_direction = Direction.NONE
         if ((this.direction&Direction.LEFTRIGHT)==0) {
             this.spawn_target.physics.facing = Direction.RIGHT
         } else {
@@ -3856,7 +3901,7 @@ export class CreeperV2 extends MobBase {
         //CreeperV2.sheet.drawTile(ctx, 0, this.rect.x, this.rect.y)
 
         this.animation.paint(ctx)
-        this.physics.paint(ctx)
+        //this.physics.paint(ctx)
         //ctx.beginPath()
         //ctx.font = "6px";
         //ctx.fillStyle = "white"

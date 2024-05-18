@@ -184,6 +184,8 @@ export class CanvasEngine extends DomElement {
         this.spt = 1/60
 
         this.frameIndex = 0
+
+        
     }
 
     elementMounted() {
@@ -624,7 +626,14 @@ export class CanvasEngine extends DomElement {
                     this.delta_accum -= dt
                     this.spt_b = this.updateTimer()
                     this.frameIndex += 1
-                    this.scene.update(dt)
+                    try {
+                        this.scene.update(dt)
+                    } catch (error) {
+                        console.error(error)
+                        console.log(error.stack)
+                        console.log("simulation paused")
+                        this.paused = true;
+                    }
                     n += 1;
                 }
 
@@ -636,7 +645,14 @@ export class CanvasEngine extends DomElement {
                 const p2 = performance.now()
                 if (n > 0) {
                     this.spt_c = this.frameTimer()
-                    this.renderFrame();
+                    try {
+                        this.renderFrame();
+                    } catch (error) {
+                        console.error(error)
+                        console.log(error.stack)
+                        console.log("simulation paused")
+                        this.paused = true;
+                    }
 
                 }
                 const p3 = performance.now()
