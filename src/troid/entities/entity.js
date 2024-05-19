@@ -168,7 +168,11 @@ EditorControl.TEXT = 8
 // adds properties to an object "width" and "height"
 // the map editor can resize instead of moving
 // the property dialog uses spin boxes to edit width and height
-EditorControl.RESIZE = 9         
+EditorControl.RESIZE = 9 
+
+// Range
+EditorControl.RANGE = 10         
+// parameters: {name: str, min, max, step:1}
 
 function random_choice(choices) {
   let index = Math.floor(Math.random() * choices.length);
@@ -4945,7 +4949,124 @@ registerEditorEntity("WindFan", WindFan, [32,16], EntityCategory.hazard, null, (
     entry.icon = makeEditorIcon(WindFan.sheet)
     entry.editorIcon = null
     entry.editorSchema = []
-    entry.editorRender = (x,y,props) => {
+    // todo: highlight the region the fan affects
+    entry.editorRender = undefined
+})
+
+export class MovingPlatformUD extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        // TODO: implement `order` and process update for moving platforms 
+        // before other objects which implement physics
+
+        this.solid = 1
+        
+        let width = props.width??32
+        let height = props.height??32 // range of travel
+        let platform_height = 16 // height of the platform
+        let offset = Math.min(props.offset??0, (height - platform_height))
+
+        this.rect = new Rect(props.x, props.y+ offset, width, platform_height)
+        this.range = new Rect(props.x, props.y, width, height)
+
+        this.speed = props.speed??16
+        this.accum = 0
+        this.direction = 1;
+    }
+
+    paint(ctx) {
+
+        // Bumper.sheet.drawTile(ctx, tid, this.rect.x, this.rect.y - 4)
+
+        ctx.beginPath()
+        ctx.fillStyle = 'blue'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+
+        let rect1 = new Rect(this.rect.x, this.rect.y-1, this.rect.w, 2)
+        ctx.beginPath()
+        ctx.fillStyle = 'yellow'
+        ctx.rect(rect1.x, rect1.y, rect1.w, rect1.h)
+        ctx.fill()
+
+        let rect2 = new Rect(this.rect.x, this.rect.bottom()-1, this.rect.w, 2)
+
+        ctx.beginPath()
+        ctx.fillStyle = 'yellow'
+        ctx.rect(rect2.x+2, rect2.y, rect2.w-4, rect2.h)
+        ctx.fill()
+
+    }
+
+    update(dt) {
+
+        this.accum += dt*this.speed
+        let delta = Math.trunc(this.accum);
+        this.accum -= delta;
+
+        if (this.rect.bottom() + delta >= this.range.bottom()) {
+            delta = this.range.bottom() - this.rect.bottom()
+            this.direction = -1
+        } 
+
+        if (this.rect.top() + delta <= this.range.top()) {
+            delta = this.range.top() - this.rect.top()
+            this.direction = 1
+        }
+
+        for (let i = 0; i < delta; i++) {
+        
+            this._x_debug_map.queryObjects({"physics": undefined}).forEach(obj => {
+                // when traveling up or down, move objects on the platform
+                let rect1 = new Rect(this.rect.x, this.rect.y-1, this.rect.w, 2)
+                if (rect1.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+                    obj.rect.y += this.direction
+                }
+
+                // TODO: not clear if this is needed?
+                // when traveling down, push objects below the platform down as well
+                /*
+                let rect2 = new Rect(this.rect.x, this.rect.bottom()-1, this.rect.w, 2)
+                if (this.direction>0 && rect2.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+                    console.log(obj._classname, "push")
+                    obj.rect.y += step
+                }
+                */
+            })
+
+            this.rect.y += this.direction
+        }
+    }
+}
+
+registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCategory.hazard, null, (entry)=> {
+    MovingPlatformUD.sheet = gAssets.sheets.bumper
+    entry.icon = makeEditorIcon(MovingPlatformUD.sheet)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {control: EditorControl.RANGE, 
+            "name": "speed",
+            "min": 16, "max": 256, 
+            "step": 8
+        },
+        {control: EditorControl.RANGE, 
+            "name": "offset",
+            "min": 0, "max": 256, 
+            "step": 16
+        },
+        {control: EditorControl.RESIZE, 
+            "name": "height",
+            "min_width": 32, "max_width": 256, 
+            "min_height": 32,
+        },
+    ]
+    
+    entry.editorRender = (ctx,x,y,props) => {
+
+        ctx.beginPath()
+        ctx.fillStyle = 'blue'
+        ctx.rect(x, y+props.offset, props.width, 16)
+        ctx.fill()
 
     }
 })

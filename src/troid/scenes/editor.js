@@ -12,30 +12,30 @@ import { TileShape } from "@troid/tiles"
 //       arrow keys move the cursor. primary fire button clicks
 //       hide when there is a real mouse event
 
-$import("daedalus", {})
-
-$import("axertc_client", {
+import {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
     ArrowButtonWidget, TouchInput, KeyboardInput
+} from "@axertc/axertc_client"
 
-})
-$import("axertc_common", {
+import  {
     CspMap, ClientCspMap, ServerCspMap, fmtTime,
     Direction, Alignment, Rect,
-})
+} from "@axertc/axertc_common"
 
-$import("axertc_physics", {
+import {
     Physics2dPlatform, PlatformerEntity, Wall, Slope, OneWayWall,
     AnimationComponent
-})
+} from "@axertc/axertc_physics"
 
-$import("store", {MapInfo, gAssets})
 
-$import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {editorEntities, EditorControl, EntityCategory})
-$import("maps", {PlatformMap})
-$import("api", {post_map_level})
+import {MapInfo, gAssets} from "@troid/store"
+
+import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
+
+import {editorEntities, EditorControl, EntityCategory} from "@troid/entities"
+import {PlatformMap} from "@troid/maps"
+import {post_map_level} from "@troid/api"
 
 
 function random_choice(choices) {
@@ -1073,6 +1073,15 @@ class ObjectPropertyEditMenu {
                         "step": 16, 
                         "min": schema.min_height??0,
                         "max": schema.max_height??0xFFFF,
+                    })
+                }
+
+                if (schema.control == EditorControl.RANGE) {
+                    this.addSpinBoxWidget({
+                        "name": schema.name, 
+                        "step": schema.step??1, 
+                        "min": schema.min??0,
+                        "max": schema.max??0xFFFF_FFFF,
                     })
                 }
 
@@ -2191,7 +2200,10 @@ export class LevelEditScene extends GameScene {
             // icon2 is a temporary hack
             // require a function (editor props) => icon
             // or default to icon
-            if (!!entry?.editorIcon) {
+
+            if (!!entry?.editorRender) {
+                entry.editorRender(ctx, x, y, obj.props)
+            } else if (!!entry?.editorIcon) {
                 entry.editorIcon(obj.props).draw(ctx, x, y)
             } else if (!!entry?.icon) {
                 entry.icon.draw(ctx, x, y)
@@ -2483,7 +2495,8 @@ export class LevelEditScene extends GameScene {
                             let b = rect.bottom()
                             let t = oy
                             rect.y = t
-                            rect.h = Math.min(min_height, b - t)
+                            console.log("!!", min_height, b - t)
+                            rect.h = Math.max(min_height, b - t)
                         } else { rect.y = oy }
                     } else if (this.selected_object_corner == Direction.UPRIGHT) {
                         if ((ox+16) >= rect.left() + min_width) {
@@ -2493,7 +2506,7 @@ export class LevelEditScene extends GameScene {
                             let b = rect.bottom()
                             let t = oy
                             rect.y = t
-                            rect.h = Math.min(min_height, b - t)
+                            rect.h = Math.max(min_height, b - t)
                         } else { rect.y = oy }
                     } else if (this.selected_object_corner == Direction.DOWNLEFT) {
                         if (ox <= rect.right() - min_width) {
@@ -2559,8 +2572,17 @@ export class LevelEditScene extends GameScene {
 
     editObject(mx, my) {
         const oid = this._getObjectId(mx, my)
-
+        
         if (!!this.map.objects[oid]) {
+
+            // move the camera so the object is within the 
+            // view on the right half of the screen
+            let x = 16*(oid%512)
+            //let y = 16*Math.floor(oid/512 - 4)
+            if (x < this.camera.x + gEngine.view.width / 2) {
+                this.camera.x = x - gEngine.view.width/2
+            }
+            
             this.active_menu = new ObjectPropertyEditMenu(this, oid)
         }
 
@@ -2612,6 +2634,10 @@ export class LevelEditScene extends GameScene {
             if (schema.control == EditorControl.RESIZE) {
                 props["width"] = schema['min_width'] ?? 1
                 props["height"] = schema['min_height'] ?? 1
+            }
+
+            if (schema.control == EditorControl.RANGE) {
+                props[schema.name] = schema['min'] ?? 0
             }
         }
 
