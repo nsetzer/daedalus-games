@@ -835,6 +835,25 @@ export class CspMap {
 
     }
 
+
+    /**
+     * Queries the objects based on the provided query.
+     * @param {Object} query - The query object containing properties to filter the objects.
+     * @returns {Array} - An array of objects that match the query.
+     * 
+     * query can contain the following properties:
+     * 
+     * className: search for objects that match the given class name
+     * instanceof: search for objects that are instances of the given class
+     * instancein: search for objects that are instances of any of the given classes
+     * property: search for objects that have a property matching a given value
+     *           if the value is undefined, then return objects that have the
+     *           property regardless of the value
+     * 
+     * queryObjects({className: "Player"})
+     * queryObjects({solid: true})
+     * queryObjects({breakable: undefined}) // find objects that implement breakable 
+     */
     queryObjects(query) {
 
         return Object.values(this.objects).filter(obj => {

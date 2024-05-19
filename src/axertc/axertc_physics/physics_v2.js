@@ -1258,6 +1258,13 @@ export class Physics2dPlatformV2 {
         let rising = this.is_rising()
         let falling = !collisions.b && !rising
         let pressing = collisions.fn
+        let standing = collisions.b
+
+        // gravity boost should only apply to the rising action
+        // after the player releases the button
+        if (standing || falling) {
+            this.gravityboost =  false
+        }
 
         if (falling) {
             if (pressing) {
