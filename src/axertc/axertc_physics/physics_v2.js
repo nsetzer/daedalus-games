@@ -227,7 +227,6 @@ export class Physics2dPlatformV2 {
         let hw = Math.floor(this.target.rect.w/2)
         let hh = Math.floor(this.target.rect.h/2)
 
-        console.log("init lut", this.target._classname, {hw, hh})
         // look up table for walking off a cliff, which changes the standing direction
 
         /*

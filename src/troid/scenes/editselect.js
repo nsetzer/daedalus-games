@@ -17,7 +17,7 @@ $import("axertc_physics", {
 $import("store", {MapInfo, gAssets})
 
 $import("tiles", {TileShape, TileProperty, updateTile, paintTile})
-$import("entities", {editorEntities})
+import {defaultEntities, editorEntities} from "@troid/entities/sys"
 $import("maps", {PlatformMap})
 
 $import("api", {get_map_world_manifest, get_map_world_level_manifest})

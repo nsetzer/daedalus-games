@@ -10,9 +10,7 @@ import {
     AnimationComponent
 } from "@axertc/axertc_physics"
 
-import {
-    defaultEntities, editorEntities
-} from "entities"
+import {defaultEntities, editorEntities} from "@troid/entities/sys"
 
 export class PlatformMap extends CspMap {
 

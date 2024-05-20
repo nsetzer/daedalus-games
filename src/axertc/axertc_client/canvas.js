@@ -310,7 +310,7 @@ export class CanvasEngine extends DomElement {
     }
 
     onClick(event) {
-        console.warn("unexpected click event")
+        //console.warn("unexpected click event")
     }
 
     onTouchStart(event) {

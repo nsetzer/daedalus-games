@@ -33,7 +33,8 @@ import {MapInfo, gAssets} from "@troid/store"
 
 import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 
-import {editorEntities, EditorControl, EntityCategory} from "@troid/entities"
+import {EditorControl} from "@troid/entities"
+import {defaultEntities, editorEntities, EntityCategory} from "@troid/entities/sys"
 import {PlatformMap} from "@troid/maps"
 import {post_map_level} from "@troid/api"
 
@@ -1870,11 +1871,11 @@ export class LevelEditScene extends GameScene {
 
         this.object_pages.forEach(page => {
             page.objects.sort((a,b) => {
-                if (a.category < b.category) return -1;
-                if (a.category > b.category) return 1;
+                if (a.category < b.category) { return -1 };
+                if (a.category > b.category) {return 1 };
                 
-                if (a.name < b.name) return -1;
-                if (a.name > b.name) return 1;
+                if (a.name < b.name) {return -1};
+                if (a.name > b.name) {return 1};
                 
                 return 0; // Objects are considered equal
             })

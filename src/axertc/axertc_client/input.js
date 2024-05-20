@@ -405,7 +405,6 @@ export class TouchInput {
         //touches = [...touches] // copy?
         // update the cache for painting
         this.touches = [...touches]
-        console.log(this.touches)
 
         /*
         TODO: something strange on android when touches are on the same vertical line

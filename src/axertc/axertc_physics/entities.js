@@ -175,7 +175,6 @@ export class Slope extends PlatformBase {
                 b -= Math.floor(this.rect.h/2)
             }
         }
-        console.log(Direction.name[this.direction], this.rect, t, r)
 
         switch (this.direction) {
 
@@ -478,7 +477,7 @@ export class Slope extends PlatformBase {
         ctx.beginPath();
         let pts = this.points;
         ctx.moveTo(pts[0].x, pts[0].y);
-        for (var i = 1; i < pts.length; i++) {
+        for (let i = 1; i < pts.length; i++) {
             ctx.lineTo(pts[i].x, pts[i].y);
         }
         ctx.closePath();

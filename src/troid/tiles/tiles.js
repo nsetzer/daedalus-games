@@ -29,26 +29,24 @@ export type Layer = { [key: number]: Tile }
 export type Layers = Layer[]
 
 
-export class TileShape {
-    static RESERVED0 = 0
-    static FULL = 1
-    static HALF = 2
-    static ONETHIRD = 3
-    static TWOTHIRD = 4
-    static RESERVED1 = 5
-    static RESERVED2 = 6
-    static ALT_FULL = 7 // theme block
-}
+export const TileShape = {}
+TileShape.RESERVED0 = 0
+TileShape.FULL = 1
+TileShape.HALF = 2
+TileShape.ONETHIRD = 3
+TileShape.TWOTHIRD = 4
+TileShape.RESERVED1 = 5
+TileShape.RESERVED2 = 6
+TileShape.ALT_FULL = 7 // theme block
 
-export class TileProperty {
-    static RESERVED = 0
-    static SOLID = 1
-    static NOTSOLID = 2
-    static ONEWAY = 3
-    static ICE = 4
-    static WATER = 5
-    static LAVA = 6
-}
+export const TileProperty = {}
+TileProperty.RESERVED = 0
+TileProperty.SOLID = 1
+TileProperty.NOTSOLID = 2
+TileProperty.ONEWAY = 3
+TileProperty.ICE = 4
+TileProperty.WATER = 5
+TileProperty.LAVA = 6
 
  
 // a tile is a {shape, property, sheet}
@@ -315,7 +313,7 @@ export function updateTile(layer:Layer, map_width:number, map_height:number, she
     } else if (tile.shape == TileShape.ALT_FULL) {
         tile.tile = TT_3_00
     } else {
-        console.log("error shape", tile.shape)
+        console.log("error shape", tile)
     }
 
     return tile_before != tile.tile

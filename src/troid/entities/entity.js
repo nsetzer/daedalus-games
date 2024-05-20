@@ -18,7 +18,6 @@ import {
     Direction, Alignment, Rect,
 } from "@axertc/axertc_common"
 
-import {SpriteSheet} from "@axertc/axertc_client"
 
 import {
     Physics2dPlatform, Physics2dPlatformV2, PlatformerEntity, PlatformBase, Wall, Slope, OneWayWall,
@@ -27,31 +26,12 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-export const EntityCategory = {
-    item: 1,
-    switches: 2,
-    hazard: 3,
-    door: 4,
-    small_mob: 5,
+import {defaultEntities, editorEntities, registerDefaultEntity, registerEditorEntity, EntityCategory, makeEditorIcon} from "@troid/entities/sys"
+import {MobCharacterComponent, MobBase} from "@troid/entities/mobs"
 
-    stamp: 9
-}
 
-// entities that can be created in a level,
-// but cannot be created in the editor
-export const defaultEntities = []
-function registerDefaultEntity(name, ctor, onLoad=null) {
-    if (onLoad === null) {
-        onLoad = ((entry) => {})
-    }
 
-    defaultEntities.push({
-        name,
-        ctor,
-        onLoad,
-        sheet: null,
-    })
-}
+
 
 /*
 class EditorEntity {
@@ -69,28 +49,6 @@ class EditorEntity {
 }
 */
 
-export const editorEntities = []
-export function registerEditorEntity(name, ctor, size, category, schema=null, onLoad=null) {
-    if (onLoad === null) {
-        onLoad = ((entry) => {})
-    }
-
-    if (schema === null) {
-        schema = []
-    }
-
-    editorEntities.push({
-        name,
-        ctor,
-        size,
-        category,
-        onLoad,
-        sheet: null,
-        icon: null,
-        editorSchema: schema,
-        editorIcon: null,
-    })
-}
 
 export function registerStamp(name, icon) {
 
@@ -114,20 +72,7 @@ export function registerEntityAssets() {
 }
 
 
-// return a new 16x16 tile icon from an existing sheet
-export const makeEditorIcon = (sheet, tid=0) => {
-    let icon = new SpriteSheet()
-    icon.tw = 16
-    icon.th = 16
-    icon.rows = 1
-    icon.cols = tid+1
-    icon.xspacing = 1
-    icon.yspacing = 1
-    icon.xoffset = 1
-    icon.yoffset = 1
-    icon.image = sheet.image
-    return icon.tile(tid)
-}
+
 
 export const EditorControl = {}
 // Choice
@@ -2766,150 +2711,6 @@ registerEditorEntity("BluePlatform", BluePlatform, [16,16], EntityCategory.switc
 })
 
 
-export class MobCharacterComponent {
-
-    constructor(target) {
-        this.target = target
-        this.health = 300
-        this.alive = true
-
-        this.frozen = false
-
-        this.hurt_timer = 0
-        this.hurt_cooldown = 0
-
-        this.freeze_timer = 0
-        this.freeze_duration = 10
-
-        this.animation_timer = 0
-        this.animation_duration = 0.2
-        this.hurt_period = this.animation_duration * 1
-
-    }
-
-    update(dt) {
-
-        if (this.freeze_timer > 0) {
-            this.freeze_timer -= dt
-            if (this.freeze_timer <= 0) {
-                this.freeze_timer = 0
-                this.frozen = false
-                this.target.animation.paused = false
-            }
-        }
-
-        if (this.hurt_timer > 0) {
-            this.hurt_timer -= dt
-            this.animation_timer += dt
-
-            if (this.animation_timer > this.animation_duration) {
-                this.animation_timer -= this.animation_duration
-            }
-
-            //if (this.hurt_timer < 0 && this.health <= 0) {
-            //    this.alive = false
-            //    console.log("set animation", this.target.animations["dead"][Direction.NONE])
-            //    this.target.setAnimationById(this.target.animations["dead"][Direction.NONE])
-            //    //this.target.destroy()
-            //}
-        }
-
-        if (this.hurt_cooldown > 0) {
-            this.hurt_cooldown -= dt
-        }
-
-    }
-
-    hit(attrs) {
-
-        // dot for attacks that deal damage over time
-        // allow every individual beam to deal damage
-        // prevent water stream from dealing damage every frame
-        if (attrs.dot) {
-            if (this.hurt_cooldown > 0 || this.health <= 0) {
-                return
-            }
-        }
-
-        if (attrs?.element == WeaponType.ELEMENT.ICE) {
-            this.frozen = true
-            this.target.animation.paused = true
-            this.freeze_timer = this.freeze_duration
-
-            this.hurt_cooldown = .25
-            this.hurt_timer = this.hurt_period
-
-        } else if (attrs.dot) {
-            // dot should have a per source cooldown
-            this.hurt_cooldown = 0.2
-            this.hurt_timer = 0.2
-            this.animation_timer = 0
-        } else {
-            this.hurt_cooldown = this.hurt_period + .25
-            this.hurt_timer = this.hurt_period
-            this.animation_timer = 0
-        }
-
-        // every enemy needs a element profile
-        // how much damage it takes from each attack element
-        // every element needs a base damage
-        const damage = 100
-        this.health -= damage
-        console.error(`hit ${gEngine.frameIndex} - ${this.target._classname} for ${damage}` )
-
-        if (this.health <= 0) {
-            this.target._kill()
-        }
-
-        this.target.animation.effect = (ctx) => {
-
-            if (this.frozen) {
-                let x;
-                let d = this.animation_duration / 2
-                x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
-                ctx.filter = `brightness(75%) hue-rotate(-90deg)`
-            } else {
-                if (this.hurt_timer <= 0) {
-                    this.target.animation.effect = null
-                }
-
-                let x;
-                let d = this.animation_duration / 2
-                x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
-                ctx.filter = `brightness(${Math.floor(100 + 100*x)}%) hue-rotate(${90*(1-x)}deg)`
-
-            }
-
-
-
-        }
-
-        //if (this.health <= 0 && !!this.target.sound_death) {
-        //    this.target.sound_death.play()
-        //} else {
-        //    this.target.sound_hit.play()
-        //}
-    }
-}
-
-export class MobBase extends PlatformerEntity {
-    constructor(entid, props) {
-        super(entid, props)
-
-        this.character = new MobCharacterComponent(this)
-    }
-
-    hit(projectile, props) {
-        // return true if the projectile collides
-        this.character.hit(props)
-        return true
-    }
-
-    _kill() {
-        this.character.alive = false
-    }
-}
-
 export class Spikes extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
@@ -3716,160 +3517,6 @@ registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.i
     entry.editorSchema = []
 })
 
-export class Creeper extends MobBase {
-    constructor(entid, props) {
-        super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 16, 14)
-        this.visible = true
-        this.solid = 0
-
-        this.animation = new AnimationComponent(this)
-
-        this.physics = new Physics2dPlatformV2(this,{
-            xmaxspeed1: 35,
-            xmaxspeed2: 35, // 35 seems right
-        })
-
-        this.physics.moving_direction = Direction.LEFT
-
-        this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
-        }
-
-
-        this.buildAnimations()
-    }
-
-    buildAnimations() {
-
-        let spf = 1/16
-        let xoffset = - 2
-        let yoffset = - 6
-
-        this.animations = {
-            "idle":{},
-            "run":{},
-            "wall_slide":{},
-            "jump":{},
-            "fall":{},
-            "hit":{},
-            "ball":{},
-            "dead":{},
-            "dead2":{}
-        }
-
-        let sheet = Creeper.sheet
-        let ncols = sheet.cols
-        let nrows = sheet.rows
-        let aid;
-
-        aid = this.animation.register(sheet, [0*ncols+0], spf, {xoffset, yoffset})
-        this.animations["idle"][Direction.LEFT] = aid
-
-        aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
-        this.animations["idle"][Direction.RIGHT] = aid
-
-        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1, 0*ncols+2, 0*ncols+1, 0*ncols+0, 0*ncols+3, 0*ncols+4, 0*ncols+3], spf, {xoffset, yoffset})
-        this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1, 1*ncols+2, 1*ncols+1, 1*ncols+0, 1*ncols+3, 1*ncols+4, 1*ncols+3], spf, {xoffset, yoffset})
-        this.animations["run"][Direction.RIGHT] = aid
-
-        this.animations["dead"][Direction.NONE] = this.animation.register(
-            sheet,
-            [3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
-            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
-
-        // flat then poof
-        this.animations["dead2"][Direction.NONE] = this.animation.register(
-            sheet,
-            [3*ncols+0, 3*ncols+0, 3*ncols+0, 3*ncols+1, 3*ncols+2, 3*ncols+3, 3*ncols+4],
-            spf, {xoffset, yoffset, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
-
-        this.animation.setAnimationById(this.animations.run[Direction.LEFT])
-
-    }
-
-    paint(ctx) {
-        //Brick.icon.draw(ctx, this.rect.x, this.rect.y)
-
-        this.animation.paint(ctx)
-
-        //ctx.fillStyle = "red"
-        //ctx.beginPath()
-        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        //ctx.closePath()
-        //ctx.fill()
-
-
-        /*
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "yellow"
-        ctx.strokeStyle = "yellow"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "top"
-        let s3 = this.physics._x_prev_summary.standing
-        ctx.fillText(`${Math.floor(this.physics.speed.y)} ${this.physics.moving_direction} ${s3}`, this.rect.x, this.rect.y-12);
-        */
-    }
-
-    update(dt) {
-        if (!this.character.frozen && this.character.alive) {
-            this.physics.update(dt)
-
-            let objs = this._x_debug_map.queryObjects({"className": "Player"})
-            if (objs.length > 0) {
-                let player = objs[0]
-
-                if (this.rect.collideRect(player.rect)) {
-                    if (player.physics.speed.y > 0 && player.rect.bottom() < this.rect.cy()) {
-                        player._bounce()
-                        this._kill2()
-                    } else {
-                        player.character.hit()
-                    }
-                }
-
-            }
-
-            if (this.physics._x_step_collisions.fn) {
-                this.physics.moving_direction = (this.physics.moving_direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
-                this.animation.setAnimationById(this.animations.run[this.physics.moving_direction])
-                this.physics.speed.x = 0
-                this.physics.xaccum = 0
-                //console.log(this.physics.speed.x, this.physics.moving_direction)
-                this.physics._x_step_collisions.fn = 0
-            }
-
-        }
-
-        this.character.update(dt)
-        this.solid = this.character.frozen
-        
-        this.animation.update(dt)
-
-    }
-
-    _kill() {
-        this.character.alive = false
-        this.animation.setAnimationById(this.animations["dead"][Direction.NONE])
-    }
-
-    _kill2() {
-        this.character.alive = false
-        this.animation.setAnimationById(this.animations["dead2"][Direction.NONE])
-    }
-
-    onDeathAnimationEnd() {
-        this.destroy()
-    }
-}
-
-registerEditorEntity("Creeper", Creeper, [16,16], EntityCategory.small_mob, null, (entry)=> {
-    Creeper.sheet = gAssets.sheets.creeper
-    entry.icon = makeEditorIcon(Creeper.sheet)
-    entry.editorIcon = null
-    entry.editorSchema = []
-})
 
 export class CreeperV2 extends MobBase {
     constructor(entid, props) {
@@ -4366,7 +4013,6 @@ class CoinBase extends PlatformerEntity {
         this.color = color
 
         this.tiles = gAssets.sheets.coin.tiles().slice(color*Coin.sheet.cols, (color+1)*Coin.sheet.cols)
-        console.log(this.tiles, color*Coin.sheet.cols, (color+1)*Coin.sheet.cols)
     }
 
     paint(ctx) {
@@ -4765,7 +4411,7 @@ export class Flipper extends Slope {
         ctx.beginPath();
         let pts = this.points;
         ctx.moveTo(pts[0].x, pts[0].y);
-        for (var i = 1; i < pts.length; i++) {
+        for (let i = 1; i < pts.length; i++) {
             ctx.lineTo(pts[i].x, pts[i].y);
         }
         ctx.closePath();
