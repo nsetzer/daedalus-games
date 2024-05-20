@@ -1412,6 +1412,8 @@ export class Player extends PlatformerEntity {
 
         this.direction = Direction.NONE
 
+        this.dead_timer = 0
+
     }
 
     buildAnimations2() {
@@ -1754,7 +1756,6 @@ export class Player extends PlatformerEntity {
         this.animation.setAnimationById(aid, frame_id)
     }
 
-
     _chargeTimeout() {
         let timeout = this.charge_timeout
         if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
@@ -1806,6 +1807,16 @@ export class Player extends PlatformerEntity {
         this.character.update(dt)
 
         if (!this.alive) {
+
+            if (this.dead_timer > 0) {
+                this.dead_timer -= dt
+                if (this.dead_timer < 0) {
+
+                    const info = gCharacterInfo.current_map_spawn
+                        gCharacterInfo.transitionToLevel(
+                            info.world_id, info.level_id, info.door_id)
+                }
+            }
 
             return
         }
@@ -1912,6 +1923,10 @@ export class Player extends PlatformerEntity {
                     }
                 }
             }
+        }
+
+        if (this.rect.y > Physics2dPlatformV2.maprect.bottom()) {
+            this._kill()
         }
     }
 
@@ -2217,7 +2232,18 @@ export class Player extends PlatformerEntity {
         let rising = this.physics.is_rising()
 
         if (standing) {
+
+            if (this.physics.can_wallwalk) {
+                this.physics.can_wallwalk = false
+            }
+
+            if (this.physics.standing_direction != Direction.DOWN) {
+                this.physics.standing_direction = Direction.DOWN
+                return
+            }
             gAssets.sfx.PLAYER_JUMP.play()
+
+            
             // TODO: old
             //this.physics.speed.y = this.physics.jumpspeed
             //this.physics.yaccum = 0
@@ -2226,7 +2252,7 @@ export class Player extends PlatformerEntity {
             this.physics.accum.y = 0
 
             this.physics.gravityboost = false
-            this.physics.doublejump = true
+            this.physics.doublejump = !this.morphed
         } else if (pressing && !standing) {
             console.log(`wall jump standing=${this.physics.standing_frame} pressing=${pressing} m=${this.physics.pressing_direction}`)
             gAssets.sfx.PLAYER_JUMP.play()
@@ -2281,6 +2307,8 @@ export class Player extends PlatformerEntity {
         this.physics.gravityboost = false
         this.physics.doublejump = false
         this.physics.checkbounds = false
+
+        this.dead_timer = 3
     }
 
     _revive() {
@@ -5015,6 +5043,12 @@ export class MovingPlatformUD extends PlatformerEntity {
         }
 
         for (let i = 0; i < delta; i++) {
+            this.visited = {}
+            this._move(this)
+            this.rect.y += this.direction
+        }
+        /*
+        
         
             this._x_debug_map.queryObjects({"physics": undefined}).forEach(obj => {
                 // when traveling up or down, move objects on the platform
@@ -5023,19 +5057,60 @@ export class MovingPlatformUD extends PlatformerEntity {
                     obj.rect.y += this.direction
                 }
 
+                if (obj.solid) {
+
+                }
                 // TODO: not clear if this is needed?
                 // when traveling down, push objects below the platform down as well
-                /*
-                let rect2 = new Rect(this.rect.x, this.rect.bottom()-1, this.rect.w, 2)
-                if (this.direction>0 && rect2.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
-                    console.log(obj._classname, "push")
-                    obj.rect.y += step
-                }
-                */
+                ///let rect2 = new Rect(this.rect.x, this.rect.bottom()-1, this.rect.w, 2)
+                ///if (this.direction>0 && rect2.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+                ///    console.log(obj._classname, "push")
+                ///    obj.rect.y += step
+                ///}
             })
 
             this.rect.y += this.direction
-        }
+        */
+    }
+
+    _move(parent) {
+        this._x_debug_map.queryObjects({"physics": undefined}).forEach(obj => {
+            if (obj.entid === parent.entid) { return }
+            // when traveling up or down, move objects on the platform
+            let rect1 = new Rect(parent.rect.x, parent.rect.y-1, parent.rect.w, 2)
+            if (rect1.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+
+                // recursivley apply the movement update to any objects standing
+                // on the platform
+                if (obj.solid) {
+                    this._move(obj)
+                }
+
+                if (!this.visited[obj.entid]) {
+                    // TODO: obj.step(0, this.direction) ??
+                    // TODO: check for object being crushed and reverse direction
+                    // TODO: if obj is not solid, kill it
+                    obj.rect.y += this.direction
+                }
+
+                this.visited[obj.entid] = true
+
+            }
+
+            // recursivley apply the movement update to any objects standing
+            // on a solid object on this platform
+            
+
+            // TODO: not clear if this is needed?
+            // when traveling down, push objects below the platform down as well
+            /*
+            let rect2 = new Rect(this.rect.x, this.rect.bottom()-1, this.rect.w, 2)
+            if (this.direction>0 && rect2.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+                console.log(obj._classname, "push")
+                obj.rect.y += step
+            }
+            */
+        })
     }
 }
 

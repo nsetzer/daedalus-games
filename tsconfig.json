@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "target": "ES2020",
+        "jsx": "react",
+        "noEmit": true,
+        "allowJs": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "paths": {
+            "@daedalus/*": ["./daedalus/res/*"],
+            "@axertc/*": ["./src/axertc/*"],
+            "@troid/*": ["./src/troid/*"]
+        }
+        
+    },
+    "include": [
+        "./src/troid/**/*",
+        "./src/axertc/**/*",
+        "./daedalus/res/**/*",
+    ],
+    "exclude": [
+        "node_modules",
+        "**/node_modules/*",
+        "./daedalus/res/unittest/*",
+        "./daedalus/res/template.js",
+    ]
+}

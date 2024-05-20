@@ -275,6 +275,10 @@ export class CanvasEngine extends DomElement {
                 pressed[touch.identifier] = false
             }
         }
+        
+        //console.log("touches", [...event.touches].map(t => t.identifier))
+        //console.log("targetTouches", [...event.targetTouches].map(t => t.identifier))
+        //console.log("changedTouches", [...event.changedTouches].map(t => t.identifier))
 
         // map touches to the view coordinate space
         return touches.map(touch => {
@@ -303,6 +307,10 @@ export class CanvasEngine extends DomElement {
                 }
             }
         })
+    }
+
+    onClick(event) {
+        console.warn("unexpected click event")
     }
 
     onTouchStart(event) {
@@ -562,6 +570,19 @@ export class CanvasEngine extends DomElement {
             ctx.translate(0,-this.props.width/this.view.scale)
         }
         ctx.translate(this.view.x, this.view.y)
+
+        ctx.beginPath()
+        ctx.strokeStyle = 'magenta'
+        ctx.moveTo(0,0)
+        ctx.lineTo(-this.view.x,this.view.height)
+        ctx.moveTo(-this.view.x,0)
+        ctx.lineTo(0,this.view.height)
+
+        ctx.moveTo(this.view.width,0)
+        ctx.lineTo(this.view.width + this.view.x,this.view.height)
+        ctx.moveTo(this.view.width + this.view.x,0)
+        ctx.lineTo(this.view.width,this.view.height)
+        ctx.stroke()
         
         //ctx.clip();
         ctx.webkitImageSmoothingEnabled = false;

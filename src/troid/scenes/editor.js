@@ -574,8 +574,9 @@ class ObjectMenu {
         this.number_of_rows = 5
         this.margin1 = 8
         this.margin2 = 8 + 16 + 8 + 8
+        this.margin3 = 4
 
-        this.rect = new Rect(0,24,this.margin2 + 24 * (this.objects_per_row+2), this.margin1 + 24 * (this.number_of_rows+1))
+        this.rect = new Rect(0,24,this.margin3 + this.margin2 + 24 * (this.objects_per_row+2), this.margin1 + 24 * (this.number_of_rows+1))
         this.parent = parent
 
         this.actions = []
@@ -626,7 +627,7 @@ class ObjectMenu {
         }})
 
         let x,y;
-        x = this.margin2 + 24*(this.objects_per_row+1)
+        x = this.margin2 + this.margin3 + 24*(this.objects_per_row+1)
         y = 32 
         this.actions.push({
             x,y,icon:this.parent.editor_icons.new, 
@@ -773,6 +774,19 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
+        // background for edit tools
+        for (let i=0; i < 4; i++) {
+            ctx.beginPath();
+            ctx.fillStyle = "#888888"
+            ctx.strokeStyle = "#888888"
+            ctx.lineWidth = 2
+            
+            ctx.roundRect(this.margin2 + 24*(this.objects_per_row+1) + this.margin3, 32 + 24*i, 16, 16, 3)
+            ctx.closePath()
+            ctx.stroke()
+            ctx.fill()
+        }
+
         let x = this.margin1
         let y = 32
         let n;
@@ -888,7 +902,7 @@ class ObjectMenu {
 
         if (idx >= 0) {
             let x,y;
-            x = this.margin2 + 24*(this.objects_per_row+1)
+            x = this.margin3 + this.margin2 + 24*(this.objects_per_row+1)
             y = 32 + 24 * idx
 
             ctx.beginPath()
@@ -1166,6 +1180,20 @@ class ObjectPropertyEditMenu {
             },
         }
         const edit = {
+            x: 8,
+            y: y+16-2,
+            w: 6*16,
+            h: 16,
+            action: ()=>{
+                gEngine.requestKeyboardFocus({
+                    "type": "text",
+                    "placeholder": "",
+                    "text": obj.props[property_name]
+                }, null, (text)=> {
+                    obj.props[property_name] = text
+                })
+
+            },
             render: (ctx) => {
 
                 ctx.save()
@@ -1448,7 +1476,7 @@ class ObjectPropertyEditMenu {
 
             this.actions.forEach(action => {
                 if (!!action.action) {
-                    let rect = new Rect(action.x, action.y, 16, 16)
+                    let rect = new Rect(action.x, action.y, action.w??16, action.h??16)
                     if (rect.collidePoint(t.x, t.y)) {
                         action.action()
                     }
@@ -1623,8 +1651,8 @@ export class LevelEditScene extends GameScene {
                 selected: null,
             },
             {
-                name: "test",
-                icon: this.editor_icons.x,
+                name: null,
+                icon: null,
                 action: () => {
                     gAssets.sounds.click1.play()
                     //gApplication.togglePopUp()

@@ -246,6 +246,7 @@ export class TouchInput {
             right: _arrow(0, 1, 4/gEngine.view.scale),
         }
 
+        this.error = 0
     }
 
     _align_wheel(x,y,alignment) {
@@ -402,9 +403,18 @@ export class TouchInput {
     handleTouches(touches) {
 
         //touches = [...touches] // copy?
-        if (touches.length) {
-            this.touches = [...touches]
+        // update the cache for painting
+        this.touches = [...touches]
+        console.log(this.touches)
+
+        /*
+        TODO: something strange on android when touches are on the same vertical line
+        let s = ""
+        for(let i=0; i<touches.length; i++) {
+            s += `{${touches[i].x},${touches[i].y}} `
         }
+        console.log(touches.length, s)
+        */
 
         // test for touches on buttons and remove from the list
         for (let j=0; j < this.buttons.length; j++) {
@@ -431,6 +441,8 @@ export class TouchInput {
                 btn.pressed = 0
                 this.handleButtonRelease(j)
                 //console.log("release", j)
+            } else {
+                this.error += 1
             }
 
         }
@@ -621,7 +633,11 @@ export class TouchInput {
             const dw = 16
             let btn = this.buttons[i];
             ctx.strokeStyle = '#00000055';
-            ctx.fillStyle = '#888888aa';
+            if (btn.pressed) {
+                ctx.fillStyle = '#FFD700aa';
+            } else {
+                ctx.fillStyle = '#888888aa';
+            }
 
             if (btn.style === 'rect') {
                 const r = btn.radius*.8 / gEngine.view.scale
@@ -632,6 +648,11 @@ export class TouchInput {
             } else {
                 const r = btn.radius*.8 / gEngine.view.scale
                 ctx.beginPath();
+
+                // full size
+                //ctx.arc(btn.cx,btn.cy,btn.radius/ gEngine.view.scale,0,2*Math.PI);
+                // draw the button a little smaller than the touch radius
+                // slightly improves the feel of the button
                 ctx.arc(btn.cx,btn.cy,r,0,2*Math.PI);
                 ctx.fill();
                 ctx.stroke();
@@ -661,6 +682,25 @@ export class TouchInput {
             ctx.arc(t.x,t.y,5,0,2*Math.PI);
             ctx.fill();
         })
+
+        /*
+        TODO: something strange on android when touches are on the same vertical line
+        let s = ""
+        for(let i=0; i<this.touches.length; i++) {
+            let t = this.touches[i]
+            s += `${i}:{${Math.floor(t.x)},${Math.floor(t.y)}} `
+        }
+
+        ctx.beginPath();
+        ctx.font  = "20px Arial";
+        ctx.fillStyle = "white"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.fillText(`${s}`, 32, gEngine.view.height/2);
+        ctx.closePath();
+        */
+
+       
 
     }
 }
