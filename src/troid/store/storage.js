@@ -210,6 +210,52 @@ export class SoundEffectPalette {
     }
 }
 
+
+export const EditorControl = {}
+// Choice
+// parameters: {name: str, default: value, choices: list-or-map}
+// allows picking an item out of a set of choices.
+// adds a property by name to the target object
+// if choices is a map: then the key is the display name.
+// if choices is a list: then the list must be a list of strings or numbers
+EditorControl.CHOICE = 1
+
+//EditorControl.CHOOSE_ENTITY = x  // like CHOICE but shows icons from a list of named entities
+
+// Door Target
+// parameters: {}
+// adds "target_world_id", "target_level_id", "target_door_id" as dynamic properties
+// these properties can be edited to set where the door should open up
+EditorControl.DOOR_TARGET = 2  
+
+// Door ID
+// parameters: {}
+// automatically adds a unique door identifier to this object
+EditorControl.DOOR_ID = 3      
+
+// 4-Way Direction
+// parameters: {default: value}
+// allows picking one of 4 directions: Up, Down, Left, Right
+// adds a property "direction" to an object
+EditorControl.DIRECTION_4WAY = 4    
+
+// Text
+// parameters: {property: value, default: value}
+// allow editing a text property
+// adds a property with a given name to the object
+EditorControl.TEXT = 8         
+
+// Resize
+// parameters: {min_width, max_width, min_height, max_height}
+// adds properties to an object "width" and "height"
+// the map editor can resize instead of moving
+// the property dialog uses spin boxes to edit width and height
+EditorControl.RESIZE = 9 
+
+// Range
+EditorControl.RANGE = 10         
+// parameters: {name: str, min, max, step:1}
+
 export const gAssets = {
     // all of the assets currently loaded
     "music": {},

@@ -40,6 +40,28 @@ export function registerEditorEntity(name, ctor, size, category, schema=null, on
     })
 }
 
+
+export function registerStamp(name, icon) {
+
+}
+
+export function registerEntityAssets() {
+
+    defaultEntities.forEach(entry => {
+        entry.onLoad(entry)
+    })
+
+    editorEntities.forEach(entry => {
+        entry.onLoad(entry)
+        if (entry.icon === null) {
+            console.log("fix oldstyle entity", entry.name)
+            entry.icon = entry.ctor.icon
+            entry.editorIcon = entry.ctor.editorIcon
+            entry.editorSchema = entry.ctor.editorSchema
+        }
+    })
+}
+
 export const EntityCategory = {
     item: 1,
     switches: 2,

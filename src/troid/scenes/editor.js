@@ -29,11 +29,10 @@ import {
 } from "@axertc/axertc_physics"
 
 
-import {MapInfo, gAssets} from "@troid/store"
+import {MapInfo, EditorControl, gAssets} from "@troid/store"
 
 import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 
-import {EditorControl} from "@troid/entities"
 import {defaultEntities, editorEntities, EntityCategory} from "@troid/entities/sys"
 import {PlatformMap} from "@troid/maps"
 import {post_map_level} from "@troid/api"
