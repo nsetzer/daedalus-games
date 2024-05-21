@@ -42,7 +42,7 @@ const RES_ROOT = "static"
 
 $import("store", {MapInfo, gAssets, SoundEffectPalette})
 $import("maps", {PlatformMap})
-import {registerEntityAssets} from "@troid/entities"
+import {registerEntityAssets} from "@troid/entities/sys"
 import {defaultEntities, editorEntities} from "@troid/entities/sys"
 //https://gist.github.com/nektro/84654b5183ddd1ccb7489607239c982d
 if (!('createImageBitmap' in window)) {
