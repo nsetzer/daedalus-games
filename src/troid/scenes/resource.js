@@ -25,25 +25,24 @@
 
 import { Physics2dPlatformV2 } from "@axertc/axertc_physics"
 
- 
-$import("axertc_client", {
+import {
+    Direction, Rect, CspMap, ClientCspMap
+} from "@axertc/axertc_common"
+
+import {
     GameScene,
     ResourceLoader, ResourceStatus
 
-})
+} from "@axertc/axertc_client"
 
-$import("tiles", {TileShape, TileProperty, updateTile, paintTile})
+import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 
-$import("axertc_common", {
-    Direction, Rect, CspMap, ClientCspMap
-})
+import {MapInfo, gAssets, SoundEffectPalette} from "@troid/store"
+import {PlatformMap} from "maps"
+import {defaultEntities, editorEntities, registerEntityAssets} from "@troid/entities/sys"
 
 const RES_ROOT = "static"
 
-$import("store", {MapInfo, gAssets, SoundEffectPalette})
-$import("maps", {PlatformMap})
-import {registerEntityAssets} from "@troid/entities/sys"
-import {defaultEntities, editorEntities} from "@troid/entities/sys"
 //https://gist.github.com/nektro/84654b5183ddd1ccb7489607239c982d
 if (!('createImageBitmap' in window)) {
     window.createImageBitmap = async function(blob) {

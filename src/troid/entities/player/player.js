@@ -44,6 +44,7 @@ function generateProjectiles(x,y,direction, power) {
     let element = gCharacterInfo.element
 
     // booleans
+    
     let wave : bool = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
     let bounce : bool = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
 
