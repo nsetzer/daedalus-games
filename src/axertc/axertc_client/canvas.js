@@ -166,6 +166,7 @@ export class CanvasEngine extends DomElement {
         // rotate: 0: no rotation, 1: 90 degree rotation for mobile
         // scale: scale factor for drawing
 
+        // the view is the game region that is visible to the player
         this.view = {
             x:0,
             y:0,
@@ -175,6 +176,15 @@ export class CanvasEngine extends DomElement {
             scale: 1,
             availWidth: 0,
             availHeight: 0
+        }
+
+        // the screen is the rectangle of the drawable area at the resolution
+        // determined by the scale factor of the current view.
+        this.screen = {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
         }
 
         this.touch_event = null
@@ -454,6 +464,13 @@ export class CanvasEngine extends DomElement {
             this.view.y = 0
         }
 
+        this.screen = {
+            x: -this.view.x,
+            y: -this.view.y,
+            width: 2*this.view.x + this.view.width,
+            height: 2*this.view.y + this.view.height,
+        }
+
         console.log('view changed:',
             `screen: orientation=${screen.orientation.type} size=(${availWidth}, ${availHeight})`,
             `view: (${this.view.x}, ${this.view.x}) (${this.view.width}, ${this.view.height})`,
@@ -571,6 +588,9 @@ export class CanvasEngine extends DomElement {
         }
         ctx.translate(this.view.x, this.view.y)
 
+        /*
+        // paint a magenta X over the out of bounds area on the left and right side
+        // this is the part of the screen that is visible, and not part of the view
         ctx.beginPath()
         ctx.strokeStyle = 'magenta'
         ctx.moveTo(0,0)
@@ -583,6 +603,15 @@ export class CanvasEngine extends DomElement {
         ctx.moveTo(this.view.width + this.view.x,0)
         ctx.lineTo(this.view.width,this.view.height)
         ctx.stroke()
+        */
+
+        /*
+        ctx.beginPath()
+        ctx.fillStyle = '#FF00FF33'
+        ctx.rect(this.screen.x, this.screen.y, this.screen.width, this.screen.height)
+        ctx.fill()
+        console.log(this.screen)
+        */
         
         //ctx.clip();
         ctx.webkitImageSmoothingEnabled = false;
