@@ -257,9 +257,9 @@ export class TouchInput {
         y /= gEngine.view.scale
 
         if (alignment&Alignment.RIGHT) {
-            cx = gEngine.view.width - x
+            cx = gEngine.view.width - (gEngine.screen.x + x)
         } else {
-            cx = x
+            cx = gEngine.screen.x + x
         }
 
         if (alignment&Alignment.TOP) {
@@ -300,9 +300,9 @@ export class TouchInput {
         y /= gEngine.view.scale
 
         if (alignment&Alignment.RIGHT) {
-            cx = gEngine.view.width - x
+            cx = gEngine.view.width - (gEngine.screen.x + x)
         } else {
-            cx = x
+            cx = gEngine.screen.x + x
         }
 
         if (alignment&Alignment.TOP) {
@@ -586,16 +586,14 @@ export class TouchInput {
             ctx.arc(cx, cyt, radius, 0, 2*Math.PI);
             ctx.fill();
 
-            //ctx.strokeStyle = '#FF0000';
-            //ctx.beginPath();
-            //ctx.arc(cx, cy, whl.radius/gEngine.view.scale * whl.scale, 0, 2*Math.PI);
-            //ctx.stroke();
-            //ctx.beginPath();
-            //ctx.lineWidth = 3
-            //ctx.moveTo(cx, cy);
-            //ctx.lineTo(0, gEngine.view.height);
-            //ctx.lineWidth = 1
-            //ctx.stroke();
+            // draw a circle around the touch area for the wheel
+            /*
+            ctx.strokeStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(cx, cy, whl.radius/gEngine.view.scale * whl.scale, 0, 2*Math.PI);
+            ctx.arc(cx, cy, rd, 0, 2*Math.PI);
+            ctx.stroke();
+            */
 
             if (whl.symbols != null) {
                 ctx.font = "10px";

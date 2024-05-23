@@ -42,6 +42,10 @@ export class Physics2dPlatformV2 {
 
     static maprect = new Rect(0,0,0,0);
 
+    static BOUNDARY_NOCHECK = 0
+    static BOUNDARY_COLLIDE = 1
+    static BOUNDARY_DESTROY = 2
+
     constructor(target, config=null) {
         this.target = target
 
@@ -53,6 +57,8 @@ export class Physics2dPlatformV2 {
         this.frame_index = 0;
         this.standing_frame = -1;
         this.pressing_frame = -1;
+
+        this.bounds_check = config.bounds_check??Physics2dPlatformV2.BOUNDARY_COLLIDE
 
         this.oneblock_walk = config.oneblock_walk??0
 
@@ -462,6 +468,25 @@ export class Physics2dPlatformV2 {
 
             if (ent.collidePoint(sensors.fn.x, sensors.fn.y)) { 
                 collisions.fn = true; 
+                if (this.target._classname =='Bullet' && !!ent._fx) {
+                    // TODO: the bug here with bullets and one way slopes is that 
+                    // the shape of the bullet is a rectangle, not a point
+                    // if can collide with the floor while being above the floor
+
+                    // this will be fixed if a new physics is written for point entities
+
+                    // position where 'is solid' is determined
+                    let _sx = Math.floor(ent.rect.cx())
+                    let _sy = Math.floor(ent.rect.bottom())
+                    let _syp = ent._fx(_sx,_sy)
+
+                    // position where 'collision' is determined
+                    let _tx = sensors.fn.x
+                    let _ty = sensors.fn.y
+                    let _typ = ent._fx(_tx, _ty)
+
+                    console.log("hit fn 1", {_sx,_sy,_syp}, {_tx,_ty,_typ})
+                }
                 //console.log("press f", ent._classname)
                 if (ent.onPress) {
                     ent.onPress(this.target, {x:dx, y:dy})
@@ -1215,19 +1240,31 @@ export class Physics2dPlatformV2 {
         //---------------------------------------
         // bounds check
         if (Physics2dPlatformV2.maprect.w) {
-            if (this.target.rect.x < Physics2dPlatformV2.maprect.x) {
-                this.target.rect.x = Physics2dPlatformV2.maprect.x
-            }
-            if (this.target.rect.y < Physics2dPlatformV2.maprect.y) {
-                this.target.rect.y = Physics2dPlatformV2.maprect.y
-            }
-            if (this.target.rect.x > Physics2dPlatformV2.maprect.w-this.target.rect.w) {
-                this.target.rect.x = Physics2dPlatformV2.maprect.w-this.target.rect.w
-            }
-            if (this.target.rect.y > Physics2dPlatformV2.maprect.h-this.target.rect.h) {
-                this.target.rect.y = Physics2dPlatformV2.maprect.h-this.target.rect.h
+            if (this.bounds_check == 1) {
+
+                if (this.target.rect.x < Physics2dPlatformV2.maprect.x) {
+                    this.target.rect.x = Physics2dPlatformV2.maprect.x
+                }
+                if (this.target.rect.y < Physics2dPlatformV2.maprect.y) {
+                    this.target.rect.y = Physics2dPlatformV2.maprect.y
+                }
+                if (this.target.rect.x > Physics2dPlatformV2.maprect.w-this.target.rect.w) {
+                    this.target.rect.x = Physics2dPlatformV2.maprect.w-this.target.rect.w
+                }
+                if (this.target.rect.y > Physics2dPlatformV2.maprect.h-this.target.rect.h) {
+                    this.target.rect.y = Physics2dPlatformV2.maprect.h-this.target.rect.h
+                }
+            } else {
+                if (this.target.rect.x < Physics2dPlatformV2.maprect.x - this.target.rect.w ||
+                    this.target.rect.y < Physics2dPlatformV2.maprect.y - this.target.rect.h ||
+                    this.target.rect.x > Physics2dPlatformV2.maprect.w + this.target.rect.w ||
+                    this.target.rect.y > Physics2dPlatformV2.maprect.h + this.target.rect.h) {
+                    this.target.destroy()
+                    console.log("destroy target", this.target._classname)
+                }
             }
         }
+        
 
 
         //---------------------------------------
@@ -1241,7 +1278,12 @@ export class Physics2dPlatformV2 {
             if (ent.isSolid) { if (!ent.isSolid(this.target)) { return }}
 
             if (ent.collidePoint(sensors.b.x, sensors.b.y)) { collisions.b = true }
-            if (!!sensors.fn && ent.collidePoint(sensors.fn.x, sensors.fn.y)) { collisions.fn = true }
+            if (!!sensors.fn && ent.collidePoint(sensors.fn.x, sensors.fn.y)) { 
+                collisions.fn = true 
+                if (this.target._classname =='Bullet') {
+                    console.log("hit fn 2")
+                }
+            }
         })
 
         if (collisions.fn) {

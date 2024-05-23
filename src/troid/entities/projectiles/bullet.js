@@ -23,6 +23,7 @@ export class Bullet extends ProjectileBase {
         this.split = props?.split??1
         this.color = props?.color??0
         this.physics = new Physics2dPlatformV2(this,{
+            bounds_check: Physics2dPlatformV2.BOUNDARY_DESTROY,
             /*slope_walk: false,*/
         })
         this.physics.gravity = 0
@@ -30,8 +31,8 @@ export class Bullet extends ProjectileBase {
         this.solid = 0
         this.collide = 1
         this.visible = 1
-        this.power = props?.power??0
 
+        this.power = props?.power??0
         this.level = props?.level??1
 
         this.element = props?.element??WeaponType.ELEMENT.POWER
@@ -43,7 +44,9 @@ export class Bullet extends ProjectileBase {
             this.physics.group = () => {return []}
         } else {
             this.physics.group = () => {
-                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
+                return Object.values(this._x_debug_map.objects).filter(ent=>{
+                    return ent?.solid
+                })
             }
         }
 
@@ -183,7 +186,12 @@ export class Bullet extends ProjectileBase {
             }
         }
 
-        if (this.physics._x_step_collisions.b||this.physics._x_step_collisions.t||this.physics._x_step_collisions.fn) {
+        if (this.physics._x_step_collisions.b||
+            this.physics._x_step_collisions.bn||
+            this.physics._x_step_collisions.t||
+            this.physics._x_step_collisions.tn||
+            this.physics._x_step_collisions.f||
+            this.physics._x_step_collisions.fn) {
             this._kill()
         }
 

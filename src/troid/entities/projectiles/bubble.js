@@ -33,14 +33,18 @@ export class BubbleBullet extends ProjectileBase {
             base_speed = 60
         }
 
-        this.physics = new Physics2dPlatformV2(this, {gravity: 0})
+        this.physics = new Physics2dPlatformV2(this, {
+            bounds_check: Physics2dPlatformV2.BOUNDARY_DESTROY,
+        })
+        this.physics.gravity = 0
         this.physics.xfriction = 0
 
         if (this.wave) {
             this.physics.group = () => {return []}
         } else {
             this.physics.group = () => {
-                return Object.values(this._x_debug_map.objects).filter(ent=>{return ent instanceof PlatformBase})
+                return Object.values(this._x_debug_map.objects).filter(ent=>{
+                    return ent instanceof PlatformBase})
             }
         }
 

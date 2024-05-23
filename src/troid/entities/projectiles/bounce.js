@@ -39,13 +39,15 @@ export class BounceBullet extends ProjectileBase {
             xmaxspeed2: 200,
             jumpheight: 20,
             jumpduration: .08,
+            bounds_check: Physics2dPlatformV2.BOUNDARY_DESTROY,
         })
         this.physics.xfriction = 0
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{
                 // 
+                return (ent instanceof PlatformBase || ent.solid)
                 //return (ent instanceof PlatformBase || (ent.solid && !(ent instanceof MobBase)))
-                return ent.solid
+                //return ent.solid
             })
         }
         this.solid = 0

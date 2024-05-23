@@ -279,7 +279,12 @@ export class Slope extends PlatformBase {
         // checking y speed is helpful because of the slope
         // objects tend to get stuck on invisible cliffs
         // and then start walking down the slope
-        return  other.physics.speed.y >= 0 || y <= yp
+        let rv = other.physics.speed.y >= 0 || y <= yp;
+        //let rv =other.physics.speed.y >= 0 || y < yp || (y == yp && other.physics.speed.x > 0)
+        //if (rv) {
+        //    console.log(other._classname, other.physics.speed, y, yp, Direction.name[this.direction&Direction.LEFTRIGHT]);
+        //}
+        return rv  
     }
 
     collide(other, dx, dy) {

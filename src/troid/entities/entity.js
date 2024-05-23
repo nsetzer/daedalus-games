@@ -29,7 +29,7 @@ import {gAssets, gCharacterInfo, WeaponType, EditorControl} from "@troid/store"
 import {defaultEntities, editorEntities, registerDefaultEntity, registerEditorEntity, EntityCategory, makeEditorIcon} from "@troid/entities/sys"
 import {MobCharacterComponent, MobBase} from "@troid/entities/mobs"
 
-import {ProjectileBase, Bullet, BubbleBullet, BounceBullet, WaterBeam, FireBeam} from "@troid/entities/projectiles"
+import {ProjectileBase,} from "@troid/entities/projectiles"
 import {Player} from "@troid/entities/player"
 /*
 class EditorEntity {

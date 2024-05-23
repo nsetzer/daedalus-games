@@ -22,7 +22,9 @@ export class BeamBase extends ProjectileBase {
         this.parent = parent
         this.element = element
         //this.group = this.parent.physics.group
-        let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>ent?.solid)
+        //let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>(ent instanceof PlatformBase || ent.solid))
+        // used to determine if the beam should collide with an object
+        let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>ent.solid)
         this.group = () => Object.values(this.parent._x_debug_map.objects).filter(rule)
 
         this.points = []

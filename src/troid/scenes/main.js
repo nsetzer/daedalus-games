@@ -221,10 +221,10 @@ class Camera extends CameraBase {
         //if (y < -32) { y = -32 }
 
         let mx = Physics2dPlatformV2.maprect.w - gEngine.view.width + input_border
-        let my = Physics2dPlatformV2.maprect.h - gEngine.view.height
+        // there is a 64 pixel gutter at the top of the map that should never be displayed
+        let my = (Physics2dPlatformV2.maprect.h - 64) - gEngine.view.height
         if (x > mx) { x = mx }
         if (y > my) { y = my }
-
         if (y < -this.header_height) {y = -this.header_height}
 
         this.x = Math.floor(x)
@@ -233,13 +233,14 @@ class Camera extends CameraBase {
         let tx = Math.floor((this.x-32)/32)
         let ty = Math.floor((this.y-32)/32)
 
+
         this.active_region = new Rect(
             tx*32,
             ty*32,
             this.width + 64,
             this.height + 64)
 
-        this.dirty = this.dirty //|| (this.tile_position.x != tx || this.tile_position.y != ty)
+        //this.dirty = this.dirty //|| (this.tile_position.x != tx || this.tile_position.y != ty)
 
         //this.tile_position = {x:tx, y:ty}
 
@@ -553,7 +554,7 @@ export class MainScene extends GameScene {
         this.touch = new TouchInput(this.controller)
         this.keyboard = new KeyboardInput(this.controller)
 
-        this.touch.addWheel(64, -64, 48, {
+        this.touch.addWheel(64+32, -64, 64, {
             align: Alignment.LEFT|Alignment.BOTTOM,
             //symbols: ["W", "D", "S", "A"],
         })

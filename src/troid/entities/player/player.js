@@ -12,6 +12,7 @@ import {
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
 import {registerDefaultEntity} from "@troid/entities/sys"
+import {FireBeam, WaterBeam, Bullet, BounceBullet, BubbleBullet} from "@troid/entities/projectiles"
 
 // TODO: projectiles reduce framerate if they move off screen on large maps
 function generateProjectiles(x,y,direction, power) {
@@ -806,12 +807,15 @@ export class Player extends PlatformerEntity {
             //console.log("set movement", payload.vector.x, this.physics.moving_direction)
 
             // TODO: facing for v2, is not part of physics?
-            if (payload.vector.x > 0.3535) {
-                this.physics.facing = Direction.RIGHT
-            }
+            // moonwalk when charging
+            if (!this.charging) {
+                if (payload.vector.x > 0.3535) {
+                    this.physics.facing = Direction.RIGHT
+                }
 
-            if (payload.vector.x < -0.3535) {
-                this.physics.facing = Direction.LEFT
+                if (payload.vector.x < -0.3535) {
+                    this.physics.facing = Direction.LEFT
+                }
             }
 
             //console.log(payload.vector.x, payload.vector.y)
