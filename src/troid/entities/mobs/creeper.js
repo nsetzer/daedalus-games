@@ -174,7 +174,7 @@ registerEditorEntity("Creeper", Creeper, [16,16], EntityCategory.small_mob, null
 export class CreeperV2 extends MobBase {
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.rect = new Rect(props?.x??0, props?.y??0, 12, 12)
 
         this.visible = true
 
@@ -190,6 +190,8 @@ export class CreeperV2 extends MobBase {
         this.physics.moving_direction = Direction.RIGHT
         this.physics.moving_speed = 35
 
+        this.current_facing = Direction.RIGHT
+
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && ent instanceof PlatformBase})
         }
@@ -201,19 +203,15 @@ export class CreeperV2 extends MobBase {
     buildAnimations() {
 
         let spf = 1/8
-        let xoffset = 0
-        let yoffset = 0
+        let spf2 = 1/10
+        let xoffset = -2
+        let yoffset = -2
 
         this.animations = {
             "idle":{},
             "run":{},
-            "wall_slide":{},
-            "jump":{},
-            "fall":{},
-            "hit":{},
-            "ball":{},
             "dead":{},
-            "dead2":{}
+            "switch":{}
         }
 
         let ncols = 1
@@ -221,14 +219,14 @@ export class CreeperV2 extends MobBase {
         let aid;
         let sheet = CreeperV2.sheet
 
-        aid = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0,1,2,3], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0,1,2,3], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [7,8,9,10], spf, {xoffset, yoffset})
         this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0,1,2,3], spf, {xoffset, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
 
         this.animations["dead"][Direction.NONE] = this.animation.register(
@@ -236,7 +234,17 @@ export class CreeperV2 extends MobBase {
             [19*7+0, 19*7+1, 19*7+2, 19*7+3],
             spf, {xoffset:-8, yoffset:-8, loop: false, onend: this.onDeathAnimationEnd.bind(this)})
 
-        this.animation.setAnimationById(this.animations.run[Direction.LEFT])
+        this.animations["switch"][Direction.LEFT] = this.animation.register(
+            sheet,
+            [20,19,18,17,16,15,14],
+            spf2, {xoffset:-2, yoffset:-2, loop: false, onend: this.onMoveAnimationEnd.bind(this)})
+
+        this.animations["switch"][Direction.RIGHT] = this.animation.register(
+            sheet,
+            [14,15,16,17,18,19,20],
+            spf2, {xoffset:-2, yoffset:-2, loop: false, onend: this.onMoveAnimationEnd.bind(this)})
+
+        this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
 
     }
 
@@ -268,6 +276,11 @@ export class CreeperV2 extends MobBase {
 
         if (!this.character.frozen && this.character.alive) {
             this.physics.update(dt)
+            let d2 = this.physics.moving_direction&Direction.LEFTRIGHT
+            if (d2 && d2 != this.current_facing) {
+                this.animation.setAnimationById(this.animations["switch"][this.current_facing])
+                this.current_facing = d2
+            }
 
             let objs = this._x_debug_map.queryObjects({"className": "Player"})
             if (objs.length > 0) {
@@ -291,13 +304,16 @@ export class CreeperV2 extends MobBase {
         this.animation.setAnimationById(this.animations["dead"][Direction.NONE])
     }
 
+    onMoveAnimationEnd() {
+        this.animation.setAnimationById(this.animations["run"][this.current_facing])
+    }
     onDeathAnimationEnd() {
         this.destroy()
     }
 }
 
 registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, null, (entry)=> {
-    CreeperV2.sheet = gAssets.sheets.ruler
+    CreeperV2.sheet = gAssets.sheets.firesprite
     entry.icon = CreeperV2.sheet.tile(0)
     entry.editorIcon = null
     entry.editorSchema = []

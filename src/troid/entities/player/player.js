@@ -948,6 +948,7 @@ export class Player extends PlatformerEntity {
 
     onUnmorphEnd() {
         this.physics.can_wallwalk = false
+        this.physics.standing_direction = Direction.DOWN
         this.morphing = false
         this.morphed = false
         this._updateAnimation()
@@ -969,6 +970,7 @@ export class Player extends PlatformerEntity {
             this.physics._init_lut()
             this.morphing = true
             this.physics.can_wallwalk = false // paranoid, sprinkled everywhere
+            this.physics.standing_direction = Direction.DOWN
             //this.morphed = false
             this._updateAnimation()
             gAssets.sfx.PLAYER_UNMORPH.play()

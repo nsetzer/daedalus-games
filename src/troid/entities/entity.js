@@ -98,6 +98,7 @@ export class Crate extends PlatformerEntity {
 
     paint(ctx) {
 
+        /*
         ctx.beginPath()
         ctx.fillStyle = 'red'
         ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
@@ -110,6 +111,9 @@ export class Crate extends PlatformerEntity {
         ctx.fillText(`${Math.floor(this.physics.speed.x)}, ${Math.floor(this.physics.speed.y)}`, this.rect.x, this.rect.y);
         ctx.fillText(`${Math.floor(this.physics.accum.x)}, ${Math.floor(this.physics.accum.y)}`, this.rect.x, this.rect.y+12);
         ctx.fillText(`${Direction.name[this.physics.moving_direction]}`, this.rect.x, this.rect.y+24);
+        */
+
+        gAssets.sheets.crate.drawTile(ctx, 0, this.rect.x, this.rect.y)
 
     }
 
@@ -128,7 +132,7 @@ export class Crate extends PlatformerEntity {
 }
 
 registerEditorEntity("Crate", Crate, [32,32], EntityCategory.item, null, (entry)=> {
-    entry.icon = gAssets.sheets.brick.tile(4)
+    entry.icon = makeEditorIcon(gAssets.sheets.crate, 1)
     entry.editorIcon = null
     entry.editorSchema = []
 })
@@ -557,6 +561,88 @@ registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCatego
         ctx.beginPath()
         ctx.fillStyle = 'blue'
         ctx.rect(x, y+props.offset, props.width, 16)
+        ctx.fill()
+
+    }
+})
+
+// a platform that counts how many times the player has stood on top of it
+// decrement a counter after each time the player leaves
+// TODO: make a switch platform. jumping off toggles the platform 
+// to the other side
+//  ___0   0  0___
+//      -> | ->
+//
+export class CountingPlatform extends PlatformerEntity {
+    constructor(entid, props) {
+        super(entid, props)
+        // TODO: implement `order` and process update for moving platforms 
+        // before other objects which implement physics
+        this.solid = 1
+        let width = 32
+        let height = 16 // range of travel
+        this.rect = new Rect(props.x, props.y, width, height)
+
+        this.trigger = false
+        this.count = props.count
+    }
+
+    paint(ctx) {
+
+        // Bumper.sheet.drawTile(ctx, tid, this.rect.x, this.rect.y - 4)
+
+        ctx.beginPath()
+        ctx.fillStyle = 'blue'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.fill()
+
+        // draw the count centered in the rect
+        ctx.beginPath()
+        ctx.font = "16px";
+        ctx.fillStyle = "yellow"
+        ctx.strokeStyle = "yellow"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(`${this.count}`, this.rect.cx(), this.rect.cy());  
+
+
+    }
+
+    update(dt) {
+        this._x_debug_map.queryObjects({"className": "Player"}).forEach(obj => {
+            // when traveling up or down, move objects on the platform
+            let rect1 = new Rect(this.rect.x, this.rect.y-1, this.rect.w, 2)
+            if (rect1.collidePoint(obj.rect.cx(), obj.rect.bottom()-1)) {
+                this.trigger = true
+            } else if (this.trigger) {
+                this.trigger = false
+                this.count -= 1
+                if (this.count <= 0) {
+                    this.destroy()
+                }
+            }
+        })
+    }
+
+}
+
+registerEditorEntity("CountingPlatform", CountingPlatform, [32,16], EntityCategory.hazard, null, (entry)=> {
+    CountingPlatform.sheet = gAssets.sheets.bumper
+    entry.icon = makeEditorIcon(CountingPlatform.sheet)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {control: EditorControl.RANGE, 
+            "name": "count",
+            "min": 1, "max": 10, "default": 3,
+            "step": 1
+        },
+    ]
+    
+    entry.editorRender = (ctx,x,y,props) => {
+
+        ctx.beginPath()
+        ctx.fillStyle = 'blue'
+        ctx.rect(x, y, props.width, 16)
         ctx.fill()
 
     }

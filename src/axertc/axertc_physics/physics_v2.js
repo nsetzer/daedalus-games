@@ -626,7 +626,7 @@ export class Physics2dPlatformV2 {
             let tmp = this._lut_rotate_2[this.standing_direction][this.moving_direction]
 
             if (!tmp) {
-                console.warn(`unexpected undefined reference standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                console.warn(`unexpected undefined reference <cliff> standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
                 return 1;
             }
 
@@ -703,7 +703,7 @@ export class Physics2dPlatformV2 {
             let tmp = this._lut_rotate_3[this.standing_direction][this.moving_direction]
 
             if (!tmp) {
-                console.warn(`unexpected undefined reference standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                console.warn(`unexpected undefined reference <wall> standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
                 return 1;
             }
 
@@ -770,13 +770,13 @@ export class Physics2dPlatformV2 {
             return 1
         }
 
-        throw {
-            "error": "error",
+        console.error({
+            "error": "movement not handled",
             dx, dy, next: this.next_rect, standing, bonk,
             standing_direction: Direction.name[this.standing_direction],
             moving_direction: Direction.name[this.moving_direction],
             sensors,
-            collisions}
+            collisions})
     }
 
     _step_target() {
@@ -1300,6 +1300,8 @@ export class Physics2dPlatformV2 {
         let falling = !collisions.b && !rising
         let pressing = collisions.fn
         let standing = collisions.b
+
+        this._x_is_standing = standing;
 
         // gravity boost should only apply to the rising action
         // after the player releases the button
