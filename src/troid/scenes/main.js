@@ -9,6 +9,7 @@ import {
 import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 import {Player} from "@troid/entities"
 import {PlatformMap} from "@troid/maps"
+import { MobBase } from "@troid/entities/mobs"
 
 class CspController {
     constructor(map) {
@@ -123,6 +124,9 @@ class Camera extends CameraBase {
         this.active_border = new Rect(0,0,0,0)
         this.active_region = new Rect(0,0,0,0)
 
+        this.active_region_x = -1024;
+        this.active_region_y = -1024;
+
         //this.tile_position = {x:-1024, y:-1024}
         this.dirty = true
 
@@ -230,15 +234,41 @@ class Camera extends CameraBase {
         this.x = Math.floor(x)
         this.y = Math.floor(y)
 
-        let tx = Math.floor((this.x-32)/32)
-        let ty = Math.floor((this.y-32)/32)
-
-
+        // game tiles are 16x16
+        // active region is the neareset 32x32 tile
+        // with 1 tile border outside the visible region
+        // as the player moves, new objects will be activated
+        
+        let resolution = 32
+        let tx = Math.floor((this.x-resolution)/resolution)
+        let ty = Math.floor((this.y-resolution)/resolution)
+        
         this.active_region = new Rect(
-            tx*32,
-            ty*32,
-            this.width + 64,
-            this.height + 64)
+            tx*resolution,
+            ty*resolution,
+            this.width + 2*resolution,
+            this.height + 2*resolution)
+
+        // periodically activate objects
+        if (tx != this.active_region_x || ty != this.active_region_y) {
+
+            // find all deactivated objects
+            let objs = this.map.queryObjects({"instanceof": PlatformerEntity, "active": false})
+            //console.log("change active zone", tx, ty,  objs.length)
+            // check if those deactivated objects are in the active region
+            objs.forEach(obj => {
+                if (obj.rect.collideRect(this.active_region)) {
+                    obj.active = true
+                    //console.log("changing activity for ", obj._classname)
+                }
+            })
+            
+            this.active_region_x = tx;
+            this.active_region_y = ty;
+        }
+        
+
+
 
         //this.dirty = this.dirty //|| (this.tile_position.x != tx || this.tile_position.y != ty)
 
@@ -570,6 +600,7 @@ export class MainScene extends GameScene {
         this.keyboard.addButton(67) // C
 
         this.camera = new Camera(this.map.map, this.map.map._x_player)
+        console.log("new camera")
         this.screen =  null //  new PauseScreen(this)
 
         this.dialog = null // something that implements paint(ctx), update(dt), dismiss()

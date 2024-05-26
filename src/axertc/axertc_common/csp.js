@@ -66,6 +66,7 @@ export class Entity {
     constructor(entid, props) {
         this.entid = entid
         this._destroy = () => {throw new Error("entity not attached to a world")}
+        this.active = true
     }
 
     paint(ctx) {
@@ -423,6 +424,9 @@ export class CspMap {
         // add a check in update_after to see if super was called?
         for (const obj of Object.values(this.objects)) {
             //obj.update_before()
+            if (!obj.active) {
+                continue;
+            }
             obj.update(dt)
             if (!!obj._shadow) {
                 //if (!obj._shadow.x) {

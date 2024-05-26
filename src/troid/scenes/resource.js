@@ -827,6 +827,8 @@ class MapBuilder {
             let objname = obj.name
             let objprops = {x:x, y:y, ...obj.props}
             let ent = this.createObject(objname, objprops)
+            // deactivate objects until it is in the camera view
+            ent.active = false
 
             if (objprops.door_id !== undefined) {
                 doors[objprops.door_id] = ent
