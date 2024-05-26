@@ -1,4 +1,4 @@
- 
+
 
 // about 135 combinations of guns
 // essentially 8 primary gun modes
@@ -70,6 +70,22 @@ WeaponType.BEAM = WeaponBeamType
 WeaponType.LEVEL = WeaponLevelType
 WeaponType.MODIFIER = WeaponModifierType
 
+export class CharacterInventoryEnum {
+    static BEAM_ELEMENT_FIRE = "beam_element_fire"
+    static BEAM_ELEMENT_WATER = "beam_element_water"
+    static BEAM_ELEMENT_ICE = "beam_element_ice"
+    static BEAM_ELEMENT_BUBBLE = "beam_element_bubble"
+    static BEAM_TYPE_WAVE = "beam_type_wave"
+    static BEAM_TYPE_BOUNCE = "beam_type_bounce"
+    static BEAM_LEVEL_2 = "beam_level_2"
+    static BEAM_LEVEL_3 = "beam_level_3"
+    static BEAM_MOD_CHARGE = "beam_mod_charge"
+    static BEAM_MOD_RAPID = "beam_mod_rapid"
+
+    static SKILL_MORPH_BALL = "skill_morph_ball"
+    static SKILL_DOUBLE_JUMP = "skill_double_jump"
+    static SKILL_SPIKE_BALL = "skill_spike_ball"
+}
 export class CharacterInfo {
 
     constructor() {
@@ -226,34 +242,34 @@ EditorControl.CHOICE = 1
 // parameters: {}
 // adds "target_world_id", "target_level_id", "target_door_id" as dynamic properties
 // these properties can be edited to set where the door should open up
-EditorControl.DOOR_TARGET = 2  
+EditorControl.DOOR_TARGET = 2
 
 // Door ID
 // parameters: {}
 // automatically adds a unique door identifier to this object
-EditorControl.DOOR_ID = 3      
+EditorControl.DOOR_ID = 3
 
 // 4-Way Direction
 // parameters: {default: value}
 // allows picking one of 4 directions: Up, Down, Left, Right
 // adds a property "direction" to an object
-EditorControl.DIRECTION_4WAY = 4    
+EditorControl.DIRECTION_4WAY = 4
 
 // Text
 // parameters: {property: value, default: value}
 // allow editing a text property
 // adds a property with a given name to the object
-EditorControl.TEXT = 8         
+EditorControl.TEXT = 8
 
 // Resize
 // parameters: {min_width, max_width, min_height, max_height}
 // adds properties to an object "width" and "height"
 // the map editor can resize instead of moving
 // the property dialog uses spin boxes to edit width and height
-EditorControl.RESIZE = 9 
+EditorControl.RESIZE = 9
 
 // Range
-EditorControl.RANGE = 10         
+EditorControl.RANGE = 10
 // parameters: {name: str, min, max, step:1}
 
 export const gAssets = {

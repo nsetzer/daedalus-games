@@ -314,6 +314,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("countplatform")
+            .path(RES_ROOT + "/sprites/hazards/countplatform.png")
+            .dimensions(32, 18)
+            .layout(1, 2)
+            .offset(1, 18)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("bumper")
             .path(RES_ROOT + "/sprites/hazards/bumper.png")
             .dimensions(32, 16)
@@ -335,6 +342,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("flyer")
+            .path(RES_ROOT + "/sprites/mobs/flyer.png")
+            .dimensions(32, 32)
+            .layout(2,5)
+            .offset(1, 18)
+            .spacing(1, 1)
+            
         this.loader.addSpriteSheet("shredder")
             .path(RES_ROOT + "/sprites/mobs/shredder.png")
             .dimensions(24, 16)
@@ -811,6 +825,7 @@ class MapBuilder {
 
         if (Object.keys(doors).length == 0) {
             console.error("no door specified")
+            console.warn(gAssets.mapinfo)
         } else {
             // either spawn in in the lowest door
             // or use the transition target door if available

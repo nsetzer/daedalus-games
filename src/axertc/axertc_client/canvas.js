@@ -226,6 +226,16 @@ export class CanvasEngine extends DomElement {
         event.preventDefault()
     }
 
+    onWheel(event) {
+        if (!this.paused) {
+            const touches = this._getMouseTouches(event, false, true)
+            touches[0].deltaX = event.wheelDeltaX
+            touches[0].deltaY = event.wheelDeltaY
+            touches[0].buttons = 4
+            this.scene.handleTouches(touches)
+        }
+    }
+
     onMouseDown(event) {
         if (event.buttons&3) {
             this._x_mouse_buttons = event.buttons

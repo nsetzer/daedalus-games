@@ -1,5 +1,7 @@
 import {SpriteSheet} from "@axertc/axertc_client"
 
+export * from "./text.js"
+
 
 // entities that can be created in a level,
 // but cannot be created in the editor

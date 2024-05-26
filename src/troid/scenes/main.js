@@ -581,11 +581,23 @@ export class MainScene extends GameScene {
 
     update(dt) {
         if (!this.screen) {
-            this.map.update(dt)
-            this.camera.update(dt)
+            
 
             if (!!this.dialog) {
+
+                // show a dialog over the game
+                // if modal, don't run the simulation
+                if (!this.dialog.modal) {
+                    this.map.update(dt)
+                    this.camera.update(dt)
+                }
+
                 this.dialog.update(dt)
+                
+            } else {
+                // run game logic normally
+                this.map.update(dt)
+                this.camera.update(dt)
             }
 
             if (!this.map.map._x_player.alive) {

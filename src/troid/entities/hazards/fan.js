@@ -118,7 +118,9 @@ export class WindFan extends PlatformerEntity {
 registerEditorEntity("WindFan", WindFan, [32,16], EntityCategory.hazard, null, (entry)=> {
     WindFan.sheet = gAssets.sheets.windfan
     entry.icon = makeEditorIcon(WindFan.sheet)
-    entry.editorIcon = null
+    entry.editorIcon = (props) => {
+        return gAssets.sheets.windfan.tile(0)
+    }
     entry.editorSchema = []
     // todo: highlight the region the fan affects
     entry.editorRender = undefined

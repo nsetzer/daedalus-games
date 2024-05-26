@@ -322,7 +322,7 @@ registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, 
 export class Flyer extends MobBase {
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 16, 8)
+        this.rect = new Rect(props?.x??0 + 5, props?.y??0 + 12, 22, 8)
         this.visible = true
         this.solid = 0
 
@@ -351,8 +351,8 @@ export class Flyer extends MobBase {
     buildAnimations() {
 
         let spf = 1/8
-        let xoffset = - 4
-        let yoffset = - 6
+        let xoffset = - 5
+        let yoffset = - 11
 
         this.animations = {
             "idle":{},
@@ -376,9 +376,9 @@ export class Flyer extends MobBase {
         aid = this.animation.register(sheet, [1*ncols+0], spf, {xoffset, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, [0*ncols+0, 0*ncols+1], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [5,6,7,8,9,8,7,6], spf, {xoffset, yoffset})
         this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, [1*ncols+0, 1*ncols+1], spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, [0,1,2,3,4,3,2,1], spf, {xoffset, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
 
         this.animations["dead"][Direction.NONE] = this.animation.register(
@@ -398,11 +398,14 @@ export class Flyer extends MobBase {
 
         this.animation.paint(ctx)
 
-        //ctx.fillStyle = "red"
-        //ctx.beginPath()
-        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        //ctx.closePath()
-        //ctx.fill()
+        
+        /*
+        ctx.fillStyle = "red"
+        ctx.beginPath()
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.closePath()
+        ctx.fill()
+        */
 
         /*
         ctx.font = "bold 16px";
@@ -482,10 +485,22 @@ export class Flyer extends MobBase {
     }
 }
 
-registerEditorEntity("Flyer", Flyer, [16,16], EntityCategory.small_mob, null, (entry)=> {
-    Flyer.sheet = gAssets.sheets.shredder
+registerEditorEntity("Flyer", Flyer, [32,32], EntityCategory.small_mob, null, (entry)=> {
+    Flyer.sheet = gAssets.sheets.flyer
     entry.icon = makeEditorIcon(Flyer.sheet)
-    entry.editorIcon = null
+    entry.editorIcon = (props) => {
+        let tid = 0
+        switch(props?.direction) {
+            case Direction.LEFT:
+                tid = 5;
+                break;
+            case Direction.RIGHT:
+            default:
+                tid = 0;
+                break;
+        }
+        return gAssets.sheets.flyer.tile(tid)
+    }
     entry.editorSchema = [
         {
             control: EditorControl.CHOICE,

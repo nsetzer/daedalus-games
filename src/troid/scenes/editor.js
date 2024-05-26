@@ -586,45 +586,31 @@ class ObjectMenu {
             x: this.margin1,
             y: 32 + 24*4, 
             icon:this.parent.editor_icons.arrow_up, 
-            action: ()=>{
-            if (this.parent.objmenu_page_scroll_index > 0) {
-                this.parent.objmenu_page_scroll_index -= 1;
-            }
-        }})
+            action: ()=>{ this._header_scroll_up() }
+        })
         // header scroll down
         this.actions.push({
             x: this.margin1,
             y: 32 + 24*5, 
             icon:this.parent.editor_icons.arrow_down,
-            action: ()=>{
-            let n = this.parent.object_pages.length
-            if (this.parent.objmenu_page_scroll_index < n-1) {
-                this.parent.objmenu_page_scroll_index += 1;
-            }
-        }})
+            action: ()=>{ this._header_scroll_down() }
+        })
 
         // object page scroll up
         this.actions.push({
             x: this.margin2 + 24*(this.objects_per_row),
             y: 32 + 24*1, 
             icon:this.parent.editor_icons.arrow_up, 
-            action: ()=>{
-            if (this.parent.objmenu_object_scroll_index > 0) {
-                this.parent.objmenu_object_scroll_index -= 4
-            }
-        }})
+            action: ()=>{ this._body_scroll_up() }
+        })
 
         // object page scroll down
         this.actions.push({
             x: this.margin2 + 24*(this.objects_per_row),
             y: 32 + 24 * (this.number_of_rows), 
             icon:this.parent.editor_icons.arrow_down, 
-            action: ()=>{
-            let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
-            if (this.parent.objmenu_object_scroll_index < n-4) {
-                this.parent.objmenu_object_scroll_index += 4
-            }
-        }})
+            action: ()=>{ this._body_scroll_down() }
+        })
 
         let x,y;
         x = this.margin2 + this.margin3 + 24*(this.objects_per_row+1)
@@ -667,11 +653,64 @@ class ObjectMenu {
 
     }
 
+    _header_scroll_up() {
+        if (this.parent.objmenu_page_scroll_index > 0) {
+            this.parent.objmenu_page_scroll_index -= 1;
+        }
+    }
+
+    _header_scroll_down() {
+        let n = this.parent.object_pages.length
+        if (this.parent.objmenu_page_scroll_index < n-1) {
+            this.parent.objmenu_page_scroll_index += 1;
+        }
+    }
+
+    _body_scroll_up() {
+        if (this.parent.objmenu_object_scroll_index > 0) {
+            this.parent.objmenu_object_scroll_index -= 4
+        }
+        let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        let i = this.parent.objmenu_object_scroll_index;
+        console.log(n, Math.min(1, i/(n-4)))
+    }
+
+    _body_scroll_down() {
+        let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        if (this.parent.objmenu_object_scroll_index < n-4) {
+            this.parent.objmenu_object_scroll_index += 4
+        }
+        let i = this.parent.objmenu_object_scroll_index;
+        console.log(n, Math.min(1, i/(n-4)))
+    }
+
+
     handleTouches(touches) {
 
         if (touches.length > 0) {
 
             let t = touches[0]
+
+            if (t.buttons&4) {
+                if (t.x < this.margin2) {
+                    // scroll head
+                    if (t.deltaY < 0) {
+                        this._header_scroll_down()
+                    } else {
+                        this._header_scroll_up()
+                    }
+
+                } else {
+                    // scroll body
+                    if (t.deltaY < 0) {
+                        this._body_scroll_down()
+                    } else {
+                        this._body_scroll_up()
+                    }
+                }
+                
+                return
+            }
 
             if (t.pressed) { // prevent drag firing multiple times
                 return
@@ -726,6 +765,54 @@ class ObjectMenu {
         }
     }
 
+    _paint_body_scrollbar(ctx) {
+        // background for object list scroll bar
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.margin2 + 24*(this.objects_per_row) + 1, 32 + 24*1+2, 14, 24*5-12, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        let groove_x = this.margin2 + 24*(this.objects_per_row) + 1 + 2
+        let groove_y = 32 + 24*1+2 + 12 + 4
+        let groove_width = 10
+        let groove_height = 24*5-12 - 24 - 8
+        let groove_size = 8
+
+        let nobj = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        let iobj = this.parent.objmenu_object_scroll_index;
+        let pobj = (nobj>4)?Math.min(1, iobj/(nobj-4)):0;
+
+        ctx.beginPath();
+        ctx.fillStyle = "#555555"
+        ctx.strokeStyle = "#555555"
+        ctx.lineWidth = 2
+        ctx.rect(
+            groove_x, 
+            groove_y, 
+            groove_width, 
+            groove_height)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        ctx.beginPath();
+        ctx.fillStyle = "#aaaaaa"
+        ctx.strokeStyle = "#aaaaaa"
+        ctx.lineWidth = 2
+        ctx.rect(
+            groove_x, 
+            groove_y + Math.round((groove_height-groove_size) * pobj), 
+            groove_width, 
+            groove_size)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+    }
+
     paint(ctx) {
 
         ctx.beginPath();
@@ -764,15 +851,9 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
-        // background for object list scroll bar
-        ctx.beginPath();
-        ctx.fillStyle = "#888888"
-        ctx.strokeStyle = "#888888"
-        ctx.lineWidth = 2
-        ctx.roundRect(this.margin2 + 24*(this.objects_per_row) + 1, 32 + 24*1+2, 14, 24*5-12, 3)
-        ctx.closePath()
-        ctx.stroke()
-        ctx.fill()
+        this._paint_body_scrollbar(ctx);
+
+
 
         // background for edit tools
         for (let i=0; i < 4; i++) {
@@ -915,117 +996,6 @@ class ObjectMenu {
 
     }
 
-}
-
-// a menu for selecting a tool for editing objects
-class ObjectEditMenu {
-    constructor(parent) {
-
-        this.rect = new Rect(0,24,8 + 24 * 1, 8 + 24 * 3)
-        this.parent = parent
-
-        this.actions = []
-
-        let x = this.rect.x + 8
-        let y = this.rect.y + 8
-
-        this.actions.push({x,y,icon:this.parent.editor_icons.hand, action: ()=>{
-            this.parent.active_tool = EditorTool.SELECT_OBJECT
-            this.parent.active_menu = null
-        }})
-
-        y += 24
-
-        this.actions.push({x,y,icon:this.parent.editor_icons.erase, action: ()=>{
-            this.parent.active_tool = EditorTool.ERASE_OBJECT
-            this.parent.active_menu = null
-        }})
-
-        y += 24
-
-        this.actions.push({x,y,icon:this.parent.editor_icons.pencil, action: ()=>{
-            this.parent.active_tool = EditorTool.EDIT_OBJECT
-            this.parent.active_menu = null
-        }})
-
-
-    }
-
-
-    handleTouches(touches) {
-
-        if (touches.length > 0) {
-
-            let t = touches[0]
-
-            if (t.pressed) { // prevent drag firing multiple times
-                return
-            }
-
-            if (!this.rect.collidePoint(t.x, t.y)) {
-                this.parent.active_menu = null
-                return
-            }
-
-            this.actions.forEach(action => {
-                if (!!action.action) {
-                    let rect = new Rect(action.x, action.y, 16, 16)
-                    if (rect.collidePoint(t.x, t.y)) {
-                        action.action()
-                    }
-                }
-            })
-        }
-    }
-
-    paint(ctx) {
-
-        ctx.beginPath();
-        ctx.fillStyle = "#a2baa2"
-        ctx.strokeStyle = "#526a52"
-        ctx.lineWidth = 2
-        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h,8)
-        ctx.closePath()
-        ctx.stroke()
-        ctx.fill()
-
-
-        let x = 8
-        let y = 32
-
-        //let k = (this.parent.tile_property - 1)
-        //ctx.beginPath();
-        //ctx.strokeStyle = "gold"
-        //ctx.roundRect(x + k*24 - 2,y - 2,16+4,16+4, 4)
-        //ctx.stroke()
-        //ctx.fillStyle = "#0000FF"
-        //for (let j=0; j < 3; j++) {
-        //    x = 8 + 24*2
-        //    for (let i=0; i < 3; i++) {
-        //        ctx.beginPath()
-        //        ctx.rect(x,y,16,16)
-        //        ctx.closePath()
-        //        ctx.fill()
-        //        x += 24
-        //    }
-        //    y += 24
-        //}
-
-        ctx.font = "bold 16px";
-        ctx.fillStyle = "black"
-        ctx.strokeStyle = "black"
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-
-        this.actions.forEach(action => {
-            if (!!action.render) {
-                action.render(ctx,action.x, action.y)
-            } else {
-                action.icon.draw(ctx, action.x, action.y)
-            }
-        })
-
-    }
 }
 
 // a menu for editing the properties of an object
@@ -1622,6 +1592,8 @@ export class LevelEditScene extends GameScene {
         this.historyPush(true, true)
 
         this.tile_selection = null
+
+        this._x_visited_tiles = {} // debug tile update issues
     }
 
     setTileTheme(theme) {
@@ -2211,6 +2183,18 @@ export class LevelEditScene extends GameScene {
             }
             
         }
+
+        // paint which tiles changed after placing the last tile
+        // useful for debugging
+        /*
+        Object.entries(this._x_visited_tiles).forEach(([tid, value]) => {
+            ctx.beginPath()
+            let [x, y] = value;
+            ctx.rect(x*16,y*16,16,16)
+            ctx.fillStyle = "#ff000033"
+            ctx.fill()
+        })
+        */
     }
 
     _paint_objects(ctx) {
@@ -2380,12 +2364,18 @@ export class LevelEditScene extends GameScene {
 
         let queue = [[x,y]]
 
+        let visited = {}
         while (queue.length > 0) {
             let [qx,qy] = queue.shift()
             const tid = (qy + 4)*512+qx
 
+            if (!!visited[tid]) {
+                continue
+            }
+
             let delta = false
             if (!!this.map.layers[0][tid]) {
+                visited[tid] = [qx,qy]
                 delta = updateTile(this.map.layers[0], this.map.width, this.map.height, this.theme_sheets, qx, qy, this.map.layers[0][tid])
             }
 
@@ -2396,7 +2386,7 @@ export class LevelEditScene extends GameScene {
                 queue.push([x, y+1])
 
                 queue.push([x-1, y-1])
-                queue.push([x+1, y+1])
+                queue.push([x-1, y+1])
                 queue.push([x+1, y-1])
                 queue.push([x+1, y+1])
 
@@ -2408,6 +2398,7 @@ export class LevelEditScene extends GameScene {
             }
 
         }
+        this._x_visited_tiles = visited
 
     }
 
@@ -3153,8 +3144,13 @@ export class LevelEditScene extends GameScene {
                 }
                 //this.num_touches = this.disable_place + "|" +touches.map(t=> t.pressed).join()
 
-                // right click or two touches to scroll the screen
-                if (touches[0].buttons&2 || touches.length==2) {
+                console.log(touches[0].buttons)
+                if (touches[0].buttons&4) {
+                    // mouse  wheel
+                    console.log("TODO: scroll", touches[0])
+
+                } else if (touches[0].buttons&2 || touches.length==2) {
+                    // right click or two touches to scroll the screen
 
                     let t = touches[0]
                     if (touches.length == 2) {
@@ -3186,7 +3182,7 @@ export class LevelEditScene extends GameScene {
                     }
 
 
-                } else if (!this.disable_place) {
+            } else if (!this.disable_place) {
 
                     //if (touches[0].first) {
                     //    return

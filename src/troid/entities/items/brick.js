@@ -3,9 +3,9 @@ import {
     Rect,
 } from "@axertc/axertc_common"
 
-import {gAssets} from "@troid/store"
+import {gAssets, CharacterInventoryEnum, EditorControl} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, TextTyper} from "@troid/entities/sys"
 import {
     PlatformerEntity, AnimationComponent
 } from "@axertc/axertc_physics"
@@ -29,47 +29,9 @@ export class Brick extends PlatformerEntity {
     }
 
     onPress(other, vector) {
-        console.log(other._classname, vector)
-
         if (other instanceof Player && vector.y < 0) {
-            this._kill()
+            this.onBreak()
         }
-
-    }
-
-    collide(other, dx, dy) {
-
-        if (!this.alive) {
-            return null
-        }
-
-        let rect = other.rect
-        let update = rect.copy()
-
-        if (dx > 0 && rect.right() <= this.rect.left()) {
-            update.set_right(this.rect.left())
-            return update
-        }
-
-        if (dx < 0 && rect.left() >= this.rect.right()) {
-            update.set_left(this.rect.right())
-            return update
-        }
-
-        if (dy > 0 && rect.bottom() <= this.rect.top()) {
-            update.set_bottom(this.rect.top())
-            return update
-        }
-
-        if (dy < 0 && rect.top() >= this.rect.top()) {
-            if (other instanceof Player) {
-                this._kill()
-            }
-            update.set_top(this.rect.bottom())
-            return update
-        }
-
-        return null
     }
 
     paint(ctx) {
@@ -99,6 +61,10 @@ export class Brick extends PlatformerEntity {
                 this.destroy()
             }
         }
+    }
+
+    onBreak() {
+        this._kill()
     }
 
     _kill() {
@@ -419,3 +385,68 @@ registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.i
     entry.editorIcon = null
     entry.editorSchema = []
 })
+
+
+export class EquipmentItem extends Brick {
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.skill = props.skill??CharacterInventoryEnum.SKILL_MORPH_BALL
+    }
+
+
+    paint(ctx) {
+
+        if (this.alive) {
+            gAssets.sheets.brick.drawTile(ctx, 13, this.rect.x, this.rect.y)
+        } else {
+            // draw a quarter of the brick
+            this.particles.forEach((p,i) => {
+                0,1,2,3
+                ctx.drawImage(this.constructor.sheet.image, 
+                    18+8*(i&1), 52+8*(i&2?1:0), 
+                    8, 8, p.x, p.y, 8, 8)
+            })
+        }
+    }
+
+    onBreak() {
+        gEngine.scene.dialog = new TextTyper("you found the" + this.skill)
+        gEngine.scene.dialog.setModal(1)
+        gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null})
+        this._kill()
+    }
+
+}
+
+registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], EntityCategory.item, null, (entry)=> {
+    EquipmentItem.sheet = gAssets.sheets.brick
+    entry.icon = gAssets.sheets.brick.tile(13)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {
+            control: EditorControl.CHOICE,
+            name: "skill",
+            "default": CharacterInventoryEnum.SKILL_MORPH_BALL,
+            choices: [
+                CharacterInventoryEnum.BEAM_ELEMENT_FIRE,
+                CharacterInventoryEnum.BEAM_ELEMENT_WATER,
+                CharacterInventoryEnum.BEAM_ELEMENT_ICE,
+                CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE,
+                CharacterInventoryEnum.BEAM_TYPE_WAVE,
+                CharacterInventoryEnum.BEAM_TYPE_BOUNCE,
+                CharacterInventoryEnum.BEAM_LEVEL_2,
+                CharacterInventoryEnum.BEAM_LEVEL_3,
+                CharacterInventoryEnum.BEAM_MOD_CHARGE,
+                CharacterInventoryEnum.BEAM_MOD_RAPID,
+                CharacterInventoryEnum.SKILL_MORPH_BALL,
+                CharacterInventoryEnum.SKILL_DOUBLE_JUMP,
+                CharacterInventoryEnum.SKILL_SPIKE_BALL,
+            ]
+        },
+    ]
+
+    
+
+})
+
