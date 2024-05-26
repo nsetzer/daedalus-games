@@ -214,6 +214,8 @@ export class SoundEffectPalette {
         // 2 item sounds
         this.ITEM_COLLECT = gAssets.sounds.coin_collect
         this.ITEM_COLLECT_COIN = gAssets.sounds.coin_collect
+        this.ITEM_BREAK_BRICK = gAssets.sounds.break_brick
+        this.ITEM_POWERUP = gAssets.sounds.powerup
 
         // 3 gui sounds
         this.GUI_CLICK_1 = gAssets.sounds.click1

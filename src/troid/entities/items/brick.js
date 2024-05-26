@@ -13,9 +13,11 @@ import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 import {Player} from "@troid/entities/player"
 import {MobBase} from "@troid/entities/mobs"
 
+import { Coin, CoinBlue, CoinRed } from "./coin.js"
 
-export class Brick extends PlatformerEntity {
-    constructor(entid, props) {
+
+export class BrickBase extends PlatformerEntity {
+    constructor(entid, props, tid) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
 
@@ -26,6 +28,8 @@ export class Brick extends PlatformerEntity {
         this.particles = []
         this.timer = 0
         this.timeout = 2 // enough time for particles to fall off the screen
+
+        this.tid = tid
     }
 
     onPress(other, vector) {
@@ -37,11 +41,15 @@ export class Brick extends PlatformerEntity {
     paint(ctx) {
 
         if (this.alive) {
-            gAssets.sheets.brick.tile(0).draw(ctx, this.rect.x, this.rect.y)
+            gAssets.sheets.brick.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
         } else {
             // draw a quarter of the brick
-            this.particles.forEach(p => {
-                ctx.drawImage(this.constructor.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
+            let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
+            let y = (this.tid/gAssets.sheets.brick.cols) * 17 + 1
+            this.particles.forEach((p,i) => {
+                ctx.drawImage(gAssets.sheets.brick.image, 
+                    x+8*(i&1), y+8*(i&2?1:0), 
+                    8, 8, p.x, p.y, 8, 8)
             })
         }
     }
@@ -68,6 +76,8 @@ export class Brick extends PlatformerEntity {
     }
 
     _kill() {
+        gAssets.sfx.ITEM_BREAK_BRICK.play()
+
         this.alive = 0
         this.solid = 0
 
@@ -83,8 +93,13 @@ export class Brick extends PlatformerEntity {
     }
 }
 
+export class Brick extends BrickBase {
+    constructor(entid, props) {
+        super(entid, props, 0)
+    }
+}
+
 registerEditorEntity("Brick", Brick, [16,16], EntityCategory.item, null, (entry)=> {
-    Brick.sheet = gAssets.sheets.brick
     entry.icon = gAssets.sheets.brick.tile(0)
     entry.editorIcon = null
     entry.editorSchema = []
@@ -118,7 +133,7 @@ export class FakeBrick extends PlatformerEntity {
         let xoffset = 0
         let yoffset = 0
 
-        const sheet = FakeBrick.sheet
+        const sheet = gAssets.sheets.brick
         this.animations = {}
 
         this.animations.idle = this.animation.register(sheet, [0], spf, {xoffset, yoffset})
@@ -211,7 +226,6 @@ export class FakeBrick extends PlatformerEntity {
 }
 
 registerEditorEntity("FakeBrick", FakeBrick, [16,16], EntityCategory.item, null, (entry)=> {
-    FakeBrick.sheet = gAssets.sheets.brick
     entry.icon = gAssets.sheets.brick.tile(4)
     entry.editorIcon = null
     entry.editorSchema = []
@@ -380,16 +394,15 @@ export class ExplodingBrick extends MobBase {
 }
 
 registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.item, null, (entry)=> {
-    ExplodingBrick.sheet = gAssets.sheets.brick
     entry.icon = gAssets.sheets.brick.tile(12)
     entry.editorIcon = null
     entry.editorSchema = []
 })
 
 
-export class EquipmentItem extends Brick {
+export class BrickUpgrade extends BrickBase {
     constructor(entid, props) {
-        super(entid, props)
+        super(entid, props, 13)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
         this.skill = props.skill??CharacterInventoryEnum.SKILL_MORPH_BALL
     }
@@ -415,12 +428,13 @@ export class EquipmentItem extends Brick {
         gEngine.scene.dialog.setModal(1)
         gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null})
         this._kill()
+        gAssets.sfx.ITEM_POWERUP.play()
     }
 
 }
 
-registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], EntityCategory.item, null, (entry)=> {
-    EquipmentItem.sheet = gAssets.sheets.brick
+registerEditorEntity("BrickUpgrade", BrickUpgrade, [16,16], EntityCategory.item, null, (entry)=> {
+    BrickUpgrade.sheet = gAssets.sheets.brick
     entry.icon = gAssets.sheets.brick.tile(13)
     entry.editorIcon = null
     entry.editorSchema = [
@@ -446,7 +460,85 @@ registerEditorEntity("EquipmentItem", EquipmentItem, [16,16], EntityCategory.ite
         },
     ]
 
-    
+})
+
+export class BrickCoin extends BrickBase {
+    constructor(entid, props) {
+        super(entid, props, 14)
+        this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.skill = props.skill??CharacterInventoryEnum.SKILL_MORPH_BALL
+
+        this.child = null
+        this.item_offset_y = 0
+        this.item_timer = Coin.sheet.cols * 6
+
+        this.color = props.item??0
+        this.value = [1,10,25][this.color]
+    }
+
+    update(dt) {
+
+        super.update(dt);
+
+        if (!this.alive) {
+            this.item_offset_y -= gEngine.frameIndex%2
+            this.item_timer += 1
+        }
+    }
+
+    paint(ctx) {
+
+        if (this.alive) {
+            gAssets.sheets.brick.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
+        } else {
+
+            if (this.item_timer < this.item_timer_timeout) {
+                let i = this.color * Coin.sheet.cols + Math.floor(this.item_timer / 6) % Coin.sheet.cols
+                Coin.sheet.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
+            }
+
+            // draw a quarter of the brick
+            let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
+            let y = (this.tid/gAssets.sheets.brick.cols) * 17 + 1
+            this.particles.forEach((p,i) => {
+                0,1,2,3
+                ctx.drawImage(gAssets.sheets.brick.image, 
+                    x+8*(i&1), y+8*(i&2?1:0), 
+                    8, 8, p.x, p.y, 8, 8)
+            })
+        }
+    }
+
+    onBreak() {
+        this._kill()
+        // number of frames * # frames to show each frame
+        // coin animation is 7 frames
+        // showing 11 frames will do one full rotation + 1 half rotation
+        // before the coin disappears
+        this.item_timer_timeout = 11 * 6 
+        this.item_timer = 0
+        
+        gAssets.sfx.ITEM_COLLECT_COIN.play()
+        gCharacterInfo.coins += this.value
+    }
+
+}
+
+registerEditorEntity("BrickCoin", BrickCoin, [16,16], EntityCategory.item, null, (entry)=> {
+    entry.icon = gAssets.sheets.brick.tile(14)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {
+            control: EditorControl.CHOICE,
+            name: "item",
+            "default": 0,
+            choices: {
+                "Coin": 0,
+                "Blue Coin": 2,
+                "Red Coin": 1,
+            }
+        },
+    ]
 
 })
 

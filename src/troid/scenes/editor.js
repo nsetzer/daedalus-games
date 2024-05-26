@@ -1625,16 +1625,7 @@ export class LevelEditScene extends GameScene {
             {
                 name: null,
                 icon: null,
-                action: () => {
-                    gAssets.sounds.click1.play()
-                    //gApplication.togglePopUp()
-                    gEngine.requestKeyboardFocus({
-                        "type": "text",
-                        "placeholder": "",
-                        "text": this.text
-                    }, null, (text)=>console.log(text))
-
-                },
+                action: null,
                 selected: null,
             },
             {

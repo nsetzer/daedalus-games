@@ -558,9 +558,10 @@ export class MainScene extends GameScene {
             align: Alignment.LEFT|Alignment.BOTTOM,
             //symbols: ["W", "D", "S", "A"],
         })
-        this.touch.addButton(120, -40, 40, {text: "Z"})
-        this.touch.addButton(40, -120, 40, {text: "X"})
-        this.touch.addButton(40, -40, 40, {text: "C"})
+        let rad = 50
+        this.touch.addButton(3*rad, -rad, rad, {text: "Z"})
+        this.touch.addButton(rad, -3*rad, rad, {text: "X"})
+        this.touch.addButton(rad, -rad, rad, {text: "C"})
 
         this.keyboard.addWheel_ArrowKeys()
 

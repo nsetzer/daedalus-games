@@ -268,7 +268,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("brick")
             .path(RES_ROOT + "/sprites/items/brick.png")
             .dimensions(16, 16)
-            .layout(3, 4)
+            .layout(4, 4)
             .offset(1, 1)
             .spacing(1, 1)
 
@@ -447,6 +447,16 @@ class AssetLoader {
 
         this.loader.addSoundEffect("coin_collect")
             .path(RES_ROOT + "/sfx/misc/coin.wav")
+            .volume(.3)
+            .allowMissing()
+        
+        this.loader.addSoundEffect("break_brick")
+            .path(RES_ROOT + "/sfx/misc/break.wav")
+            .volume(.3)
+            .allowMissing()
+        
+        this.loader.addSoundEffect("powerup")
+            .path(RES_ROOT + "/sfx/misc/powerup3.wav")
             .volume(.3)
             .allowMissing()
 
