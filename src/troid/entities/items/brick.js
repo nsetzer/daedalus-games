@@ -45,7 +45,8 @@ export class BrickBase extends PlatformerEntity {
         } else {
             // draw a quarter of the brick
             let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
-            let y = (this.tid/gAssets.sheets.brick.cols) * 17 + 1
+            let y = Math.floor(this.tid/gAssets.sheets.brick.cols) * 17 + 1
+            console.log(this.tid, gAssets.sheets.brick.cols, x, y)
             this.particles.forEach((p,i) => {
                 ctx.drawImage(gAssets.sheets.brick.image, 
                     x+8*(i&1), y+8*(i&2?1:0), 
@@ -488,25 +489,13 @@ export class BrickCoin extends BrickBase {
 
     paint(ctx) {
 
-        if (this.alive) {
-            gAssets.sheets.brick.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
-        } else {
+        super.paint(ctx)
 
-            if (this.item_timer < this.item_timer_timeout) {
+            if (!this.alive && this.item_timer < this.item_timer_timeout) {
                 let i = this.color * Coin.sheet.cols + Math.floor(this.item_timer / 6) % Coin.sheet.cols
                 Coin.sheet.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
             }
 
-            // draw a quarter of the brick
-            let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
-            let y = (this.tid/gAssets.sheets.brick.cols) * 17 + 1
-            this.particles.forEach((p,i) => {
-                0,1,2,3
-                ctx.drawImage(gAssets.sheets.brick.image, 
-                    x+8*(i&1), y+8*(i&2?1:0), 
-                    8, 8, p.x, p.y, 8, 8)
-            })
-        }
     }
 
     onBreak() {

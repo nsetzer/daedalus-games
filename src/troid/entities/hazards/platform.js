@@ -24,7 +24,7 @@ export class MovingPlatformUD extends PlatformerEntity {
         
         let width = props.width??32
         let height = props.height??32 // range of travel
-        let platform_height = 16 // height of the platform
+        let platform_height = 10 // height of the platform
         let offset = Math.min(props.offset??0, (height - platform_height))
 
         this.rect = new Rect(props.x, props.y+ offset, width, platform_height)
@@ -39,6 +39,7 @@ export class MovingPlatformUD extends PlatformerEntity {
 
         // Bumper.sheet.drawTile(ctx, tid, this.rect.x, this.rect.y - 4)
 
+        /*
         ctx.beginPath()
         ctx.fillStyle = 'blue'
         ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
@@ -56,6 +57,24 @@ export class MovingPlatformUD extends PlatformerEntity {
         ctx.fillStyle = 'yellow'
         ctx.rect(rect2.x+2, rect2.y, rect2.w-4, rect2.h)
         ctx.fill()
+        */
+
+        let n = this.rect.w/16
+        for (let i=0; i < n; i+=1) {
+            let tid;
+
+            if (i==0) {
+                tid = 4
+            } else if (i==1 || i==n-2) {
+                tid = Math.floor(gEngine.frameIndex/5)%4
+            } else if (i == n-1) {
+                tid = 5
+            } else {
+                tid = 6
+            }
+            gAssets.sheets.platformud.drawTile(ctx, tid, this.rect.x+i*16, this.rect.y-6)
+        }
+
 
     }
 
@@ -148,8 +167,7 @@ export class MovingPlatformUD extends PlatformerEntity {
 }
 
 registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCategory.hazard, null, (entry)=> {
-    MovingPlatformUD.sheet = gAssets.sheets.bumper
-    entry.icon = makeEditorIcon(MovingPlatformUD.sheet)
+    entry.icon = makeEditorIcon(gAssets.sheets.platformud)
     entry.editorIcon = null
     entry.editorSchema = [
         {control: EditorControl.RANGE, 
@@ -171,10 +189,26 @@ registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCatego
     
     entry.editorRender = (ctx,x,y,props) => {
 
-        ctx.beginPath()
+        let n = props.width/16
+        for (let i=0; i < n; i+=1) {
+            let tid;
+
+            if (i==0) {
+                tid = 4
+            } else if (i==1 || i==n-2) {
+                tid = 0
+            } else if (i == n-1) {
+                tid = 5
+            } else {
+                tid = 6
+            }
+
+            gAssets.sheets.platformud.drawTile(ctx, tid, x+i*16, y+props.offset-6)
+        }
+        /*ctx.beginPath()
         ctx.fillStyle = 'blue'
         ctx.rect(x, y+props.offset, props.width, 16)
-        ctx.fill()
+        ctx.fill()*/
 
     }
 })

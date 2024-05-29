@@ -7,5 +7,6 @@ export * from "./fan.js"
 export * from "./flipper.js"
 export * from "./platform.js"
 export * from "./spikes.js"
+export * from "./firebar.js"
 export * from "./water.js"
 

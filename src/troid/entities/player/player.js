@@ -595,7 +595,7 @@ export class Player extends PlatformerEntity {
     }
     
     _chargePower() {
-        let power = this.charge_duration / this.charge_timeout
+        let power = Math.min(1.0, this.charge_duration / this._chargeTimeout())
         return power
     }
     
@@ -660,7 +660,7 @@ export class Player extends PlatformerEntity {
                     if (this.charge_count < 3) {
                         this.charge_count += 1
                     }
-                    this._shoot(0)
+                    this._shoot(this._chargePower())
                     this.charge_duration -= timeout
                 }
             }
