@@ -18,12 +18,14 @@ class CoinBase extends PlatformerEntity {
         this.value = value
         this.color = color
 
-        this.tiles = gAssets.sheets.coin.tiles().slice(color*Coin.sheet.cols, (color+1)*Coin.sheet.cols)
+        this.tiles = gAssets.sheets.coin.tiles().slice(color*gAssets.sheets.coin.cols, (color+1)*gAssets.sheets.coin.cols)
+        // duplicate the dirst tile in tiles
+        //this.tiles.unshift(this.tiles[0])
     }
 
     paint(ctx) {
         let i = Math.floor(gEngine.frameIndex / 6) % this.tiles.length
-        Coin.sheet.drawTile(ctx, this.tiles[i], this.rect.x, this.rect.y)
+        gAssets.sheets.coin.drawTile(ctx, this.tiles[i], this.rect.x, this.rect.y)
     }
 
     update(dt) {
@@ -89,23 +91,38 @@ export class CoinBlue extends CoinBase {
     }
 }
 
+/*
+export class CoinStar extends CoinBase {
+    constructor(entid, props) {
+        super(entid, props, 4, 100);
+    }
+}
+*/
+
 registerEditorEntity("Coin", Coin, [16,16], EntityCategory.item, null, (entry)=> {
-    Coin.sheet = gAssets.sheets.coin
+
     entry.icon = gAssets.sheets.coin.tile(0)
     entry.editorIcon = null
     entry.editorSchema = []
 })
 
 registerEditorEntity("CoinRed", CoinRed, [16,16], EntityCategory.item, null, (entry)=> {
-    Coin.sheet = gAssets.sheets.coin
-    entry.icon = gAssets.sheets.coin.tile(1*Coin.sheet.cols)
+    entry.icon = gAssets.sheets.coin.tile(1*gAssets.sheets.coin.cols)
     entry.editorIcon = null
     entry.editorSchema = []
 })
 
 registerEditorEntity("CoinBlue", CoinBlue, [16,16], EntityCategory.item, null, (entry)=> {
-    Coin.sheet = gAssets.sheets.coin
-    entry.icon = gAssets.sheets.coin.tile(2*Coin.sheet.cols)
+    entry.icon = gAssets.sheets.coin.tile(2*gAssets.sheets.coin.cols)
     entry.editorIcon = null
     entry.editorSchema = []
 })
+
+/*
+registerEditorEntity("CoinStar", CoinStar, [16,16], EntityCategory.item, null, (entry)=> {
+ 
+    entry.icon = gAssets.sheets.coin.tile(4*gAssets.sheets.coin.cols)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+*/

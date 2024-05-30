@@ -649,6 +649,28 @@ export class MainScene extends GameScene {
 
     }
 
+    _paint_status_map(ctx) {
+        // draw a map 
+        // 40 pixels wide by 18 pixels tall
+        // each cell is 8x6
+        let x = gEngine.view.width - 24 - 40
+        let y = 3
+        ctx.strokeStyle = '#aaaaaa'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        for (let i=0; i<5; i++) {
+            ctx.moveTo(x+i*8, y);
+            ctx.lineTo(x+i*8, y+18);
+        }
+        for (let j=0; j < 3; j++) {
+            ctx.moveTo(x,    y+j*6);
+            ctx.lineTo(x+40, y+j*6);
+        }
+        ctx.moveTo(x, y)
+        ctx.rect(x,y,40,18)
+        ctx.stroke()
+    }
+
     _paint_status(ctx) {
         const barHeight = 24
 
@@ -727,30 +749,14 @@ export class MainScene extends GameScene {
         // draw the hamburger menu
         gAssets.sheets.editor.drawTile(ctx, 2*8+2, gEngine.view.width - 20, 4)
 
-        // draw a map
-        let x = gEngine.view.width - 24 - 25
-        let y = 2
-        ctx.strokeStyle = '#aaaaaa'
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        for (let i=0; i<=25; i+=5) {
-            ctx.moveTo(x+i, y);
-            ctx.lineTo(x+i, y+20);
-        }
-        for (let j=0; j<=20; j+=4) {
-            ctx.moveTo(x,    y+j);
-            ctx.lineTo(x+25, y+j);
-        }
-        ctx.moveTo(x, y)
-        ctx.rect(x,y,25,20)
-        ctx.stroke()
+        this._paint_status_map(ctx)
 
         ctx.font = "6px Arial";
         ctx.fillStyle = "white"
         ctx.strokeStyle = "white"
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
-        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64, 4+8);
+        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64 - 8, 4+8);
 
     }
 

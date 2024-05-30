@@ -275,7 +275,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("coin")
             .path(RES_ROOT + "/sprites/items/coin.png")
             .dimensions(16, 16)
-            .layout(3, 7)
+            .layout(5, 7)
             .offset(0, 0)
             .spacing(0, 0)
 
@@ -320,6 +320,21 @@ class AssetLoader {
             .layout(1, 2)
             .offset(1, 18)
             .spacing(1, 1)
+        
+        this.loader.addSpriteSheet("platformud")
+            .path(RES_ROOT + "/sprites/hazards/platformud.png")
+            .dimensions(16, 22)
+            .layout(1, 7)
+            .offset(1, 18)
+            .spacing(1, 1)
+
+        this.loader.addSpriteSheet("battery_gate")
+            .path(RES_ROOT + "/sprites/switches/battery_gate.png")
+            .dimensions(48, 16)
+            .layout(2, 5)
+            .offset(1, 16*2+3)
+            .spacing(1, 1)
+        
 
         this.loader.addSpriteSheet("bumper")
             .path(RES_ROOT + "/sprites/hazards/bumper.png")
@@ -359,6 +374,13 @@ class AssetLoader {
         this.loader.addSpriteSheet("help_flower")
             .path(RES_ROOT + "/sprites/mobs/flower.png")
             .dimensions(32, 32)
+            .layout(4, 4)
+            .offset(1, 18)
+            .spacing(1, 1)
+
+        this.loader.addSpriteSheet("tomato")
+            .path(RES_ROOT + "/sprites/mobs/tomato.png")
+            .dimensions(48, 48)
             .layout(2, 4)
             .offset(1, 18)
             .spacing(1, 1)
@@ -496,7 +518,7 @@ class AssetLoader {
         gAssets.sounds = {... gAssets.sounds, ... this.loader.sounds}
         gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
         gAssets.font = {... gAssets.font, ... this.loader.font}
-
+        
         gAssets.themes.plains = [
             null,
             gAssets.sheets.zone_01_sheet_01,

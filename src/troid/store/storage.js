@@ -89,10 +89,10 @@ export class CharacterInventoryEnum {
 export class CharacterInfo {
 
     constructor() {
-        this.element = WeaponType.ELEMENT.FIRE
+        this.element = WeaponType.ELEMENT.POWER
         this.beam = WeaponType.BEAM.NORMAL
-        this.level = WeaponType.LEVEL.LEVEL3
-        this.modifier = WeaponType.MODIFIER.NORMAL
+        this.level = WeaponType.LEVEL.LEVEL1
+        this.modifier = WeaponType.MODIFIER.RAPID
         this.coins = 0
         this.current_health = 3
         this.max_health = 12

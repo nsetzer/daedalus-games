@@ -405,31 +405,58 @@ export class BrickUpgrade extends BrickBase {
     constructor(entid, props) {
         super(entid, props, 13)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
+        this.color = 4
         this.skill = props.skill??CharacterInventoryEnum.SKILL_MORPH_BALL
+
+        this.item_offset_y = 0
+        this.item_timer = 0
     }
 
+    update(dt) {
+
+        super.update(dt);
+
+        if (!this.alive && this.item_timer < this.item_timer_timeout) {
+
+            this.item_offset_y -= gEngine.frameIndex%2
+            this.item_timer += 1
+
+            if (this.item_timer == this.item_timer_timeout) {
+
+                gEngine.scene.dialog = new TextTyper("you found the" + this.skill)
+                gEngine.scene.dialog.setModal(1)
+                gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null; this.destroy()})
+                
+                
+            }
+        }
+    }
 
     paint(ctx) {
 
-        if (this.alive) {
-            gAssets.sheets.brick.drawTile(ctx, 13, this.rect.x, this.rect.y)
-        } else {
-            // draw a quarter of the brick
-            this.particles.forEach((p,i) => {
-                0,1,2,3
-                ctx.drawImage(this.constructor.sheet.image, 
-                    18+8*(i&1), 52+8*(i&2?1:0), 
-                    8, 8, p.x, p.y, 8, 8)
-            })
+        super.paint(ctx)
+
+        if (!this.alive) {
+            if (this.item_timer < this.item_timer_timeout) {
+                let i = this.color * gAssets.sheets.coin.cols + Math.floor(this.item_timer / 6) % gAssets.sheets.coin.cols
+                gAssets.sheets.coin.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
+            } else {
+                // show the star until the brick disappears when the dialog fades
+                let i = this.color * gAssets.sheets.coin.cols 
+                gAssets.sheets.coin.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
+            }
         }
     }
 
     onBreak() {
-        gEngine.scene.dialog = new TextTyper("you found the" + this.skill)
-        gEngine.scene.dialog.setModal(1)
-        gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null})
         this._kill()
+
+        this.item_timer_timeout = 8 * 6 
+        this.item_timer = 0
+
         gAssets.sfx.ITEM_POWERUP.play()
+
+        
     }
 
 }
@@ -469,9 +496,8 @@ export class BrickCoin extends BrickBase {
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
         this.skill = props.skill??CharacterInventoryEnum.SKILL_MORPH_BALL
 
-        this.child = null
         this.item_offset_y = 0
-        this.item_timer = Coin.sheet.cols * 6
+        this.item_timer = 0
 
         this.color = props.item??0
         this.value = [1,10,25][this.color]
@@ -491,10 +517,12 @@ export class BrickCoin extends BrickBase {
 
         super.paint(ctx)
 
-            if (!this.alive && this.item_timer < this.item_timer_timeout) {
-                let i = this.color * Coin.sheet.cols + Math.floor(this.item_timer / 6) % Coin.sheet.cols
-                Coin.sheet.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
+        if (!this.alive) {
+            if (this.item_timer < this.item_timer_timeout) {
+                let i = this.color * gAssets.sheets.coin.cols + Math.floor(this.item_timer / 6) % gAssets.sheets.coin.cols
+                gAssets.sheets.coin.drawTile(ctx, i, this.rect.x, this.rect.y + this.item_offset_y)
             }
+        } 
 
     }
 

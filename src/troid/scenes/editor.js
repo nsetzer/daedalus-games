@@ -672,7 +672,6 @@ class ObjectMenu {
         }
         let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
         let i = this.parent.objmenu_object_scroll_index;
-        console.log(n, Math.min(1, i/(n-4)))
     }
 
     _body_scroll_down() {
@@ -681,7 +680,6 @@ class ObjectMenu {
             this.parent.objmenu_object_scroll_index += 4
         }
         let i = this.parent.objmenu_object_scroll_index;
-        console.log(n, Math.min(1, i/(n-4)))
     }
 
 
@@ -1063,8 +1061,10 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.RANGE) {
                     this.addSpinBoxWidget({
                         "name": schema.name, 
+                        "display_name": schema.display_name??schema.name,
                         "step": schema.step??1, 
                         "min": schema.min??0,
+                        "default": schema['default']??(schema.min??0),
                         "max": schema.max??0xFFFF_FFFF,
                     })
                 }
@@ -1072,7 +1072,7 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.DIRECTION_4WAY) {
                     this.addChoiceWidget({
                         "name": "direction",
-                        "default": schema['default'],
+                        "default": schema['default']??Direction.UP,
                         "choices": {
                         "UP": Direction.UP,
                         "RIGHT": Direction.RIGHT,
@@ -1245,10 +1245,17 @@ class ObjectPropertyEditMenu {
     addSpinBoxWidget(schema) {
 
         // title case the name
-        let name = schema.name.replaceAll("_", " ")
-            .split(" ") \
-            .map(s => s.charAt(0).toUpperCase() + s.slice(1)) \
-            .join(" ")
+        let display_name
+
+        if (!!schema.display_name) {
+            display_name = schema.display_name
+        } else {
+            display_name = schema.name.replaceAll("_", " ")
+                .split(" ") 
+                .map(s => s.charAt(0).toUpperCase() + s.slice(1)) 
+                .join(" ")
+        }
+        
 
         let obj = this.parent.map.objects[this.oid]
 
@@ -1275,7 +1282,7 @@ class ObjectPropertyEditMenu {
                 ctx.strokeStyle = "black"
                 ctx.textAlign = "left"
                 ctx.textBaseline = "top"
-                ctx.fillText(name, 8, y);
+                ctx.fillText(display_name, 8, y);
             },
 
             // default index from schema
@@ -1821,7 +1828,7 @@ export class LevelEditScene extends GameScene {
             },
             {
                 title: "Hazards",
-                icon: this.editor_objects['WaterHazard'].icon,
+                icon: this.editor_objects['Spikes'].icon,
                 objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
             },
             {
@@ -2348,7 +2355,7 @@ export class LevelEditScene extends GameScene {
         return direction
     }
 
-    _updateTile(x, y, tile) {
+    _updateTile(x, y) {
         // return true if the tile was updated.
         // update neighbors
         // loop until no more tiles are changed
@@ -2368,6 +2375,11 @@ export class LevelEditScene extends GameScene {
             if (!!this.map.layers[0][tid]) {
                 visited[tid] = [qx,qy]
                 delta = updateTile(this.map.layers[0], this.map.width, this.map.height, this.theme_sheets, qx, qy, this.map.layers[0][tid])
+            } else {
+                // special case, when deleting there is no tile, so update the neighbors
+                if (qx==x && qy==y) {
+                    delta = 1
+                }   
             }
 
             if (delta) {
@@ -2647,7 +2659,7 @@ export class LevelEditScene extends GameScene {
             }
 
             if (schema.control == EditorControl.RANGE) {
-                props[schema.name] = schema['min'] ?? 0
+                props[schema.name] = schema['default']??(schema.min??0)
             }
         }
 
@@ -2801,6 +2813,9 @@ export class LevelEditScene extends GameScene {
             // erase the tile
             if (this.active_tool == EditorTool.ERASE_TILE) {
                 delete this.map.layers[0][tid]
+
+                this._updateTile(x,y)
+
                 return true
             }
 
@@ -2836,7 +2851,7 @@ export class LevelEditScene extends GameScene {
                 this.map.layers[0][tid].property = this.tile_property
                 this.map.layers[0][tid].sheet = this.tile_sheet
 
-                this._updateTile(x,y,this.map.layers[0][tid])
+                this._updateTile(x,y)
                 return true
             }
         }
@@ -2886,7 +2901,7 @@ export class LevelEditScene extends GameScene {
 
         }
 
-        this._updateTile(x,y,this.map.layers[0][tid])
+        this._updateTile(x,y)
         return true
     }
 

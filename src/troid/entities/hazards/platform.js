@@ -10,11 +10,9 @@ import {
 
 import {gAssets, EditorControl} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory, makeEditorIcon} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, makeEditorIcon, registerDefaultEntity} from "@troid/entities/sys"
 
-
-
-export class MovingPlatformUD extends PlatformerEntity {
+export class MovingPlatformUDBase extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         // TODO: implement `order` and process update for moving platforms 
@@ -25,14 +23,27 @@ export class MovingPlatformUD extends PlatformerEntity {
         let width = props.width??32
         let height = props.height??32 // range of travel
         let platform_height = 10 // height of the platform
-        let offset = Math.min(props.offset??0, (height - platform_height))
+
+        // TODO: bounds check when not spawned as part of an elevator
+        //let offset = Math.min(props.offset??0, (height - platform_height))
+        let offset = props.offset??0
 
         this.rect = new Rect(props.x, props.y+ offset, width, platform_height)
         this.range = new Rect(props.x, props.y, width, height)
 
-        this.speed = props.speed??16
+        this.speed = props.speed??16 // pixels per second
         this.accum = 0
-        this.direction = 1;
+        this.direction = props.initial_direction??1;
+        this.bounce = 0
+        this.oneway = 1
+
+    }
+
+    isSolid(other) {
+        if (this.oneway) {
+            return Math.floor(other.rect.bottom()) <= Math.floor(this.rect.top())
+        } 
+        return true
     }
 
     paint(ctx) {
@@ -84,17 +95,26 @@ export class MovingPlatformUD extends PlatformerEntity {
         let delta = Math.trunc(this.accum);
         this.accum -= delta;
 
-        if (this.rect.bottom() + delta >= this.range.bottom()) {
+        if (this.direction > 0 && this.rect.bottom() + delta >= this.range.bottom()) {
             delta = this.range.bottom() - this.rect.bottom()
-            this.direction = -1
+            if (!this.bounce) {
+                this.destroy()
+            } else {
+                this.direction = -1
+            }
         } 
 
-        if (this.rect.top() + delta <= this.range.top()) {
+        if (this.direction < 0 && this.rect.top() + delta <= this.range.top()) {
             delta = this.range.top() - this.rect.top()
-            this.direction = 1
+            if (!this.bounce) {
+                this.destroy()
+            } else {
+                this.direction = 1
+            }
         }
 
         for (let i = 0; i < delta; i++) {
+            // cache the objects detected on the platform
             this.visited = {}
             this._move(this)
             this.rect.y += this.direction
@@ -166,6 +186,15 @@ export class MovingPlatformUD extends PlatformerEntity {
     }
 }
 
+export class MovingPlatformUD extends MovingPlatformUDBase {
+    constructor(entid, props) {
+        super(entid, props)
+        this.bounce = 1
+    }
+
+    
+}
+
 registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCategory.hazard, null, (entry)=> {
     entry.icon = makeEditorIcon(gAssets.sheets.platformud)
     entry.editorIcon = null
@@ -181,10 +210,10 @@ registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCatego
             "step": 16
         },
         {control: EditorControl.RESIZE, 
-            "name": "height",
             "min_width": 32, "max_width": 256, 
             "min_height": 32,
         },
+        // TODO: add CHOICE for initial_direction default 1 (down)
     ]
     
     entry.editorRender = (ctx,x,y,props) => {
@@ -212,6 +241,190 @@ registerEditorEntity("MovingPlatformUD", MovingPlatformUD, [32,16], EntityCatego
 
     }
 })
+
+export class ElevatorPlatform extends MovingPlatformUDBase {
+    constructor(entid, props) {
+        super(entid, props)
+        this.bounce = 0
+    }
+}
+
+registerDefaultEntity("ElevatorPlatform", ElevatorPlatform, (entry)=> {
+
+})
+
+export class Elevator extends PlatformerEntity {
+    constructor(entid, props) {
+        /*
+        platform speed of 16 with a spawn rate every 4 seconds
+        will generate platforms that are 4 tiles apart
+
+        if the speed changes the spawn rate needs to change to keep that delta
+        */
+        super(entid, props)
+
+        this.solid = 0
+
+        let width = props.width??32
+        let height = props.height??32 // range of travel
+
+        // rect is the range of travel for spawned platforms
+        this.rect = new Rect(props.x, props.y, width, height)
+
+        this.speed = props.speed??16
+        this.direction = props.direction??1 // 1: down, -1: up
+
+         // spawn 64 pixels apart, 
+         // so you can jump from one to the next
+        this.timeout = 64 / this.speed
+        this.timer = 0
+
+        this._init = 1
+
+        this._last = null
+
+        
+
+    }
+
+    paint(ctx) {
+
+        // blue rectangle for the platform
+        /*
+        ctx.beginPath()
+        ctx.strokeStyle = 'blue'
+        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        ctx.stroke()
+        */
+    }
+
+    update(dt) {
+
+        if (this._init) {
+            this._init = 0
+
+            let delta = this.speed * this.timeout
+
+            if (this.direction < 0) {
+
+                for (let offset=this.rect.h+16 - delta; offset > 0; offset -= delta) {
+                    let props = {
+                        x: this.rect.x,
+                        y: this.rect.y,
+                        width: this.rect.w,
+                        height: this.rect.h,
+                        offset: offset,
+                        speed: this.speed,
+                        initial_direction: -1
+                    }
+
+                    this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "ElevatorPlatform", props)
+                    
+                }
+            } else {
+                for (let offset=0; offset < this.rect.h; offset += delta) {
+                    let props = {
+                        x: this.rect.x,
+                        y: this.rect.y,
+                        width: this.rect.w,
+                        height: this.rect.h,
+                        offset: offset,
+                        speed: this.speed,
+                        initial_direction: 1
+                    }
+
+                    this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "ElevatorPlatform", props)
+                    
+                }
+            }
+
+        }
+
+        this.timer -= dt
+        if (this.timer < 0) {
+            this.timer += this.timeout
+
+            let props = {
+                x: this.rect.x,
+                y: this.rect.y,
+                width: this.rect.w,
+                height: this.rect.h,
+                offset: (this.direction<0)?this.rect.h+16:0,
+                speed: this.speed,
+                initial_direction: this.direction
+            }
+
+            let nextid = this._x_debug_map._x_nextEntId()
+            this._x_debug_map.createObject(nextid, "ElevatorPlatform", props)
+
+            /*
+            if (this._last != null && !!this._x_debug_map.objects[this._last]) {
+                let obj1 = this._x_debug_map.objects[this._last]
+                let obj2 = this._x_debug_map.objects[nextid]
+                
+                console.log("-1-",
+                "distance", props.offset - obj1.rect.y, 
+                "distance", obj2.rect.y - obj1.rect.y, 
+                "delta", this.speed * this.timeout,
+                "delta", (this.speed/60) * (this.timeout*60))
+            }
+            */
+
+            this._last = nextid
+
+
+        }
+
+    }
+}
+
+registerEditorEntity("Elevator", Elevator, [32,16], EntityCategory.hazard, null, (entry)=> {
+    entry.icon = makeEditorIcon(gAssets.sheets.platformud)
+    entry.editorIcon = null
+    entry.editorSchema = [
+        {control: EditorControl.RANGE, 
+            "name": "speed",
+            "min": 16, "max": 32, 
+            "step": 16
+        },
+        {control: EditorControl.CHOICE, 
+            "name": "direction",
+            choices: {"DOWN":1, "UP":-1}
+        },
+        {control: EditorControl.RESIZE, 
+            "min_width": 32, "max_width": 256, 
+            "min_height": 32,
+        },
+    ]
+    
+    entry.editorRender = (ctx,x,y,props) => {
+
+        let n = props.width/16
+        for (let offset=0; offset < props.height; offset += 64) {
+            for (let i=0; i < n; i+=1) {
+                let tid;
+
+                if (i==0) {
+                    tid = 4
+                } else if (i==1 || i==n-2) {
+                    tid = 0
+                } else if (i == n-1) {
+                    tid = 5
+                } else {
+                    tid = 6
+                }
+
+                gAssets.sheets.platformud.drawTile(ctx, tid, x+i*16, y+offset-6)
+            }
+        }
+        /*ctx.beginPath()
+        ctx.fillStyle = 'blue'
+        ctx.rect(x, y+props.offset, props.width, 16)
+        ctx.fill()*/
+
+    }
+})
+
 
 // a platform that counts how many times the player has stood on top of it
 // decrement a counter after each time the player leaves

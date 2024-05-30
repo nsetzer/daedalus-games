@@ -1,5 +1,6 @@
 
 import {
+    Direction,
     Rect
 } from "@axertc/axertc_common"
 
@@ -32,15 +33,16 @@ export class BatteryGate extends PlatformerEntity {
 
         // smaller rectangles for parts that can be collided with
         // light bulb isnt solid
-        this.rect_bulb = new Rect((props?.x??0), props?.y??0, 16, 16)
-        this.rect_battery = new Rect((props?.x??0) + 16, props?.y??0, 32, 16)
+        this.facing = (props?.facing??Direction.LEFT)===Direction.LEFT?0:1
+
+        this.rect_bulb = new Rect((props?.x??0) + 32*this.facing, props?.y??0, 16, 16)
+        this.rect_battery = new Rect((props?.x??0) + 16*(1-this.facing), props?.y??0, 32, 16)
         this.rect_gate = new Rect(this.rect.x+16+8, this.rect.y+16, 16, 48)
 
         this.solid = 1
 
         this.is_open = false
         this.direction = 0
-        this.facing = 0
 
         // animation state for each segment
         this._gate_parts = [0,0,0]
@@ -79,6 +81,7 @@ export class BatteryGate extends PlatformerEntity {
         }
 
         /*
+
         ctx.beginPath()
         ctx.strokeStyle = 'blue'
         ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
@@ -93,6 +96,12 @@ export class BatteryGate extends PlatformerEntity {
         ctx.strokeStyle = 'red'
         ctx.rect(this.rect_gate.x, this.rect_gate.y, this.rect_gate.w, this.rect_gate.h)
         ctx.stroke()
+
+        ctx.beginPath()
+        ctx.strokeStyle = 'red'
+        ctx.rect(this.rect_bulb.x, this.rect_bulb.y, this.rect_bulb.w, this.rect_bulb.h)
+        ctx.stroke() 
+        
         */
 
 
@@ -219,5 +228,21 @@ registerEditorEntity("BatteryGate", BatteryGate, [48,64], EntityCategory.switche
 
     entry.icon = makeEditorIcon(BatteryGate.sheet_battery, 0)
     entry.editorIcon = null
-    entry.editorSchema = []
+    entry.editorRender = (ctx,x,y,props) => {
+        let sheet1 = BatteryGate.sheet_battery
+        let icon1 = (props?.facing===Direction.LEFT)?sheet1.tile(0):sheet1.tile(5);
+        icon1.draw(ctx, x, y)
+        let sheet2 = BatteryGate.sheet_gate
+        let icon2 = sheet2.tile(0)
+        icon2.draw(ctx, x+16, y+16)
+        icon2.draw(ctx, x+16, y+32)
+        icon2.draw(ctx, x+16, y+48)
+    }
+    entry.editorSchema = [
+        {control: EditorControl.CHOICE, 
+            "name": "facing",
+            "default": Direction.LEFT,
+            choices: {"LEFT":Direction.LEFT, "RIGHT":Direction.RIGHT}
+        },
+    ]
 })
