@@ -117,6 +117,8 @@ export class ResourceLoaderScene extends GameScene {
     paint(ctx) {
         //ctx.fillStyle = "yellow";
         //ctx.fillText(`${this.gen.ux} ${this.gen.uy}: ${JSON.stringify(gEngine.view)}`, 0, -8)
+        ctx.fillStyle = "yellow";
+        ctx.fillText(`${this.pipeline_index}/${this.pipeline.length}`, 16, 16)
 
         ctx.beginPath();
         ctx.fillStyle = 'black';
@@ -125,8 +127,10 @@ export class ResourceLoaderScene extends GameScene {
         ctx.fill();
 
         let color = 'yellow'
+        let error = false
         if (this.pipeline_index < this.pipeline.length) {
             if (this.pipeline[this.pipeline_index].status == ResourceStatus.ERROR) {
+                error = true
                 color = 'red'
             }
         }
@@ -148,6 +152,7 @@ export class ResourceLoaderScene extends GameScene {
         ctx.beginPath();
         ctx.rect(x,y,Math.floor(w*p),h);
         ctx.fill();
+        
 
         if (this.pipeline.length > 1) {
             for (let i=0; i<this.pipeline.length;i++) {
@@ -159,11 +164,31 @@ export class ResourceLoaderScene extends GameScene {
                 ctx.stroke();
             }
         }
+     
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.rect(x-2,y-2,w+4,h+4);
+        ctx.stroke();
+
+        if (error) {
+
+            // draw text Error centered below the rect
+            // set base line and align to center
+            ctx.fillStyle = "red";
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            ctx.fillText("Error", x + w/2, y + h + 16)
+
+        } 
 
         ctx.beginPath();
+        ctx.strokeStyle = "black";
         ctx.rect(x,y,w,h);
         ctx.closePath()
         ctx.stroke();
+        
+
 
     }
 
@@ -330,9 +355,9 @@ class AssetLoader {
 
         this.loader.addSpriteSheet("battery_gate")
             .path(RES_ROOT + "/sprites/switches/battery_gate.png")
-            .dimensions(48, 16)
+            .dimensions(32, 16)
             .layout(2, 5)
-            .offset(1, 16*2+3)
+            .offset(1, 16*4+5)
             .spacing(1, 1)
         
 

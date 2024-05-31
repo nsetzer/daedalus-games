@@ -91,13 +91,17 @@ export class SoundEffectV1 {
     }
 }
 
-
 export class SoundEffectV2 {
 
     constructor(path, volume, allow_missing) {
 
         fetch(path, {mode: "cors"})
-            .then((resp) => {return resp.arrayBuffer()})
+            .then((res) => {
+                if (res.status !== 200) {
+                    throw new Error(res.statusText)
+                }
+                return res.arrayBuffer()
+            })
             .then(buffer => {return SoundEffectV2.ctxt.decodeAudioData(buffer)})
             .then(buffer => {
                 this.buffer = buffer
@@ -312,8 +316,8 @@ export class SpriteSheet {
                 this.ready = true;
                 this.status = ResourceStatus.READY
             }
-            this.image.onerror = () => {
-                console.warn("error loading: " + path)
+            this.image.onerror = (event) => {
+                console.warn("error loading: " + path, event)
                 this.status = ResourceStatus.ERROR
             }
             this.image.src = path
@@ -449,8 +453,14 @@ export class JsonDocument {
         this.data = null
 
         fetch(path)
-            .then(res=>res.json())
+            .then(res=> {
+                if (res.status !== 200) {
+                    throw new Error(res.statusText)
+                }
+                return res.json()
+            })
             .then(json => {
+                console.log(json)
                 if (transform!==null) {
                     json = transform(json)
                 }
@@ -459,6 +469,7 @@ export class JsonDocument {
                 this.ready = true
             })
             .catch(err => {
+                console.log("error loading json document", path)
                 console.log(err)
                 this.status = ResourceStatus.ERROR
                 this.ready = false

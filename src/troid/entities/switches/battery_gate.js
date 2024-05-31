@@ -34,12 +34,15 @@ export class BatteryGate extends PlatformerEntity {
         // smaller rectangles for parts that can be collided with
         // light bulb isnt solid
         this.facing = (props?.facing??Direction.LEFT)===Direction.LEFT?0:1
+        this.gate_type = props?.gate_type??0
 
         this.rect_bulb = new Rect((props?.x??0) + 32*this.facing, props?.y??0, 16, 16)
         this.rect_battery = new Rect((props?.x??0) + 16*(1-this.facing), props?.y??0, 32, 16)
-        this.rect_gate = new Rect(this.rect.x+16+8, this.rect.y+16, 16, 48)
+        // center the gate on the battery, not on battery+bulb
+        this.rect_gate = new Rect(this.rect.x+16+8-(16*this.facing), this.rect.y+16, 16, 48)
 
         this.solid = 1
+        this.visible = 1
 
         this.is_open = false
         this.direction = 0
@@ -69,8 +72,13 @@ export class BatteryGate extends PlatformerEntity {
 
     paint(ctx) {
 
-        let tid = this.facing * BatteryGate.sheet_battery.cols + this.power
-        BatteryGate.sheet_battery.drawTile(ctx, tid, this.rect.x, this.rect.y)
+        let tid;
+
+        tid = this.facing * BatteryGate.sheet_battery.cols + this.power
+        BatteryGate.sheet_battery.drawTile(ctx, tid, this.rect_battery.x, this.rect_battery.y)
+
+        tid = (this.facing*12) + 2*(this.gate_type) + (this.power===4?1:0)
+        BatteryGate.sheet_bulb.drawTile(ctx, tid, this.rect_bulb.x, this.rect_bulb.y)
 
         for (let i = 0; i < 3; i++) {
             let tid = this._gate_parts[i]
@@ -220,29 +228,59 @@ registerEditorEntity("BatteryGate", BatteryGate, [48,64], EntityCategory.switche
         sheet.xspacing = 1
         sheet.yspacing = 1
         sheet.xoffset = 1
-        sheet.yoffset = 18
+        sheet.yoffset = 16*1+2
+        sheet.image = gAssets.sheets.battery_gate.image
+        return sheet
+    })();
+    BatteryGate.sheet_bulb = (() => {
+        let sheet = new SpriteSheet()
+        sheet.tw = 16
+        sheet.th = 16
+        sheet.rows = 1
+        sheet.cols = 12
+        sheet.xspacing = 1
+        sheet.yspacing = 1
+        sheet.xoffset = 1
+        sheet.yoffset = 16*2+4
         sheet.image = gAssets.sheets.battery_gate.image
         return sheet
     })();
     BatteryGate.sheet_battery = gAssets.sheets.battery_gate
 
-    entry.icon = makeEditorIcon(BatteryGate.sheet_battery, 0)
+    entry.icon = makeEditorIcon(gAssets.sheets.battery_gate, 0)
     entry.editorIcon = null
     entry.editorRender = (ctx,x,y,props) => {
         let sheet1 = BatteryGate.sheet_battery
         let icon1 = (props?.facing===Direction.LEFT)?sheet1.tile(0):sheet1.tile(5);
-        icon1.draw(ctx, x, y)
+        let xoffset1 = (props?.facing===Direction.LEFT)?16:0;
+        icon1.draw(ctx, x + xoffset1, y)
         let sheet2 = BatteryGate.sheet_gate
         let icon2 = sheet2.tile(0)
         icon2.draw(ctx, x+16, y+16)
         icon2.draw(ctx, x+16, y+32)
         icon2.draw(ctx, x+16, y+48)
+        let sheet3 = BatteryGate.sheet_bulb
+        let xoffset3 = (props?.facing===Direction.LEFT)?0:32;
+        let tid = ((props?.facing===Direction.LEFT)?0:12) + 2*(props?.gate_type??0);
+        sheet3.tile(tid).draw(ctx, x+xoffset3, y)
     }
     entry.editorSchema = [
         {control: EditorControl.CHOICE, 
             "name": "facing",
             "default": Direction.LEFT,
             choices: {"LEFT":Direction.LEFT, "RIGHT":Direction.RIGHT}
+        },
+        {control: EditorControl.CHOICE, 
+            "name": "gate_type",
+            "default": 1,
+            choices: {
+                "ANY": 0,     // not yet sure what to do with green
+                "POWER": 1,   // yellow
+                "FIRE": 2,    // red
+                "WATER": 3,   // blue
+                "ICE": 4,     // cyan
+                "BUBBLE": 5,  // purple
+            }
         },
     ]
 })

@@ -1504,6 +1504,24 @@ export class LevelEditScene extends GameScene {
     constructor() {
         super()
 
+        console.log(gAssets.mapinfo.mapurl)
+        console.log(gCharacterInfo.current_map)
+        console.log(gCharacterInfo.current_map_spawn)
+
+        let [wid, lid] = gAssets.mapinfo.mapurl.match(/\d+/g)
+        //let wid = gCharacterInfo.current_map.world_id.slice(-2)
+        //let lid = gCharacterInfo.current_map.level_id
+        gCharacterInfo.current_map.world_id = `world_${wid}`
+        gCharacterInfo.current_map.level_id = parseInt(lid, 10)
+        gCharacterInfo.current_map.door_id = 1
+
+        gCharacterInfo.current_map_spawn = gCharacterInfo.current_map
+
+        let map_id = `${wid}-${lid}`
+        this.current_map_id = map_id
+        // push the new url to the history
+        history.pushState({}, "edit map", `?mapid=${map_id}&edit=true`);
+
         this._touches = []
 
         this.history = []
@@ -2908,6 +2926,9 @@ export class LevelEditScene extends GameScene {
     playTest() {
 
         //gAssets.mapinfo.mapurl = "editor-playtest"
+
+        // push the new url to the history
+        history.pushState({}, "test map", `?mapid=${this.current_map_id}&edit=false`);
 
         gAssets.mapinfo.width = this.map.width
         gAssets.mapinfo.height = this.map.height

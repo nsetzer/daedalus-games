@@ -60,17 +60,19 @@ export class BounceBullet extends ProjectileBase {
         switch (props?.direction??0) {
         case Direction.LEFT:
             this.physics.speed.x = -xspeed
+            this.physics.speed.y = this.physics.jumpspeed
             break;
         case Direction.RIGHT:
             this.physics.speed.x = xspeed
+            this.physics.speed.y = this.physics.jumpspeed
             break;
         case Direction.UPLEFT:
             this.physics.speed.x = -xspeed
-            this.physics.speed.y = this.physics.jumpspeed
+            this.physics.speed.y = this.physics.jumpspeed*1.4 // enough to hit a battery gate bulb
             break;
         case Direction.UPRIGHT:
             this.physics.speed.x = xspeed
-            this.physics.speed.y = this.physics.jumpspeed
+            this.physics.speed.y = this.physics.jumpspeed*1.4
             break;
         default:
             break;

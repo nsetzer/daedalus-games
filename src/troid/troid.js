@@ -32,6 +32,21 @@ import {} from "@troid/api"
 
 window.print = console.log
 
+function parseMapId(mapid) {
+    let delimiter = mapid.includes('.') ? '.' : '-';
+    let parts = mapid.split(delimiter);
+    let values = parts.map(part => parseInt(part, 10));
+    if (values.length == 2) {
+        return {"world": values[0], "level": values[1]}
+    }
+    return null
+}
+
+function zeroPad(number) {
+    return number < 10 ? '0' + number : '' + number;
+}
+
+
 export default class Application extends ApplicationBase {
     constructor() {
 
@@ -63,8 +78,20 @@ export default class Application extends ApplicationBase {
         }, () => {
 
             const edit = query.edit == "true"
-            // mapid can be null or a filename
-            const mapurl = daedalus.env.debug?"maps/world_01/level_04.json":"maps/world_01/level_01.json"
+
+            let mapid_string = daedalus.env.debug?"01-04":"01-11"
+            let mapid = parseMapId(mapid_string)
+
+            if (query.mapid) {
+                let tmp = parseMapId(query.mapid[0])
+                if (!!tmp) {
+
+                }
+                mapid = tmp
+            }
+
+            const mapurl = `maps/world_${zeroPad(mapid.world)}/level_${zeroPad(mapid.level)}.json`
+            //const mapurl = daedalus.env.debug?"maps/world_01/level_04.json":"maps/world_01/level_01.json"
 
             return new LevelLoaderScene(mapurl, edit, ()=>{
 

@@ -181,8 +181,8 @@ class Camera extends CameraBase {
         //if (v.x > 0) { wnd.w += 32 }
         //if (v.y < 0) { wnd.y -= 32; wnd.h += 32 }
         //if (v.y > 0) { wnd.h += 32 }
-        let xborder1 = Math.floor(gEngine.view.width/4)
-        let xborder2 = Math.floor(gEngine.view.width/4)
+        let xborder1 = Math.floor(gEngine.view.width/3)
+        let xborder2 = Math.floor(gEngine.view.width/3)
         let yborder1 = Math.floor(gEngine.view.height/4) + 16
         let yborder2 = Math.floor(gEngine.view.height/4)
         let wnd = new Rect(
