@@ -1,5 +1,6 @@
 import {SpriteSheet} from "@axertc/axertc_client"
 
+export * from "./base.js"
 export * from "./text.js"
 
 

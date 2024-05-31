@@ -11,9 +11,7 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-import {registerDefaultEntity} from "@troid/entities/sys"
-import { ProjectileBase } from "./base.js";
-import {MobBase} from "@troid/entities/mobs"
+import {ProjectileBase, AbstractMobBase, registerDefaultEntity} from "@troid/entities/sys"
 
 export class BeamBase extends ProjectileBase {
     constructor(parent, element, wave) {
@@ -24,7 +22,7 @@ export class BeamBase extends ProjectileBase {
         //this.group = this.parent.physics.group
         //let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>(ent instanceof PlatformBase || ent.solid))
         // used to determine if the beam should collide with an object
-        let rule = wave ? (ent=>ent instanceof MobBase) : (ent=>ent.solid)
+        let rule = wave ? (ent=>ent instanceof AbstractMobBase) : (ent=>ent.solid)
         this.group = () => Object.values(this.parent._x_debug_map.objects).filter(rule)
 
         this.points = []
@@ -42,7 +40,7 @@ export class BeamBase extends ProjectileBase {
         this.oddonly = false // only paint odd indexes
 
         this.targets2 = () => {
-            return Object.values(this.parent._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+            return Object.values(this.parent._x_debug_map.objects).filter(ent=> ent instanceof AbstractMobBase)
         }
 
     }

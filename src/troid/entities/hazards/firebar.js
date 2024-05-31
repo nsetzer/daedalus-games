@@ -15,7 +15,9 @@ export class FireBar extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
 
-        this.rect = new Rect(props.x, props.y+4, 16, 16)
+        this.rect = new Rect(props.x, props.y, 16, 16)
+
+        this.solid = 1
 
         this.rot_time = props.rot_time??4
         this.bar_length = props.bar_length??5
@@ -43,7 +45,8 @@ export class FireBar extends PlatformerEntity {
         this.block_icon = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
         this.timer = 0
 
-        
+        //this.cline = null
+        //this.crect = null
 
     }
 
@@ -73,6 +76,22 @@ export class FireBar extends PlatformerEntity {
 
         })
 
+        /*
+        if (this.cline) {
+            ctx.strokeStyle = 'blue'
+            ctx.beginPath()
+            ctx.moveTo(this.cline[0], this.cline[1])
+            ctx.lineTo(this.cline[2], this.cline[3])
+            ctx.stroke()
+        }
+        if (this.crect) {
+            ctx.strokeStyle = 'red'
+            ctx.beginPath()
+            ctx.rect(this.crect.x, this.crect.y, this.crect.w, this.crect.h)
+            ctx.stroke()
+        }
+        */
+
     }
 
     update(dt) {
@@ -89,9 +108,29 @@ export class FireBar extends PlatformerEntity {
             this.points.push(pt)
         }
 
-        //let objs = this._x_debug_map.queryObjects({"className": "Player"})
-        //if (objs.length > 0) {
-        //}
+        let objs = this._x_debug_map.queryObjects({"className": "Player"})
+        if (objs.length > 0) {
+            let player = objs[0]
+            let end = this.points[this.bar_length-1]
+
+            /*
+            this.cline = [
+                this.rect.cx(), 
+                this.rect.cy(), 
+                end.x + this.rect.cx(), 
+                end.y + this.rect.cy()
+            ]
+            this.crect = player.rect
+            */
+
+            if (player.rect.collideLine(
+                    this.rect.cx(), 
+                    this.rect.cy(), 
+                    end.x + this.rect.cx(), 
+                    end.y + this.rect.cy())) {
+                player.character.hit()
+            }
+        }
 
     }
 

@@ -2,6 +2,7 @@ import {
     PlatformerEntity,
 } from "@axertc/axertc_physics"
 import {WeaponType} from "@troid/store"
+import {AbstractMobBase} from "@troid/entities/sys"
 
 export class MobCharacterComponent {
 
@@ -129,7 +130,7 @@ export class MobCharacterComponent {
     }
 }
 
-export class MobBase extends PlatformerEntity {
+export class MobBase extends AbstractMobBase {
     constructor(entid, props) {
         super(entid, props)
 

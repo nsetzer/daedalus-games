@@ -141,7 +141,10 @@ export class Creeper extends MobBase {
 
         }
 
+        this.character.update(dt)
+        this.solid = this.character.frozen
         
+        this.animation.update(dt)
 
     }
 
@@ -387,6 +390,8 @@ export class Flyer extends MobBase {
         this.animation.setAnimationById(this.animations.run[Direction.LEFT])
 
     }
+
+  
 
     paint(ctx) {
         //Brick.icon.draw(ctx, this.rect.x, this.rect.y)

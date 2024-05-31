@@ -10,11 +10,9 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-import {registerDefaultEntity} from "@troid/entities/sys"
+import {ProjectileBase, registerDefaultEntity} from "@troid/entities/sys"
 
-import { ProjectileBase, random_choice } from "./base.js";
-
-import {MobBase} from "@troid/entities/mobs"
+import { random_choice, AbstractMobBase } from "./base.js";
 
 export class Bullet extends ProjectileBase {
     constructor(entid, props) {
@@ -51,7 +49,7 @@ export class Bullet extends ProjectileBase {
         }
 
         this.targets = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof AbstractMobBase)
         }
 
         this.alive = true

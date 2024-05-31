@@ -14,6 +14,7 @@ export class PlatformerEntity extends Entity {
     collidePoint(x, y) {
         return this.rect.collidePoint(x, y)
     }
+
 }
 
 export class PlatformBase extends PlatformerEntity {

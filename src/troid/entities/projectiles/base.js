@@ -21,12 +21,6 @@ export function random_choice(choices) {
     return choices[index];
 }
 
-export class ProjectileBase extends PlatformerEntity {
-    constructor(entid, props) {
-        super(entid, props)
-    }
-}
-
 
 export function init_velocity() {
     // generate the velocity profile for a bullet moving

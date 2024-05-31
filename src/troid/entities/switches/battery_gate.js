@@ -10,14 +10,11 @@ import {
 
 import {gAssets, CharacterInventoryEnum, EditorControl} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory, TextTyper, makeEditorIcon} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, TextTyper, makeEditorIcon, ProjectileBase} from "@troid/entities/sys"
 import {
     PlatformerEntity, AnimationComponent
 } from "@axertc/axertc_physics"
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
-import {Player} from "@troid/entities/player"
-import {MobBase} from "@troid/entities/mobs"
-import {ProjectileBase} from "@troid/entities/projectiles"
 
 
 export class BatteryGate extends PlatformerEntity {

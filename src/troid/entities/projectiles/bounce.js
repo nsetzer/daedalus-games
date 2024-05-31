@@ -12,9 +12,7 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-import {registerDefaultEntity} from "@troid/entities/sys"
-import { ProjectileBase } from "./base.js";
-import {MobBase} from "@troid/entities/mobs"
+import {ProjectileBase, AbstractMobBase, registerDefaultEntity} from "@troid/entities/sys"
 
 export class BounceBullet extends ProjectileBase {
     // a bounce bullet is only animate to appear as if it is bouncing
@@ -46,7 +44,7 @@ export class BounceBullet extends ProjectileBase {
             return Object.values(this._x_debug_map.objects).filter(ent=>{
                 // 
                 return (ent instanceof PlatformBase || ent.solid)
-                //return (ent instanceof PlatformBase || (ent.solid && !(ent instanceof MobBase)))
+                //return (ent instanceof PlatformBase || (ent.solid && !(ent instanceof AbstractMobBase)))
                 //return ent.solid
             })
         }
@@ -81,7 +79,7 @@ export class BounceBullet extends ProjectileBase {
         this.buildAnimations()
 
         this.targets = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof AbstractMobBase)
         }
 
 

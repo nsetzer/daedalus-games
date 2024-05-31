@@ -10,11 +10,9 @@ import {
 
 import {gAssets, EditorControl} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory, makeEditorIcon} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, ProjectileBase, PlayerBase, makeEditorIcon} from "@troid/entities/sys"
 
-import {Player} from "@troid/entities/player"
 import {MobBase} from "@troid/entities/mobs"
-import {ProjectileBase} from "@troid/entities/projectiles"
 
 export class WaterHazard extends PlatformerEntity {
     constructor(entid, props) {
@@ -163,7 +161,7 @@ export class WaterHazard extends PlatformerEntity {
 
 
         let margin = 4
-        this._x_debug_map.queryObjects({"instancein": [Player, MobBase, ProjectileBase]}).forEach(obj => {
+        this._x_debug_map.queryObjects({"instancein": [PlayerBase, MobBase, ProjectileBase]}).forEach(obj => {
             if (obj.rect.left() >= this.rect.left() && obj.rect.right() <= this.rect.right()) {
                 if (obj.rect.bottom() > this.rect.top() && obj.rect.top() < this.rect.top()) {
                     let p = Math.floor(((obj.rect.cx() - this.rect.x)/this.rect.w)*this.points.length)

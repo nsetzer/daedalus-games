@@ -11,7 +11,7 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-import {registerDefaultEntity} from "@troid/entities/sys"
+import {registerDefaultEntity, PlayerBase} from "@troid/entities/sys"
 import {FireBeam, WaterBeam, Bullet, BounceBullet, BubbleBullet} from "@troid/entities/projectiles"
 
 // TODO: projectiles reduce framerate if they move off screen on large maps
@@ -169,7 +169,7 @@ export class CharacterComponent {
     }
 }
 
-export class Player extends PlatformerEntity {
+export class Player extends PlayerBase {
 
     constructor(entid, props) {
         super(entid, props)

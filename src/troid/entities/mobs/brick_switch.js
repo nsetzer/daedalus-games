@@ -11,7 +11,7 @@ import {
 
 import {gAssets} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, ProjectileBase, AbstractMobBase} from "@troid/entities/sys"
 import {
     PlatformerEntity, AnimationComponent
 } from "@axertc/axertc_physics"
@@ -25,16 +25,13 @@ import {MobBase} from "./base.js"
  * and deactivate blue platforms
  * by default red platforms are always solid
  */
-export class RedSwitch extends MobBase {
+export class RedSwitch extends AbstractMobBase {
 
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
 
-        this.character.health = 0
-
         this.breakable = 0
-        this.alive = 1
         this.solid = 1
         this.visible = 1
 
@@ -44,27 +41,21 @@ export class RedSwitch extends MobBase {
 
     }
 
+    isSolid(other) {
+        // allow projectiles to collide with this object
+        if (other instanceof ProjectileBase) {
+            return false
+        }
+        return true
+    } 
+
+
     hit(projectile, props) {
-        // return true if the projectile collides
-        //this.character.hit(props)
         this.onBreak();
         return true
     }
 
     onPress(other, vector) {
-
-        if (other._classname == 'BubbleBullet') {
-            this.onBreak()
-        }
-
-        if (other._classname == 'BounceBullet') {
-            this.onBreak()
-        }
-
-        if (other._classname == 'Bullet') {
-            this.onBreak()
-        }
-
         if (other._classname == "Player" && vector.y < 0) {
             this.onBreak()
         }
@@ -115,13 +106,11 @@ registerEditorEntity("RedSwitch", RedSwitch, [16,16], EntityCategory.switches, n
  * and deactivate red platforms
  * by default blue platforms are always not solid
  */
-export class BlueSwitch extends MobBase {
+export class BlueSwitch extends AbstractMobBase {
 
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 16, 16)
-
-        this.character.health = 0
 
         this.breakable = 0
         this.alive = 1
@@ -147,27 +136,21 @@ export class BlueSwitch extends MobBase {
         }
     }
 
+    isSolid(other) {
+        // allow projectiles to collide with this object
+        if (other instanceof ProjectileBase) {
+            return false
+        }
+        return true
+    } 
+
+
     hit(projectile, props) {
-        // return true if the projectile collides
-        //this.character.hit(props)
         this.onBreak();
         return true
     }
 
     onPress(other, vector) {
-
-        if (other._classname == 'BubbleBullet') {
-            this.onBreak()
-        }
-
-        if (other._classname == 'BounceBullet') {
-            this.onBreak()
-        }
-
-        if (other._classname == 'Bullet') {
-            this.onBreak()
-        }
-
         if (other._classname == "Player" && vector.y < 0) {
             this.onBreak()
         }

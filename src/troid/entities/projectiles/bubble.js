@@ -10,9 +10,7 @@ import {
 
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 
-import {registerDefaultEntity} from "@troid/entities/sys"
-import { ProjectileBase } from "./base.js";
-import {MobBase} from "@troid/entities/mobs"
+import {ProjectileBase, AbstractMobBase, registerDefaultEntity} from "@troid/entities/sys"
 
 export class BubbleBullet extends ProjectileBase {
     constructor(entid, props) {
@@ -83,7 +81,7 @@ export class BubbleBullet extends ProjectileBase {
 
 
         this.targets = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof MobBase)
+            return Object.values(this._x_debug_map.objects).filter(ent=> ent instanceof AbstractMobBase)
         }
 
         // prevent colliding with the player when fired
