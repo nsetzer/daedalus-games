@@ -8,7 +8,7 @@ export class TextTyper {
     //TODO: page duration a function of the content
     constructor(text) {
 
-        this.text = text
+        this.lines = text.split('\n');
 
         this.state = 0
 
@@ -20,6 +20,8 @@ export class TextTyper {
 
         this.modal = 0 // set to true to block gameplay
         this.cbk_exit = null
+
+        
     }
 
     setModal(modal) {
@@ -48,17 +50,28 @@ export class TextTyper {
             ctx.beginPath()
             ctx.fillStyle = "#000000c0"
             let l = x + gEngine.view.width/2 - w/2
-
             ctx.rect(l, y, w, h)
-            ctx.closePath()
             ctx.fill()
 
-            ctx.font = "bold 16px";
+            // TODO: word break the lines using ctx.measureText
+            //let metrics = ctx.measureText(this.lines[i]);
+            //console.log(`Length of line ${i}: ${metrics.width} pixels`);
+
+            // TODO: use a custom font
+
+            ctx.beginPath()
+            ctx.font = "8px Verdana";
             ctx.fillStyle = "white"
             ctx.strokeStyle = "white"
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
-            ctx.fillText(this.text, l + 8, y + 8);
+
+            let x1 = l + 8
+            let y1 = y + 8
+            let lineHeight = 10;
+            for (let i = 0; i < this.lines.length; i++) {
+                ctx.fillText(this.lines[i], x1, y1 + i * lineHeight);
+            }
         }
     }
 

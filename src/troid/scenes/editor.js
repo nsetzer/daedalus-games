@@ -1734,63 +1734,13 @@ export class LevelEditScene extends GameScene {
             {
                 name: "zoom-out",
                 icon: this.editor_icons.zoom_out,
-                action: () => {
-
-                    if (this.camera.scale < 4) {
-                        gAssets.sounds.click1.play()
-                        // comput the transform to zoom in/out at a point px,py
-                        let px = gEngine.view.width/2
-                        let py = gEngine.view.height/2
-                        let cx = (this.camera.x + px) * this.camera.scale
-                        let cy = (this.camera.y + py) * this.camera.scale
-
-                        this.camera.scale = Math.min(4.0, this.camera.scale + 0.5)
-
-                        this.camera.x = (cx / this.camera.scale) - px
-                        this.camera.y = (cy / this.camera.scale) - py
-
-                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
-                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
-                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
-                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
-
-                        // max 0
-                        // min this.map.width
-                        // rhs: (this.camera.x + gEngine.view.width) * this.camera.scale
-                        // lhs: this.camera.x
-
-                        //this.camera.x -= (24 * 16)/this.camera.scale/2
-                    } else {
-                        gAssets.sounds.click2.play()
-                    }
-                },
+                action: () => { this._zoom_out() },
                 selected: null,
             },
             {
                 name: "zoom-in",
                 icon: this.editor_icons.zoom_in,
-                action: () => {
-                    if (this.camera.scale > 0.5) {
-                        gAssets.sounds.click1.play()
-                        // comput the transform to zoom in/out at a point px,py
-                        let px = gEngine.view.width/2
-                        let py = gEngine.view.height/2
-                        let cx = (this.camera.x + px) * this.camera.scale
-                        let cy = (this.camera.y + py) * this.camera.scale
-
-                        this.camera.scale = Math.max(0.5, this.camera.scale - 0.5)
-
-                        this.camera.x = (cx / this.camera.scale) - px
-                        this.camera.y = (cy / this.camera.scale) - py
-
-                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
-                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
-                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
-                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
-                    } else {
-                        gAssets.sounds.click2.play()
-                    }
-                },
+                action: () => { this._zoom_in() },
                 selected: null,
             },
             {
@@ -2923,6 +2873,79 @@ export class LevelEditScene extends GameScene {
         return true
     }
 
+    _scroll(dx, dy) {
+
+        //this.camera.x = this.mouse_down.camerax + dx
+        //this.camera.y = this.mouse_down.cameray + dy
+
+        this.camera.x += dx
+        this.camera.y += dy
+
+
+        // this is arbitrary
+        // restrict the field of view to always display at least 4 tiles
+        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+
+
+        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
+        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+
+    }
+
+    _zoom_in() {
+        if (this.camera.scale > 0.5) {
+            gAssets.sounds.click1.play()
+            // comput the transform to zoom in/out at a point px,py
+            let px = gEngine.view.width/2
+            let py = gEngine.view.height/2
+            let cx = (this.camera.x + px) * this.camera.scale
+            let cy = (this.camera.y + py) * this.camera.scale
+
+            this.camera.scale = Math.max(0.5, this.camera.scale - 0.5)
+
+            this.camera.x = (cx / this.camera.scale) - px
+            this.camera.y = (cy / this.camera.scale) - py
+
+            this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+            this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+            this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
+            this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+        } else {
+            gAssets.sounds.click2.play()
+        }
+    }
+
+    _zoom_out() {
+        if (this.camera.scale < 4) {
+            gAssets.sounds.click1.play()
+            // comput the transform to zoom in/out at a point px,py
+            let px = gEngine.view.width/2
+            let py = gEngine.view.height/2
+            let cx = (this.camera.x + px) * this.camera.scale
+            let cy = (this.camera.y + py) * this.camera.scale
+
+            this.camera.scale = Math.min(4.0, this.camera.scale + 0.5)
+
+            this.camera.x = (cx / this.camera.scale) - px
+            this.camera.y = (cy / this.camera.scale) - py
+
+            this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
+            this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
+            this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
+            this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+
+            // max 0
+            // min this.map.width
+            // rhs: (this.camera.x + gEngine.view.width) * this.camera.scale
+            // lhs: this.camera.x
+
+            //this.camera.x -= (24 * 16)/this.camera.scale/2
+        } else {
+            gAssets.sounds.click2.play()
+        }
+    }
+
     playTest() {
 
         //gAssets.mapinfo.mapurl = "editor-playtest"
@@ -3174,7 +3197,26 @@ export class LevelEditScene extends GameScene {
                 console.log(touches[0].buttons)
                 if (touches[0].buttons&4) {
                     // mouse  wheel
-                    console.log("TODO: scroll", touches[0])
+                    if (touches[0].ctrlKey) {
+                        if (touches[0].deltaY > 0) {
+                            this._zoom_in()
+                        } else {    
+                            this._zoom_out()
+                        }
+                    } else {
+
+                        let m = 32 / this.camera.scale
+                        
+                        // snap to a 2x2 tile grid
+                        this.camera.x = Math.round(this.camera.x / m) * m
+                        this.camera.y = Math.round(this.camera.y / m) * m
+                        
+                        // mouse wheel scrolls 2 tiles per tick
+                        let dx = -Math.sign(touches[0].deltaX) * m
+                        let dy = -Math.sign(touches[0].deltaY) * m
+
+                        this._scroll(dx, dy)
+                    }
 
                 } else if (touches[0].buttons&2 || touches.length==2) {
                     // right click or two touches to scroll the screen
@@ -3195,17 +3237,10 @@ export class LevelEditScene extends GameScene {
                         let dx = (this.mouse_down.x - t.x) // this.camera.scale
                         let dy = (this.mouse_down.y - t.y) // this.camera.scale
 
-                        this.camera.x = this.mouse_down.camerax + dx
-                        this.camera.y = this.mouse_down.cameray + dy
+                        dx = (this.mouse_down.camerax + dx) - this.camera.x
+                        dy = (this.mouse_down.cameray + dy) - this.camera.y
 
-                        // this is arbitrary
-                        // restrict the field of view to always display at least 4 tiles
-                        this.camera.x = Math.max(-(gEngine.view.width - 64/this.camera.scale), this.camera.x)
-                        this.camera.x = Math.min((this.map.width - 64)/this.camera.scale, this.camera.x)
-
-
-                        this.camera.y = Math.max(-(gEngine.view.height-24 ), this.camera.y)
-                        this.camera.y = Math.min((this.map.height - 64)/this.camera.scale, this.camera.y)
+                        this._scroll(dx, dy)
                     }
 
 

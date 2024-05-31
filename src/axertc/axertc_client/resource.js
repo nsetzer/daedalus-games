@@ -389,7 +389,7 @@ export class Font {
         this.ready = false
         this.status = ResourceStatus.LOADING
 
-        this.font = new FontFace("comic-mono", `url(${path})`, {
+        this.font = new FontFace(family, `url(${path})`, {
             style: "normal",
             weight: weight,
             stretch: "condensed",

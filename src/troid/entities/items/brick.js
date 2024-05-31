@@ -400,6 +400,22 @@ registerEditorEntity("ExplodingBrick", ExplodingBrick, [16,16], EntityCategory.i
     entry.editorSchema = []
 })
 
+let upgrade_text = {
+    [CharacterInventoryEnum.BEAM_ELEMENT_FIRE]: "Fire Beam\n",
+    [CharacterInventoryEnum.BEAM_ELEMENT_WATER]: "Water Beam\n",
+    [CharacterInventoryEnum.BEAM_ELEMENT_ICE]: "Ice Beam\n",
+    [CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE]: "Bubble Beam\n",
+    [CharacterInventoryEnum.BEAM_TYPE_WAVE]: "Wave Beam\nShots pass through walls",
+    [CharacterInventoryEnum.BEAM_TYPE_BOUNCE]: "Bounce Beam\nShots bounce off solid surfaces",
+    [CharacterInventoryEnum.BEAM_LEVEL_2]: "Beam Upgrade lvl. 2\nEnhances power of beam shots",
+    [CharacterInventoryEnum.BEAM_LEVEL_3]: "Beam Upgrade lvl. 3\nEnhances power of beam shots",
+    [CharacterInventoryEnum.BEAM_MOD_CHARGE]: "Charge Beam\n Hold to charge a power shot",
+    [CharacterInventoryEnum.BEAM_MOD_RAPID]: "Auto Beam\nHold to rapid fire",
+    [CharacterInventoryEnum.SKILL_MORPH_BALL]: "Morh Ball\nDouble-Tap down to morph",
+    [CharacterInventoryEnum.SKILL_DOUBLE_JUMP]: "Double Jump\nJump again in mid-air",
+    [CharacterInventoryEnum.SKILL_SPIKE_BALL]: "Spike Ball\nDouble-Tap DOWN when morphed to stick to walls",
+    [CharacterInventoryEnum.SKILL_RUNNING_BOOTS]: "Running Boots\nIncrease Movement Speed",
+}
 
 export class BrickUpgrade extends BrickBase {
     constructor(entid, props) {
@@ -423,10 +439,60 @@ export class BrickUpgrade extends BrickBase {
 
             if (this.item_timer == this.item_timer_timeout) {
 
-                gEngine.scene.dialog = new TextTyper("you found the" + this.skill)
+                let text = upgrade_text[this.skill]
+                gEngine.scene.dialog = new TextTyper(text)
                 gEngine.scene.dialog.setModal(1)
                 gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null; this.destroy()})
                 
+                // reward the skill
+                gCharacterInfo.inventory[this.skill].acquired = 1
+                gCharacterInfo.inventory[this.skill].active = 1
+
+                switch (this.skill) {
+                    case CharacterInventoryEnum.BEAM_ELEMENT_FIRE:
+                        gCharacterInfo.element = WeaponType.ELEMENT.FIRE
+                        break
+                    case CharacterInventoryEnum.BEAM_ELEMENT_WATER:
+                        gCharacterInfo.element = WeaponType.ELEMENT.WATER
+                        break
+                    case CharacterInventoryEnum.BEAM_ELEMENT_ICE:
+                        gCharacterInfo.element = WeaponType.ELEMENT.ICE
+                        break
+                    case CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE:
+                        gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE
+                        break
+                    case CharacterInventoryEnum.BEAM_TYPE_WAVE:
+                        gCharacterInfo.beam = WeaponType.BEAM.WAVE
+                        break
+                    case CharacterInventoryEnum.BEAM_TYPE_BOUNCE:
+                        gCharacterInfo.beam = WeaponType.BEAM.BOUNCE
+                        break
+                    case CharacterInventoryEnum.BEAM_LEVEL_2:
+                        gCharacterInfo.level = WeaponType.LEVEL.LEVEL2
+                        break
+                    case CharacterInventoryEnum.BEAM_LEVEL_3:
+                        // lvl 3 rewards lvl 2 as well
+                        gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].acquired = 1
+                        gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].active = 0
+                        gCharacterInfo.level = WeaponType.LEVEL.LEVEL3
+                        break
+                    case CharacterInventoryEnum.BEAM_MOD_CHARGE:
+                        gCharacterInfo.modifier = WeaponType.MODIFIER.CHARGE
+                        break
+                    case CharacterInventoryEnum.BEAM_MOD_RAPID:
+                        gCharacterInfo.modifier = WeaponType.MODIFIER.RAPID
+                        break
+                    case CharacterInventoryEnum.SKILL_MORPH_BALL:
+                        break
+                    case CharacterInventoryEnum.SKILL_DOUBLE_JUMP:
+                        break
+                    case CharacterInventoryEnum.SKILL_SPIKE_BALL:
+                        break
+                    default:
+                        console.error("invalid skill: " + this.skill)
+                        break;
+                }
+                    
                 
             }
         }
@@ -470,21 +536,7 @@ registerEditorEntity("BrickUpgrade", BrickUpgrade, [16,16], EntityCategory.item,
             control: EditorControl.CHOICE,
             name: "skill",
             "default": CharacterInventoryEnum.SKILL_MORPH_BALL,
-            choices: [
-                CharacterInventoryEnum.BEAM_ELEMENT_FIRE,
-                CharacterInventoryEnum.BEAM_ELEMENT_WATER,
-                CharacterInventoryEnum.BEAM_ELEMENT_ICE,
-                CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE,
-                CharacterInventoryEnum.BEAM_TYPE_WAVE,
-                CharacterInventoryEnum.BEAM_TYPE_BOUNCE,
-                CharacterInventoryEnum.BEAM_LEVEL_2,
-                CharacterInventoryEnum.BEAM_LEVEL_3,
-                CharacterInventoryEnum.BEAM_MOD_CHARGE,
-                CharacterInventoryEnum.BEAM_MOD_RAPID,
-                CharacterInventoryEnum.SKILL_MORPH_BALL,
-                CharacterInventoryEnum.SKILL_DOUBLE_JUMP,
-                CharacterInventoryEnum.SKILL_SPIKE_BALL,
-            ]
+            choices: Object.keys(upgrade_text)
         },
     ]
 

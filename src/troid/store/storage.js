@@ -83,8 +83,10 @@ export class CharacterInventoryEnum {
     static BEAM_MOD_RAPID = "beam_mod_rapid"
 
     static SKILL_MORPH_BALL = "skill_morph_ball"
-    static SKILL_DOUBLE_JUMP = "skill_double_jump"
     static SKILL_SPIKE_BALL = "skill_spike_ball"
+    static SKILL_DOUBLE_JUMP = "skill_double_jump"
+    static SKILL_RUNNING_BOOTS = "skill_running_boots"
+    static SKILL_WEAPON_SLOT = "skill_weapon_slot"
 }
 export class CharacterInfo {
 
@@ -96,6 +98,12 @@ export class CharacterInfo {
         this.coins = 0
         this.current_health = 3
         this.max_health = 12
+        this.inventory = {}
+
+        // set each key in the inventory enum to 1 in inventory
+        // NOTE: acquired and active only make sense for skills
+        // and not beams. separate into separate inventory objects?
+        Object.values(CharacterInventoryEnum).map(key=>this.inventory[key] = {acquired:1, active:1})
 
         // where to spawn the player when they die
         this.current_map_spawn = {world_id:"",level_id:0,door_id:0}

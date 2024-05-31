@@ -231,6 +231,7 @@ export class CanvasEngine extends DomElement {
             const touches = this._getMouseTouches(event, false, true)
             touches[0].deltaX = event.wheelDeltaX
             touches[0].deltaY = event.wheelDeltaY
+            touches[0].ctrlKey = event.ctrlKey == true
             touches[0].buttons = 4
             this.scene.handleTouches(touches)
         }

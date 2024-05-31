@@ -1,5 +1,5 @@
 import { Physics2dPlatformV2, PlatformerEntity, Wall, Slope, OneWayWall, AnimationComponent } from "@axertc/axertc_physics"
-import { MapInfo, gAssets, gCharacterInfo, WeaponType } from "@troid/store"
+import { MapInfo, gAssets, gCharacterInfo, WeaponType, CharacterInventoryEnum } from "@troid/store"
  
 import {
     CspMap, ClientCspMap, ServerCspMap, fmtTime,
@@ -298,7 +298,9 @@ class PauseScreen {
     }
 
     _addAction(x,y,w,h,icon, on_action) {
-        this.actions.push({rect: new Rect(x,y,w,h), icon, on_action})
+        let action = {rect: new Rect(x,y,w,h), icon, on_action}
+        this.actions.push(action)
+        return action
     }
 
     _buildActions() {
@@ -307,11 +309,16 @@ class PauseScreen {
         this.rect2 = new Rect(gEngine.view.width - (this.rect1.x + this.rect1.w), this.rect1.y, this.rect1.w, this.rect1.h)
 
         let x1 = this.rect1.x + 2 + 2
-        let y1 = this.rect1.y + 12 + 6
+        let y1 = this.rect1.y + 12 + 6 + (24 + 12)
 
         const fn_icon = (index, state) => {
             return gAssets.sheets.pause_items.tile((index * 3) + state)
         }
+
+        // profile 1, 2
+        this._addAction(x1+1*24 + 8, y1-24-12, 20, 18, null, ()=>{})
+        //this._addAction(x1+2*24, y1+12+4*24, 20, 18, null, ()=>{})
+        this._addAction(x1+3*24 - 8, y1-24-12, 20, 18, null, ()=>{})
 
 
         // power, fire, water, ice, bubble
@@ -364,34 +371,78 @@ class PauseScreen {
         })
 
         // missile, super, homing
-        this._addAction(x1+1*24, y1+12+4*24, 20, 18, null, ()=>{})
-        this._addAction(x1+2*24, y1+12+4*24, 20, 18, null, ()=>{})
-        this._addAction(x1+3*24, y1+12+4*24, 20, 18, null, ()=>{})
+        //this._addAction(x1+1*24, y1+12+4*24, 20, 18, null, ()=>{})
+        //this._addAction(x1+2*24, y1+12+4*24, 20, 18, null, ()=>{})
+        //this._addAction(x1+3*24, y1+12+4*24, 20, 18, null, ()=>{})
 
         let x2 = this.rect2.x + 8
         let y2 = this.rect2.y + 12 + 6
+        let w2 = this.rect2.w - 16
 
         // suits
         // diving helmet
-        this._addAction(x2+1*24, y2, 20, 18, null, ()=>{})
-        this._addAction(x2+2*24, y2, 20, 18, null, ()=>{})
-        this._addAction(x2+3*24, y2, 20, 18, null, ()=>{})
+        let act;
+        act = this._addAction(x2, y2+0*16, w2, 12, null, ()=>{
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_MORPH_BALL]
+            skill.active = !skill.active
+        })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_MORPH_BALL]
+            let obj = {text: "Morph Ball", hidden: !skill.acquired, active: skill.active}
+            //console.log("!!skill", skill, obj)
+            return obj
+        }
+
+        act = this._addAction(x2, y2+1*16, w2, 12, null, ()=>{
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_SPIKE_BALL]
+            skill.active = !skill.active
+        })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_SPIKE_BALL]
+            return {text: "Spike Ball", hidden: !skill.acquired, active: skill.active}
+        }
+
+        act = this._addAction(x2, y2+3*16, w2, 12, null, ()=>{
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_DOUBLE_JUMP]
+            skill.active = !skill.active
+        })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_DOUBLE_JUMP]
+            return {text: "Double Jump", hidden: !skill.acquired, active: skill.active}
+        }
+
+        act = this._addAction(x2, y2+4*16, w2, 12, null, ()=>{
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_RUNNING_BOOTS]
+            skill.active = !skill.active
+        })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_RUNNING_BOOTS]
+            return {text: "Running Boots", hidden: !skill.acquired, active: skill.active}
+        }
+
+        act = this._addAction(x2, y2+5*16, w2, 12, null, ()=>{})
+        act = this._addAction(x2, y2+6*16, w2, 12, null, ()=>{})
+        act = this._addAction(x2, y2+7*16, w2, 12, null, ()=>{})
+
+        //this._addAction(x2+2*24, y2+24, 20, 18, null, ()=>{})
+        //this._addAction(x2+3*24, y2+24, 20, 18, null, ()=>{})
 
         // space jump, spin jump
-        this._addAction(x2+12+1*24, y2+12+4*24, 20, 18, null, ()=>{})
-        this._addAction(x2+12+2*24, y2+12+4*24, 20, 18, null, ()=>{})
+        //this._addAction(x2+12+1*24, y2+12+4*24, 20, 18, null, ()=>{})
+        //this._addAction(x2+12+2*24, y2+12+4*24, 20, 18, null, ()=>{})
 
         let x3 = gEngine.view.width/2
         let y3 = this.rect2.bottom() + 8
-        this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
-        this.actions[this.actions.length - 1].text = "return"
-        this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
+        let act_return = this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
+        act_return.text = "return"
+        
+        let act_edit = this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
             const edit = true
             gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
                 gEngine.scene = new LevelEditScene()
             })
         })
-        this.actions[this.actions.length - 1].text = "edit"
+        act_edit.text = "edit"
 
     }
 
@@ -493,7 +544,7 @@ class PauseScreen {
         ctx.lineWidth = 1
         ctx.strokeStyle = "#88e810"
         ctx.beginPath()
-        ``
+        
         ctx.roundRect(this.rect1.x, this.rect1.y, this.rect1.w, this.rect1.h, 8)
         ctx.closePath()
         ctx.stroke()
@@ -505,7 +556,7 @@ class PauseScreen {
         ctx.stroke()
 
         let x1 = this.rect1.x + 2 + 2
-        let y1 = this.rect1.y + 12 + 6
+        let y1 = this.rect1.y + 12 + 6 + (24 + 12)
 
         ctx.beginPath()
         ctx.fillStyle = "#C0C0C0"
@@ -527,6 +578,36 @@ class PauseScreen {
 
             if (!!act.icon) {
                 act.icon().draw(ctx, act.rect.x, act.rect.y)
+            } else if (!!act.dyntext) {
+
+                let obj = act.dyntext()
+
+                ctx.beginPath()
+                ctx.fillStyle = (obj.active&&!obj.hidden)?"#0000FF":"#7f7f7f"
+                ctx.rect(act.rect.x, act.rect.y, act.rect.w, act.rect.h)
+                ctx.closePath()
+                ctx.fill()
+
+                if (obj.hidden) {
+                    ctx.font = "bold 16px";
+                    ctx.fillStyle = "white"
+                    ctx.strokeStyle = "white"
+                    ctx.textAlign = "center"
+                    ctx.textBaseline = "middle"
+
+                    ctx.fillText("???", act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
+
+                } else {
+                    ctx.font = "bold 16px";
+                    ctx.fillStyle = "white"
+                    ctx.strokeStyle = "white"
+                    ctx.textAlign = "center"
+                    ctx.textBaseline = "middle"
+
+                    ctx.fillText(obj.text, act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
+
+                }
+
             } else {
                 ctx.beginPath()
                 ctx.fillStyle = "#0000FF"
@@ -558,7 +639,6 @@ class PauseScreen {
             this.actions.forEach((act,i) => {
                 if (act.rect.collidePoint(t.x, t.y)) {
                     act.on_action()
-                    console.log("action",i)
                 }
             })
         }
@@ -600,7 +680,6 @@ export class MainScene extends GameScene {
         this.keyboard.addButton(67) // C
 
         this.camera = new Camera(this.map.map, this.map.map._x_player)
-        console.log("new camera")
         this.screen =  null //  new PauseScreen(this)
 
         this.dialog = null // something that implements paint(ctx), update(dt), dismiss()
