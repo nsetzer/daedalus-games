@@ -68,7 +68,7 @@ class SpikesBase extends PlatformerEntity {
             const player = objs[0]
 
             if (this.rect2.collideRect(player.rect)) {
-                player.character.hit()
+                player.character.hit(this)
             }
         }
     }

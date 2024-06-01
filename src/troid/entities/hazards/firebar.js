@@ -128,7 +128,7 @@ export class FireBar extends PlatformerEntity {
                     this.rect.cy(), 
                     end.x + this.rect.cx(), 
                     end.y + this.rect.cy())) {
-                player.character.hit()
+                player.character.hit(this)
             }
         }
 

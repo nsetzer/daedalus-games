@@ -126,7 +126,7 @@ export class Tomato extends MobBase {
                 this.animation.setAnimationById(this.animations.idle[this.facing])
 
                 if (this.rect.collideRect(player.rect)) {
-                    player.character.hit()
+                    player.character.hit(this)
                 }
             }
 

@@ -300,7 +300,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("coin")
             .path(RES_ROOT + "/sprites/items/coin.png")
             .dimensions(16, 16)
-            .layout(5, 7)
+            .layout(6, 7)
             .offset(0, 0)
             .spacing(0, 0)
 
@@ -476,6 +476,16 @@ class AssetLoader {
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
+
+        this.loader.addSoundEffect("hit")
+            .path(RES_ROOT + "/sfx/misc/hit.ogg")
+            .volume(.025)
+            .allowMissing()
+
+        this.loader.addSoundEffect("death")
+            .path(RES_ROOT + "/sfx/misc/death.ogg")
+            .volume(.025)
+            .allowMissing()
 
         this.loader.addSoundEffect("jump")
             .path(RES_ROOT + "/sfx/misc/jump.ogg")

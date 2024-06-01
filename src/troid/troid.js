@@ -63,11 +63,7 @@ export default class Application extends ApplicationBase {
         gCharacterInfo.transitionToLevel = transitionToLevel
 
 
-        const world_id = "world_01"
-        const level_id = 1
-        const door_id = 1
-        gCharacterInfo.current_map = {world_id, level_id, door_id}
-        gCharacterInfo.current_map_spawn = {world_id, level_id, door_id}
+
 
 
         super({
@@ -90,7 +86,13 @@ export default class Application extends ApplicationBase {
                 mapid = tmp
             }
 
-            const mapurl = `maps/world_${zeroPad(mapid.world)}/level_${zeroPad(mapid.level)}.json`
+            const world_id = `world_${zeroPad(mapid.world)}`
+            const level_id = mapid.level
+            const door_id = 1
+            gCharacterInfo.current_map = {world_id, level_id, door_id}
+            gCharacterInfo.current_map_spawn = {world_id, level_id, door_id}
+
+            const mapurl = `maps/${world_id}/level_${zeroPad(mapid.level)}.json`
             //const mapurl = daedalus.env.debug?"maps/world_01/level_04.json":"maps/world_01/level_01.json"
 
             return new LevelLoaderScene(mapurl, edit, ()=>{

@@ -124,7 +124,7 @@ export class Creeper extends MobBase {
                         player._bounce()
                         this._kill2()
                     } else {
-                        player.character.hit()
+                        player.character.hit(this)
                     }
                 }
 
@@ -286,7 +286,7 @@ export class CreeperV2 extends MobBase {
             if (objs.length > 0) {
                 let player = objs[0]
                 if (this.rect.collideRect(player.rect)) {
-                    player.character.hit()
+                    player.character.hit(this)
                 }
             }
 
@@ -428,7 +428,7 @@ export class Flyer extends MobBase {
             if (objs.length > 0) {
                 let player = objs[0]
                 if (this.rect.collideRect(player.rect)) {
-                    player.character.hit()
+                    player.character.hit(this)
                 }
             }
 
@@ -644,7 +644,7 @@ export class Shredder extends MobBase {
             if (objs.length > 0) {
                 let player = objs[0]
                 if (this.rect.collideRect(player.rect)) {
-                    player.character.hit()
+                    player.character.hit(this)
                 }
             }
             

@@ -5,13 +5,12 @@ import {
 
 import {gAssets, CharacterInventoryEnum, EditorControl} from "@troid/store"
 
-import {registerEditorEntity, EntityCategory, TextTyper} from "@troid/entities/sys"
+import {registerEditorEntity, EntityCategory, TextTyper, ProjectileBase, AbstractMobBase} from "@troid/entities/sys"
 import {
     PlatformerEntity, AnimationComponent
 } from "@axertc/axertc_physics"
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 import {Player} from "@troid/entities/player"
-import {MobBase} from "@troid/entities/mobs"
 
 import { Coin, CoinBlue, CoinRed } from "./coin.js"
 
@@ -46,7 +45,6 @@ export class BrickBase extends PlatformerEntity {
             // draw a quarter of the brick
             let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
             let y = Math.floor(this.tid/gAssets.sheets.brick.cols) * 17 + 1
-            console.log(this.tid, gAssets.sheets.brick.cols, x, y)
             this.particles.forEach((p,i) => {
                 ctx.drawImage(gAssets.sheets.brick.image, 
                     x+8*(i&1), y+8*(i&2?1:0), 
@@ -232,7 +230,7 @@ registerEditorEntity("FakeBrick", FakeBrick, [16,16], EntityCategory.item, null,
     entry.editorSchema = []
 })
 
-export class ExplodingBrick extends MobBase {
+export class ExplodingBrick extends AbstractMobBase {
     // a brick which can be destroyed with the charge beam
     constructor(entid, props) {
         super(entid, props)
@@ -267,45 +265,17 @@ export class ExplodingBrick extends MobBase {
     
     }
 
-    _x_collide(other, dx, dy) {
-
-        if (!this.alive) {
-            return null
-        }
-
+    isSolid(other) {
+        // allow projectiles to collide with this object
         if (other instanceof ProjectileBase) {
-            return null
+            return false
         }
-
-        let rect = other.rect
-        let update = rect.copy()
-
-        if (dx > 0 && rect.right() <= this.rect.left()) {
-            update.set_right(this.rect.left())
-            return update
-        }
-
-        if (dx < 0 && rect.left() >= this.rect.right()) {
-            update.set_left(this.rect.right())
-            return update
-        }
-
-        if (dy > 0 && rect.bottom() <= this.rect.top()) {
-            update.set_bottom(this.rect.top())
-            return update
-        }
-
-        if (dy < 0 && rect.top() >= this.rect.top()) {
-            update.set_top(this.rect.bottom())
-            return update
-        }
-
-        return null
-    }
+        return true
+    } 
 
     hit(projectile, props) {
         if (props.power >= 0.8) {
-            this.character.hit(props)
+            this._kill()
         }
         return true
     }
@@ -317,7 +287,7 @@ export class ExplodingBrick extends MobBase {
         } else {
             // draw a quarter of the brick
             this.particles.forEach(p => {
-                ctx.drawImage(this.constructor.sheet.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
+                ctx.drawImage(gAssets.sheets.brick.image, 0, 0, 8, 8, p.x, p.y, 8, 8)
             })
         }
     }
@@ -439,7 +409,7 @@ export class BrickUpgrade extends BrickBase {
 
             if (this.item_timer == this.item_timer_timeout) {
 
-                let text = upgrade_text[this.skill]
+                let text = upgrade_text[this.skill] + "\nChange Equipment in the pause menu\n"
                 gEngine.scene.dialog = new TextTyper(text)
                 gEngine.scene.dialog.setModal(1)
                 gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null; this.destroy()})
@@ -450,37 +420,37 @@ export class BrickUpgrade extends BrickBase {
 
                 switch (this.skill) {
                     case CharacterInventoryEnum.BEAM_ELEMENT_FIRE:
-                        gCharacterInfo.element = WeaponType.ELEMENT.FIRE
+                        gCharacterInfo.current.element = WeaponType.ELEMENT.FIRE
                         break
                     case CharacterInventoryEnum.BEAM_ELEMENT_WATER:
-                        gCharacterInfo.element = WeaponType.ELEMENT.WATER
+                        gCharacterInfo.current.element = WeaponType.ELEMENT.WATER
                         break
                     case CharacterInventoryEnum.BEAM_ELEMENT_ICE:
-                        gCharacterInfo.element = WeaponType.ELEMENT.ICE
+                        gCharacterInfo.current.element = WeaponType.ELEMENT.ICE
                         break
                     case CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE:
-                        gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE
+                        gCharacterInfo.current.element = WeaponType.ELEMENT.BUBBLE
                         break
                     case CharacterInventoryEnum.BEAM_TYPE_WAVE:
-                        gCharacterInfo.beam = WeaponType.BEAM.WAVE
+                        gCharacterInfo.current.beam = WeaponType.BEAM.WAVE
                         break
                     case CharacterInventoryEnum.BEAM_TYPE_BOUNCE:
-                        gCharacterInfo.beam = WeaponType.BEAM.BOUNCE
+                        gCharacterInfo.current.beam = WeaponType.BEAM.BOUNCE
                         break
                     case CharacterInventoryEnum.BEAM_LEVEL_2:
-                        gCharacterInfo.level = WeaponType.LEVEL.LEVEL2
+                        gCharacterInfo.current.level = WeaponType.LEVEL.LEVEL2
                         break
                     case CharacterInventoryEnum.BEAM_LEVEL_3:
                         // lvl 3 rewards lvl 2 as well
                         gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].acquired = 1
                         gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].active = 0
-                        gCharacterInfo.level = WeaponType.LEVEL.LEVEL3
+                        gCharacterInfo.current.level = WeaponType.LEVEL.LEVEL3
                         break
                     case CharacterInventoryEnum.BEAM_MOD_CHARGE:
-                        gCharacterInfo.modifier = WeaponType.MODIFIER.CHARGE
+                        gCharacterInfo.current.modifier = WeaponType.MODIFIER.CHARGE
                         break
                     case CharacterInventoryEnum.BEAM_MOD_RAPID:
-                        gCharacterInfo.modifier = WeaponType.MODIFIER.RAPID
+                        gCharacterInfo.current.modifier = WeaponType.MODIFIER.RAPID
                         break
                     case CharacterInventoryEnum.SKILL_MORPH_BALL:
                         break

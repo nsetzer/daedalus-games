@@ -40,8 +40,10 @@ export class MovingPlatformUDBase extends PlatformerEntity {
     }
 
     isSolid(other) {
+        // check if value is a float, not int
         if (this.oneway) {
-            return Math.floor(other.rect.bottom()) <= Math.floor(this.rect.top())
+
+            return Math.floor(other.rect.bottom()) <= (Math.floor(this.rect.top()))
         } 
         return true
     }
@@ -154,11 +156,17 @@ export class MovingPlatformUDBase extends PlatformerEntity {
 
                 // recursivley apply the movement update to any objects standing
                 // on the platform
-                if (obj.solid) {
+                if (obj.solid ) {
+
                     this._move(obj)
                 }
 
-                if (!this.visited[obj.entid]) {
+                // Note: double check the platform is actually solid
+                // from the point of view of the other entity.
+                // when jumping through from below, the platform may otherwise
+                // move the char down 1 pixel out of the region where the platform is solid
+                // causing an annoying problem where the char can never stand on it
+                if (!this.visited[obj.entid] && parent.isSolid(obj)) {
                     // TODO: obj.step(0, this.direction) ??
                     // TODO: check for object being crushed and reverse direction
                     // TODO: if obj is not solid, kill it

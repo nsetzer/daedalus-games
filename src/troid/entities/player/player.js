@@ -24,7 +24,7 @@ function generateProjectiles(x,y,direction, power) {
 
     let color = 0
 
-    switch (gCharacterInfo.element) {
+    switch (gCharacterInfo.current.element) {
     case WeaponType.ELEMENT.POWER:
         color = 1 // yellow
         break;
@@ -42,17 +42,17 @@ function generateProjectiles(x,y,direction, power) {
         break;
     }
 
-    let element = gCharacterInfo.element
+    let element = gCharacterInfo.current.element
 
     // booleans
     
-    let wave : bool = (gCharacterInfo.beam === WeaponType.BEAM.WAVE)?1:0
-    let bounce : bool = gCharacterInfo.beam === WeaponType.BEAM.BOUNCE
+    let wave : bool = (gCharacterInfo.current.beam === WeaponType.BEAM.WAVE)?1:0
+    let bounce : bool = gCharacterInfo.current.beam === WeaponType.BEAM.BOUNCE
 
-    let normal = gCharacterInfo.modifier == WeaponType.MODIFIER.NORMAL
+    let normal = gCharacterInfo.current.modifier == WeaponType.MODIFIER.NORMAL
 
     // one of LEVEL1, LEVEL2, LEVEL3
-    let level = gCharacterInfo.level
+    let level = gCharacterInfo.current.level
 
     // ice should generate 1 projectile, which may animate with a split profile
     // fire + wave + any level + no modifier : spread gun 1,3,5 bullets
@@ -61,43 +61,43 @@ function generateProjectiles(x,y,direction, power) {
     // bubble + charge : large bubbles that can be jumped on
 
 
-    if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && wave && normal) {
+    if (gCharacterInfo.current.element == WeaponType.ELEMENT.FIRE && wave && normal) {
 
         wave = 2
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
-        if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL2) {
+        if (gCharacterInfo.current.level >= WeaponType.LEVEL.LEVEL2) {
             projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
             projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
         }
-        if (gCharacterInfo.level >= WeaponType.LEVEL.LEVEL3) {
+        if (gCharacterInfo.current.level >= WeaponType.LEVEL.LEVEL3) {
             projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:4}})
             projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:5}})
         }
 
     }
-    else if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+    else if (gCharacterInfo.current.element == WeaponType.ELEMENT.BUBBLE) {
         projectiles.push({name: "BubbleBullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
     else if (bounce) {
         projectiles.push({name: "BounceBullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
-    else if (wave && gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+    else if (wave && gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL1) {
         // a single bullet the waves
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
-    else if (bounce || gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+    else if (bounce || gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL1) {
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
     }
-    else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
+    else if (gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL2) {
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     }
-    else if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
+    else if (gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL3) {
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:1}})
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:2}})
         projectiles.push({name: "Bullet", props: {x,y,direction,color,element,wave,bounce,level,power,split:3}})
     } else {
-        throw {error: "invalid level", level: gCharacterInfo.level}
+        throw {error: "invalid level", level: gCharacterInfo.current.level}
     }
 
     return projectiles
@@ -108,7 +108,7 @@ export class CharacterComponent {
     constructor(target) {
         this.target = target
         this.alive = true
-        this.health = 3
+        //this.health = 3
 
         this.hurt_timer = 0
         this.hurt_cooldown = 0
@@ -129,9 +129,25 @@ export class CharacterComponent {
                 this.animation_timer -= this.animation_duration
             }
 
-            if (this.hurt_timer < 0 && this.health <= 0) {
+            if (this.hurt_timer < 0 && gCharacterInfo.current_health <= 0) {
                 this.alive = false
             }
+
+            if (!this.alive && this.hurt_timer < 0) {
+                //if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
+
+                gCharacterInfo.current_health = gCharacterInfo.max_health
+
+                console.log("map", gCharacterInfo.current_map)
+                console.log("map-spawn", gCharacterInfo.current_map_spawn)
+                // for the demo just reload the current map
+                //const info = gCharacterInfo.current_map_spawn
+                const info = gCharacterInfo.current_map
+                gCharacterInfo.transitionToLevel(
+                    info.world_id, info.level_id, info.door_id)
+
+            }
+
         }
 
         if (this.hurt_cooldown > 0) {
@@ -140,32 +156,56 @@ export class CharacterComponent {
 
     }
 
-    hit() {
-        if (this.hurt_cooldown > 0 || this.health <= 0) {
+    hit(other) {
+        // TODO: should other, just be the rect of what hit me?
+
+        // TODO: apply a force to move the player awar from what hurt it
+        // is this the best way? on every hit, ignoring the cooldown?
+        let d = -Math.sign(other.rect.cx() - this.target.rect.cx())
+        //let d = -Direction.vector(this.target.current_facing).x
+        console.log(this.target.current_facing, Direction.vector(this.target.current_facing).x)
+        this.target.physics.speed.x =  d * 100
+        if (this.target.physics.speed.y >= 0) {
+            this.target.physics.speed.y = -200
+        }
+
+        if (this.hurt_cooldown > 0 || gCharacterInfo.current_health <= 0) {
             return
         }
 
-        this.hurt_cooldown = this.hurt_period + .25
-        this.hurt_timer = this.hurt_period
-        this.animation_timer = 0
+        gCharacterInfo.current_health -= 1
 
-        this.target.animation.effect = (ctx) => {
+        if (gCharacterInfo.current_health <= 0) {
+            gAssets.sfx.PLAYER_DEATH.play()
 
-            if (this.hurt_timer <= 0) {
-                this.target.animation.effect = null
+            this.hurt_cooldown = 2*this.hurt_period + .25
+            this.hurt_timer = 2*this.hurt_period
+            this.animation_timer = 0
+
+            this.target._kill()
+
+        } else {
+            gAssets.sfx.PLAYER_HIT.play()
+
+            this.hurt_cooldown = this.hurt_period + .25
+            this.hurt_timer = this.hurt_period
+            this.animation_timer = 0
+
+
+            this.target.animation.effect = (ctx) => {
+
+                if (this.hurt_timer <= 0) {
+                    this.target.animation.effect = null
+                }
+                let x;
+                let d = this.animation_duration / 2
+                x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
+                ctx.filter = `brightness(${Math.floor(100 + 100*x)}%) hue-rotate(-${90*(1-x)}deg)`
+
+
             }
-            let x;
-            let d = this.animation_duration / 2
-            x = ((this.animation_timer>d)?this.animation_duration-this.animation_timer:this.animation_timer)/d
-            ctx.filter = `brightness(${Math.floor(100 + 100*x)}%) hue-rotate(-${90*(1-x)}deg)`
-
         }
 
-        //if (this.health <= 0 && !!this.target.sound_death) {
-        //    this.target.sound_death.play()
-        //} else {
-        //    this.target.sound_hit.play()
-        //}
     }
 }
 
@@ -471,7 +511,7 @@ export class Player extends PlayerBase {
             ctx.filter = `brightness(${75+50*k}%)`
 
             let color = 0
-            switch (gCharacterInfo.element) {
+            switch (gCharacterInfo.current.element) {
             case WeaponType.ELEMENT.POWER:
                 color = 1 // yellow
                 break;
@@ -568,19 +608,19 @@ export class Player extends PlayerBase {
 
     _chargeTimeout() {
         let timeout = this.charge_timeout
-        if (gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
+        if (gCharacterInfo.current.modifier === WeaponType.MODIFIER.RAPID) {
 
             let factor = 0.6
 
-            if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+            if (gCharacterInfo.current.element == WeaponType.ELEMENT.BUBBLE) {
                 factor = 0.2
             }
 
-            if (gCharacterInfo.element == WeaponType.ELEMENT.POWER) {
+            if (gCharacterInfo.current.element == WeaponType.ELEMENT.POWER) {
                 factor = 0.33
             }
 
-            if (gCharacterInfo.element == WeaponType.ELEMENT.ICE) {
+            if (gCharacterInfo.current.element == WeaponType.ELEMENT.ICE) {
                 factor = 0.75
             }
 
@@ -651,7 +691,7 @@ export class Player extends PlayerBase {
                 }
             }
 
-            if (!this._beam && gCharacterInfo.modifier === WeaponType.MODIFIER.RAPID) {
+            if (!this._beam && gCharacterInfo.current.modifier === WeaponType.MODIFIER.RAPID) {
                 
                 let timeout = this._chargeTimeout()
                 // TODO: timeout should depend on element (power faster, ice slower)
@@ -876,7 +916,7 @@ export class Player extends PlayerBase {
                 if (payload.pressed) {
 
                     let charge_sound = null
-                    if (gCharacterInfo.modifier != WeaponType.MODIFIER.NORMAL) {
+                    if (gCharacterInfo.current.modifier != WeaponType.MODIFIER.NORMAL) {
                         this.charging = true
                         this.charge_count = 0
 
@@ -885,12 +925,12 @@ export class Player extends PlayerBase {
 
                     this.charge_duration = 0.0
 
-                    if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                    if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
 
-                        if (gCharacterInfo.element == WeaponType.ELEMENT.WATER && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new WaterBeam(this, gCharacterInfo.beam == WeaponType.BEAM.WAVE)
-                        } else if (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new FireBeam(this, gCharacterInfo.beam == WeaponType.BEAM.WAVE)
+                        if (gCharacterInfo.current.element == WeaponType.ELEMENT.WATER && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
+                            this._beam = new WaterBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
+                        } else if (gCharacterInfo.current.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
+                            this._beam = new FireBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
                             charge_sound = gAssets.sounds.fireBeamFlameStart
                         } else {
                             this._shoot(0)
@@ -914,7 +954,7 @@ export class Player extends PlayerBase {
                         gAssets.sounds.fireBeamChargeLoop.stop()
                     }
 
-                    if (gCharacterInfo.modifier != WeaponType.MODIFIER.RAPID) {
+                    if (gCharacterInfo.current.modifier != WeaponType.MODIFIER.RAPID) {
                         this._shoot(power)
                     } else {
                         if (!!this._beam) {
@@ -990,11 +1030,11 @@ export class Player extends PlayerBase {
         const py = this.rect.y + o.y
 
         // limit the maximum number of bubbles based on weapon level
-        if (gCharacterInfo.element == WeaponType.ELEMENT.BUBBLE) {
+        if (gCharacterInfo.current.element == WeaponType.ELEMENT.BUBBLE) {
             let objs = this._x_debug_map.queryObjects({"className": "BubbleBullet"})
             objs = objs.sort((a,b)=> (+a) - +(b)).filter(obj => obj.alive)
 
-            while (objs.length > gCharacterInfo.level*gCharacterInfo.level) {
+            while (objs.length > gCharacterInfo.current.level*gCharacterInfo.current.level) {
                 objs[0]._kill()
                 objs.shift()
             }
@@ -1005,7 +1045,7 @@ export class Player extends PlayerBase {
             this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), obj.name, obj.props)
         })
 
-        gAssets.sfx.BEAM_SHOOT[gCharacterInfo.element].play()
+        gAssets.sfx.BEAM_SHOOT[gCharacterInfo.current.element].play()
 
     }
 
@@ -1126,23 +1166,7 @@ export class Player extends PlayerBase {
         this.dead_timer = 3
     }
 
-    _revive() {
 
-        // deprecated in favor of transition to spawn point
-        this.alive =  true
-
-        this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
-        }
-
-        this.rect.x = 32
-        this.rect.y = 128
-
-        let aid = this.animations["idle"][Direction.RIGHT]
-        this.animation.setAnimationById(aid)
-
-        this.physics.checkbounds = true
-    }
 }
 Player.sheet = null
 

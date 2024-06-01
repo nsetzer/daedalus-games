@@ -46,13 +46,21 @@ class CoinBase extends PlatformerEntity {
                 if (this.rect.collideRect(player.rect)) {
                     gAssets.sfx.ITEM_COLLECT_COIN.play()
                     gCharacterInfo.coins += this.value
+
+                    if (gCharacterInfo.coins >= 100) { 
+                        gCharacterInfo.coins -= 100
+                        if (gCharacterInfo.current_health < gCharacterInfo.max_health) {
+                            gCharacterInfo.current_health += 1
+                        }
+                        gAssets.sfx.ITEM_COINUP.play()
+                    }
                     this.destroy()
                 }
 
                 const p = player.charge_duration / player.charge_timeout
 
-                let c1 = (gCharacterInfo.element == WeaponType.ELEMENT.WATER && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE)
-                let c2 = (gCharacterInfo.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.beam != WeaponType.BEAM.BOUNCE)
+                let c1 = (gCharacterInfo.current.element == WeaponType.ELEMENT.WATER && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE)
+                let c2 = (gCharacterInfo.current.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE)
 
                 if (p > .9 && !c1 && !c2) {
 
@@ -99,6 +107,12 @@ export class CoinStar extends CoinBase {
 }
 */
 
+export class CoinHeart extends CoinBase {
+    constructor(entid, props) {
+        super(entid, props, 5, 25);
+    }
+}
+
 registerEditorEntity("Coin", Coin, [16,16], EntityCategory.item, null, (entry)=> {
 
     entry.icon = gAssets.sheets.coin.tile(0)
@@ -126,3 +140,9 @@ registerEditorEntity("CoinStar", CoinStar, [16,16], EntityCategory.item, null, (
     entry.editorSchema = []
 })
 */
+
+registerEditorEntity("CoinHeart", CoinHeart, [16,16], EntityCategory.item, null, (entry)=> {
+    entry.icon = gAssets.sheets.coin.tile(5*gAssets.sheets.coin.cols)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})

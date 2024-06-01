@@ -315,60 +315,115 @@ class PauseScreen {
             return gAssets.sheets.pause_items.tile((index * 3) + state)
         }
 
-        // profile 1, 2
-        this._addAction(x1+1*24 + 8, y1-24-12, 20, 18, null, ()=>{})
-        //this._addAction(x1+2*24, y1+12+4*24, 20, 18, null, ()=>{})
-        this._addAction(x1+3*24 - 8, y1-24-12, 20, 18, null, ()=>{})
+        const fn_icon2 = (acquired, index, state) => {
+            if (!acquired) {
+                return gAssets.sheets.pause_items.tile((22 * 3) + 0)
+            }
+            return gAssets.sheets.pause_items.tile((index * 3) + state)
+        }
+
+        let mkaction = (x,y,skill, attr, value_enabled, value_disabled, icon) => {
+            this._addAction(x, y, 20, 18, ()=>fn_icon2(gCharacterInfo.inventory[skill].acquired,icon,gCharacterInfo.current[attr]===value_enabled?2:0), ()=>{
+                if (gCharacterInfo.inventory[skill].acquired) {
+                    gCharacterInfo.current[attr] = (gCharacterInfo.current[attr] == value_enabled)?value_disabled:value_enabled
+                }
+            })
+        }
+
+        // switch weapon profiles
+
+        // profile 1
+        this._addAction(x1+1*24 + 8, y1-24-12, 20, 18, ()=>fn_icon2(
+            gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired,
+            21,
+            gCharacterInfo.current_weapon_index===0?2:0), ()=>{
+            if (gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired) {
+                gCharacterInfo.current = gCharacterInfo.weapons[0]
+                gCharacterInfo.current_weapon_index = 0
+            }
+        })
+
+        // profile 2
+        this._addAction(x1+3*24 - 8, y1-24-12, 20, 18, ()=>fn_icon2(
+            gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired,
+            23,
+            gCharacterInfo.current_weapon_index===1?2:0), ()=>{
+            if (gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired) {
+                gCharacterInfo.current = gCharacterInfo.weapons[1]
+                gCharacterInfo.current_weapon_index = 1
+            }
+        })
+
 
 
         // power, fire, water, ice, bubble
-        this._addAction(x1+0*24, y1, 20, 18, ()=>fn_icon(0,gCharacterInfo.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.POWER})
-        this._addAction(x1+1*24, y1, 20, 18, ()=>fn_icon(1,gCharacterInfo.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.FIRE})
-        this._addAction(x1+2*24, y1, 20, 18, ()=>fn_icon(2,gCharacterInfo.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.WATER})
-        this._addAction(x1+3*24, y1, 20, 18, ()=>fn_icon(3,gCharacterInfo.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.ICE})
-        this._addAction(x1+4*24, y1, 20, 18, ()=>fn_icon(4,gCharacterInfo.element===WeaponType.ELEMENT.BUBBLE?2:0), ()=>{gCharacterInfo.element = WeaponType.ELEMENT.BUBBLE})
+        this._addAction(x1+0*24, y1, 20, 18, ()=>fn_icon(0,gCharacterInfo.current.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.POWER})
+        mkaction(x1+1*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_FIRE, "element", WeaponType.ELEMENT.FIRE, WeaponType.ELEMENT.POWER, 1)
+        mkaction(x1+2*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_WATER, "element", WeaponType.ELEMENT.WATER, WeaponType.ELEMENT.POWER, 2)
+        mkaction(x1+3*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_ICE, "element", WeaponType.ELEMENT.ICE, WeaponType.ELEMENT.POWER, 3)
+        mkaction(x1+4*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE, "element", WeaponType.ELEMENT.BUBBLE, WeaponType.ELEMENT.POWER, 4)
+
+        //this._addAction(x1+1*24, y1, 20, 18, ()=>fn_icon(1,gCharacterInfo.current.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.FIRE})
+        //this._addAction(x1+2*24, y1, 20, 18, ()=>fn_icon(2,gCharacterInfo.current.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.WATER})
+        //this._addAction(x1+3*24, y1, 20, 18, ()=>fn_icon(3,gCharacterInfo.current.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.ICE})
+        //this._addAction(x1+4*24, y1, 20, 18, ()=>fn_icon(4,gCharacterInfo.current.element===WeaponType.ELEMENT.BUBBLE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.BUBBLE})
 
         // wave beam, normal, bounce beam
         // wave - pass through walls
         // normal - break on contact
         // bounce - bounce off walls (bubbles bounce player)
-        this._addAction(x1+0*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.beam===WeaponType.BEAM.WAVE?2:0), ()=>{
-            gCharacterInfo.beam = (gCharacterInfo.beam == WeaponType.BEAM.WAVE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.WAVE
-        })
-        //this._addAction(x1+2*24, y1+24, 20, 18, ()=>fn_icon(6,gCharacterInfo.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{
-        //    gCharacterInfo.beam = WeaponType.BEAM.NORMAL
+
+        mkaction(x1+0*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_WAVE, "beam", WeaponType.BEAM.WAVE, WeaponType.BEAM.NORMAL, 7)
+        mkaction(x1+1*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_BOUNCE, "beam", WeaponType.BEAM.BOUNCE, WeaponType.BEAM.NORMAL, 8)
+
+        //this._addAction(x1+0*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.current.beam===WeaponType.BEAM.WAVE?2:0), ()=>{
+        //    gCharacterInfo.current.beam = (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.WAVE
         //})
-        this._addAction(x1+1*24, y1+24, 20, 18, ()=>fn_icon(8,gCharacterInfo.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{
-            gCharacterInfo.beam = (gCharacterInfo.beam == WeaponType.BEAM.BOUNCE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.BOUNCE
-        })
+        //this._addAction(x1+2*24, y1+24, 20, 18, ()=>fn_icon(6,gCharacterInfo.current.beam===WeaponType.BEAM.NORMAL?2:0), ()=>{
+        //    gCharacterInfo.current.beam = WeaponType.BEAM.NORMAL
+        //})
+        //this._addAction(x1+1*24, y1+24, 20, 18, ()=>fn_icon(8,gCharacterInfo.current.beam===WeaponType.BEAM.BOUNCE?2:0), ()=>{
+        //    gCharacterInfo.current.beam = (gCharacterInfo.current.beam == WeaponType.BEAM.BOUNCE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.BOUNCE
+        //})
 
         // single, double, triple
         // power, ice: 1,2,3 bullets
         // fire, normal: 1,3,5 bullets at 0,22,45 degrees
         // water: wider stream
         // bubble: more
-        this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{
-            gCharacterInfo.level=WeaponType.LEVEL.LEVEL1
-        })
-        this._addAction(x1+2*24, y1+48, 20, 18, ()=>fn_icon(11,gCharacterInfo.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{
-            gCharacterInfo.level=WeaponType.LEVEL.LEVEL2
-        })
-        this._addAction(x1+3*24, y1+48, 20, 18, ()=>fn_icon(12,gCharacterInfo.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{
-            gCharacterInfo.level=WeaponType.LEVEL.LEVEL3
-        })
+
+        // level one only appears once level 2 is unlocked
+        mkaction(x1+1*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL1, WeaponType.LEVEL.LEVEL1, 10)
+        mkaction(x1+2*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL2, WeaponType.LEVEL.LEVEL2, 11)
+        mkaction(x1+3*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_3, "level", WeaponType.LEVEL.LEVEL3, WeaponType.LEVEL.LEVEL3, 12)
+
+        //this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.current.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{
+        //    gCharacterInfo.current.level=WeaponType.LEVEL.LEVEL1
+        //})
+        //this._addAction(x1+2*24, y1+48, 20, 18, ()=>fn_icon(11,gCharacterInfo.current.level===WeaponType.LEVEL.LEVEL2?2:0), ()=>{
+        //    gCharacterInfo.current.level=WeaponType.LEVEL.LEVEL2
+        //})
+        //this._addAction(x1+3*24, y1+48, 20, 18, ()=>fn_icon(12,gCharacterInfo.current.level===WeaponType.LEVEL.LEVEL3?2:0), ()=>{
+        //    gCharacterInfo.current.level=WeaponType.LEVEL.LEVEL3
+        //})
 
         // charge beam, normal, rapid shot
         // water, charge: larger orbs
         // water, rapid: stream
-        this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(15,gCharacterInfo.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{
-            gCharacterInfo.modifier = (gCharacterInfo.modifier == WeaponType.MODIFIER.CHARGE)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.CHARGE
-        })
-        //this._addAction(x1+2*24, y1+3*24, 20, 18, ()=>fn_icon(14,gCharacterInfo.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{
-        //    gCharacterInfo.modifier=WeaponType.MODIFIER.NORMAL
+        
+
+        mkaction(x1+3*24, y1+24, CharacterInventoryEnum.BEAM_MOD_CHARGE, "modifier", WeaponType.MODIFIER.CHARGE, WeaponType.MODIFIER.NORMAL, 15)
+        mkaction(x1+4*24, y1+24, CharacterInventoryEnum.BEAM_MOD_RAPID, "modifier", WeaponType.MODIFIER.RAPID, WeaponType.MODIFIER.NORMAL, 16)
+
+        //this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(15,gCharacterInfo.current.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{
+        //    gCharacterInfo.current.modifier = (gCharacterInfo.current.modifier == WeaponType.MODIFIER.CHARGE)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.CHARGE
         //})
-        this._addAction(x1+4*24, y1+24, 20, 18, ()=>fn_icon(16,gCharacterInfo.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{
-            gCharacterInfo.modifier = (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.RAPID
-        })
+        //this._addAction(x1+2*24, y1+3*24, 20, 18, ()=>fn_icon(14,gCharacterInfo.current.modifier===WeaponType.MODIFIER.NORMAL?2:0), ()=>{
+        //    gCharacterInfo.current.modifier=WeaponType.MODIFIER.NORMAL
+        //})
+        //this._addAction(x1+4*24, y1+24, 20, 18, ()=>fn_icon(16,gCharacterInfo.current.modifier===WeaponType.MODIFIER.RAPID ?2:0), ()=>{
+        //    gCharacterInfo.current.modifier = (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.RAPID
+        //})
 
         // missile, super, homing
         //this._addAction(x1+1*24, y1+12+4*24, 20, 18, null, ()=>{})
@@ -420,9 +475,9 @@ class PauseScreen {
             return {text: "Running Boots", hidden: !skill.acquired, active: skill.active}
         }
 
-        act = this._addAction(x2, y2+5*16, w2, 12, null, ()=>{})
-        act = this._addAction(x2, y2+6*16, w2, 12, null, ()=>{})
-        act = this._addAction(x2, y2+7*16, w2, 12, null, ()=>{})
+        //act = this._addAction(x2, y2+5*16, w2, 12, null, ()=>{})
+        //act = this._addAction(x2, y2+6*16, w2, 12, null, ()=>{})
+        //act = this._addAction(x2, y2+7*16, w2, 12, null, ()=>{})
 
         //this._addAction(x2+2*24, y2+24, 20, 18, null, ()=>{})
         //this._addAction(x2+3*24, y2+24, 20, 18, null, ()=>{})
@@ -433,6 +488,14 @@ class PauseScreen {
 
         let x3 = gEngine.view.width/2
         let y3 = this.rect2.bottom() + 8
+
+        let act_unlock = this._addAction(8,  y3, 40, 18, null, ()=>{
+            Object.values(CharacterInventoryEnum).map(key=>gCharacterInfo.inventory[key] = {acquired:1, active:1})
+
+        })
+        act_unlock.text = "unlock"
+
+
         let act_return = this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
         act_return.text = "return"
         
@@ -451,26 +514,26 @@ class PauseScreen {
         let element = null
         let name = null
 
-        switch (gCharacterInfo.element) {
+        switch (gCharacterInfo.current.element) {
             case WeaponType.ELEMENT.POWER:
                 element = "Power"
                 break;
             case WeaponType.ELEMENT.FIRE:
                 element = "Fire"
-                if (gCharacterInfo.beam == WeaponType.BEAM.WAVE && gCharacterInfo.modifier == WeaponType.MODIFIER.NORMAL) {
+                if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.NORMAL) {
                     name = "Spread"
                 }
-                else if (gCharacterInfo.beam == WeaponType.BEAM.WAVE && gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                else if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
                     name = "Flame Thrower"
                 }
                 break;
             case WeaponType.ELEMENT.WATER:
                 element = "Water"
 
-                if (gCharacterInfo.beam == WeaponType.BEAM.BOUNCE) {
+                if (gCharacterInfo.current.beam == WeaponType.BEAM.BOUNCE) {
                     element = "Splash"
                 }
-                else if (gCharacterInfo.modifier == WeaponType.MODIFIER.RAPID) {
+                else if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
                     element = "Squirt"
                 }
                 break;
@@ -486,7 +549,7 @@ class PauseScreen {
 
             name = element
 
-            switch (gCharacterInfo.beam) {
+            switch (gCharacterInfo.current.beam) {
                 case WeaponType.BEAM.WAVE:
                     if (element !== "Splash") {
                         name = "Wave " + name
@@ -500,7 +563,7 @@ class PauseScreen {
             }
 
 
-            switch (gCharacterInfo.modifier) {
+            switch (gCharacterInfo.current.modifier) {
                 case WeaponType.MODIFIER.CHARGE:
                     name = "Charge " + name
                     break
@@ -511,7 +574,7 @@ class PauseScreen {
                     break
             }
 
-            switch (gCharacterInfo.level) {
+            switch (gCharacterInfo.current.level) {
                 case WeaponType.LEVEL.LEVEL1:
                     break
                 case WeaponType.LEVEL.LEVEL2:
@@ -589,6 +652,7 @@ class PauseScreen {
                 ctx.fill()
 
                 if (obj.hidden) {
+                    ctx.beginPath()
                     ctx.font = "bold 16px";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
@@ -598,6 +662,7 @@ class PauseScreen {
                     ctx.fillText("???", act.rect.x + act.rect.w/2, act.rect.y + act.rect.h/2);
 
                 } else {
+                    ctx.beginPath()
                     ctx.font = "bold 16px";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
@@ -615,6 +680,7 @@ class PauseScreen {
                 ctx.closePath()
                 ctx.fill()
                 if (act.text) {
+                    ctx.beginPath()
                     ctx.font = "bold 16px";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
@@ -711,17 +777,6 @@ export class MainScene extends GameScene {
                 this.camera.update(dt)
             }
 
-            if (!this.map.map._x_player.alive) {
-                if (this.map.map._x_player.rect.y - 32 > this.camera.y + gEngine.view.height) {
-
-                    const info = gCharacterInfo.current_map_spawn
-                    gCharacterInfo.transitionToLevel(
-                        info.world_id, info.level_id, info.door_id)
-
-                    //this.map.map._x_player._revive()
-                }
-            }
-
         }
 
 
@@ -765,13 +820,13 @@ export class MainScene extends GameScene {
             gAssets.sheets.pause_items.tile((0 * 3) + 0).draw(ctx, x+24, y)
 
             ctx.beginPath();
-            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL1) {
+            if (gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL1) {
                 ctx.strokeStyle = "#CD7F32";
             }
-            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL2) {
+            if (gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL2) {
                 ctx.strokeStyle = "#C0C0C0";
             }
-            if (gCharacterInfo.level == WeaponType.LEVEL.LEVEL3) {
+            if (gCharacterInfo.current.level == WeaponType.LEVEL.LEVEL3) {
                 ctx.strokeStyle = "#FFD700";
             }
             

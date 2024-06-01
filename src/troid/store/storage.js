@@ -88,22 +88,48 @@ export class CharacterInventoryEnum {
     static SKILL_RUNNING_BOOTS = "skill_running_boots"
     static SKILL_WEAPON_SLOT = "skill_weapon_slot"
 }
-export class CharacterInfo {
 
+export class WeaponInfo {
     constructor() {
         this.element = WeaponType.ELEMENT.POWER
         this.beam = WeaponType.BEAM.NORMAL
         this.level = WeaponType.LEVEL.LEVEL1
-        this.modifier = WeaponType.MODIFIER.RAPID
+        this.modifier = WeaponType.MODIFIER.NORMAL
+    }
+
+}
+export class CharacterInfo {
+
+    constructor() {
+        this.weapons = [new WeaponInfo(), new WeaponInfo()]
+        this.current_weapon_index = 0
+        this.current = this.weapons[0]
+
         this.coins = 0
-        this.current_health = 3
-        this.max_health = 12
+
+        this.current_health = 2
+        this.max_health = 3
+        this.total_max_health = 12 // upgrades increase max health
+
         this.inventory = {}
 
         // set each key in the inventory enum to 1 in inventory
         // NOTE: acquired and active only make sense for skills
         // and not beams. separate into separate inventory objects?
-        Object.values(CharacterInventoryEnum).map(key=>this.inventory[key] = {acquired:1, active:1})
+        // acquired: for skills and weapons means the player has the item
+        // active: for skills only, whether the player has the skill equipped
+        //         has no effect on weapons
+        Object.values(CharacterInventoryEnum).map(key=>this.inventory[key] = {acquired:0, active:0})
+
+        if (daedalus.env.debug) {
+            this.inventory[CharacterInventoryEnum.SKILL_MORPH_BALL].acquired = 1
+            this.inventory[CharacterInventoryEnum.SKILL_MORPH_BALL].active = 1
+            this.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].acquired = 1
+            this.inventory[CharacterInventoryEnum.BEAM_MOD_RAPID].acquired = 1
+            this.inventory[CharacterInventoryEnum.BEAM_MOD_CHARGE].acquired = 1
+        }
+
+
 
         // where to spawn the player when they die
         this.current_map_spawn = {world_id:"",level_id:0,door_id:0}
@@ -208,7 +234,8 @@ export class SoundEffectPalette {
         this.PLAYER_BOUNCE = gAssets.sounds.jump
         this.PLAYER_MORPH = gAssets.sounds.curl
         this.PLAYER_UNMORPH = gAssets.sounds.uncurl
-        this.PLAYER_HURT = nullsound
+        this.PLAYER_HIT = gAssets.sounds.hit
+        this.PLAYER_DEATH = gAssets.sounds.death
         this.PLAYER_PIPE_ENTER = nullsound
         this.PLAYER_PIPE_EXIT = nullsound
         this.PLAYER_DOOR_ENTER = nullsound
@@ -224,6 +251,7 @@ export class SoundEffectPalette {
         this.ITEM_COLLECT_COIN = gAssets.sounds.coin_collect
         this.ITEM_BREAK_BRICK = gAssets.sounds.break_brick
         this.ITEM_POWERUP = gAssets.sounds.powerup
+        this.ITEM_COINUP = gAssets.sounds.powerup // when 100 coins are collected
 
         // 3 gui sounds
         this.GUI_CLICK_1 = gAssets.sounds.click1
