@@ -107,8 +107,8 @@ export class CharacterInfo {
 
         this.coins = 0
 
-        this.current_health = 2
-        this.max_health = 3
+        this.current_health = 5
+        this.max_health = 5
         this.total_max_health = 12 // upgrades increase max health
 
         this.inventory = {}
