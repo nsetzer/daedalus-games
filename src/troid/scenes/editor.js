@@ -1878,6 +1878,7 @@ export class LevelEditScene extends GameScene {
 
         this.history = []
         this.history_index = 0
+        this.history_max_entries = 20
 
         this.camera = {x:-48, y:-48, scale:2}
         this.map = {
@@ -2038,7 +2039,7 @@ export class LevelEditScene extends GameScene {
                     //this.active_tool = EditorTool.PLACE_OBJECT;
                     this.active_menu = new ObjectMenu(this)
                 },
-                selected: () => [EditorTool.PLACE_OBJECT, EditorTool.SELECT_OBJECT, EditorTool.EDIT_OBJECT, EditorTool.ERASE_OBJECT].includes(this.active_tool),
+                selected: () => this.active_tool & EditorTool.OBJECT_MASK
             },
 
             {
@@ -2065,18 +2066,28 @@ export class LevelEditScene extends GameScene {
                     this.active_menu = new TileMenu(this)
                 },
                 selected: () => {
-                    return [EditorTool.PLACE_TILE,EditorTool.SELECT_TILE,EditorTool.ERASE_TILE,EditorTool.PAINT_TILE].includes(this.active_tool)
+                    return this.active_tool & EditorTool.TILE_MASK
                 }
             },
             {
                 name: "stamps",
-                icon: this.editor_icons.stamp,
+                icon2: ()=> {
+                    if (this.active_tool == EditorTool.SELECT_STAMP) {
+                        return this.editor_icons.hand
+                    }
+                    if (this.active_tool == EditorTool.ERASE_STAMP) {
+                        return this.editor_icons.erase
+                    }
+                    return this.editor_icons.stamp
+                },
                 action: () => {
                     gAssets.sounds.click1.play()
                     this.active_tool = EditorTool.PLACE_STAMP;
                     this.active_menu = new StampMenu(this)
                 },
-                selected: null,
+                selected: () => {
+                    return this.active_tool & EditorTool.STAMP_MASK
+                }
             },
             {
                 name: null,
@@ -2390,6 +2401,11 @@ export class LevelEditScene extends GameScene {
                     } else {
                         action.icon2().draw(ctx, x+1, y+1)
                     }
+                    
+                }
+                else if (action.name == "stamps") {
+
+                    action.icon2().draw(ctx, x+1, y+1)
                     
                 }
                 else if (!!action.icon2) {
@@ -3611,7 +3627,7 @@ export class LevelEditScene extends GameScene {
         this.history.push(event)
 
         // enforce maximum number of entries
-        while (this.history.length > 10) {
+        while (this.history.length > this.history_max_entries) {
             this.history.shift()
         }
 
