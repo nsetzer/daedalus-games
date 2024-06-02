@@ -312,7 +312,7 @@ class AssetLoader {
             .spacing(1, 1)
 
         this.loader.addSpriteSheet("pause_suit")
-            .path(RES_ROOT + "/sprites/pause_suit.png")
+            .path(RES_ROOT + "/sprites/pause_suit2.png")
             .dimensions(80, 128)
             .layout(1, 1)
             .offset(1, 1)

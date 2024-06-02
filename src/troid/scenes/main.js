@@ -283,17 +283,22 @@ class Camera extends CameraBase {
 
 class PauseScreen {
 
-    // todo: keyboard interation
-    //       actions indicate tab order
-    //       up/down skip to next row
-    //       left/right move within a row
-    //
     constructor(parent) {
         this.parent = parent
 
+        this.highlight_colors = [
+            "#cc9900", "#ffbf00", "#ffcc33", 
+            "#ffd966", "#ffe699", "#ffd966", 
+            "#ffcc33", "#ffbf00"
+        ]
 
         this.actions = []
+        this.keyboard_actions = [[],[]]
+        this.keyboard_column = 0
+        this.keyboard_row = 1
+        this.keyboard_index = 0
         this._buildActions()
+
 
     }
 
@@ -354,6 +359,9 @@ class PauseScreen {
             }
         })
 
+        // slice the last two actions
+        // and add them to the end of the list
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-2, this.actions.length))
 
 
         // power, fire, water, ice, bubble
@@ -363,6 +371,7 @@ class PauseScreen {
         mkaction(x1+3*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_ICE, "element", WeaponType.ELEMENT.ICE, WeaponType.ELEMENT.POWER, 3)
         mkaction(x1+4*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE, "element", WeaponType.ELEMENT.BUBBLE, WeaponType.ELEMENT.POWER, 4)
 
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-5, this.actions.length))
         //this._addAction(x1+1*24, y1, 20, 18, ()=>fn_icon(1,gCharacterInfo.current.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.FIRE})
         //this._addAction(x1+2*24, y1, 20, 18, ()=>fn_icon(2,gCharacterInfo.current.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.WATER})
         //this._addAction(x1+3*24, y1, 20, 18, ()=>fn_icon(3,gCharacterInfo.current.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.ICE})
@@ -376,6 +385,10 @@ class PauseScreen {
         mkaction(x1+0*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_WAVE, "beam", WeaponType.BEAM.WAVE, WeaponType.BEAM.NORMAL, 7)
         mkaction(x1+1*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_BOUNCE, "beam", WeaponType.BEAM.BOUNCE, WeaponType.BEAM.NORMAL, 8)
 
+        mkaction(x1+3*24, y1+24, CharacterInventoryEnum.BEAM_MOD_CHARGE, "modifier", WeaponType.MODIFIER.CHARGE, WeaponType.MODIFIER.NORMAL, 15)
+        mkaction(x1+4*24, y1+24, CharacterInventoryEnum.BEAM_MOD_RAPID, "modifier", WeaponType.MODIFIER.RAPID, WeaponType.MODIFIER.NORMAL, 16)
+
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-4, this.actions.length))
         //this._addAction(x1+0*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.current.beam===WeaponType.BEAM.WAVE?2:0), ()=>{
         //    gCharacterInfo.current.beam = (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.WAVE
         //})
@@ -397,6 +410,7 @@ class PauseScreen {
         mkaction(x1+2*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL2, WeaponType.LEVEL.LEVEL2, 11)
         mkaction(x1+3*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_3, "level", WeaponType.LEVEL.LEVEL3, WeaponType.LEVEL.LEVEL3, 12)
 
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-3, this.actions.length))
         //this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.current.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{
         //    gCharacterInfo.current.level=WeaponType.LEVEL.LEVEL1
         //})
@@ -412,8 +426,6 @@ class PauseScreen {
         // water, rapid: stream
         
 
-        mkaction(x1+3*24, y1+24, CharacterInventoryEnum.BEAM_MOD_CHARGE, "modifier", WeaponType.MODIFIER.CHARGE, WeaponType.MODIFIER.NORMAL, 15)
-        mkaction(x1+4*24, y1+24, CharacterInventoryEnum.BEAM_MOD_RAPID, "modifier", WeaponType.MODIFIER.RAPID, WeaponType.MODIFIER.NORMAL, 16)
 
         //this._addAction(x1+3*24, y1+24, 20, 18, ()=>fn_icon(15,gCharacterInfo.current.modifier===WeaponType.MODIFIER.CHARGE?2:0), ()=>{
         //    gCharacterInfo.current.modifier = (gCharacterInfo.current.modifier == WeaponType.MODIFIER.CHARGE)?WeaponType.MODIFIER.NORMAL:WeaponType.MODIFIER.CHARGE
@@ -447,6 +459,7 @@ class PauseScreen {
             //console.log("!!skill", skill, obj)
             return obj
         }
+        this.keyboard_actions[1].push([act])
 
         act = this._addAction(x2, y2+1*16, w2, 12, null, ()=>{
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_SPIKE_BALL]
@@ -456,6 +469,7 @@ class PauseScreen {
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_SPIKE_BALL]
             return {text: "Spike Ball", hidden: !skill.acquired, active: skill.active}
         }
+        this.keyboard_actions[1].push([act])
 
         act = this._addAction(x2, y2+3*16, w2, 12, null, ()=>{
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_DOUBLE_JUMP]
@@ -465,6 +479,7 @@ class PauseScreen {
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_DOUBLE_JUMP]
             return {text: "Double Jump", hidden: !skill.acquired, active: skill.active}
         }
+        this.keyboard_actions[1].push([act])
 
         act = this._addAction(x2, y2+4*16, w2, 12, null, ()=>{
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_RUNNING_BOOTS]
@@ -474,6 +489,7 @@ class PauseScreen {
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_RUNNING_BOOTS]
             return {text: "Running Boots", hidden: !skill.acquired, active: skill.active}
         }
+        this.keyboard_actions[1].push([act])
 
         //act = this._addAction(x2, y2+5*16, w2, 12, null, ()=>{})
         //act = this._addAction(x2, y2+6*16, w2, 12, null, ()=>{})
@@ -489,16 +505,20 @@ class PauseScreen {
         let x3 = gEngine.view.width/2
         let y3 = this.rect2.bottom() + 8
 
-        let act_unlock = this._addAction(8,  y3, 40, 18, null, ()=>{
-            Object.values(CharacterInventoryEnum).map(key=>gCharacterInfo.inventory[key] = {acquired:1, active:1})
 
-        })
-        act_unlock.text = "unlock"
 
 
         let act_return = this._addAction(x3-20, y3, 40, 18, null, ()=>{this.parent.screen = null})
         act_return.text = "return"
         
+
+
+        let act_unlock = this._addAction(gEngine.view.width - 2*8 - 2*40,  y3, 40, 18, null, ()=>{
+            Object.values(CharacterInventoryEnum).map(key=>gCharacterInfo.inventory[key] = {acquired:1, active:1})
+
+        })
+        act_unlock.text = "unlock"
+
         let act_edit = this._addAction(gEngine.view.width - 8 - 40,  y3, 40, 18, null, ()=>{
             const edit = true
             gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
@@ -506,6 +526,17 @@ class PauseScreen {
             })
         })
         act_edit.text = "edit"
+
+        // add to both columns
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-3, this.actions.length))
+        this.keyboard_actions[1].push(this.actions.slice(this.actions.length-3, this.actions.length))
+
+        let values = [1,2,3,4,5,6]
+        //get a slice of last two values
+        let slice = values.slice(4, 6)
+
+        console.log(this.keyboard_actions)
+
 
     }
 
@@ -637,6 +668,17 @@ class PauseScreen {
         ctx.textBaseline = "middle"
         ctx.fillText(this._beamName(), x1+2*24+12, y1+3*24+6);
 
+        if (!daedalus.platform.isMobile) {
+            let act = this.keyboard_actions[this.keyboard_column][this.keyboard_row][this.keyboard_index]
+
+            ctx.beginPath()
+            ctx.fillStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
+            ctx.roundRect(act.rect.x-2, act.rect.y-2, act.rect.w+4, act.rect.h+4, 4)
+            ctx.closePath()
+            ctx.fill()
+
+        }
+
         this.actions.forEach(act => {
 
             if (!!act.icon) {
@@ -698,6 +740,7 @@ class PauseScreen {
     }
 
     handleTouches(touches) {
+        console.log("pause screen touches", touches.length)
 
         if (touches.length > 0 && !touches[0].pressed) {
 
@@ -709,6 +752,64 @@ class PauseScreen {
             })
         }
     }
+
+    handleKeyPress(keyevent) {
+        console.log(keyevent)
+        console.log(this.parent.keyboard)
+    }
+
+    handleKeyRelease(keyevent) {
+        let rows = this.keyboard_actions[this.keyboard_column]
+        let actions = this.keyboard_actions[this.keyboard_column][this.keyboard_row]
+
+        switch (keyevent.keyCode) {
+            case this.parent.keyboard.wheels[0].up:
+                this.keyboard_row -= 1
+                if (this.keyboard_row < 0) {
+                    this.keyboard_row = rows.length - 1
+                }
+                this.keyboard_index  = 0
+                break
+            case this.parent.keyboard.wheels[0].down: 
+                this.keyboard_row = (this.keyboard_row + 1) % rows.length
+                this.keyboard_index  = 0
+                break
+            case this.parent.keyboard.wheels[0].left:
+                this.keyboard_index -= 1
+                if (this.keyboard_index < 0) {
+                    
+                    if (this.keyboard_column > 0) {
+                        this.keyboard_column -= 1
+                        this.keyboard_row = 0
+                        this.keyboard_index = this.keyboard_actions[this.keyboard_column][this.keyboard_row].length - 1;
+                    } else {
+                        this.keyboard_index  = 0
+                    }
+                }
+                break
+            case this.parent.keyboard.wheels[0].right:
+                this.keyboard_index += 1
+                if (this.keyboard_index >= actions.length) {
+                    if (this.keyboard_column < this.keyboard_actions.length - 1) {
+                        this.keyboard_column += 1
+                        this.keyboard_row = 0
+                        this.keyboard_index = 0;
+                    } else {
+                        this.keyboard_index  = actions.length - 1
+                    }
+                }
+                break
+            case this.parent.keyboard.buttons[0]:
+                let act = this.keyboard_actions[this.keyboard_column][this.keyboard_row][this.keyboard_index]
+                act.on_action()()
+                break
+            case 27:
+                this.parent.screen = null
+                break
+        }
+
+    }
+
     update(dt) {
 
     }
@@ -939,8 +1040,6 @@ export class MainScene extends GameScene {
         // blue sky background
         // this rect defines the visible region of the game world
 
-        console.log(gAssets.mapinfo.theme)
-
         let bgcolor;
         if (gAssets.mapinfo.theme == "plains") {
             bgcolor = "#477ed6"
@@ -1048,7 +1147,7 @@ export class MainScene extends GameScene {
             touches.forEach(t => {
 
                 if (t.y < 24 && t.x > gEngine.view.width - 24) {
-                    gEngine.scene.screen = new PauseScreen(gEngine.scene)
+                    this.screen = new PauseScreen(this)
                 }
 
 
@@ -1059,35 +1158,23 @@ export class MainScene extends GameScene {
 
     handleKeyPress(keyevent) {
         if (!!this.screen) {
+            this.screen.handleKeyPress(keyevent);
         } else {
             this.keyboard.handleKeyPress(keyevent);
-        }
-
-        if (keyevent.text == "d") {
-            let objs = this.map.map.queryObjects({"className": "Player"})
-            if (objs.length > 0) {
-                objs[0].character.hit()
-                //objs[0]._hurt()
-            }
         }
     }
 
     handleKeyRelease(keyevent) {
         if (!!this.screen) {
-
-            // check for escape pressed
-            if (keyevent.keyCode == 27) {
-                gEngine.scene.screen = null
-            }
+            this.screen.handleKeyRelease(keyevent);
         } else {
 
             // check for escape pressed
             if (keyevent.keyCode == 27) {
-                gEngine.scene.screen = new PauseScreen(gEngine.scene)
+                this.screen = new PauseScreen(this)
             } else {
                 this.keyboard.handleKeyRelease(keyevent);
             }
-
 
         }
 

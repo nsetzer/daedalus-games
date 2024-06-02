@@ -61,6 +61,7 @@ export class Physics2dPlatformV2 {
         this.bounds_check = config.bounds_check??Physics2dPlatformV2.BOUNDARY_COLLIDE
 
         this.oneblock_walk = config.oneblock_walk??0
+        this._x_oneblock_walk_solid = false
 
         this.gravityboost = false // more gravity when button not pressed
         this.doublejump = false
@@ -500,8 +501,11 @@ export class Physics2dPlatformV2 {
             // todo: investigate speed profiles and one block walk.
             // set a requirement of being max speed, or 90% max speed,
             // todo: investigate one block walk for all directions, not just horizontal
+            this._x_oneblock_walk_solid = false
+
             if (this._enable_oneblock_walk && Math.abs(this.speed.x) > this.speed_profiles[0].speed && !collisions.b) {
                 if (ent.collidePoint(sensors.b.x+Math.sign(this.speed.x)*16, sensors.b.y)) { 
+                    this._x_oneblock_walk_solid = true
                     collisions.b1 = collisions.b
                     collisions.b = true 
                     collisions.b2 = true 
@@ -515,6 +519,7 @@ export class Physics2dPlatformV2 {
             // todo: investigate one block walk for all directions, not just horizontal
             if (this._enable_oneblock_walk && Math.abs(this.speed.x) > this.speed_profiles[0].speed && !collisions.bn) {
                 if (ent.collidePoint(sensors.bn.x+Math.sign(this.speed.x)*16, sensors.bn.y)) { 
+                    this._x_oneblock_walk_solid = true
                     collisions.bn1 = collisions.b
                     collisions.bn = true 
                     collisions.bn2 = true 
@@ -1300,6 +1305,16 @@ export class Physics2dPlatformV2 {
         let falling = !collisions.b && !rising
         let pressing = collisions.fn
         let standing = collisions.b
+        // TODO: using _x_oneblock_walk_solid is still not 100% correct
+        // when running over one block, the animation should be "run" not "fall"
+        // with this hack, there are 4 frames per cycle that still register as fall
+        // the introduction of _x_oneblock_walk_solid does make it look much better
+        if (this.oneblock_walk) {
+            standing = standing || this._x_oneblock_walk_solid
+            if (standing) {
+                falling = false
+            }
+        }
 
         this._x_is_standing = standing;
 
@@ -1326,6 +1341,8 @@ export class Physics2dPlatformV2 {
         } else {
             this.action = "run"
         }
+        
+        //console.log("standing", standing, "falling", falling, "soft", this._x_oneblock_walk_solid, this.action)
 
     }
 

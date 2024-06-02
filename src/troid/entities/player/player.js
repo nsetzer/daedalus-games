@@ -243,6 +243,7 @@ export class Player extends PlayerBase {
         this.buildAnimations2()
 
         this.current_action = "idle"
+        this._x_facing = Direction.RIGHT // TODO: this is a bug from physics_v1
         this.current_facing = Direction.RIGHT
 
         this.charge_duration = 0.0
@@ -711,7 +712,7 @@ export class Player extends PlayerBase {
             this._beam.update(dt)
         }
 
-        let pfacing = this.physics.facing
+        let pfacing = this._x_facing
         if (this.looking_up) {
             pfacing |= Direction.UP
         }
@@ -850,11 +851,11 @@ export class Player extends PlayerBase {
             // moonwalk when charging
             if (!this.charging) {
                 if (payload.vector.x > 0.3535) {
-                    this.physics.facing = Direction.RIGHT
+                    this._x_facing = Direction.RIGHT
                 }
 
                 if (payload.vector.x < -0.3535) {
-                    this.physics.facing = Direction.LEFT
+                    this._x_facing = Direction.LEFT
                 }
             }
 
@@ -877,7 +878,7 @@ export class Player extends PlayerBase {
             // const maxspeed = 90
 
             //if (payload.vector.x > 0.3535) {
-            //    this.physics.facing = Direction.RIGHT
+            //    this._x_facing = Direction.RIGHT
             //    if (this.physics.speed.x < maxspeed) {
             //        this.physics.speed.x += maxspeed/10.0
             //        if (this.physics.speed.x > maxspeed) {
@@ -887,7 +888,7 @@ export class Player extends PlayerBase {
             //}
 
             //else if (payload.vector.x < -0.3535) {
-            //    this.physics.facing = Direction.LEFT
+            //    this._x_facing = Direction.LEFT
             //    if (this.physics.speed.x > -maxspeed) {
             //        this.physics.speed.x -= maxspeed/10.0
             //        if (this.physics.speed.x < -maxspeed) {
@@ -942,7 +943,9 @@ export class Player extends PlayerBase {
                         charge_sound.play()
                     }
                 } else {
+
                     
+                                            
                     let power = this._chargePower()
                     this.charge_duration = 0.0
                     this.charging = false
@@ -961,6 +964,24 @@ export class Player extends PlayerBase {
                             this._beam = null
                         }
                     }
+
+                    // when moon walking, switch the facing direction when the shot is released
+                    //if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
+                    console.log(this.physics.moving_direction, this.physics.speed.x)
+                    if (!this.charging) {
+                            if (this.physics.moving_direction==Direction.RIGHT) {
+                                this._x_facing = Direction.RIGHT
+                                this.current_facing = Direction.RIGHT
+                                this._updateAnimation()
+                            }
+
+                            if (this.physics.moving_direction==Direction.LEFT) {
+                                this._x_facing = Direction.LEFT
+                                this.current_facing = Direction.LEFT
+                                this._updateAnimation()
+                            }
+                    }
+                    //}
 
                 }
             }
@@ -1020,7 +1041,7 @@ export class Player extends PlayerBase {
     _shoot(power) {
 
 
-        let d = this.physics.facing
+        let d = this._x_facing
         if (this.looking_up) {
             d |= Direction.UP
         }

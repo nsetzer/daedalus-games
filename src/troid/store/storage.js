@@ -127,6 +127,7 @@ export class CharacterInfo {
             this.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].acquired = 1
             this.inventory[CharacterInventoryEnum.BEAM_MOD_RAPID].acquired = 1
             this.inventory[CharacterInventoryEnum.BEAM_MOD_CHARGE].acquired = 1
+            this.weapons[0].modifier = WeaponType.MODIFIER.RAPID
         }
 
 

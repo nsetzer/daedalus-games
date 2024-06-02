@@ -385,6 +385,7 @@ let upgrade_text = {
     [CharacterInventoryEnum.SKILL_DOUBLE_JUMP]: "Double Jump\nJump again in mid-air",
     [CharacterInventoryEnum.SKILL_SPIKE_BALL]: "Spike Ball\nDouble-Tap DOWN when morphed to stick to walls",
     [CharacterInventoryEnum.SKILL_RUNNING_BOOTS]: "Running Boots\nIncrease Movement Speed",
+    [CharacterInventoryEnum.SKILL_WEAPON_SLOT]: "Additional Weapon Slot\nQuickly switch weapon settings",
 }
 
 export class BrickUpgrade extends BrickBase {
@@ -559,6 +560,14 @@ export class BrickCoin extends BrickBase {
         
         gAssets.sfx.ITEM_COLLECT_COIN.play()
         gCharacterInfo.coins += this.value
+
+        if (gCharacterInfo.coins >= 100) { 
+            gCharacterInfo.coins -= 100
+            if (gCharacterInfo.current_health < gCharacterInfo.max_health) {
+                gCharacterInfo.current_health += 1
+            }
+            gAssets.sfx.ITEM_COINUP.play()
+        }
     }
 
 }
