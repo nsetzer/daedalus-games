@@ -44,14 +44,23 @@ function random_choice(choices) {
 }
 
 const EditorTool = {}
-EditorTool.PLACE_TILE = 1
-EditorTool.ERASE_TILE = 2
-EditorTool.PAINT_TILE = 3
-EditorTool.SELECT_TILE = 4
-EditorTool.PLACE_OBJECT = 5
-EditorTool.ERASE_OBJECT = 6
-EditorTool.SELECT_OBJECT = 7
-EditorTool.EDIT_OBJECT = 8
+EditorTool.PLACE_TILE    = 0x11
+EditorTool.ERASE_TILE    = 0x12
+EditorTool.SELECT_TILE   = 0x14 
+EditorTool.PAINT_TILE    = 0x18
+
+EditorTool.PLACE_OBJECT  = 0x21
+EditorTool.ERASE_OBJECT  = 0x22
+EditorTool.SELECT_OBJECT = 0x24
+EditorTool.EDIT_OBJECT   = 0x28
+
+EditorTool.PLACE_STAMP   = 0x41
+EditorTool.ERASE_STAMP   = 0x42
+EditorTool.SELECT_STAMP  = 0x44
+
+EditorTool.TILE_MASK     = 0x10
+EditorTool.OBJECT_MASK   = 0x20
+EditorTool.STAMP_MASK    = 0x40
 
 
 class FileMenu {
@@ -682,7 +691,6 @@ class ObjectMenu {
         let i = this.parent.objmenu_object_scroll_index;
     }
 
-
     handleTouches(touches) {
 
         if (touches.length > 0) {
@@ -778,12 +786,13 @@ class ObjectMenu {
         let groove_y = 32 + 24*1+2 + 12 + 4
         let groove_width = 10
         let groove_height = 24*5-12 - 24 - 8
-        let groove_size = 8
+        let handle_size = 8
 
         let nobj = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
         let iobj = this.parent.objmenu_object_scroll_index;
         let pobj = (nobj>4)?Math.min(1, iobj/(nobj-4)):0;
 
+        // groove
         ctx.beginPath();
         ctx.fillStyle = "#555555"
         ctx.strokeStyle = "#555555"
@@ -797,15 +806,16 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
+        // handle
         ctx.beginPath();
         ctx.fillStyle = "#aaaaaa"
         ctx.strokeStyle = "#aaaaaa"
         ctx.lineWidth = 2
         ctx.rect(
             groove_x, 
-            groove_y + Math.round((groove_height-groove_size) * pobj), 
+            groove_y + Math.round((groove_height-handle_size) * pobj), 
             groove_width, 
-            groove_size)
+            handle_size)
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
@@ -850,8 +860,6 @@ class ObjectMenu {
         ctx.fill()
 
         this._paint_body_scrollbar(ctx);
-
-
 
         // background for edit tools
         for (let i=0; i < 4; i++) {
@@ -1495,6 +1503,354 @@ class ObjectPropertyEditMenu {
 
 }
 
+class StampMenu {
+    constructor(parent) {
+
+        this.parent = parent
+
+        this.tiles_per_row = 8
+        this.number_of_rows = 7
+        this.margin1 = 8
+        this.margin2 = 8 + 16 + 8 + 8
+        this.margin3 = 4
+
+        this.body_y = 64
+
+        let w = this.margin3 + this.margin2 + 16 * (this.tiles_per_row+2) + 24
+        let h = this.body_y + (16*this.number_of_rows) + this.margin1 - 24
+
+        this.rect = new Rect(0,24,w,h)
+        this.rect2 = new Rect(this.margin2, this.body_y, (this.tiles_per_row)*16, 16*this.number_of_rows)
+        //this.select_region = new Rect(0,0,1,1)
+
+        this.actions = []
+
+        this.highlight_colors = [
+            "#e6ac00", "#ffbf00", "#ffcc33", 
+            "#ffd966", "#ffe699", "#ffd966", 
+            "#ffcc33", "#ffbf00"
+        ]
+
+        // header scroll up
+        this.actions.push({
+            x: this.margin1,
+            y: 32 + 24*4, 
+            icon:this.parent.editor_icons.arrow_up, 
+            action: ()=>{ this._header_scroll_up() }
+        })
+        // header scroll down
+        this.actions.push({
+            x: this.margin1,
+            y: 32 + 24*5, 
+            icon:this.parent.editor_icons.arrow_down,
+            action: ()=>{ this._header_scroll_down() }
+        })
+
+        // object page scroll up
+        this.actions.push({
+            x: this.margin2 + this.margin1 + 16*(this.tiles_per_row) - 1,
+            y: this.body_y, 
+            icon:this.parent.editor_icons.arrow_up, 
+            action: ()=>{ this._body_scroll_up() }
+        })
+
+        // object page scroll down
+        this.actions.push({
+            x: this.margin2 + this.margin1 + 16*(this.tiles_per_row) - 1,
+            y: this.body_y + 16 * (this.number_of_rows) - 16, 
+            icon:this.parent.editor_icons.arrow_down, 
+            action: ()=>{ this._body_scroll_down() }
+        })
+
+        let x,y;
+        x = this.margin2 + 2*this.margin1 + this.margin3 + 16*(this.tiles_per_row+1)
+        y = 32 
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.new, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.PLACE_STAMP
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.hand, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.SELECT_STAMP
+            this.parent.active_menu = null
+        }})
+
+        y += 24
+
+        this.actions.push({
+            x,y,icon:this.parent.editor_icons.erase, 
+            action: ()=>{
+            this.parent.active_tool = EditorTool.ERASE_STAMP
+            this.parent.active_menu = null
+        }})
+
+        
+
+    }
+
+
+    _header_scroll_up() {
+        //if (this.parent.objmenu_page_scroll_index > 0) {
+        //     this.parent.objmenu_page_scroll_index -= 1;
+        //}
+    }
+
+    _header_scroll_down() {
+        //let n = this.parent.object_pages.length
+        //if (this.parent.objmenu_page_scroll_index < n-1) {
+        //    this.parent.objmenu_page_scroll_index += 1;
+        //}
+    }
+
+    _body_scroll_up() {
+        //if (this.parent.objmenu_object_scroll_index > 0) {
+        //    this.parent.objmenu_object_scroll_index -= 4
+        //}
+        //let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        //let i = this.parent.objmenu_object_scroll_index;
+    }
+
+    _body_scroll_down() {
+        //let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        //if (this.parent.objmenu_object_scroll_index < n-4) {
+        //    this.parent.objmenu_object_scroll_index += 4
+        //}
+        //let i = this.parent.objmenu_object_scroll_index;
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (t.buttons&4) {
+                if (t.x < this.margin2) {
+                    // scroll head
+                    if (t.deltaY < 0) {
+                        this._header_scroll_down()
+                    } else {
+                        this._header_scroll_up()
+                    }
+
+                } else {
+                    // scroll body
+                    if (t.deltaY < 0) {
+                        this._body_scroll_down()
+                    } else {
+                        this._body_scroll_up()
+                    }
+                }
+                
+                return
+            }
+
+
+            if (this.rect2.collidePoint(t.x, t.y)) {
+                let cell_x = Math.floor((t.x - this.rect2.x)/16)
+                let cell_y = Math.floor((t.y - this.rect2.y)/16)
+                if (t.first) {
+                    this.parent.stampmenu_stamp.rect = new Rect(cell_x, cell_y, 1, 1)    
+                } else {
+                    let w = cell_x - this.parent.stampmenu_stamp.rect.x + 1
+                    let h = cell_y - this.parent.stampmenu_stamp.rect.y + 1
+
+                    this.parent.stampmenu_stamp.rect.w = Math.max(1, w)
+                    this.parent.stampmenu_stamp.rect.h = Math.max(1, h) 
+                }
+            }
+
+            // prevent drag firing multiple times
+            if (t.pressed) { 
+                return
+            }
+
+            // click outside menu closes it
+            if (!this.rect.collidePoint(t.x, t.y)) {
+                this.parent.active_menu = null
+                return
+            }
+
+            // process actions
+            this.actions.forEach(action => {
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                    }
+                }
+            })
+
+            
+
+        }
+    }
+
+    _paint_body_scrollbar(ctx) {
+
+        let bar_w = 14
+        let groove_x = this.margin2 + 16*(this.tiles_per_row) + this.margin1 + 2
+        let groove_y = this.body_y + 12 + 4
+        let groove_width = 10
+        let groove_height = 24*5-12 - 24 - 8
+        let handle_size = 8
+
+        let nobj = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
+        let iobj = this.parent.objmenu_object_scroll_index;
+        let pobj = (nobj>4)?Math.min(1, iobj/(nobj-4)):0;
+
+        // background for object list scroll bar
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(
+            this.margin2 + 16*(this.tiles_per_row) + this.margin1, 
+            this.body_y, 
+            bar_w, 
+            16*this.number_of_rows, 
+            3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        //groove
+        ctx.beginPath();
+        ctx.fillStyle = "#555555"
+        ctx.strokeStyle = "#555555"
+        ctx.lineWidth = 2
+        ctx.rect(
+            groove_x, 
+            groove_y, 
+            groove_width, 
+            groove_height)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        // handle
+        ctx.beginPath();
+        ctx.fillStyle = "#aaaaaa"
+        ctx.strokeStyle = "#aaaaaa"
+        ctx.lineWidth = 2
+        ctx.rect(
+            groove_x, 
+            groove_y + Math.round((groove_height-handle_size) * pobj), 
+            groove_width, 
+            handle_size)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+    }
+
+    paint(ctx) {
+
+
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 8)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        // line separating first and second panel
+        ctx.beginPath();
+        ctx.moveTo(this.margin2-this.margin1,this.rect.y)
+        ctx.lineTo(this.margin2-this.margin1,this.rect.y + this.rect.h)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        
+        // line separating second and third panel
+        ctx.beginPath();
+        ctx.moveTo(this.margin2 + this.margin1 + 4 + ((this.tiles_per_row)*16) + 18+2,this.rect.y)
+        ctx.lineTo(this.margin2 + this.margin1 + 4 + ((this.tiles_per_row)*16) + 18+2,this.rect.y + this.rect.h)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        // background for header scroll bar
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.margin1+1, 32 + 24*4+2, 14, 24*2-12, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        this._paint_body_scrollbar(ctx)
+
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect2.x-2, this.rect2.y-2, this.rect2.w+4, this.rect2.h+4, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        // draw a checkerboard with 16x16 tiles in black and white over rect2
+        for (let i=0; i < this.number_of_rows; i++) {
+            for (let j=0; j < this.tiles_per_row; j++) {
+                let x = this.rect2.x + j*16
+                let y = this.rect2.y + i*16
+                if ((i+j)%2 == 0) {
+                    ctx.fillStyle = "#9090FF"
+                } else {
+                    ctx.fillStyle = "#8080FF"
+                }
+                ctx.fillRect(x, y, 16, 16)
+            }
+        }
+
+        ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+            0, 0, this.rect2.w, this.rect2.h, 
+            this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+
+        ctx.beginPath();
+        ctx.strokeStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
+        ctx.rect(
+            this.rect2.x + this.parent.stampmenu_stamp.rect.x*16,
+            this.rect2.y + this.parent.stampmenu_stamp.rect.y*16,
+            this.parent.stampmenu_stamp.rect.w*16,
+            this.parent.stampmenu_stamp.rect.h*16)
+        ctx.stroke()
+
+        // background for edit tools
+        for (let i=0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.fillStyle = "#888888"
+            ctx.strokeStyle = "#888888"
+            ctx.lineWidth = 2
+            
+            ctx.roundRect(this.margin2 + this.margin1 + 2*this.margin3 + ((this.tiles_per_row)*16) + 18+2, 32 + 24*i, 16, 16, 3)
+            ctx.closePath()
+            ctx.stroke()
+            ctx.fill()
+        }
+
+
+        this.actions.forEach(action => {
+            if (!!action.render) {
+                action.render(ctx,action.x, action.y)
+            } else {
+                action.icon.draw(ctx, action.x, action.y)
+            }
+        })
+
+    }
+}
+
 export class LevelEditScene extends GameScene {
 
     // TODO: optimize: only do a full paint if something changed
@@ -1503,10 +1859,6 @@ export class LevelEditScene extends GameScene {
 
     constructor() {
         super()
-
-        console.log(gAssets.mapinfo.mapurl)
-        console.log(gCharacterInfo.current_map)
-        console.log(gCharacterInfo.current_map_spawn)
 
         let [wid, lid] = gAssets.mapinfo.mapurl.match(/\d+/g)
         //let wid = gCharacterInfo.current_map.world_id.slice(-2)
@@ -1532,12 +1884,22 @@ export class LevelEditScene extends GameScene {
             width: 15*32,
             height: 9*32,
             layers: [{}],
-            objects: {}
+            objects: {},
+            stamps: {} // stamps are like non-solid tile-objects, allow, 'bg' and 'fg' as an attribute
         }
 
         gAssets.mapinfo.objects.forEach(obj => {
             if (!this.map.objects[obj.oid]) {
                 this.map.objects[obj.oid] = obj
+            }
+        })
+
+        gAssets.mapinfo.stamps.forEach(stamp => {
+            let encoded = stamp.rect
+            // ignore 0 width/height stamps
+            let rect = new Rect((encoded>>24)&0xFF, (encoded>>16)&0xFF, (encoded>>8)&0xFF, (encoded)&0xFF)
+            if (rect.w > 0 && rect.h > 0) {
+                this.map.stamps[stamp.sid] = {rect: rect, layer:stamp.layer, sheet: stamp.sheet}
             }
         })
 
@@ -1614,7 +1976,7 @@ export class LevelEditScene extends GameScene {
         this.ygutter = 64 // allow 4 tiles to be place out of bounds at the top of the map
 
         // init history to the current state
-        this.historyPush(true, true)
+        this.historyPush(true, true, true)
 
         this.tile_selection = null
 
@@ -1654,7 +2016,7 @@ export class LevelEditScene extends GameScene {
                 selected: null,
             },
             {
-                name: "object-place",
+                name: "objects",
                 //icon: this.editor_icons.hand,
                 icon2: ()=> {
                     if (this.active_tool == EditorTool.PLACE_OBJECT) {
@@ -1678,15 +2040,25 @@ export class LevelEditScene extends GameScene {
                 },
                 selected: () => [EditorTool.PLACE_OBJECT, EditorTool.SELECT_OBJECT, EditorTool.EDIT_OBJECT, EditorTool.ERASE_OBJECT].includes(this.active_tool),
             },
+
             {
-                name: null,
-                icon: null,
-                action: null,
-                selected: null,
-            },
-            {
-                name: "tile-place",
-                icon: this.editor_icons.hand,
+                name: "tiles",
+                //icon: this.editor_icons.hand,
+                icon2: ()=> {
+                    if (this.active_tool == EditorTool.PLACE_TILE) {
+                        return this.editor_icons.new
+                    }
+                    if (this.active_tool == EditorTool.SELECT_TILE) {
+                        return this.editor_icons.pointer
+                    }
+                    if (this.active_tool == EditorTool.PAINT_TILE) {
+                        return this.editor_icons.brush
+                    }
+                    if (this.active_tool == EditorTool.ERASE_TILE) {
+                        return this.editor_icons.erase
+                    }
+                    return this.editor_icons.hand
+                },
                 action: () => {
                     gAssets.sounds.click1.play()
                     this.active_tool = EditorTool.PLACE_TILE;
@@ -1695,6 +2067,16 @@ export class LevelEditScene extends GameScene {
                 selected: () => {
                     return [EditorTool.PLACE_TILE,EditorTool.SELECT_TILE,EditorTool.ERASE_TILE,EditorTool.PAINT_TILE].includes(this.active_tool)
                 }
+            },
+            {
+                name: "stamps",
+                icon: this.editor_icons.stamp,
+                action: () => {
+                    gAssets.sounds.click1.play()
+                    this.active_tool = EditorTool.PLACE_STAMP;
+                    this.active_menu = new StampMenu(this)
+                },
+                selected: null,
             },
             {
                 name: null,
@@ -1799,11 +2181,6 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_objects['Spikes'].icon,
                 objects: editorEntities.filter(ent => ent.category == EntityCategory.hazard)
             },
-            {
-                title: "Stamps",
-                icon: this.editor_icons.stamp,
-                objects: editorEntities.filter(ent => ent.category == EntityCategory.stamp)
-            },
         ]
 
         this.object_pages.forEach(page => {
@@ -1822,6 +2199,10 @@ export class LevelEditScene extends GameScene {
         this.objmenu_current_object = 0
         this.objmenu_page_scroll_index = 0
         this.objmenu_object_scroll_index = 0
+        this.selected_object = null
+
+        this.stampmenu_stamp = {sheet: 0, rect: new Rect(0,0,1,1), layer: 0}
+        this.selected_stamp = null
     }
 
     _init_slopes() {
@@ -1954,7 +2335,7 @@ export class LevelEditScene extends GameScene {
                 ctx.closePath();
                 ctx.fill();
 
-                if (action.name == "tile-place") {
+                if (action.name == "tiles") {
 
                     // draw the current tool or the tile template
                     if (this.active_tool == EditorTool.ERASE_TILE) {
@@ -1996,7 +2377,7 @@ export class LevelEditScene extends GameScene {
                         paintTile(ctx, x+1, y+1, tile, this.theme_sheets)
                     }
                 }
-                else if (action.name == "object-place") {
+                else if (action.name == "objects") {
 
                     // drwa the current object icon, or the tool icon
                     if (this.active_tool == EditorTool.PLACE_OBJECT) {
@@ -2163,8 +2544,42 @@ export class LevelEditScene extends GameScene {
         */
     }
 
+    _paint_stamps(ctx) {
+
+        ctx.save()
+
+        if (!(this.active_tool&EditorTool.STAMP_MASK)) {
+            ctx.globalAlpha = 0.66
+        }
+        ctx.strokeStyle = "blue";
+        ctx.setLineDash([3]);
+
+        for (const [sid, stamp] of Object.entries(this.map.stamps)) {
+
+            let rect1 = stamp.rect
+            let rect2 = this._getStampShape(sid, stamp)
+
+
+            ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+                rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
+                rect2.x, rect2.y, rect2.w, rect2.h)
+
+            if (this.active_tool&EditorTool.STAMP_MASK) {
+                ctx.beginPath()
+                ctx.rect(rect2.x,rect2.y,rect2.w,rect2.h)
+                ctx.stroke()
+            }
+        
+        }
+        ctx.restore()
+    }
+
     _paint_objects(ctx) {
         ctx.save()
+
+        if (!(this.active_tool&EditorTool.OBJECT_MASK)) {
+            ctx.globalAlpha = 0.66
+        }
         
         for (const [oid, obj] of Object.entries(this.map.objects)) {
 
@@ -2224,12 +2639,14 @@ export class LevelEditScene extends GameScene {
                 }
             }
 
-            ctx.beginPath()
-            ctx.strokeStyle = "blue"
-            ctx.setLineDash([3]);
-            ctx.rect(x,y,w,h)
-            ctx.closePath()
-            ctx.stroke()
+            if (this.active_tool&EditorTool.OBJECT_MASK) {
+                ctx.beginPath()
+                ctx.strokeStyle = "blue"
+                ctx.setLineDash([3]);
+                ctx.rect(x,y,w,h)
+                ctx.closePath()
+                ctx.stroke()
+            }
 
         }
         ctx.restore()
@@ -2254,6 +2671,8 @@ export class LevelEditScene extends GameScene {
         this._paint_background(ctx)
 
         this._paint_tiles(ctx)
+
+        this._paint_stamps(ctx)
 
         this._paint_objects(ctx)
 
@@ -2413,9 +2832,117 @@ export class LevelEditScene extends GameScene {
         return oid
     }
 
-    moveObject(mx, my, onpress) {
+    _hydrateObject(oid, name, schemaList) {
+        let props = {}
+        let is_door = false
+        for (let i=0; i < schemaList.length; i++) {
+            if (schemaList[i].control == EditorControl.DOOR_ID) {
+                is_door = true;
+                break
+            }
+        }
+
+        for (let i=0; i < schemaList.length; i++) {
+            let schema = schemaList[i]
+
+            if (schema.control == EditorControl.CHOICE) {
+                props[schema.name] = schema['default']
+            }
+
+            if (schema.control == EditorControl.DOOR_TARGET) {
+                props["target_world_id"] = "world_01"
+                props["target_level_id"] = 1
+                props["target_door_id"] = 1
+            }
+
+            // door id handled below
+
+            if (schema.control == EditorControl.DIRECTION_4WAY) {
+                props["direction"] = schema['default']
+            }
+
+            if (schema.control == EditorControl.TEXT) {
+                props[schema['property']??"text"] = schema['default']??"default text"
+            }
+
+            if (schema.control == EditorControl.RESIZE) {
+                props["width"] = schema['min_width'] ?? 1
+                props["height"] = schema['min_height'] ?? 1
+            }
+
+            if (schema.control == EditorControl.RANGE) {
+                props[schema.name] = schema['default']??(schema.min??0)
+            }
+        }
+
+        if (is_door) {
+            // determine the next available door id
+            let door_id = -1
+            let positions = {}
+
+            Object.values(this.map.objects).forEach(ent => {
+                positions[ent?.props?.door_id??0] = true
+            })
+
+            for (let i=1; i <= 8; i++) {
+                if (!positions[i]) {
+                    door_id = i
+                    break
+                }
+            }
+
+            if (door_id < 1) {
+                console.log("two many doors")
+                return false
+            }
+
+            if (is_door) {
+                props.door_id = door_id
+            }
+        }
+
+        const obj = {
+            name: name,
+        }
+
+        if (schemaList.length > 0) {
+            obj.props = props
+        }
+
+        console.log("place", obj)
+        return obj
+    }
+
+    _getStampShape(stamp_oid, stamp) {
+        let ox = 16*(stamp_oid%512)
+        let oy = 16*Math.floor(stamp_oid/512 - 4)
+        let rect = new Rect(ox,oy,stamp.rect.w*16, stamp.rect.h*16)
+        return rect
+    }
+    _getStampId(mx, my) {
+        let oid = (my + 4)*512+mx
+
+        // if there is no object directly under the mouse click
+        // scan to find any objects which have a size greater than 1 tile.
+        // and test to see if that object overlaps.
+        if (!this.map.stamps[oid]) {
+            for (const [stamp_oid, stamp] of Object.entries(this.map.stamps)) {
+                
+                let rect = this._getStampShape(stamp_oid, stamp)
+
+                if (rect.collidePoint(mx*16, my*16)) {
+                    oid = stamp_oid
+                    break;
+                }
+            }
+        }
+
+        return oid
+    }
+
+    moveObject(mx, my, pressed) {
         
-        if (onpress) {
+        if (pressed) {
             // if there is no object directly under the mouse click
             // scan to find any objects which have a size greater than 1 tile.
             // and test to see if that object overlaps.
@@ -2578,7 +3105,7 @@ export class LevelEditScene extends GameScene {
 
     }
 
-    eraseObject(mx, my, onpress) {
+    eraseObject(mx, my, pressed) {
         const oid = this._getObjectId(mx, my)
 
         if (!!this.map.objects[oid]) {
@@ -2586,87 +3113,6 @@ export class LevelEditScene extends GameScene {
             return true
         }
         return false
-    }
-
-    _hydrateObject(oid, name, schemaList) {
-        let props = {}
-        let is_door = false
-        for (let i=0; i < schemaList.length; i++) {
-            if (schemaList[i].control == EditorControl.DOOR_ID) {
-                is_door = true;
-                break
-            }
-        }
-
-        for (let i=0; i < schemaList.length; i++) {
-            let schema = schemaList[i]
-
-            if (schema.control == EditorControl.CHOICE) {
-                props[schema.name] = schema['default']
-            }
-
-            if (schema.control == EditorControl.DOOR_TARGET) {
-                props["target_world_id"] = "world_01"
-                props["target_level_id"] = 1
-                props["target_door_id"] = 1
-            }
-
-            // door id handled below
-
-            if (schema.control == EditorControl.DIRECTION_4WAY) {
-                props["direction"] = schema['default']
-            }
-
-            if (schema.control == EditorControl.TEXT) {
-                props[schema['property']??"text"] = schema['default']??"default text"
-            }
-
-            if (schema.control == EditorControl.RESIZE) {
-                props["width"] = schema['min_width'] ?? 1
-                props["height"] = schema['min_height'] ?? 1
-            }
-
-            if (schema.control == EditorControl.RANGE) {
-                props[schema.name] = schema['default']??(schema.min??0)
-            }
-        }
-
-        if (is_door) {
-            // determine the next available door id
-            let door_id = -1
-            let positions = {}
-
-            Object.values(this.map.objects).forEach(ent => {
-                positions[ent?.props?.door_id??0] = true
-            })
-
-            for (let i=1; i <= 8; i++) {
-                if (!positions[i]) {
-                    door_id = i
-                    break
-                }
-            }
-
-            if (door_id < 1) {
-                console.log("two many doors")
-                return false
-            }
-
-            if (is_door) {
-                props.door_id = door_id
-            }
-        }
-
-        const obj = {
-            name: name,
-        }
-
-        if (schemaList.length > 0) {
-            obj.props = props
-        }
-
-        console.log("place", obj)
-        return obj
     }
 
     placeObject(x, y, pressed) {
@@ -2719,9 +3165,9 @@ export class LevelEditScene extends GameScene {
         return Object.keys(cached).length > 0;
     }
 
-    moveTile(mx, my, onpress) {
+    moveTile(mx, my, pressed) {
 
-        if (onpress) {
+        if (pressed) {
 
             if (!!this.tile_selection && 
                 !!this.tile_selection.rect && 
@@ -2873,6 +3319,61 @@ export class LevelEditScene extends GameScene {
         return true
     }
 
+    placeStamp(mx, my, pressed) {
+        const sid = (my + 4)*512+mx
+        this.map.stamps[sid] = {...this.stampmenu_stamp}
+        return true
+    }
+
+    eraseStamp(mx, my) {
+        const sid = this._getStampId(mx, my)
+
+        if (!!this.map.stamps[sid]) {
+            delete this.map.stamps[sid]
+            return true
+        }
+        return false
+    }
+
+    moveStamp(mx, my, pressed) {
+    
+        if (pressed) {
+            // if there is no object directly under the mouse click
+            // scan to find any objects which have a size greater than 1 tile.
+            // and test to see if that object overlaps.
+            let sid = this._getStampId(mx, my)
+
+            if (!!this.map.stamps[sid]) {
+                this.selected_stamp = sid
+            } else {
+                this.selected_stamp = null
+            }
+            console.log("moveStamp", this.selected_stamp)
+
+        } else {
+            let sid = (my + 4)*512+mx
+
+            // check to see if there is a selected object
+            // and the current mouse position does not match the object position
+            if (this.selected_stamp != null && this.selected_stamp != sid) {
+
+                // check that the new mouse position is empty
+                if (!this.map.stamps[sid]) {
+                    // move the stamp
+                    let tmp = this.map.stamps[this.selected_stamp]
+                    delete this.map.stamps[this.selected_stamp]
+                    this.map.stamps[sid] = tmp
+                    this.selected_stamp = sid
+                    return true
+                }
+            }
+        }
+
+        return false
+    
+        
+    }
+
     _scroll(dx, dy) {
 
         //this.camera.x = this.mouse_down.camerax + dx
@@ -2987,8 +3488,10 @@ export class LevelEditScene extends GameScene {
             const [tid, tile] = t
             let x = 0;
             // tid is 18 bits (two 512 bit numbers)
+            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x1FFFF
+
             // shape, property, and sheet are each 3 bits
-            // allowing 8 different values. zero is reserved for each
+            // allowing 8 different values. zero is reserved
             // direction is 4 bits and optional (square tiles do not use it)
             x |= tid << 13 // position
             x |= tile.shape << 10
@@ -3004,12 +3507,34 @@ export class LevelEditScene extends GameScene {
         const objects0 = Object.entries(this.map.objects)
             .filter( t => !!t[1].name )
             .map(t => {
-                let obj = {oid: t[0], name: t[1].name}
+                // t : {oid, obj}
+                // save only the oid, name, and props
+                // save oid as int, not str
+                let obj = {oid: +t[0], name: t[1].name}
                 if (Object.hasOwn(t[1], 'props') && Object.keys(t[1].props).length > 0) {
                     obj.props = t[1].props
                 }
                 return obj
             })
+
+        // "rect":{"x":255,"x":255,"x":255,"x":255}
+        // "rect":0xFFFFFFFF
+        // "rect":4294967295
+
+        const stamps0 = Object.entries(this.map.stamps).map(t => {
+            // t: {sid, stamp}
+            // sid is an 18bit number 
+            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x3FFFF
+            // save the rectangle encoded as a 32bit integer
+            // sheet is an 8 bit index
+            // layer is 0 (background) or 1 (foreground) 
+
+            let rect = t[1].rect
+            let encoded = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
+            //console.log("save stamp", rect, encoded)
+            // save sid as int, not str
+            return {sid: +t[0], rect: encoded, sheet: t[1].sheet, layer: t[1].layer}
+        })
 
         const map = {
             version: 0,
@@ -3017,7 +3542,8 @@ export class LevelEditScene extends GameScene {
             height: this.map.height,
             theme: this.current_theme,
             layers: [tiles0],
-            objects: objects0
+            objects: objects0,
+            stamps: stamps0
         }
 
         let date = new Date()
@@ -3056,11 +3582,10 @@ export class LevelEditScene extends GameScene {
 
     }
 
-    historyPush(change_tile, change_object) {
+    historyPush(change_tile, change_object, change_stamp) {
 
         // remove old entries that were discarded by the user
         while (this.history_index > 0) {
-            console.log("remove events")
             this.history.pop()
             this.history_index -= 1
         }
@@ -3076,10 +3601,11 @@ export class LevelEditScene extends GameScene {
         // if the history is [tile, object, tile]
         // an undo should effectivley go back to the previous tile state
         // maybe it needs separate history streams?
-        if (change_tile || change_object) {
+        if (change_tile || change_object || change_stamp) {
             event.layer_id = 0
             event.layer = JSON.stringify(this.map.layers[0])
             event.objects = JSON.stringify(this.map.objects)
+            event.stamps = JSON.stringify(this.map.stamps)
         }
 
         this.history.push(event)
@@ -3091,7 +3617,7 @@ export class LevelEditScene extends GameScene {
 
         // log the size
         let history_size = this.history.map(h => (h?.layer??"").length + (h?.objects??"").length).reduce((a,b)=>a+b,0)
-        console.log(`history index=${this.history_index} num_entries=${this.history.length} size=${(history_size/1024).toFixed(1)}kb`)
+        console.log(`history push index=${this.history_index} num_entries=${this.history.length} size=${(history_size/1024).toFixed(1)}kb`)
 
     }
 
@@ -3103,7 +3629,7 @@ export class LevelEditScene extends GameScene {
         if (this.history_index < this.history.length-1) {
             this.history_index += 1
             let idx = (this.history.length - 1) - this.history_index
-            console.log("pop", idx, this.history.length, this.history_index)
+            console.log("history pop", idx, this.history.length, this.history_index)
             this._historyApplyIndex(idx)
             gAssets.sounds.click1.play()
         } else {
@@ -3116,7 +3642,7 @@ export class LevelEditScene extends GameScene {
         if (this.history_index > 0) {
             this.history_index -= 1
             let idx = (this.history.length - 1) - this.history_index
-            console.log("unpop", idx, this.history.length, this.history_index)
+            console.log("history unpop", idx, this.history.length, this.history_index)
             this._historyApplyIndex(idx)
             gAssets.sounds.click1.play()
         } else {
@@ -3126,7 +3652,7 @@ export class LevelEditScene extends GameScene {
 
     _historyApplyIndex(idx) {
         if (idx >= 0 && idx < this.history.length) {
-            console.log("apply event ", idx, this.history.length)
+            console.log("history apply event ", idx, this.history.length)
             let event = this.history[idx]
 
             if (Object.hasOwn(event, 'layer_id')) {
@@ -3138,6 +3664,14 @@ export class LevelEditScene extends GameScene {
                 console.log("history apply object")
                 this.map.objects = JSON.parse(event.objects)
             }
+
+            if (Object.hasOwn(event, 'stamps')) {
+                console.log("history apply stamps")
+                this.map.stamps = JSON.parse(event.stamps)
+            }
+
+        } else {
+            console.log("history index out of bounds")
         }
     }
 
@@ -3194,7 +3728,6 @@ export class LevelEditScene extends GameScene {
                 }
                 //this.num_touches = this.disable_place + "|" +touches.map(t=> t.pressed).join()
 
-                console.log(touches[0].buttons)
                 if (touches[0].buttons&4) {
                     // mouse  wheel
                     if (touches[0].ctrlKey) {
@@ -3210,7 +3743,7 @@ export class LevelEditScene extends GameScene {
                         // snap to a 2x2 tile grid
                         this.camera.x = Math.round(this.camera.x / m) * m
                         this.camera.y = Math.round(this.camera.y / m) * m
-                        
+
                         // mouse wheel scrolls 2 tiles per tick
                         let dx = -Math.sign(touches[0].deltaX) * m
                         let dy = -Math.sign(touches[0].deltaY) * m
@@ -3266,14 +3799,18 @@ export class LevelEditScene extends GameScene {
 
                     let change_tile = false
                     let change_object = false
+                    let change_stamp = false
                     if (t.y >= -this.ygutter/16 && t.x >= 0 && t.x < this.map.width/16 && t.y < this.map.height/16) {
 
-                        if (this.active_tool === EditorTool.SELECT_OBJECT) {
-                            // first touch required to select the object to drag
-                            change_object = this.moveObject(t.x, t.y, t.first)
-                        }
+                        
 
                         
+                        if (this.active_tool === EditorTool.PLACE_OBJECT) {
+                            if (!t.first) {
+                                change_object = this.placeObject(t.x, t.y,t.pressed)
+                            }
+
+                        }
 
                         else if (this.active_tool === EditorTool.ERASE_OBJECT) {
                             if (!t.first) {
@@ -3282,29 +3819,44 @@ export class LevelEditScene extends GameScene {
 
                         }
 
+                        else if (this.active_tool === EditorTool.SELECT_OBJECT) {
+                            // first touch required to select the object to drag
+                            change_object = this.moveObject(t.x, t.y, t.first)
+                        }
+
                         else if (this.active_tool === EditorTool.EDIT_OBJECT) {
+                            // TODO: change object event occurs when the menu is closed!
                             if (!t.first) {
                                 this.editObject(t.x, t.y)
                                 
                             }
-
                         }
 
-                        else if (this.active_tool === EditorTool.PLACE_OBJECT) {
+                        else if (this.active_tool === EditorTool.PLACE_STAMP) {
                             if (!t.first) {
-                                change_object = this.placeObject(t.x, t.y,t.pressed)
+                                change_stamp = this.placeStamp(t.x, t.y,t.pressed)
+                            }
+                        }
+
+                        else if (this.active_tool === EditorTool.ERASE_STAMP) {
+                            if (!t.first) {
+                                change_stamp = this.eraseStamp(t.x, t.y)
+                            }
+                        }
+
+                        else if (this.active_tool === EditorTool.SELECT_STAMP) {
+                            change_stamp = this.moveStamp(t.x, t.y, t.first)
+                        }
+
+                        else if (this.active_tool === EditorTool.PLACE_TILE || this.active_tool === EditorTool.PAINT_TILE) {
+                            if (!t.first) {
+                                change_tile = this.placeTile(t.x, t.y)
                             }
 
                         }
                         else if (this.active_tool === EditorTool.ERASE_TILE) {
                             if (!t.first) {
                                 change_tile = this.eraseTile(t.x, t.y)
-                            }
-
-                        }
-                        else if (this.active_tool === EditorTool.PLACE_TILE || this.active_tool === EditorTool.PAINT_TILE) {
-                            if (!t.first) {
-                                change_tile = this.placeTile(t.x, t.y)
                             }
 
                         }
@@ -3322,16 +3874,18 @@ export class LevelEditScene extends GameScene {
 
                     this.change_tile = this.change_tile||change_tile
                     this.change_object = this.change_object||change_object
+                    this.change_stamp = this.change_stamp||change_stamp
 
                     // push a history state on touch release
-                    if (!t.pressed && (this.change_tile || this.change_object)) {
+                    if (!t.pressed && (this.change_tile || this.change_object || this.change_stamp)) {
 
-                        this.historyPush(this.change_tile, this.change_object)
+                        this.historyPush(this.change_tile, this.change_object, this.change_stamp)
 
                         // TODO: do something with this.map.layers[0] and this.map.objects
                         // if there was a change to either, push a history state
                         this.change_tile = false //reset
                         this.change_object = false //reset
+                        this.change_stamp = false //reset
                     }
                 }
             }

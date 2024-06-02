@@ -23,12 +23,14 @@ export class SoundEffectV1 {
         this.status = ResourceStatus.LOADING
 
         sound.onerror = () => {
-            console.warn("error loading: " + path)
+            
             if (allow_missing) {
+                console.warn("error loading: " + path)
                 this.status = ResourceStatus.READY
                 this.ready = true
                 this.sounds = []
             } else {
+                console.error("error loading: " + path)
                 this.status = ResourceStatus.ERROR
             }
         }
@@ -109,11 +111,13 @@ export class SoundEffectV2 {
                 this.ready = true
             })
             .catch(error => {
-                console.error(error)
+                
                 if (allow_missing) {
+                    console.warn("error loading: " + path)
                     this.status = ResourceStatus.READY
                     this.ready = true
                 } else {
+                    console.error(error)
                     this.status = ResourceStatus.ERROR
                 }
             })

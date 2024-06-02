@@ -287,11 +287,12 @@ class PauseScreen {
         this.parent = parent
 
         this.highlight_colors = [
-            "#cc9900", "#ffbf00", "#ffcc33", 
+            "#e6ac00", "#ffbf00", "#ffcc33", 
             "#ffd966", "#ffe699", "#ffd966", 
             "#ffcc33", "#ffbf00"
         ]
 
+        this.actions = []
         this.actions = []
         this.keyboard_actions = [[],[]]
         this.keyboard_column = 0
@@ -661,18 +662,22 @@ class PauseScreen {
         ctx.closePath()
         ctx.fill()
 
-        ctx.font = "bold 14px";
+        ctx.beginPath();
+        ctx.font = "8px Verdana bold";
         ctx.fillStyle = "white"
         ctx.strokeStyle = "white"
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
         ctx.fillText(this._beamName(), x1+2*24+12, y1+3*24+6);
 
+        // draw a highlight around the keyboard selected action
         if (!daedalus.platform.isMobile) {
             let act = this.keyboard_actions[this.keyboard_column][this.keyboard_row][this.keyboard_index]
 
             ctx.beginPath()
-            ctx.fillStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
+            let idx = Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length
+            ctx.fillStyle = this.highlight_colors[idx]
+            //console.log(idx, ctx.fillStyle)
             ctx.roundRect(act.rect.x-2, act.rect.y-2, act.rect.w+4, act.rect.h+4, 4)
             ctx.closePath()
             ctx.fill()
@@ -695,7 +700,7 @@ class PauseScreen {
 
                 if (obj.hidden) {
                     ctx.beginPath()
-                    ctx.font = "bold 16px";
+                    ctx.font = "8px Verdana bold";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
                     ctx.textAlign = "center"
@@ -705,7 +710,7 @@ class PauseScreen {
 
                 } else {
                     ctx.beginPath()
-                    ctx.font = "bold 16px";
+                    ctx.font = "8px Verdana bold";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
                     ctx.textAlign = "center"
@@ -723,7 +728,7 @@ class PauseScreen {
                 ctx.fill()
                 if (act.text) {
                     ctx.beginPath()
-                    ctx.font = "bold 16px";
+                    ctx.font = "8px Verdana bold";
                     ctx.fillStyle = "white"
                     ctx.strokeStyle = "white"
                     ctx.textAlign = "center"
@@ -974,6 +979,7 @@ export class MainScene extends GameScene {
 
         this.coin_icon.draw(ctx, 8*(max_health+1)+12, 4)
         
+        ctx.beginPath();
         ctx.font = "12px Arial";
         ctx.fillStyle = "white"
         ctx.strokeStyle = "white"
@@ -986,6 +992,7 @@ export class MainScene extends GameScene {
 
         this._paint_status_map(ctx)
 
+        ctx.beginPath();
         ctx.font = "6px Arial";
         ctx.fillStyle = "white"
         ctx.strokeStyle = "white"

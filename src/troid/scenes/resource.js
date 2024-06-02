@@ -473,6 +473,9 @@ class AssetLoader {
             .offset(0, 0)
             .spacing(0, 0)
 
+        this.loader.addSpriteSheet("stamp_plains_00")
+            .path(RES_ROOT + "/themes/plains/stamp_00.png")
+
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
@@ -964,6 +967,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
             gAssets.mapinfo.height = 14*16
             gAssets.mapinfo.layers = [{}]
             gAssets.mapinfo.objects = []
+            gAssets.mapinfo.stamps = []
         } else if (!!this.mapurl) {
             console.log("load level:", RES_ROOT + "/" + this.mapurl)
 
@@ -974,6 +978,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
             gAssets.mapinfo.height = 14*16
             gAssets.mapinfo.layers = [{}]
             gAssets.mapinfo.objects = []
+            gAssets.mapinfo.stamps = []
 
             const info_loader = new ResourceLoader()
 
@@ -1007,11 +1012,13 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     gAssets.mapinfo.theme = json?.theme??"plains"
                     gAssets.mapinfo.layers = json?.layers??[{}]
                     gAssets.mapinfo.objects = json?.objects??[]
+                    gAssets.mapinfo.stamps = json?.stamps??[]
                     console.log("current theme", gAssets.mapinfo.theme)
 
                     // filter objects which do not exist
                     const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
                     gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
+
                     return json
                 })
 
