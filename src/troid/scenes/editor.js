@@ -786,11 +786,11 @@ class ObjectMenu {
         let groove_y = 32 + 24*1+2 + 12 + 4
         let groove_width = 10
         let groove_height = 24*5-12 - 24 - 8
-        let handle_size = 8
 
-        let nobj = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
-        let iobj = this.parent.objmenu_object_scroll_index;
-        let pobj = (nobj>4)?Math.min(1, iobj/(nobj-4)):0;
+        let nobj = Math.max(1, Math.ceil(this.parent.object_pages[this.parent.objmenu_current_page].objects.length/4));
+        let iobj = Math.floor(this.parent.objmenu_object_scroll_index/4);
+        let pobj = (nobj > 1)?(iobj/(nobj - 1)):0
+        let handle_size = Math.max(8, groove_height / nobj)
 
         // groove
         ctx.beginPath();
@@ -1590,7 +1590,11 @@ class StampMenu {
             this.parent.active_menu = null
         }})
 
-        
+        // TODO: maximum size constraints
+        // 256 tiles : 8 * 32
+        this.parent.stampmenu_stamp.image_width = Math.min(8*16, gAssets.sheets.stamp_plains_00.image.width)
+        this.parent.stampmenu_stamp.image_height = Math.min(32*16, gAssets.sheets.stamp_plains_00.image.height)
+
 
     }
 
@@ -1614,6 +1618,10 @@ class StampMenu {
         //}
         //let n = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
         //let i = this.parent.objmenu_object_scroll_index;
+        if (this.parent.stampmenu_stamp.yoffset > 0) {
+            this.parent.stampmenu_stamp.yoffset -= 16
+        }
+        
     }
 
     _body_scroll_down() {
@@ -1622,6 +1630,10 @@ class StampMenu {
         //    this.parent.objmenu_object_scroll_index += 4
         //}
         //let i = this.parent.objmenu_object_scroll_index;
+
+        if (this.parent.stampmenu_stamp.yoffset < this.parent.stampmenu_stamp.image_height - 32) {
+            this.parent.stampmenu_stamp.yoffset += 16
+        }
     }
 
     handleTouches(touches) {
@@ -1653,16 +1665,31 @@ class StampMenu {
 
 
             if (this.rect2.collidePoint(t.x, t.y)) {
-                let cell_x = Math.floor((t.x - this.rect2.x)/16)
-                let cell_y = Math.floor((t.y - this.rect2.y)/16)
-                if (t.first) {
-                    this.parent.stampmenu_stamp.rect = new Rect(cell_x, cell_y, 1, 1)    
-                } else {
-                    let w = cell_x - this.parent.stampmenu_stamp.rect.x + 1
-                    let h = cell_y - this.parent.stampmenu_stamp.rect.y + 1
+                
+                
+                let yoff = Math.floor(this.parent.stampmenu_stamp.yoffset/16)
+                let xoff = Math.floor(this.parent.stampmenu_stamp.xoffset/16)
 
-                    this.parent.stampmenu_stamp.rect.w = Math.max(1, w)
-                    this.parent.stampmenu_stamp.rect.h = Math.max(1, h) 
+                let cell_x = xoff + Math.floor((t.x - this.rect2.x)/16)
+                let cell_y = yoff + Math.floor((t.y - this.rect2.y)/16)
+                
+                if (cell_x*16 >= this.parent.stampmenu_stamp.image_width || 
+                    cell_y*16 >= this.parent.stampmenu_stamp.image_height) {
+                    
+                    console.log("oob")
+                } else {
+
+                    if (t.first) {
+                        this.parent.stampmenu_stamp.rect = new Rect(cell_x, cell_y, 1, 1)    
+
+                    } else {
+                        let w = cell_x - this.parent.stampmenu_stamp.rect.x + 1
+                        let h = cell_y - this.parent.stampmenu_stamp.rect.y + 1
+
+                        this.parent.stampmenu_stamp.rect.w = Math.max(1, w)
+                        this.parent.stampmenu_stamp.rect.h = Math.max(1, h)
+
+                    }
                 }
             }
 
@@ -1699,11 +1726,14 @@ class StampMenu {
         let groove_y = this.body_y + 12 + 4
         let groove_width = 10
         let groove_height = 24*5-12 - 24 - 8
-        let handle_size = 8
+        //let handle_size = 8
 
-        let nobj = this.parent.object_pages[this.parent.objmenu_current_page].objects.length;
-        let iobj = this.parent.objmenu_object_scroll_index;
-        let pobj = (nobj>4)?Math.min(1, iobj/(nobj-4)):0;
+        let nobj = Math.max(0, this.parent.stampmenu_stamp.image_height - 32);
+        let iobj = this.parent.stampmenu_stamp.yoffset;
+        let pobj = (nobj>=32)?Math.min(1, iobj/nobj):0;
+
+        let handle_size = Math.max(8, groove_height / (nobj/16))
+        //console.log(nobj, iobj, pobj, nobj/16)
 
         // background for object list scroll bar
         ctx.beginPath();
@@ -1749,6 +1779,65 @@ class StampMenu {
         ctx.fill()
     }
 
+    _paint_sheet(ctx) {
+
+        // draw a border around the sheet
+        ctx.beginPath();
+        ctx.fillStyle = "#888888"
+        ctx.strokeStyle = "#888888"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect2.x-2, this.rect2.y-2, this.rect2.w+4, this.rect2.h+4, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        // draw a checkerboard with 16x16 tiles in black and white over rect2
+        for (let i=0; i < this.number_of_rows; i++) {
+            for (let j=0; j < this.tiles_per_row; j++) {
+
+                let x = this.rect2.x + j*16
+                let y = this.rect2.y + i*16
+
+                if (this.parent.stampmenu_stamp.yoffset + i*16 >= this.parent.stampmenu_stamp.image_height) {
+                    continue
+                }
+
+                if (this.parent.stampmenu_stamp.xoffset + j*16 >= this.parent.stampmenu_stamp.image_width) {
+                    continue
+                }
+
+                if ((i+j)%2 == 0) {
+                    ctx.fillStyle = "#9090FF"
+                } else {
+                    ctx.fillStyle = "#8080FF"
+                }
+                ctx.fillRect(x, y, 16, 16)
+            }
+        }
+
+        ctx.save()
+        ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h);
+        ctx.clip()
+
+        ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+            this.parent.stampmenu_stamp.xoffset, this.parent.stampmenu_stamp.yoffset, this.rect2.w, this.rect2.h, 
+            this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+
+        // highlight the current selection
+        ctx.beginPath();
+        
+        ctx.strokeStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
+        ctx.rect(
+            this.rect2.x + this.parent.stampmenu_stamp.rect.x*16 - this.parent.stampmenu_stamp.xoffset,
+            this.rect2.y + this.parent.stampmenu_stamp.rect.y*16 - this.parent.stampmenu_stamp.yoffset,
+            this.parent.stampmenu_stamp.rect.w*16,
+            this.parent.stampmenu_stamp.rect.h*16)
+        ctx.stroke()
+
+        ctx.restore()
+
+    }
+
     paint(ctx) {
 
 
@@ -1790,41 +1879,7 @@ class StampMenu {
 
         this._paint_body_scrollbar(ctx)
 
-        ctx.beginPath();
-        ctx.fillStyle = "#888888"
-        ctx.strokeStyle = "#888888"
-        ctx.lineWidth = 2
-        ctx.roundRect(this.rect2.x-2, this.rect2.y-2, this.rect2.w+4, this.rect2.h+4, 3)
-        ctx.closePath()
-        ctx.stroke()
-        ctx.fill()
-
-        // draw a checkerboard with 16x16 tiles in black and white over rect2
-        for (let i=0; i < this.number_of_rows; i++) {
-            for (let j=0; j < this.tiles_per_row; j++) {
-                let x = this.rect2.x + j*16
-                let y = this.rect2.y + i*16
-                if ((i+j)%2 == 0) {
-                    ctx.fillStyle = "#9090FF"
-                } else {
-                    ctx.fillStyle = "#8080FF"
-                }
-                ctx.fillRect(x, y, 16, 16)
-            }
-        }
-
-        ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
-            0, 0, this.rect2.w, this.rect2.h, 
-            this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
-
-        ctx.beginPath();
-        ctx.strokeStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
-        ctx.rect(
-            this.rect2.x + this.parent.stampmenu_stamp.rect.x*16,
-            this.rect2.y + this.parent.stampmenu_stamp.rect.y*16,
-            this.parent.stampmenu_stamp.rect.w*16,
-            this.parent.stampmenu_stamp.rect.h*16)
-        ctx.stroke()
+        this._paint_sheet(ctx)
 
         // background for edit tools
         for (let i=0; i < 3; i++) {
@@ -1896,11 +1951,14 @@ export class LevelEditScene extends GameScene {
         })
 
         gAssets.mapinfo.stamps.forEach(stamp => {
-            let encoded = stamp.rect
+            let [encoded0, encoded1] = stamp
+            let sid = encoded0 & 0x3FFFF
+            let sheet = (encoded0 >> 18) & 0xFF
+            let layer = (encoded0 >> 26) & 0x03
             // ignore 0 width/height stamps
-            let rect = new Rect((encoded>>24)&0xFF, (encoded>>16)&0xFF, (encoded>>8)&0xFF, (encoded)&0xFF)
+            let rect = new Rect((encoded1>>24)&0xFF, (encoded1>>16)&0xFF, (encoded1>>8)&0xFF, (encoded1)&0xFF)
             if (rect.w > 0 && rect.h > 0) {
-                this.map.stamps[stamp.sid] = {rect: rect, layer:stamp.layer, sheet: stamp.sheet}
+                this.map.stamps[sid] = {rect: rect, layer:layer, sheet: sheet}
             }
         })
 
@@ -2212,7 +2270,17 @@ export class LevelEditScene extends GameScene {
         this.objmenu_object_scroll_index = 0
         this.selected_object = null
 
-        this.stampmenu_stamp = {sheet: 0, rect: new Rect(0,0,1,1), layer: 0}
+        this.stampmenu_stamp = {
+            // menu properties
+            image_width: 0,
+            image_height: 0,
+            xoffset: 0,
+            yoffset: 0,
+            // stamp properties
+            sheet: 0, 
+            rect: new Rect(0,0,1,1),
+            layer: 0
+        }
         this.selected_stamp = null
     }
 
@@ -3463,6 +3531,51 @@ export class LevelEditScene extends GameScene {
         }
     }
 
+    _serialize_objects() {
+
+        // use objects with empty names as placeholders, to prevent dragging
+        // or creating new objects ontop of other objects. filter these out
+        // when saving
+      
+
+        const objects = Object.entries(this.map.objects)
+            .filter( t => !!t[1].name )
+            .map(t => {
+                let obj = {oid: +t[0], name: t[1].name}
+                if (Object.hasOwn(t[1], 'props') && Object.keys(t[1].props).length > 0) {
+                    obj.props = t[1].props
+                }
+                return obj
+            })
+
+        return objects
+    }
+
+    _serialize_stamps() {
+        // "rect":{"x":255,"x":255,"x":255,"x":255}
+        // "rect":0xFFFFFFFF
+        // "rect":4294967295
+
+        const stamps = Object.entries(this.map.stamps).map(t => {
+            // t: {sid, stamp}
+            // sid is an 18bit number 
+            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x3FFFF
+            // save the rectangle encoded as a 32bit integer
+            // sheet is an 8 bit index
+            // layer is 0 (background) or 1 (foreground) 
+
+            let rect = t[1].rect
+            let encoded1 = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
+            let encoded0 = ((t[1].sheet&0xFF) << 18) | ((t[1].layer&0x03) << 26) | (+t[0])
+            
+            //console.log("save stamp", rect, encoded)
+            // save sid as int, not str
+            //return {sid: +t[0], info: encoded0, rect: encoded1, sheet: t[1].sheet, layer: t[1].layer}
+            return [encoded0, encoded1]
+        })
+        return stamps
+    }
+
     playTest() {
 
         //gAssets.mapinfo.mapurl = "editor-playtest"
@@ -3476,17 +3589,10 @@ export class LevelEditScene extends GameScene {
 
         gAssets.mapinfo.layers = this.map.layers
 
-        const objects0 = Object.entries(this.map.objects)
-            .filter( t => !!t[1].name )
-            .map(t => {
-                let obj = {oid: t[0], name: t[1].name}
-                if (Object.hasOwn(t[1], 'props') && Object.keys(t[1].props).length > 0) {
-                    obj.props = t[1].props
-                }
-                return obj
-            })
+        gAssets.mapinfo.objects = this._serialize_objects()
 
-        gAssets.mapinfo.objects = objects0
+        gAssets.mapinfo.stamps = this._serialize_stamps()
+
 
         const edit = false
         console.log("playtest", gAssets.mapinfo.mapurl)
@@ -3517,40 +3623,6 @@ export class LevelEditScene extends GameScene {
             return x
         })
 
-        // use objects with empty names as placeholders, to prevent dragging
-        // or creating new objects ontop of other objects. filter these out
-        // when saving
-        const objects0 = Object.entries(this.map.objects)
-            .filter( t => !!t[1].name )
-            .map(t => {
-                // t : {oid, obj}
-                // save only the oid, name, and props
-                // save oid as int, not str
-                let obj = {oid: +t[0], name: t[1].name}
-                if (Object.hasOwn(t[1], 'props') && Object.keys(t[1].props).length > 0) {
-                    obj.props = t[1].props
-                }
-                return obj
-            })
-
-        // "rect":{"x":255,"x":255,"x":255,"x":255}
-        // "rect":0xFFFFFFFF
-        // "rect":4294967295
-
-        const stamps0 = Object.entries(this.map.stamps).map(t => {
-            // t: {sid, stamp}
-            // sid is an 18bit number 
-            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x3FFFF
-            // save the rectangle encoded as a 32bit integer
-            // sheet is an 8 bit index
-            // layer is 0 (background) or 1 (foreground) 
-
-            let rect = t[1].rect
-            let encoded = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
-            //console.log("save stamp", rect, encoded)
-            // save sid as int, not str
-            return {sid: +t[0], rect: encoded, sheet: t[1].sheet, layer: t[1].layer}
-        })
 
         const map = {
             version: 0,
@@ -3558,8 +3630,8 @@ export class LevelEditScene extends GameScene {
             height: this.map.height,
             theme: this.current_theme,
             layers: [tiles0],
-            objects: objects0,
-            stamps: stamps0
+            objects: this._serialize_objects(),
+            stamps: this._serialize_stamps()
         }
 
         let date = new Date()

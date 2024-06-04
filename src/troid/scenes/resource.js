@@ -669,10 +669,19 @@ class LevelChunkBuilder {
             // for 4x7 chunks, there are 12 per screen
             // for a 16 screen map (192 chunks)
             // it would take 3200 ms to build chunks 1 per frame
+
+            // calculate the duration this function takes
+            let n_jobs = 48
+            let t_start = performance.now()
             if (this.num_jobs_submitted < this.work_queue.length) {
-                for (let i =0; i < 24; i++) {
+                for (let i =0; i < n_jobs; i++) {
                     this._build_one()
                 }
+            }
+            let t_end = performance.now()
+            let t_elapsed = t_end - t_start
+            if (t_elapsed > 1000/60) {
+                console.log("chunk build time", t_end - t_start, "ms")
             }
 
             if (this.num_jobs_completed == this.num_jobs) {
@@ -724,12 +733,78 @@ class LevelChunkBuilder {
             let chunkid = y * 128 + x
 
             if (!this.map.chunks[chunkid]) {
-                this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}}
+                this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}, stamps:[]}
             }
 
             this.theme_sheets = gAssets.themes[this.map.theme]
 
             this.map.chunks[chunkid].tiles[tid] = tile
+        })
+
+        console.log("update stamps", this.map.stamps.length)
+        this.map.stamps.forEach(stamp => {
+            // ignore 0 width/height stamps
+            let [encoded0, encoded1] = stamp
+            //let encoded1 = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
+            //let encoded0 = ((t[1].sheet&0xFF) << 18) | ((t[1].layer&0x03) << 26) | (+t[0])
+            console.warn(stamp)
+            
+            let rect = new Rect((encoded1>>24)&0xFF, (encoded1>>16)&0xFF, (encoded1>>8)&0xFF, (encoded1)&0xFF)
+            if (rect.w > 0 && rect.h > 0) {
+                
+                let sid = encoded0 & 0x3FFFF
+                let sheet = (encoded0 >> 18) & 0xFF
+                let layer = (encoded0 >> 26) & 0x03
+
+                let sy = Math.floor(sid/512 - 4)
+                let sx = (sid%512)
+                //console.log("found stamp at", stamp.sid, {x:sx, y:sy, w:rect.w, h:rect.h})
+
+                // determine which chunks the rect potentially overlaps
+                let x0 = Math.floor(sx/chunk_width)
+                let y0 = Math.floor(sy/chunk_height)
+                let x1 = Math.floor((sx+rect.w)/chunk_width)
+                let y1 = Math.floor((sy+rect.h)/chunk_height)
+
+                for (let y=y0; y<=y1; y++) {
+                    for (let x=x0; x<=x1; x++) {
+                        let chunkid = y * 128 + x
+                        // get the intersection of this chunk and the rect
+                        // everything is in units of 16x16 tiles
+
+                        let scx = Math.max(x*chunk_width, sx) - sx
+                        let scy = Math.max(y*chunk_height, sy) - sy
+                        let scw = (Math.min((x+1)*chunk_width, (sx + rect.w)) - sx) - scx
+                        let sch = (Math.min((y+1)*chunk_height, (sy + rect.h)) - sy) - scy
+
+                        if (y >= 0 && scw > 0 && sch > 0) {
+
+                            if (!this.map.chunks[chunkid]) {
+                                this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}, stamps:[]}
+                            }
+
+                            let chunk_stamp = {
+                                // x,y is the sid of the new stamp
+                                x: sx + scx,
+                                y: sy + scy,
+                                sheet: sheet, 
+                                layer: layer, 
+                                // rect is the region in the sheet which intersects with this chunk
+                                rect: {x: rect.x+scx, y: rect.y+scy, w: scw, h: sch}
+                            }
+
+                            this.map.chunks[chunkid].stamps.push(chunk_stamp)
+
+                            //console.log("intersection", x,y,chunkid, chunk_stamp.rect)
+                        }
+                    }
+                }
+                        //if (!this.map.chunks[chunkid]) {
+                        //    this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}}
+                        //}
+
+
+            }
         })
 
         this.work_queue = Object.values(this.map.chunks)
@@ -763,6 +838,32 @@ class LevelChunkBuilder {
             //paintTile(this.ctx, x, y, tile)
             //tile.tile.draw(this.ctx, x*16, y*16)
             this.theme_sheets[tile.sheet].drawTile(this.ctx, tile.tile, x*16, y*16)
+        })
+
+        // paint each stamp to the chunk
+
+        chunk.stamps.forEach(stamp => {
+
+            let x = stamp.x - chunk.x
+            let y = stamp.y - chunk.y
+
+            /*
+            this.ctx.beginPath()
+            this.ctx.rect(x*16, y*16, stamp.rect.w*16, stamp.rect.h*16)
+            this.ctx.fillStyle = (x+y)%2 == 0 ? "blue" : "red"
+            this.ctx.strokeStyle = "black"
+            this.ctx.fill()
+            this.ctx.stroke()
+            */
+
+            // rect1 is the region of the sheet to paint
+            // rect2 is where in the CHUNK to paint the rect1 region
+            let rect1 = stamp.rect
+            this.ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+                rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
+                x*16, y*16, stamp.rect.w*16, stamp.rect.h*16)
+
+            //console.log("paint chunk", x,y,stamp.rect.w, stamp.rect.h)
         })
 
         let chunk_image = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
@@ -1013,6 +1114,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     gAssets.mapinfo.layers = json?.layers??[{}]
                     gAssets.mapinfo.objects = json?.objects??[]
                     gAssets.mapinfo.stamps = json?.stamps??[]
+                    console.log("json loaded stamps", gAssets.mapinfo.stamps.length)
                     console.log("current theme", gAssets.mapinfo.theme)
 
                     // filter objects which do not exist

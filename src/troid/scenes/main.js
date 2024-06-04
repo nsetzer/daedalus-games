@@ -998,7 +998,8 @@ export class MainScene extends GameScene {
         ctx.strokeStyle = "white"
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
-        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64 - 8, 4+8);
+        ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64 - 8, 8);
+        ctx.fillText(`objs:${Object.keys(this.map.map.objects).length}`, gEngine.view.width - 64 - 8, 16);
 
     }
 
