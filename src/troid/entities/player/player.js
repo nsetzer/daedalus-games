@@ -213,7 +213,7 @@ export class Player extends PlayerBase {
 
     constructor(entid, props) {
         super(entid, props)
-        this.rect = new Rect(props?.x??0, props?.y??0, 8, 24)
+        this.rect = new Rect(props?.x??0, props?.y??0, 12, 24)
         this.playerId = props?.playerId??null
 
         this.physics = new Physics2dPlatformV2(this,{
@@ -395,7 +395,7 @@ export class Player extends PlayerBase {
 
         let spf = 1/8
         let spf2 = 1/12
-        let xoffset = - 12
+        let xoffset = - 14
         let yoffset = - 7
         let yoffset2 = - 19
 
@@ -569,7 +569,7 @@ export class Player extends PlayerBase {
             this._beam.paint(ctx)
         }
 
-        //this.physics.paint(ctx)
+        
 
         if (this.physics.can_wallwalk) {
             // draw a glowing circle
@@ -580,6 +580,8 @@ export class Player extends PlayerBase {
             ctx.fill()
             ctx.stroke()
         }
+
+        //this.physics.paint(ctx)
     }
 
     _updateAnimation() {

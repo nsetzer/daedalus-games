@@ -127,12 +127,15 @@ function applyfnull(f, a,b) {
 }
 
 export class Slope extends PlatformBase {
+    static _x_debug_masks = {}
+
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(0,0,0,0)
         this.visible = props?.visible??true
         this.oneway = props?.oneway??false
         this.halfheight = props?.halfheight??false
+        this.kind = props?.kind??"slope"
 
         if (!!props.direction) {
             this.rect = new Rect(props.x, props.y, props.w, props.h)
@@ -149,7 +152,58 @@ export class Slope extends PlatformBase {
         this.solid = 1
 
         this.tested_points = []
+
+        // this._x_debug_mask()
     }
+
+    _x_debug_mask() {
+
+        let w = this.rect.w
+        let h = this.rect.h
+        let d = this.direction
+        let s = `${this.kind}_${Direction.name[d]}_${w}_${h}`
+
+        if (Slope._x_debug_masks[s] === undefined) {
+            this._x_mask = null
+
+            let canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            let ctx = canvas.getContext("2d");
+
+            ctx.clearRect(0, 0, w, h)
+
+            for (let x = 0; x < w; x++) {
+                for (let y = 0; y < h; y++) {
+                    if (this.collidePoint(this.rect.x + x, this.rect.y + y)) {
+                        ctx.fillStyle = ((x+y)%2==0)?"#FF00FF":"#FFFFFF";
+                        ctx.beginPath();
+                        ctx.rect(x, y, 1, 1);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            let chunk_image = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+            createImageBitmap(chunk_image)
+                .then(image => {
+                    console.log("created mask", s, `${this.eq.ms*this.eq.mm}*x+${this.eq.b}`)
+                    // , this.points[1], this.points[2]
+                    Slope._x_debug_masks[s] = image
+                    this._x_mask = image
+                })
+                .catch(err => {
+                    this.status = ResourceStatus.ERROR
+                    console.error(err)
+                })
+
+        } else {
+            this._x_mask = Slope._x_debug_masks[s]
+        }
+
+    }
+
 
     init_points() {
         this.points = []
@@ -160,9 +214,8 @@ export class Slope extends PlatformBase {
 
         let l = this.rect.left()
         let t = this.rect.top()
-        // this causes a painting anomaly but is correct.
-        let r = this.rect.right() - 1
-        let b = this.rect.bottom() - 1
+        let r = this.rect.right() 
+        let b = this.rect.bottom() 
 
         // half height is for 2/3 slopes
         // allowing the block to fill a full tile
@@ -170,21 +223,22 @@ export class Slope extends PlatformBase {
         // it will be solid from below correctly
         if (this.halfheight) {
             if (this.direction & Direction.DOWN) {
-                t += Math.floor(this.rect.h/2)
-                //b += Math.floor(this.rect.h/2)
+                t += Math.floor(this.rect.h/2) 
             } else {
-                b -= Math.floor(this.rect.h/2)
+                b -= Math.floor(this.rect.h/2) 
             }
         }
 
+        // determine points on the triangle
+        // the first point is always the origin
         switch (this.direction) {
 
-            case Direction.UPRIGHT:
+            case Direction.UPRIGHT: //  |_\
                 this.points.push({x: l, y: b})
                 this.points.push({x: r, y: b})
                 this.points.push({x: l, y: t})
                 break
-            case Direction.UPLEFT:
+            case Direction.UPLEFT: //   /_|
                 this.points.push({x: r, y: b})
                 this.points.push({x: l, y: b})
                 this.points.push({x: r, y: t})
@@ -218,52 +272,47 @@ export class Slope extends PlatformBase {
          +======================+
         */
 
+        let p1 = this.points[1] 
+        let p2 = this.points[2] 
 
-        const p1 = this.points[1]
-        const p2 = this.points[2]
+        // move the points into the domain 0..w x 0..h
+        p1.x -= this.rect.x
+        p1.y -= this.rect.y
+        p2.x -= this.rect.x
+        p2.y -= this.rect.y
 
         const m = (p2.y - p1.y) / (p2.x-p1.x)
-        const b = p1.y - m *p1.x
+        let ms = Math.sign(m)
+        let mm = Math.abs(m)
 
-        this._eq = [m,b]
-
-        // compute y position, given an x position
-        this.f = (x) => {
-            if (x >= this.rect.left() && x <= this.rect.right()) {
-                return m*x + b
-            }
-            return null;
-        }
-
-        // compute x position, given a y position
-        this.g = (y) => {
-            if (y >= this.rect.top() && y <= this.rect.bottom()) {
-                return (y - b) / m
-            }
-            return null;
-        }
-
+        let b;
         if (this.direction&Direction.DOWN) {
             // ceiling
-            this._fx = (x,y) => {
-                if (x >= this.rect.left() && x <= this.rect.right()) {
-                    const yp = m*x + b
-                    return Math.ceil(yp)
-                }
-                return null;
+            if (this.direction&Direction.LEFT) {
+                b = (this.halfheight)?(Math.floor(this.rect.h/2)):0
+            } else {
+                b = (this.rect.h-1)
             }
         } else {
             // floor
-            this._fx = (x,y) => {
-                if (x >= this.rect.left() && x <= this.rect.right()) {
-                    const yp = m*x + b
-                    return Math.floor(yp)
-                }
-                return null;
+            if (this.direction&Direction.LEFT) {
+                b = (this.halfheight)?(Math.floor(this.rect.h/2)-1):(this.rect.h - 1)
+            } else {
+                b = 0
             }
         }
 
-        //console.log(`y=${m}*x+${b}`)
+        this.eq = {ms, mm, b}
+
+        // an equation which solve for the y intercept given an x
+        this._fx = (x,y) => {
+            x -= this.rect.x
+            y -= this.rect.y
+            if (x >= 0 && x < this.rect.w) {
+                return this.rect.y + ms*Math.floor(mm*x) + b
+            }
+            return null;
+        }
 
     }
 
@@ -288,160 +337,6 @@ export class Slope extends PlatformBase {
         return rv  
     }
 
-    collide(other, dx, dy) {
-
-        // TODO: this needs to be re-written
-        //       check the direction
-        //          only one of dx or dy should be non-zero
-        //       determine which edge handles that direction
-        //          moving left is handled by the right edge
-        //       support walking on walls by changing gravity direction
-        //          object collision should behave the same in all orientations
-
-        // TODO: something to handle the floating issue
-        //       either only every consider the cx position
-        //       or make the true top 1 pixel lower than the line
-
-        if (this.oneway) {
-            const top = applyfnull(Math.min, this.f(other.rect.left()), this.f(other.rect.right()))
-            let rect = other.rect
-
-            if (!!top && dy >= 0 && rect.bottom() <= top + 4) {
-                // return a rectangle that does not collide
-                //let update = rect.copy()
-                //update.set_bottom(top)
-                //return update
-                return this._collide_impl(other, dx, dy)
-            }
-
-            //console.log(this.entid, gEngine.frameIndex, "speed:", (dy>0)?1:0, rect.bottom(), ":",
-            //    this.rect.left() >= other.rect.cx() , other.rect.cx() <= this.rect.right(), ":",
-            //    this.rect.top(), top)
-            return null
-        } else {
-            return this._collide_impl(other, dx, dy)
-        }
-
-    }
-
-    _ceil_away(x) {
-        return (x<0)?-Math.ceil(-x):Math.ceil(x)
-    }
-
-    _collide_impl(other, dx, dy) {
-        // TODO: the api could return up to two two options
-        // {dx, 0} or {0, dy}
-        // {dx, dy}
-
-        let rect = other.rect
-
-        const original_rect = rect
-        rect = rect.copy()
-        //rect.translate(this._ceil_away(dx*.7071), this._ceil_away(dy*.7071))
-        rect.translate(dx, dy)
-
-        if (this.direction&Direction.LEFT && original_rect.left() >= this.rect.right()) {
-            let update = original_rect.copy()
-            update.set_left(this.rect.right())
-            update.z = 1
-            return update
-        }
-
-        if (this.direction&Direction.RIGHT && original_rect.right() <= this.rect.left()) {
-
-            let update = original_rect.copy()
-            update.set_right(this.rect.left())
-            update.z = 2
-            return update
-        }
-
-        let tmp = rect.intersect(this.rect)
-        if (tmp.w == 0) {
-            // likely unreachable unless a prior this.rect  other.rect test was not done
-            return null
-        }
-
-        const x1 = tmp.x
-        const x2 = tmp.x + tmp.w
-        //console.log(">",{x1,x2}, this.rect, this.f(x1), this.f(x2))
-        const y1 = rect.top()
-        const y2 = rect.bottom()
-
-        if (this.direction&Direction.DOWN) {
-
-            if (original_rect.bottom() <= this.rect.top()) {
-                if (dy > 0) {
-                    let update = original_rect.copy()
-                    update.set_bottom(this.rect.top())
-                    update.z = 3
-                    return update
-                }
-            } else {
-
-                const yp = applyfnull(Math.max, this._fx(x1, y1), this._fx(x2, y1))
-                //console.log("!!", yp, y1, y2, (yp != null && (y2 >= yp || y1 >= yp)))
-
-                // TODO: consider returning two candidates then picking the best one
-
-
-                const xp = this.g(y1)
-                if (!!xp && this.direction&Direction.RIGHT && dx < 0 && rect.left() <= xp) {
-                    // candidate position without adjusting the y direction
-                    // when walking left
-                    let update = rect.copy()
-                    update.set_left(Math.ceil(xp)+1)
-                    update.z = 4
-                    update.xp = xp
-                    return update
-                } else if (!!xp && this.direction&Direction.LEFT && dx > 0  && rect.right() >= xp) {
-                    // candidate position without adjusting the y direction
-                    // when walking right
-                    let update = rect.copy()
-                    update.set_right(Math.floor(xp)-1)
-                    update.z = 5
-                    update.xp = xp
-                    return update
-                }
-
-
-                if (yp != null && y1 <= yp) {
-                    // candidate position with adjusting the y direction
-
-                    // return a rectangle that does not collide
-                    let update = rect.copy()
-                    update.set_top(yp)
-                    update.z = 6
-                    return update
-                }
-            }
-        } else {
-
-            if (original_rect.top() >= this.rect.bottom()) {
-                if (dy < 0) {
-                    let update = original_rect.copy()
-                    update.set_top(this.rect.bottom())
-                    update.z = 7
-                    return update
-                }
-            } else {
-                const yp = applyfnull(Math.min, this._fx(x1, y2), this._fx(x2, y2))
-
-                //if (yp != null && (y2 >= yp || y1 >= yp)) {
-                if (yp != null && y2 >= yp) {
-                    // return a rectangle that does not collide
-                    let update = rect.copy()
-                    update.set_bottom(yp)
-                    update.z = 8
-                    return update
-                }
-            }
-
-
-        }
-        return null
-
-    }
-
     collidePoint(x, y) {
 
         if (!super.collidePoint(x, y)) {
@@ -449,6 +344,7 @@ export class Slope extends PlatformBase {
         }
 
         let yp = this._fx(x, y)
+
         if (yp == null) {
             return false
         }
@@ -479,6 +375,7 @@ export class Slope extends PlatformBase {
         ctx.fill();
         */
 
+        /*
         ctx.fillStyle = "#c3a3a3";
         ctx.beginPath();
         let pts = this.points;
@@ -488,8 +385,12 @@ export class Slope extends PlatformBase {
         }
         ctx.closePath();
         ctx.fill();
+        */
 
-
+        let image = this._x_mask
+        if (!!image) {
+            ctx.drawImage(image, this.rect.x, this.rect.y)
+        }
 
         //ctx.font = "bold 8";
         //ctx.fillStyle = "black"

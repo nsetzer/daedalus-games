@@ -938,19 +938,19 @@ class MapBuilder {
                 objprops = {x:x, y:y, w:16, h:16}
             } else if (tile.shape==TileShape.HALF) {
                 objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:16, direction:tile.direction}
+                objprops = {x:x, y:y, w:16, h:16, direction:tile.direction, kind:"half"}
             } else if (tile.shape==TileShape.ONETHIRD) {
                 if (tile.direction&Direction.UP) {
                     y += 8
                 }
                 objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction}
+                objprops = {x:x, y:y, w:16, h:8, direction:tile.direction, kind:"onethird"}
             } else if (tile.shape==TileShape.TWOTHIRD) {
                 //if (tile.direction&TileShape.DOWN) {
                 //    y += 8
                 //}
                 objname = "Slope"
-                objprops = {x:x, y:y, w:16, h:16, halfheight:true, direction:tile.direction}
+                objprops = {x:x, y:y, w:16, h:16, halfheight:true, direction:tile.direction, kind:"twothird"}
             } else {
                 console.error("error", tile)
             }

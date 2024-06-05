@@ -2633,7 +2633,7 @@ export class LevelEditScene extends GameScene {
         ctx.save()
 
         if (!(this.active_tool&EditorTool.STAMP_MASK)) {
-            ctx.globalAlpha = 0.66
+            ctx.globalAlpha = 0.40
         }
         ctx.strokeStyle = "blue";
         ctx.setLineDash([3]);

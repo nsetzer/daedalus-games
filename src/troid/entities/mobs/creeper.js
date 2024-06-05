@@ -187,10 +187,10 @@ export class CreeperV2 extends MobBase {
         })
         // todo init as 'clockwise' or 'counter-clockwise' then set the direction
         // once the standing direction is determined
-        this.physics.moving_direction = Direction.RIGHT
+        this.physics.moving_direction = props.direction??Direction.RIGHT
         this.physics.moving_speed = 35
 
-        this.current_facing = Direction.RIGHT
+        this.current_facing = props.direction??Direction.RIGHT
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && ent instanceof PlatformBase})
@@ -244,7 +244,7 @@ export class CreeperV2 extends MobBase {
             [14,15,16,17,18,19,20],
             spf2, {xoffset:-2, yoffset:-2, loop: false, onend: this.onMoveAnimationEnd.bind(this)})
 
-        this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
+        this.animation.setAnimationById(this.animations.run[this.current_facing])
 
     }
 
@@ -316,7 +316,17 @@ registerEditorEntity("CreeperV2", CreeperV2, [16,16], EntityCategory.small_mob, 
     CreeperV2.sheet = gAssets.sheets.firesprite
     entry.icon = CreeperV2.sheet.tile(0)
     entry.editorIcon = null
-    entry.editorSchema = []
+    entry.editorSchema = [
+        {
+            control: EditorControl.CHOICE,
+            name: "direction",
+            "default": Direction.RIGHT,
+            choices: {
+                "RIGHT": Direction.RIGHT,
+                "LEFT": Direction.LEFT
+            }
+        },
+    ]
 })
 
 export class Flyer extends MobBase {
