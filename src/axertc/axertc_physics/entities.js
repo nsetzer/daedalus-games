@@ -194,7 +194,6 @@ export class Slope extends PlatformBase {
                     this._x_mask = image
                 })
                 .catch(err => {
-                    this.status = ResourceStatus.ERROR
                     console.error(err)
                 })
 
