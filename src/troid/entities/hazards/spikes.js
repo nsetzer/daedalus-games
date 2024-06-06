@@ -29,7 +29,7 @@ class SpikesBase extends PlatformerEntity {
             case Direction.LEFT:
                 tid = 3
                 this.rect.x += 16 - size
-                this.rect.w = s
+                this.rect.w = size
                 this.offset_x = -8
                 this.offset_y = 0
                 break;

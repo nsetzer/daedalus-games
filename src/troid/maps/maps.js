@@ -33,7 +33,13 @@ export class PlatformMap extends CspMap {
 
     paint(ctx) {
 
-        for (const obj of Object.values(this.objects)) {
+        // sort this.objects by layer prop
+        const objs = Object.values(this.objects)
+        objs.sort((a, b) => {
+            return a.layer - b.layer
+        })
+
+        for (const obj of objs) {
 
             if (obj.visible !== false) { // explicit check for false, allow undefined
                 obj.paint(ctx)

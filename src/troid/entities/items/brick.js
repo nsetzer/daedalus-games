@@ -167,14 +167,23 @@ export class FakeBrick extends PlatformerEntity {
 
     paint(ctx) {
 
-        //ctx.beginPath();
-        //ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
-        //ctx.fillStyle = '#FF00007f';
-        //ctx.fill();
-
         if (this.alive) {
             this.animation.paint(ctx)
         }
+
+        /*
+        if (this.solid){
+            ctx.beginPath();
+            ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+            ctx.fillStyle = '#FF00007f';
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+            ctx.fillStyle = '#00FF007f';
+            ctx.fill();
+        }
+        */
 
         //FakeBrick.sheet.drawTile(ctx, 0, this.rect.x, this.rect.y)
     }

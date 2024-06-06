@@ -193,7 +193,7 @@ export class CreeperV2 extends MobBase {
         this.current_facing = props.direction??Direction.RIGHT
 
         this.physics.group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid && ent instanceof PlatformBase})
+            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
         }
 
         this.animation = new AnimationComponent(this)

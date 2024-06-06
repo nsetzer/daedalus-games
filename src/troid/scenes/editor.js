@@ -889,10 +889,14 @@ class ObjectMenu {
         ctx.strokeStyle = "black"
         ctx.textAlign = "left"
         ctx.textBaseline = "top"
-        ctx.font = "bold 10px serif"
-        ctx.fillText(`${page.title}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4);
-        ctx.font = "8px serif"
-        ctx.fillText(`${obj.name}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4 + 12);
+        if (!!page) {
+            ctx.font = "bold 10px serif"
+            ctx.fillText(`${page.title}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4);
+        }
+        if (!!obj) {
+            ctx.font = "8px serif"
+            ctx.fillText(`${obj.name}`, this.rect.x + this.margin2, this.rect.y + this.margin1 - 4 + 12);
+        }
 
 
         // headers
@@ -1951,7 +1955,13 @@ export class LevelEditScene extends GameScene {
         })
 
         gAssets.mapinfo.stamps.forEach(stamp => {
+            try {
+                let [encoded0, encoded1] = stamp
+            } catch (e) {
+                return
+            }
             let [encoded0, encoded1] = stamp
+
             let sid = encoded0 & 0x3FFFF
             let sheet = (encoded0 >> 18) & 0xFF
             let layer = (encoded0 >> 26) & 0x03
@@ -2043,6 +2053,7 @@ export class LevelEditScene extends GameScene {
     }
 
     setTileTheme(theme) {
+        gAssets.mapinfo.theme = theme
         this.current_theme = theme
         this.theme_sheets = gAssets.themes[theme]
         this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
@@ -2499,7 +2510,14 @@ export class LevelEditScene extends GameScene {
 
     _paint_background(ctx) {
         ctx.beginPath()
-        ctx.fillStyle = "#477ed6";
+        let bgcolor;
+        if (gAssets.mapinfo.theme == "plains") {
+            bgcolor = "#477ed6"
+        } else {
+            // dark beige
+            bgcolor = "#301505"
+        }
+        ctx.fillStyle = bgcolor
         ctx.strokeStyle = "#000000";
         //const rw = Math.min(this.camera.x + gEngine.view.width, this.map.width) - this.camera.x
         //const rh = Math.min(this.camera.y + gEngine.view.height, this.map.height) - this.camera.y

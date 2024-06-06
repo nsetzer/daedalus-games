@@ -9,6 +9,7 @@ export class PlatformerEntity extends Entity {
 
     constructor(entid, props) {
         super(entid, props)
+        this.layer = 0
     }
 
     collidePoint(x, y) {

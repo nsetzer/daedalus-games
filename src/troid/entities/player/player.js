@@ -272,6 +272,8 @@ export class Player extends PlayerBase {
         let spf = .1
         let spf2 = 1/12
         let xoffset = - 12
+        let xoffsetR = - 12
+        let xoffsetL = - 8
         let yoffset = - 7
         let yoffset2 = - 19
 
@@ -303,44 +305,44 @@ export class Player extends PlayerBase {
         const morph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i))
         const unmorph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i)).reverse()
 
-        aid = this.animation.register(sheet, idle(0), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, idle(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
-        aid = this.animation.register(sheet, idle(1), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, idle(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["idle"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, idle(2), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, idle(2), spf, {xoffset: xoffsetL, yoffset})
         this.animations["idle"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, idle(3), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, idle(3), spf, {xoffset: xoffsetL, yoffset})
         this.animations["idle"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(sheet, walk(0), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, walk(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["run"][Direction.RIGHT] = aid
-        aid = this.animation.register(sheet, walk(1), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, walk(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["run"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, walk(2), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, walk(2), spf, {xoffset: xoffsetL, yoffset})
         this.animations["run"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, walk(3), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, walk(3), spf, {xoffset: xoffsetL, yoffset})
         this.animations["run"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(sheet, jump(0), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, jump(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["jump"][Direction.RIGHT] = aid
-        aid = this.animation.register(sheet, jump(1), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, jump(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["jump"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, jump(2), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, jump(2), spf, {xoffset: xoffsetL, yoffset})
         this.animations["jump"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, jump(3), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, jump(3), spf, {xoffset: xoffsetL, yoffset})
         this.animations["jump"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(sheet, fall(0), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, fall(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["fall"][Direction.RIGHT] = aid
-        aid = this.animation.register(sheet, fall(1), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, fall(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["fall"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, fall(2), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, fall(2), spf, {xoffset: xoffsetL, yoffset})
         this.animations["fall"][Direction.LEFT] = aid
-        aid = this.animation.register(sheet, fall(3), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, fall(3), spf, {xoffset: xoffsetL, yoffset})
         this.animations["fall"][Direction.UPLEFT] = aid
 
         aid = this.animation.register(sheet, hurt(0), spf, {xoffset, yoffset})
@@ -355,17 +357,17 @@ export class Player extends PlayerBase {
         this.animations["spawn"][Direction.UP] = aid
         this.animations["spawn"][Direction.DOWN] = aid
 
-        aid = this.animation.register(sheet, morph(0), spf/2, {xoffset, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
+        aid = this.animation.register(sheet, morph(0), spf/2, {xoffset: xoffsetR, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
         this.animations["morph"][Direction.RIGHT] = aid
         this.animations["morph"][Direction.UPRIGHT] = aid
-        aid = this.animation.register(sheet, morph(1), spf/2, {xoffset, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
+        aid = this.animation.register(sheet, morph(1), spf/2, {xoffset: xoffsetL, yoffset, loop: false, onend: this.onMorphEnd.bind(this)})
         this.animations["morph"][Direction.LEFT] = aid
         this.animations["morph"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(sheet, unmorph(0), spf/2, {xoffset, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
+        aid = this.animation.register(sheet, unmorph(0), spf/2, {xoffset: xoffsetR, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
         this.animations["unmorph"][Direction.RIGHT] = aid
         this.animations["unmorph"][Direction.UPRIGHT] = aid
-        aid = this.animation.register(sheet, unmorph(1), spf/2, {xoffset, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
+        aid = this.animation.register(sheet, unmorph(1), spf/2, {xoffset: xoffsetL, yoffset, loop: false, onend: this.onUnmorphEnd.bind(this)})
         this.animations["unmorph"][Direction.LEFT] = aid
         this.animations["unmorph"][Direction.UPLEFT] = aid
 
@@ -491,8 +493,6 @@ export class Player extends PlayerBase {
 
     paint(ctx) {
 
-
-
         ctx.save()
         this.animation.paint(ctx)
         ctx.restore()
@@ -581,7 +581,7 @@ export class Player extends PlayerBase {
             ctx.stroke()
         }
 
-        //this.physics.paint(ctx)
+        // this.physics.paint(ctx)
     }
 
     _updateAnimation() {
@@ -650,14 +650,16 @@ export class Player extends PlayerBase {
         }
 
         //
+        /*
         if (this.physics.can_wallwalk && this.physics.standing_direction != Direction.DOWN && !this.physics._x_step_collisions.b) {
             this.physics.standing_direction = Direction.DOWN
 
             console.log("!!fixme set moving", this.physics.moving_direction)
-        }
+        }*/
 
         this.physics.update(dt)
         this.character.update(dt)
+        //console.log("speed", Math.sqrt(this.physics.speed.x*this.physics.speed.x + this.physics.speed.y*this.physics.speed.y))
 
         if (!this.alive) {
 

@@ -368,6 +368,13 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("hazard_icons")
+            .path(RES_ROOT + "/sprites/hazards/editor_icons.png")
+            .dimensions(16, 16)
+            .layout(1, 1)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("ruler")
             .path(RES_ROOT + "/sprites/ruler.png")
             .dimensions(16, 16)
@@ -744,6 +751,11 @@ class LevelChunkBuilder {
         console.log("update stamps", this.map.stamps.length)
         this.map.stamps.forEach(stamp => {
             // ignore 0 width/height stamps
+            try {
+                let [encoded0, encoded1] = stamp
+            } catch (e) {
+                return
+            }
             let [encoded0, encoded1] = stamp
             //let encoded1 = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
             //let encoded0 = ((t[1].sheet&0xFF) << 18) | ((t[1].layer&0x03) << 26) | (+t[0])

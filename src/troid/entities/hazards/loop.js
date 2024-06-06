@@ -31,7 +31,6 @@ function tangentLine(degrees, radius) {
     let y0 = radius * Math.sin(radians);
     // Calculate the slope of the tangent line
     let m = -x0 / y0;
-    console.log(m, x0, y0, degrees)
     
     // Calculate the y-intercept of the tangent line
     let b = y0 - m * x0;
@@ -48,6 +47,7 @@ export class Loop extends PlatformerEntity {
         this.rect = new Rect(props.x, props.y, 128, 128)
         this.visible = 1
         this.solid = 1
+        this.layer = -1
 
         this.object_state = {[0]: 1} // entid => (0: left, 1: right)
 
@@ -55,8 +55,6 @@ export class Loop extends PlatformerEntity {
         this.center_y = this.rect.cy() + this.offset_y/2
         this.center_x = this.rect.cx()
         this.radius = (this.rect.w - this.offset_y)/2
-
-        console.log(this.rect, this.radius, this.rect.w - 2*this.radius)
 
         this.dirt = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
 
@@ -85,8 +83,6 @@ export class Loop extends PlatformerEntity {
         let w = this.rect.w
         let h = this.rect.h
 
-        console.log(`create mask for ${w}x${h}`)
-
         let canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
@@ -111,7 +107,6 @@ export class Loop extends PlatformerEntity {
         createImageBitmap(chunk_image)
             .then(image => {
                 this._x_mask = image
-                console.log("mask created")
             })
             .catch(err => {
                 console.error(err)
@@ -174,33 +169,39 @@ export class Loop extends PlatformerEntity {
     }
 
 
-    paint(ctx) {
+    static paint_loop(ctx, tile, x, y, w, h, cx, cy, radius) {
         // draw a circle, 128 px in diameter
         ctx.save()
         
-        //ctx.globalCompositeOperation='destination-out'
-        ctx.fillStyle = '0xFFFFFF';
-
         ctx.beginPath()
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        ctx.arc(this.center_x, this.center_y, this.radius, 0, 2 * Math.PI, true)
+        ctx.rect(x, y, w, h)
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI, true)
         ctx.closePath()
         ctx.clip()
 
-        for (let x = 0; x < this.rect.w; x+=16) {
-            for (let y = 0; y < this.rect.h; y+=16) {
-                this.dirt.draw(ctx, this.rect.x + x, this.rect.y + y)
+        for (let i = 0; i < w; i+=16) {
+            for (let j = 0; j < h; j+=16) {
+                tile.draw(ctx, x + i, y + j)
             }
         }
+
+        ctx.beginPath()
+        ctx.lineWidth=2
+        ctx.strokeStyle = 'black'
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI, true)
+        ctx.stroke()
 
         // use composition moves to darken part of the screen
         ctx.globalCompositeOperation = 'multiply'
         ctx.fillStyle = 'rgba(0,0,0,0.5)'
-        ctx.fillRect(this.rect.x, this.rect.y + this.rect.h/2, this.rect.w/2, this.rect.h/2)
-
-        //ctx.clip()
+        ctx.fillRect(x, y + h/2, w/2, h/2)
 
         ctx.restore()
+    }
+    
+    paint(ctx) {
+
+        Loop.paint_loop(ctx, this.dirt, this.rect.x, this.rect.y, this.rect.w, this.rect.h, this.center_x, this.center_y, this.radius)
 
         //let image = this._x_mask
         //if (!!image) {
@@ -300,9 +301,14 @@ export class Loop extends PlatformerEntity {
 
 }
 
-registerEditorEntity("Loop", Loop, [128,128], EntityCategory.hazard, null, (entry)=> {
-    entry.icon = gAssets.sheets.ruler.tile(0)
+registerEditorEntity("Loop", Loop, [128,128], EntityCategory.switches, null, (entry)=> {
+    entry.icon = gAssets.sheets.hazard_icons.tile(0)
     entry.editorIcon = null
     entry.editorSchema = [
     ]
+    entry.editorRender = (ctx, x, y, props) => {
+        let tile = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
+        Loop.paint_loop(ctx, tile, x, y, 128, 128, x + 64, y + 64 + 8, 64)
+    }
+
 })
