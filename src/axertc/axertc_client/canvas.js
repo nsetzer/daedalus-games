@@ -201,15 +201,20 @@ export class CanvasEngine extends DomElement {
     elementMounted() {
 
         this.buffer1 = this.getDomNode()
-        this.buffer2 = document.createElement('canvas');
-
-        this.buffer2.width = this.buffer1.width;
-        this.buffer2.height = this.buffer1.height;
-
         this.ctx1 = this.buffer1.getContext("2d");
-        this.ctx2 = this.buffer2.getContext("2d");
 
-        this.ctx = this.ctx2
+
+        if (false) {
+            this.buffer2 = document.createElement('canvas');
+            this.buffer2.width = this.buffer1.width;
+            this.buffer2.height = this.buffer1.height;
+
+            this.ctx2 = this.buffer2.getContext("2d");
+
+            this.ctx = this.ctx2
+        } else {
+            this.ctx = this.ctx1
+        }
 
         console.log(`2d context created}`)
 
@@ -376,8 +381,10 @@ export class CanvasEngine extends DomElement {
 
     handleResize(availWidth, availHeight) {
 
-        this.buffer2.width = this.buffer1.width;
-        this.buffer2.height = this.buffer1.height;
+        if (false) {
+            this.buffer2.width = this.buffer1.width;
+            this.buffer2.height = this.buffer1.height;
+        }
 
         // TODO: if a specific resolution is given, use a float scale factor to make it fit
         // TODO: touch inputs that are not scaled?
@@ -592,10 +599,15 @@ export class CanvasEngine extends DomElement {
 
     renderFrame() {
 
-        const ctx = this.ctx2;
+        let ctx;
+
+        if (false) {
+            ctx = this.ctx2;
+        } else {
+            ctx = this.ctx1;
+        }
 
         if (ctx === null) {
-            console.log(ctx)
             return;
         }
 
@@ -644,8 +656,8 @@ export class CanvasEngine extends DomElement {
 
         this.scene.paint(ctx)
 
-        this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
-        this.ctx1.drawImage(this.buffer2, 0, 0)
+        //this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
+        //this.ctx1.drawImage(this.buffer2, 0, 0)
 
         /* draw the viewport and offset from the real screen edge
         ctx.strokeStyle = 'red'

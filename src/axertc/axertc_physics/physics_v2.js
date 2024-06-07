@@ -87,6 +87,8 @@ export class Physics2dPlatformV2 {
 
         this._x_prev_summary = {standing: false}
         this._x_step_collisions = {fn:false}
+
+        this._x_stuck_counter = 0
     }
 
     _init_gravity(config) {
@@ -165,7 +167,16 @@ export class Physics2dPlatformV2 {
         // was an 8px border
         // needs to be at least 16px for oneblock walk
         this._neighborhood = new Rect(rect.x - 24, rect.y - 24, rect.w + 48, rect.h + 48);
+        // TODO: its easy to softlock with red/blue switches and other dynamic entities
+        // just ignoring solid objects already being collided with is problematic
+        // maybe use a sensor?
+        // maybe use stuck detection?
         this._neighbors = this.group().filter(ent => ent.rect.collideRect(this._neighborhood))
+
+        if (this._x_stuck_counter > 1) {
+            this._neighbors = this._neighbors.filter(ent => !ent.rect.collideRect(rect))
+        }
+
         this._fluid_neighbors = this.fluid_group().filter(ent => ent.rect.collideRect(this._neighborhood))
     }
 
@@ -325,10 +336,23 @@ export class Physics2dPlatformV2 {
 
     _step_get_sensors(dx, dy) {
 
-        let sensor_u = {x: this.target.rect.cx(),       y: this.target.rect.top() - 1}
-        let sensor_d = {x: this.target.rect.cx(),       y: this.target.rect.bottom()}
-        let sensor_l = {x: this.target.rect.left() - 1, y: this.target.rect.cy()}
-        let sensor_r = {x: this.target.rect.right(),    y: this.target.rect.cy()}
+        let cx = this.target.rect.cx()
+        let cy = this.target.rect.cy()
+
+        // TODO: this is a hack to allow square objects to walk up a 45 degree slope
+        if (!this.can_wallwalk) {
+            if (this.target.rect.w == this.target.rect.h) {
+                cy -= 1
+            }
+        }
+
+
+        let sensor_u = {x: cx,       y: this.target.rect.top()}
+        let sensor_d = {x: cx,       y: this.target.rect.bottom()}
+        let sensor_l = {x: this.target.rect.left(),     y: cy}
+        let sensor_r = {x: this.target.rect.right(),    y: cy}
+
+        
 
         //const mdir = this.moving_direction
         const mdir = Direction.fromVector(dx, dy)
@@ -669,6 +693,40 @@ export class Physics2dPlatformV2 {
             }
             */
 
+            let next_rect = new Rect(
+                Math.round(this.target.rect.x + tmp.x), 
+                Math.round(this.target.rect.y + tmp.y), 
+                this.target.rect.w,
+                this.target.rect.h
+            )
+
+            if (
+                next_rect.left() < Physics2dPlatformV2.maprect.left() ||
+                next_rect.right() > Physics2dPlatformV2.maprect.right() ||
+                next_rect.top() < Physics2dPlatformV2.maprect.top() ||
+                next_rect.bottom() > Physics2dPlatformV2.maprect.bottom() 
+            ) {
+                return 1
+            }
+
+            // filter/map reduce neighbors to see if there is a collision
+            let collide = this._neighbors.reduce((acc, ent) => { return acc || ent.rect.collideRect(next_rect) }, false)
+
+            this._x_rotate_position = {...next_rect}
+
+            if (collide) {
+                
+                // this serves to debug errors
+                this._neighbors.forEach(ent => { 
+                    if (ent.rect.collideRect(next_rect)) {
+                        console.log("collide with", ent.rect, this.target.rect, tmp.x, tmp.y, next_rect)
+                    }
+                })
+
+                console.log("wall walk is invalid", next_rect, collide)
+                return 1
+            }
+
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
             //console.log("moving", Direction.name[current_moving_direction], "to", Direction.name[tmp.moving])
             this.moving_direction = tmp.moving
@@ -676,20 +734,8 @@ export class Physics2dPlatformV2 {
             // todo round the edge cooresponding the the standing direction
             // in order to support objects that are not square and 16x16
 
-            let next_rect = new Rect(
-                this.target.rect.x + tmp.x, 
-                this.target.rect.y + tmp.y, 
-                this.target.rect.w,
-                this.target.rect.h
-            )
-
-            // filter/map reduce neighbors to see if there is a collision
-            let collide = this._neighbors.reduce((acc, ent) => { return acc || ent.rect.collideRect(next_rect) }, false)
-
-            if (collide) {
-                console.log("wall walk is invalid", next_rect, collide)
-                return 1
-            }
+            // TODO: sometimes the target position is x.9999 instead of being an int
+            // and it only happens when in a production build
 
             //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, "set next rect")
 
@@ -728,13 +774,6 @@ export class Physics2dPlatformV2 {
             
 
             // it's a wall from the perspective of the current downwards direction
-            //let ta, tmp
-            //for (let i=0; i < lut3.length; i++) {
-            //    [ta,tmp] = lut3[i]
-            //    if (ta.standing == this.standing_direction && ta.moving == this.moving_direction) {
-            //        break
-            //    }
-            //}
 
             let current_moving_direction = Direction.fromVector(dx, dy)
 
@@ -742,7 +781,6 @@ export class Physics2dPlatformV2 {
                 console.warn("fixme: wallwalk moving direction")
                 return 1;
             }
-
         
             let tmp = this._lut_rotate_3[this.standing_direction][current_moving_direction]
 
@@ -751,71 +789,36 @@ export class Physics2dPlatformV2 {
                 return 1;
             }
 
-            
-
+            /*
             console.log("wallwalk", 
                 "moving direction", Direction.name[current_moving_direction],
                 "standing direction", Direction.name[this.standing_direction],
                 collisions
             )
+            */
 
             let next_rect = new Rect(
-                this.target.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
-                this.target.rect.y + tmp.y, // Math.round((this.rect.y + tmp.y + dy)/8)*8,
+                // again floating point errors only in production
+                Math.round(this.target.rect.x + tmp.x), 
+                Math.round(this.target.rect.y + tmp.y), 
                 this.target.rect.w,
                 this.target.rect.h
             )
 
+            if (
+                next_rect.left() < Physics2dPlatformV2.maprect.left() ||
+                next_rect.right() > Physics2dPlatformV2.maprect.right() ||
+                next_rect.top() < Physics2dPlatformV2.maprect.top() ||
+                next_rect.bottom() > Physics2dPlatformV2.maprect.bottom() 
+            ) {
+                return 1
+            }
+
             this.target.rect.x = next_rect.x
             this.target.rect.y = next_rect.y
 
-            // todo round the edge cooresponding the the standing direction
-            // in order to support objects that are not square and 16x16
-
-            // TODO: fixme this does not aggree with current direction
-            // essentially, changing the direction on the input pad right
-            // before hitting the wall can cause a disagreement
             this.moving_direction = tmp.moving 
             this.standing_direction = tmp.standing 
-
-            /*
-            if (this.target._classname == 'Player') {
-                this._x_rotate_position = {...this.target.rect}
-                this._x_rotate_sensors = {...sensors}
-                
-                let rot_sensors = this._step_get_sensors(0, 0)
-                let rot_collisions = {b: false, g1: false}
-                this._neighbors.forEach(ent => {
-                    if (ent.entid == this.target.entid) { return }
-                    if (ent.isSolid) { if (!ent.isSolid(this.target)) { return }}
-        
-                    // TODO: a potential optimization is to store the collision data in the class
-                    // if a sensor has collided, there is no reason to run that test again
-        
-                    if (ent.collidePoint(rot_sensors.b.x, sensors.b.y)) { 
-                        collisions.b = true 
-                    }
-                    if (ent.collidePoint(rot_sensors.g1.x, sensors.g1.y)) { 
-                        collisions.g1 = true 
-                    }
-                })
-
-                console.log(gEngine.frameIndex, "rotate 3",
-                        "standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing],
-                        "moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving],
-                        "is standing", rot_collisions.b, rot_collisions.g1,
-                        this.speed, this.accum, tmp
-                )
-                
-                
-
-                // cancel gravity in the new direction
-                // try to preserve momentum in the forward direction
-                // TODO: FIXME: there is a hitch when changing directions
-                // it tries to preserve momentum lower in the update() function
-                
-            }
-            */
 
             return 1
         }
@@ -930,8 +933,6 @@ export class Physics2dPlatformV2 {
     update(dt) {
 
         this.frame_index += 1
-
-
 
         this._enable_oneblock_walk = this.oneblock_walk && this._x_prev_summary.standing
 
@@ -1279,10 +1280,26 @@ export class Physics2dPlatformV2 {
             }
 
             if (i > 0 && start_pos.x == this.target.rect.x && start_pos.y == this.target.rect.y) {
-                if (start_dir == this.standing_direction) {
-                    //console.log("no movement this frame!!!", start_dir, this.standing_direction)
+                
+                //console.log("stuck!!", this._x_step_collisions, this._x_stuck_counter)
+                // this isnt perfect, but seems to be working
+                if (this._x_step_collisions.b && this._x_step_collisions.t) {
+                    this._x_stuck_counter += 1
+                }
+
+                //if (this._x_step_collisions.s1 && this._x_step_collisions.s2) {
+                //    this._x_stuck_counter += 1
+                //}
+
+                if (this._x_stuck_counter == 0 && start_dir == this.standing_direction && this._x_step_collisions.fn) {
+                    //console.log("no movement this frame!!!", start_dir, this.standing_direction, this._x_step_collisions)
                     this.speed[sym.h] = 0
                     this.accum[sym.h] = 0
+                    
+                }
+            } else {
+                if (i > 0) {
+                    this._x_stuck_counter = 0
                 }
             }
         }
@@ -1500,7 +1517,7 @@ export class Physics2dPlatformV2 {
             ctx.rect(x,y,w,h)
             ctx.stroke();
 
-            let sensors = this._x_rotate_sensors
+            /*let sensors = this._x_rotate_sensors
 
             ctx.beginPath()
             ctx.fillStyle = "#FF0000"
@@ -1510,7 +1527,7 @@ export class Physics2dPlatformV2 {
             ctx.rect(sensors.b.x, sensors.b.y, 1, 1)
             //ctx.rect(sensors.bn.x, sensors.bn.y, 1, 1)
             //ctx.rect(sensors.g1.x, sensors.g1.y, 1, 1)
-            ctx.fill();
+            ctx.fill();*/
 
         }
 
