@@ -606,7 +606,7 @@ export class Player extends PlayerBase {
             ctx.stroke()
         }*/
 
-        this.physics.paint(ctx)
+        //this.physics.paint(ctx)
     }
 
     _updateAnimation() {
