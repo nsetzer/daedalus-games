@@ -253,13 +253,15 @@ class Camera extends CameraBase {
         if (tx != this.active_region_x || ty != this.active_region_y) {
 
             // find all deactivated objects
-            let objs = this.map.queryObjects({"instanceof": PlatformerEntity, "active": false})
+            let objs = this.map.queryObjects({"instanceof": PlatformerEntity, "active": undefined})
             //console.log("change active zone", tx, ty,  objs.length)
             // check if those deactivated objects are in the active region
             objs.forEach(obj => {
                 if (obj.rect.collideRect(this.active_region)) {
                     obj.active = true
                     //console.log("changing activity for ", obj._classname)
+                } else {
+                    obj.active = false
                 }
             })
             
@@ -299,6 +301,7 @@ class PauseScreen {
         this.keyboard_row = 1
         this.keyboard_index = 0
         this._buildActions()
+        this._updateBeamName()
 
 
     }
@@ -310,12 +313,14 @@ class PauseScreen {
     }
 
     _buildActions() {
+        let act;
 
         this.rect1 = new Rect(16, 16*2, 5*24+4, 10*16)
         this.rect2 = new Rect(gEngine.view.width - (this.rect1.x + this.rect1.w), this.rect1.y, this.rect1.w, this.rect1.h)
+        this.action_bars = []
 
         let x1 = this.rect1.x + 2 + 2
-        let y1 = this.rect1.y + 12 + 6 + (24 + 12)
+        let y1 = this.rect1.y + 8
 
         const fn_icon = (index, state) => {
             return gAssets.sheets.pause_items.tile((index * 3) + state)
@@ -333,37 +338,41 @@ class PauseScreen {
                 if (gCharacterInfo.inventory[skill].acquired) {
                     gCharacterInfo.current[attr] = (gCharacterInfo.current[attr] == value_enabled)?value_disabled:value_enabled
                 }
+                this._updateBeamName()
             })
         }
-
+        
         // switch weapon profiles
 
         // profile 1
-        this._addAction(x1+1*24 + 8, y1-24-12, 20, 18, ()=>fn_icon2(
-            gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired,
-            21,
-            gCharacterInfo.current_weapon_index===0?2:0), ()=>{
+        act = this._addAction(x1+0*24, y1, 44, 12, null, ()=>{
             if (gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired) {
                 gCharacterInfo.current = gCharacterInfo.weapons[0]
                 gCharacterInfo.current_weapon_index = 0
             }
         })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT]
+            return {text: "Primary", hidden: !skill.acquired, active: skill.active}
+        }
 
         // profile 2
-        this._addAction(x1+3*24 - 8, y1-24-12, 20, 18, ()=>fn_icon2(
-            gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired,
-            23,
-            gCharacterInfo.current_weapon_index===1?2:0), ()=>{
+        act = this._addAction(x1+3*24, y1, 44, 12, null, ()=>{
             if (gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT].acquired) {
                 gCharacterInfo.current = gCharacterInfo.weapons[1]
                 gCharacterInfo.current_weapon_index = 1
             }
         })
+        act.dyntext = () => {
+            let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_WEAPON_SLOT]
+            return {text: "Secondary", hidden: !skill.acquired, active: skill.active}
+        }
 
         // slice the last two actions
         // and add them to the end of the list
         this.keyboard_actions[0].push(this.actions.slice(this.actions.length-2, this.actions.length))
 
+        y1 += 20
 
         // power, fire, water, ice, bubble
         this._addAction(x1+0*24, y1, 20, 18, ()=>fn_icon(0,gCharacterInfo.current.element===WeaponType.ELEMENT.POWER?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.POWER})
@@ -373,6 +382,13 @@ class PauseScreen {
         mkaction(x1+4*24, y1, CharacterInventoryEnum.BEAM_ELEMENT_BUBBLE, "element", WeaponType.ELEMENT.BUBBLE, WeaponType.ELEMENT.POWER, 4)
 
         this.keyboard_actions[0].push(this.actions.slice(this.actions.length-5, this.actions.length))
+
+        this.action_bars.push(new Rect(x1, y1+5, 5*24 - 4, 8))
+
+        this.lbl_weapon_element = this._addAction(x1+0*24, y1+20, 5*24 - 4, 12, null, ()=>{})
+        this.lbl_weapon_element.text = "Power"
+
+
         //this._addAction(x1+1*24, y1, 20, 18, ()=>fn_icon(1,gCharacterInfo.current.element===WeaponType.ELEMENT.FIRE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.FIRE})
         //this._addAction(x1+2*24, y1, 20, 18, ()=>fn_icon(2,gCharacterInfo.current.element===WeaponType.ELEMENT.WATER?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.WATER})
         //this._addAction(x1+3*24, y1, 20, 18, ()=>fn_icon(3,gCharacterInfo.current.element===WeaponType.ELEMENT.ICE?2:0), ()=>{gCharacterInfo.current.element = WeaponType.ELEMENT.ICE})
@@ -383,13 +399,24 @@ class PauseScreen {
         // normal - break on contact
         // bounce - bounce off walls (bubbles bounce player)
 
-        mkaction(x1+0*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_WAVE, "beam", WeaponType.BEAM.WAVE, WeaponType.BEAM.NORMAL, 7)
-        mkaction(x1+1*24, y1+24, CharacterInventoryEnum.BEAM_TYPE_BOUNCE, "beam", WeaponType.BEAM.BOUNCE, WeaponType.BEAM.NORMAL, 8)
+        y1 += 24 + 12
 
-        mkaction(x1+3*24, y1+24, CharacterInventoryEnum.BEAM_MOD_CHARGE, "modifier", WeaponType.MODIFIER.CHARGE, WeaponType.MODIFIER.NORMAL, 15)
-        mkaction(x1+4*24, y1+24, CharacterInventoryEnum.BEAM_MOD_RAPID, "modifier", WeaponType.MODIFIER.RAPID, WeaponType.MODIFIER.NORMAL, 16)
+        mkaction(x1+0*24, y1, CharacterInventoryEnum.BEAM_TYPE_WAVE, "beam", WeaponType.BEAM.WAVE, WeaponType.BEAM.NORMAL, 7)
+        mkaction(x1+1*24, y1, CharacterInventoryEnum.BEAM_TYPE_BOUNCE, "beam", WeaponType.BEAM.BOUNCE, WeaponType.BEAM.NORMAL, 8)
+        this.action_bars.push(new Rect(x1+0*24, y1+5, 2*24 - 4, 8))
+
+        mkaction(x1+3*24, y1, CharacterInventoryEnum.BEAM_MOD_CHARGE, "modifier", WeaponType.MODIFIER.CHARGE, WeaponType.MODIFIER.NORMAL, 15)
+        mkaction(x1+4*24, y1, CharacterInventoryEnum.BEAM_MOD_RAPID, "modifier", WeaponType.MODIFIER.RAPID, WeaponType.MODIFIER.NORMAL, 16)
+        this.action_bars.push(new Rect(x1+3*24, y1+5, 2*24 - 4, 8))
 
         this.keyboard_actions[0].push(this.actions.slice(this.actions.length-4, this.actions.length))
+
+        this.lbl_weapon_beam = this._addAction(x1+0*24, y1 + 20, 2*24 - 4, 12, null, ()=>{})
+        this.lbl_weapon_beam.text = "Bounce"
+
+        this.lbl_weapon_modifier = this._addAction(x1+3*24, y1 + 20, 2*24 - 4, 12, null, ()=>{})
+        this.lbl_weapon_modifier.text = "Charge"
+
         //this._addAction(x1+0*24, y1+24, 20, 18, ()=>fn_icon(7,gCharacterInfo.current.beam===WeaponType.BEAM.WAVE?2:0), ()=>{
         //    gCharacterInfo.current.beam = (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)?WeaponType.BEAM.NORMAL:WeaponType.BEAM.WAVE
         //})
@@ -405,13 +432,19 @@ class PauseScreen {
         // fire, normal: 1,3,5 bullets at 0,22,45 degrees
         // water: wider stream
         // bubble: more
+        y1 += 24 + 12
 
         // level one only appears once level 2 is unlocked
-        mkaction(x1+1*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL1, WeaponType.LEVEL.LEVEL1, 10)
-        mkaction(x1+2*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL2, WeaponType.LEVEL.LEVEL2, 11)
-        mkaction(x1+3*24, y1+48, CharacterInventoryEnum.BEAM_LEVEL_3, "level", WeaponType.LEVEL.LEVEL3, WeaponType.LEVEL.LEVEL3, 12)
+        mkaction(x1+1*24, y1, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL1, WeaponType.LEVEL.LEVEL1, 10)
+        mkaction(x1+2*24, y1, CharacterInventoryEnum.BEAM_LEVEL_2, "level", WeaponType.LEVEL.LEVEL2, WeaponType.LEVEL.LEVEL2, 11)
+        mkaction(x1+3*24, y1, CharacterInventoryEnum.BEAM_LEVEL_3, "level", WeaponType.LEVEL.LEVEL3, WeaponType.LEVEL.LEVEL3, 12)
+        this.action_bars.push(new Rect(x1+1*24, y1+5, 3*24 - 4, 8))
 
         this.keyboard_actions[0].push(this.actions.slice(this.actions.length-3, this.actions.length))
+
+        this.lbl_weapon_level = this._addAction(x1+1*24, y1 + 20, 3*24 - 4, 12, null, ()=>{})
+        this.lbl_weapon_level.text = "Level 1"
+
         //this._addAction(x1+1*24, y1+48, 20, 18, ()=>fn_icon(10,gCharacterInfo.current.level===WeaponType.LEVEL.LEVEL1?2:0), ()=>{
         //    gCharacterInfo.current.level=WeaponType.LEVEL.LEVEL1
         //})
@@ -449,7 +482,6 @@ class PauseScreen {
 
         // suits
         // diving helmet
-        let act;
         act = this._addAction(x2, y2+0*16, w2, 12, null, ()=>{
             let skill = gCharacterInfo.inventory[CharacterInventoryEnum.SKILL_MORPH_BALL]
             skill.active = !skill.active
@@ -513,10 +545,18 @@ class PauseScreen {
         act_return.text = "return"
         
 
+        let act_reset = this._addAction(gEngine.view.width - 3*8 - 3*40,  y3, 40, 18, null, ()=>{
+            Object.values(CharacterInventoryEnum).map(key=>gCharacterInfo.inventory[key] = {acquired:0, active:0})
+            gCharacterInfo.current = gCharacterInfo.weapons[0]
+            gCharacterInfo.current_weapon_index = 0
+            gCharacterInfo.current.element = WeaponType.ELEMENT.POWER
+            this._updateBeamName()
+        })
+        act_reset.text = "clear"
 
         let act_unlock = this._addAction(gEngine.view.width - 2*8 - 2*40,  y3, 40, 18, null, ()=>{
             Object.values(CharacterInventoryEnum).map(key=>gCharacterInfo.inventory[key] = {acquired:1, active:1})
-
+            this._updateBeamName()
         })
         act_unlock.text = "unlock"
 
@@ -529,8 +569,8 @@ class PauseScreen {
         act_edit.text = "edit"
 
         // add to both columns
-        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-3, this.actions.length))
-        this.keyboard_actions[1].push(this.actions.slice(this.actions.length-3, this.actions.length))
+        this.keyboard_actions[0].push(this.actions.slice(this.actions.length-4, this.actions.length))
+        this.keyboard_actions[1].push(this.actions.slice(this.actions.length-4, this.actions.length))
 
         let values = [1,2,3,4,5,6]
         //get a slice of last two values
@@ -541,10 +581,12 @@ class PauseScreen {
 
     }
 
-    _beamName() {
+    _updateBeamName() {
 
         let element = null
-        let name = null
+        let beam = null
+        let level = null
+        let modifier = null
 
         switch (gCharacterInfo.current.element) {
             case WeaponType.ELEMENT.POWER:
@@ -553,10 +595,10 @@ class PauseScreen {
             case WeaponType.ELEMENT.FIRE:
                 element = "Fire"
                 if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.NORMAL) {
-                    name = "Spread"
+                    element = "Spread"
                 }
                 else if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
-                    name = "Flame Thrower"
+                    element = "Flame Thrower"
                 }
                 break;
             case WeaponType.ELEMENT.WATER:
@@ -575,49 +617,62 @@ class PauseScreen {
             case WeaponType.ELEMENT.BUBBLE:
                 element = "Bubble"
                 break;
+            default:
+                element = "Error"
+                break;
         }
 
-        if (name === null) {
-
-            name = element
-
-            switch (gCharacterInfo.current.beam) {
-                case WeaponType.BEAM.WAVE:
-                    if (element !== "Splash") {
-                        name = "Wave " + name
-                    }
-                    break
-                case WeaponType.BEAM.BOUNCE:
-                    if (element !== "Splash") {
-                        name = "Bounce " + name
-                    }
-                    break
-            }
-
-
-            switch (gCharacterInfo.current.modifier) {
-                case WeaponType.MODIFIER.CHARGE:
-                    name = "Charge " + name
-                    break
-                case WeaponType.MODIFIER.RAPID:
-                    if (element !== "Squirt") {
-                        name = "Auto " + name
-                    }
-                    break
-            }
-
-            switch (gCharacterInfo.current.level) {
-                case WeaponType.LEVEL.LEVEL1:
-                    break
-                case WeaponType.LEVEL.LEVEL2:
-                    name = name + " II"
-                    break
-                case WeaponType.LEVEL.LEVEL3:
-                    name = name + " III"
-                    break
-            }
-
+        switch (gCharacterInfo.current.beam) {
+            case WeaponType.BEAM.WAVE:
+                beam = "Wave"
+                break
+            case WeaponType.BEAM.BOUNCE:
+                beam = "Bounce"
+                break
+            default:
+                beam = "Off"
+                break
         }
+        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_WAVE].acquired||
+            !gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_BOUNCE].acquired) {
+            beam = "???"
+        }
+
+        switch (gCharacterInfo.current.modifier) {
+            case WeaponType.MODIFIER.CHARGE:
+                modifier = "Charge"
+                break
+            case WeaponType.MODIFIER.RAPID:
+                modifier = "Auto"
+                break
+            default:
+                modifier = "Off"
+                break
+        }
+        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_MOD_CHARGE].acquired||
+            !gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_MOD_RAPID].acquired) {
+            modifier = "???"
+        }
+
+        switch (gCharacterInfo.current.level) {
+            case WeaponType.LEVEL.LEVEL1:
+                level = "Level 1"
+                break
+            case WeaponType.LEVEL.LEVEL2:
+                level = "Level 2"
+                break
+            case WeaponType.LEVEL.LEVEL3:
+                level = "Level 3"
+                break
+        }
+        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_LEVEL_2].acquired) {
+            level = "???"
+        }
+
+        this.lbl_weapon_element.text = element
+        this.lbl_weapon_beam.text = beam
+        this.lbl_weapon_modifier.text = modifier
+        this.lbl_weapon_level.text = level
 
         return name
     }
@@ -655,20 +710,11 @@ class PauseScreen {
 
         ctx.beginPath()
         ctx.fillStyle = "#C0C0C0"
-        ctx.rect(x1+0*24+12, y1+0*24+6, 4*24, 6)
-        ctx.rect(x1+0*24+12, y1+1*24+6, 1*24, 6)
-        ctx.rect(x1+3*24+12, y1+1*24+6, 1*24, 6)
-        ctx.rect(x1+1*24+12, y1+2*24+6, 2*24, 6)
+        this.action_bars.forEach(bar => {
+            ctx.rect(bar.x, bar.y, bar.w, bar.h)
+        })
         ctx.closePath()
         ctx.fill()
-
-        ctx.beginPath();
-        ctx.font = "8px Verdana bold";
-        ctx.fillStyle = "white"
-        ctx.strokeStyle = "white"
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        ctx.fillText(this._beamName(), x1+2*24+12, y1+3*24+6);
 
         // draw a highlight around the keyboard selected action
         if (!daedalus.platform.isMobile) {
