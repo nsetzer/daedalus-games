@@ -41,6 +41,9 @@ function tangentLine(degrees, radius) {
 
 
 export class Loop extends PlatformerEntity {
+    /*
+    loops act like special doors that can only be opened with the spider ball
+    */
     constructor(entid, props) {
         super(entid, props)
 
@@ -270,16 +273,21 @@ export class Loop extends PlatformerEntity {
         let objs = this._x_debug_map.queryObjects({"className": "Player"})
         let player = objs[0]
         if (objs.length > 0) {
+
+            let is_standing = player.physics.standing_frame >= (player.physics.frame_index - 6)
+
             if (this.sensor_switch1.collideRect(player.rect)) {
-                if (this.object_state[0] != 2) {
+                if (is_standing && this.object_state[0] != 2) {
                     this.object_state[0] = 2
                     this._x_debug_mask()
+                    console.log("trigger switch 1")
                 }
             }
             if (this.sensor_switch2.collideRect(player.rect)) {
-                if (this.object_state[0] != 1) {
+                if (is_standing && this.object_state[0] != 1) {
                     this.object_state[0] = 1
                     this._x_debug_mask()
+                    console.log("trigger switch 2")
                 }
             }
             if (this.sensor_door1.collideRect(player.rect)) {

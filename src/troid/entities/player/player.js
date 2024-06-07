@@ -161,16 +161,23 @@ export class CharacterComponent {
 
         // TODO: apply a force to move the player awar from what hurt it
         // is this the best way? on every hit, ignoring the cooldown?
-        let d = -Math.sign(other.rect.cx() - this.target.rect.cx())
+        
+
+        if (this.hurt_cooldown > 0 || gCharacterInfo.current_health <= 0) {
+            return
+        }
+
         //let d = -Direction.vector(this.target.current_facing).x
         console.log(this.target.current_facing, Direction.vector(this.target.current_facing).x)
+        let d = -Math.sign(other.rect.cx() - this.target.rect.cx())
         this.target.physics.speed.x =  d * 100
         if (this.target.physics.speed.y >= 0) {
             this.target.physics.speed.y = -200
         }
 
-        if (this.hurt_cooldown > 0 || gCharacterInfo.current_health <= 0) {
-            return
+        if (this.target.physics.can_wallwalk) {
+            this.target.physics.can_wallwalk = false
+            this.target.physics.standing_direction = Direction.DOWN
         }
 
         gCharacterInfo.current_health -= 1
@@ -286,6 +293,7 @@ export class Player extends PlayerBase {
             "hit":{},
             "spawn":{},
             "morphed":{"idle": {}, "run": {}},
+            "spikeball":{"idle": {}, "run": {}},
             "morph":{},
             "unmorph":{},
         }
@@ -302,6 +310,9 @@ export class Player extends PlayerBase {
         const ball1 = () => [0,1,2,3].map(i => (7*sheet.cols + i))
         const ball2 = () => [0,3,2,1].map(i => (7*sheet.cols + i))
         const ball_idle = () => [(7*sheet.cols + 0)]
+        const spike1 = () => [0,1,2,3].map(i => (8*sheet.cols + i))
+        const spike2 = () => [0,3,2,1].map(i => (8*sheet.cols + i))
+        const spike_idle = () => [(8*sheet.cols + 0)]
         const morph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i))
         const unmorph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i)).reverse()
 
@@ -383,6 +394,19 @@ export class Player extends PlayerBase {
         aid = this.animation.register(sheet, ball2(), spf2, {xoffset, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
+
+        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset, yoffset:yoffset2})
+        this.animations["spikeball"]['idle'][Direction.RIGHT] = aid
+
+        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset, yoffset:yoffset2})
+        this.animations["spikeball"]['idle'][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, spike1(), spf2, {xoffset, yoffset:yoffset2})
+        this.animations["spikeball"]['run'][Direction.LEFT] = aid
+
+        aid = this.animation.register(sheet, spike2(), spf2, {xoffset, yoffset:yoffset2})
+        this.animations["spikeball"]['run'][Direction.RIGHT] = aid
+
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
 
         this.weapon_offset = {}
@@ -410,6 +434,7 @@ export class Player extends PlayerBase {
             "hit":{},
             "spawn":{},
             "morphed":{"idle": {}, "run": {}},
+            "spikeball":{"idle": {}, "run": {}},
         }
 
         let ncols = 17
@@ -571,7 +596,7 @@ export class Player extends PlayerBase {
 
         
 
-        if (this.physics.can_wallwalk) {
+        /*if (this.physics.can_wallwalk) {
             // draw a glowing circle
             ctx.beginPath()
             ctx.arc(this.rect.cx(), this.rect.cy()-1, 8, 0, 2*Math.PI)
@@ -579,9 +604,9 @@ export class Player extends PlayerBase {
             ctx.strokeStyle = "#FF0000"
             ctx.fill()
             ctx.stroke()
-        }
+        }*/
 
-        // this.physics.paint(ctx)
+        this.physics.paint(ctx)
     }
 
     _updateAnimation() {
@@ -596,7 +621,13 @@ export class Player extends PlayerBase {
         } else if (this.morphed) {
             let mfacing = this.current_facing&Direction.LEFTRIGHT
             let maction =(this.current_action != "idle")?"run":"idle"
-            aid = this.animations["morphed"][maction][mfacing]
+            let baction;
+            if (this.morphed && this.physics.can_wallwalk) {
+                baction = "spikeball"
+            } else {
+                baction = "morphed"
+            }
+            aid = this.animations[baction][maction][mfacing]
         } else {
             aid = this.animations[this.current_action][this.current_facing]
         }
@@ -815,6 +846,8 @@ export class Player extends PlayerBase {
                         this.physics.standing_direction = Direction.DOWN
                     }
                     console.log("toggle spider ball", {enabled: this.physics.can_wallwalk})
+                    this._updateAnimation()
+
                 } else if (!this.morphed && payload.direction == Direction.DOWN) {
                     this.physics.can_wallwalk = false
                     this.physics.standing_direction = Direction.DOWN
@@ -971,7 +1004,7 @@ export class Player extends PlayerBase {
 
                     // when moon walking, switch the facing direction when the shot is released
                     //if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
-                    console.log(this.physics.moving_direction, this.physics.speed.x)
+                    //console.log(this.physics.moving_direction, this.physics.speed.x)
                     if (!this.charging) {
                             if (this.physics.moving_direction==Direction.RIGHT) {
                                 this._x_facing = Direction.RIGHT

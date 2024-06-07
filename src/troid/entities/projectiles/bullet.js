@@ -184,6 +184,15 @@ export class Bullet extends ProjectileBase {
             }
         }
 
+        let [camx,camy,camw,camh] = [gEngine.scene.camera.x, gEngine.scene.camera.y, gEngine.scene.camera.width, gEngine.scene.camera.height];
+
+        if (this.rect.cx() < camx || 
+            this.rect.cx() > camx + camw ||
+            this.rect.cy() < camy ||
+            this.rect.cy() > camy + camh) {
+                this.destroy() // no animation
+        }
+
         if (this.physics._x_step_collisions.b||
             this.physics._x_step_collisions.bn||
             this.physics._x_step_collisions.t||

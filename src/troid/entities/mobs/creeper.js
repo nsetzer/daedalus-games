@@ -276,6 +276,11 @@ export class CreeperV2 extends MobBase {
 
         if (!this.character.frozen && this.character.alive) {
             this.physics.update(dt)
+
+            //if (!this._x_is_standing) {
+            //    this.physics.standing_direction = Direction.DOWN
+            //}
+
             let d2 = this.physics.moving_direction&Direction.LEFTRIGHT
             if (d2 && d2 != this.current_facing) {
                 this.animation.setAnimationById(this.animations["switch"][this.current_facing])

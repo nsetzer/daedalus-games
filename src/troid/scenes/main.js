@@ -597,7 +597,7 @@ class PauseScreen {
                 if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.NORMAL) {
                     element = "Spread"
                 }
-                else if (gCharacterInfo.current.beam == WeaponType.BEAM.WAVE && gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
+                else if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
                     element = "Flame Thrower"
                 }
                 break;
@@ -608,7 +608,7 @@ class PauseScreen {
                     element = "Splash"
                 }
                 else if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
-                    element = "Squirt"
+                    element = "Water Jet"
                 }
                 break;
             case WeaponType.ELEMENT.ICE:
@@ -633,6 +633,7 @@ class PauseScreen {
                 beam = "Off"
                 break
         }
+        
         if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_WAVE].acquired||
             !gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_BOUNCE].acquired) {
             beam = "???"

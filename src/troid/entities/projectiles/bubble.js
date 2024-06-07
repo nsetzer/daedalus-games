@@ -221,6 +221,15 @@ export class BubbleBullet extends ProjectileBase {
 
         }
 
+        let [camx,camy,camw,camh] = [gEngine.scene.camera.x, gEngine.scene.camera.y, gEngine.scene.camera.width, gEngine.scene.camera.height];
+
+        if (this.rect.cx() < camx || 
+            this.rect.cx() > camx + camw ||
+            this.rect.cy() < camy ||
+            this.rect.cy() > camy + camh) {
+                this.destroy() // no animation
+        }
+
         this.animation.update(dt)
 
     }
