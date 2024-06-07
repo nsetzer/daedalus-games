@@ -999,7 +999,9 @@ export class MainScene extends GameScene {
         ctx.textAlign = "right"
         ctx.textBaseline = "middle"
         ctx.fillText(`fps:${gEngine.fps}`, gEngine.view.width - 64 - 8, 8);
-        ctx.fillText(`objs:${Object.keys(this.map.map.objects).length}`, gEngine.view.width - 64 - 8, 16);
+        let num_active = Object.values(this.map.map.objects).filter(obj=>obj.active).length
+        let num_objects = Object.keys(this.map.map.objects).length
+        ctx.fillText(`objs:${num_active}/${num_objects}`, gEngine.view.width - 64 - 8, 16);
 
     }
 

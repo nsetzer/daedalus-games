@@ -615,11 +615,22 @@ export class Physics2dPlatformV2 {
 
 
         //move to walk off the 'cliff'
-        // todo check if next rect is valid
+        // TODO: check if next rect is valid
+        // TODO: add a "heel" sensor on the bottom side of the entity opposite the direction of movement
+        //       allow the entity to walk off the cliff as long as the heel is still connected to the floor
+        //       this will result in less of a jump when moving to the next rect
         if (this.can_wallwalk && standing && !collisions.bn && !collisions.t) {
             //console.log("rotate 2")
-            
             // it's a cliff from the perspective of the current downwards direction
+
+            
+            let current_moving_direction = Direction.fromVector(dx, dy)
+            
+            if (current_moving_direction != this.moving_direction) {
+                console.warn("fixme: wallwalk moving direction")
+                return 1;
+            }
+
 
             //let ta, tmp
             //for (let i=0; i < lut2.length; i++) {
@@ -628,10 +639,10 @@ export class Physics2dPlatformV2 {
             //        break
             //    }
             //}
-            let tmp = this._lut_rotate_2[this.standing_direction][this.moving_direction]
+            let tmp = this._lut_rotate_2[this.standing_direction][current_moving_direction]
 
             if (!tmp) {
-                console.warn(`unexpected undefined reference <cliff> standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                console.warn(`unexpected undefined reference <cliff> standing=${this.standing_direction} moving=${current_moving_direction} not found in rotation look up table`)
                 return 1;
             }
 
@@ -642,7 +653,7 @@ export class Physics2dPlatformV2 {
                     w: this.target.rect.w,
                     h: this.target.rect.h,
                     standing: Direction.name[this.standing_direction],
-                    moving: Direction.name[this.moving_direction],  
+                    moving: Direction.name[current_moving_direction],  
                 }) 
             }
             */
@@ -653,13 +664,13 @@ export class Physics2dPlatformV2 {
                 this._x_rotate_sensors = {...sensors}
                 console.log("rotate cliff",
                         "standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing],
-                        "moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving]
+                        "moving", Direction.name[current_moving_direction], "to", Direction.name[tmp.moving]
                 )
             }
             */
 
             //console.log("standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing])
-            //console.log("moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving])
+            //console.log("moving", Direction.name[current_moving_direction], "to", Direction.name[tmp.moving])
             this.moving_direction = tmp.moving
             this.standing_direction = tmp.standing
             // todo round the edge cooresponding the the standing direction
@@ -672,6 +683,14 @@ export class Physics2dPlatformV2 {
                 this.target.rect.h
             )
 
+            // filter/map reduce neighbors to see if there is a collision
+            let collide = this._neighbors.reduce((acc, ent) => { return acc || ent.rect.collideRect(next_rect) }, false)
+
+            if (collide) {
+                console.log("wall walk is invalid", next_rect, collide)
+                return 1
+            }
+
             //console.log(Math.round(performance.now()/(1000/60)), gEngine.frameIndex, "set next rect")
 
             // probably need to do 4 tests
@@ -682,6 +701,8 @@ export class Physics2dPlatformV2 {
             //}
 
             // next rect was a hack, but the jump isnt visually as jarring as expected
+            // TODO: FIXME validate the next rect does not collide with anything
+
             this.target.rect = next_rect
 
             //this.next_rect = next_rect
@@ -714,22 +735,29 @@ export class Physics2dPlatformV2 {
             //        break
             //    }
             //}
-            let tmp = this._lut_rotate_3[this.standing_direction][this.moving_direction]
+
+            let current_moving_direction = Direction.fromVector(dx, dy)
+
+            if (current_moving_direction != this.moving_direction) {
+                console.warn("fixme: wallwalk moving direction")
+                return 1;
+            }
+
+        
+            let tmp = this._lut_rotate_3[this.standing_direction][current_moving_direction]
 
             if (!tmp) {
-                console.warn(`unexpected undefined reference <wall> standing=${this.standing_direction} moving=${this.moving_direction} not found in rotation look up table`)
+                console.warn(`unexpected undefined reference <wall> standing=${this.standing_direction} moving=${current_moving_direction} not found in rotation look up table`)
                 return 1;
             }
 
             
 
-
-            //console.log("rotate 3",
-            //    "standing", Direction.name[this.standing_direction], "to", Direction.name[tmp.standing],
-            //    "moving", Direction.name[this.moving_direction], "to", Direction.name[tmp.moving]
-            //    )
-
-
+            console.log("wallwalk", 
+                "moving direction", Direction.name[current_moving_direction],
+                "standing direction", Direction.name[this.standing_direction],
+                collisions
+            )
 
             let next_rect = new Rect(
                 this.target.rect.x + tmp.x, // Math.round((this.rect.x + tmp.x + dx)/8)*8,
@@ -744,7 +772,10 @@ export class Physics2dPlatformV2 {
             // todo round the edge cooresponding the the standing direction
             // in order to support objects that are not square and 16x16
 
-            this.moving_direction = tmp.moving
+            // TODO: fixme this does not aggree with current direction
+            // essentially, changing the direction on the input pad right
+            // before hitting the wall can cause a disagreement
+            this.moving_direction = tmp.moving 
             this.standing_direction = tmp.standing 
 
             /*
@@ -1229,10 +1260,11 @@ export class Physics2dPlatformV2 {
 
                         // swap x and y and apply the correct sign to continue traveling
                         // in the new direction at the same speed
-                        //console.log("preserve0", this.speed, this.accum)
+                        // preserve momentum
+                        //console.log("preserve momentum 0", Direction.name[this.standing_direction], this.speed, this.accum)
                         [this.speed.x,this.speed.y] = [sx*Math.abs(this.speed.y),sy*Math.abs(this.speed.x)]
                         [this.accum.x,this.accum.y] = [sx*Math.abs(this.accum.y),sy*Math.abs(this.accum.x)]
-                        //console.log("preserve1", this.speed, this.accum)
+                        //console.log("preserve momentum 1", Direction.name[this.standing_direction], this.speed, this.accum)
 
                         // TODO: loop physics : maybe this break is causing the issue
                         // I think the bug is on a loop, when swithing walls
