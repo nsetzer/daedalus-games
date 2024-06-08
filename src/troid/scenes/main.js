@@ -928,12 +928,33 @@ export class MainScene extends GameScene {
                 // run game logic normally
                 this.map.update(dt)
                 this.camera.update(dt)
+
+                if (gEngine.frameIndex%60==0) {
+                    this._check_bounds()
+                }
             }
 
         }
 
 
 
+    }
+
+    _check_bounds() {
+        // delete objects that have gone out of bounds
+        let rect = Physics2dPlatformV2.maprect
+        let [camx,camy,camw,camh] = [rect.x, gEngine.view.y, gEngine.view.w, gEngine.view.h];
+        for (const obj of Object.values(this.map.map.objects)) {
+
+            if (obj.rect.right() < rect.left() || 
+                obj.rect.left() > rect.right() ||
+                obj.rect.bottom() < rect.top() ||
+                obj.rect.top() > rect.bottom()) {
+                    console.log(`destroy out of bounds entity ${obj._classname}:${obj.entid}`)
+                    obj.destroy() // no animation
+            }
+        }
+    
     }
 
     _paint_status_map(ctx) {

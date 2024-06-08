@@ -427,6 +427,7 @@ export class CspMap {
             if (!obj.active) {
                 continue;
             }
+            
             obj.update(dt)
             if (!!obj._shadow) {
                 //if (!obj._shadow.x) {

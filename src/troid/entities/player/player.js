@@ -1160,11 +1160,7 @@ export class Player extends PlayerBase {
                 return
             }
             gAssets.sfx.PLAYER_JUMP.play()
-
             
-            // TODO: old
-            //this.physics.speed.y = this.physics.jumpspeed
-            //this.physics.yaccum = 0
             // TODO: new
             this.physics.speed.y = this.physics.jumpspeed
             this.physics.accum.y = 0
@@ -1174,12 +1170,7 @@ export class Player extends PlayerBase {
         } else if (pressing && !standing) {
             console.log(`wall jump standing=${this.physics.standing_frame} pressing=${pressing} m=${this.physics.pressing_direction}`)
             gAssets.sfx.PLAYER_JUMP.play()
-            //this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
-            //this.physics.xaccum = 0
-            //this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
-            //this.physics.yaccum = 0
 
-            console.log(this.physics.pressing_direction, this.physics.xjumpspeed)
             this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
             this.physics.accum.x = 0
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
@@ -1190,9 +1181,6 @@ export class Player extends PlayerBase {
         } else if (!standing && this.physics.doublejump && !rising) {
             console.log(`double jump standing=${this.physics.standing_frame} pressing=${pressing}`)
             gAssets.sfx.PLAYER_JUMP.play()
-
-            //this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
-            //this.physics.yaccum = 0
 
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.accum.y = 0
@@ -1219,9 +1207,9 @@ export class Player extends PlayerBase {
         this.animation.setAnimationById(aid)
 
         this.physics.moving_direction = Direction.NONE
-        this.physics.xaccum = 0
+        this.physics.accum.x = 0
         this.physics.speed.y = this.physics.jumpspeed
-        this.physics.yaccum = 0
+        this.physics.accum.y = 0
         this.physics.gravityboost = false
         this.physics.doublejump = false
         this.physics.checkbounds = false

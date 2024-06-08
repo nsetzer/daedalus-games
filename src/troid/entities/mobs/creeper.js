@@ -131,10 +131,10 @@ export class Creeper extends MobBase {
             }
 
             if (this.physics._x_step_collisions.fn) {
-                this.physics.moving_direction = (this.physics.moving_direction == Direction.LEFT)?Direction.RIGHT:Direction.LEFT
+                this.physics.moving_direction = Direction.flip[this.physics.moving_direction]
                 this.animation.setAnimationById(this.animations.run[this.physics.moving_direction])
                 this.physics.speed.x = 0
-                this.physics.xaccum = 0
+                this.physics.accum.x = 0
                 //console.log(this.physics.speed.x, this.physics.moving_direction)
                 this.physics._x_step_collisions.fn = 0
             }
@@ -709,11 +709,15 @@ registerEditorEntity("Shredder", Shredder, [16,16], EntityCategory.small_mob, nu
 // TODO: tag entities, count the number of entities with the spawn id
 //       set a maximum that a spawn can create at one time. 1-5
 //       if the count of tagged entities is below this, spawn a new one
+// TODO: when spawning enemies, grow a collision zone that causes damage at the same time
+//       this will fake touching the mob before its update can run
 export class Spawn extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 32, 32)
         this.solid = 1
+
+        this.maximum = 3 // number of entities to keep spawned at one time
 
         let tid = 0
         this.direction = props?.direction??Direction.UP
@@ -796,9 +800,11 @@ export class Spawn extends PlatformerEntity {
             if (this.spawn_timer > this.spawn_timeout) {
                 this.spawn_timer = 0
 
-                let objs = this._x_debug_map.queryObjects({"className": "Creeper"})
+                // each spawn is responsible for spawning a maximum of n
+                // objects can be deleted for any reason and this will spawn a replacement
+                let objs = this._x_debug_map.queryObjects({"className": "Creeper", parent_id: this.entid})
 
-                if (objs.length < 3) {
+                if (objs.length < this.maximum) {
 
                     // create a dummy object
                     // TODO: create, then move to be centered up/down
@@ -818,7 +824,8 @@ export class Spawn extends PlatformerEntity {
                 const props = {x: Math.floor(rect.x), y: Math.floor(rect.y)}
                 // replace the dummy with a real object
                 // this is closer to the correct behavior in multiplayer
-                this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
+                let ent = this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), "Creeper", props)
+                ent.parent_id = this.entid
                 this.spawn_target = null
             }
 

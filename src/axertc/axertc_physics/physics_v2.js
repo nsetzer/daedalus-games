@@ -974,8 +974,9 @@ export class Physics2dPlatformV2 {
             return
         }
 
-        let sensors = this._step_get_sensors(0, 0)
-        let collisions = {b:false,t:false,f:false}
+        let step_v = Direction.vector(this.moving_direction)
+        let sensors = this._step_get_sensors(step_v.x, step_v.y)
+        let collisions = {b:false,t:false,f:false, fn: false}
 
         this._neighbors.forEach(ent => {
             if (ent.entid == this.target.entid) { return }
@@ -999,6 +1000,8 @@ export class Physics2dPlatformV2 {
 
             //if (ent.collidePoint(sensors.bn.x, sensors.bn.y)) { collisions.bn = true }
             if (ent.collidePoint(sensors.t.x, sensors.t.y)) { collisions.t = true }
+
+            if (!!sensors.fn && ent.collidePoint(sensors.fn.x, sensors.fn.y)) { collisions.fn = true }
         })
 
         this._fluid_factor = 0
@@ -1017,6 +1020,7 @@ export class Physics2dPlatformV2 {
         // check if not standing and apply gravity
         if (!collisions.b && this.next_rect === null) {
 
+            //console.log(this.moving_direction, collisions.fn, this.speed)
 
             // fall / jump
             /*
@@ -1042,6 +1046,10 @@ export class Physics2dPlatformV2 {
                     gforce = (0 + 2*this._fluid_factor) * this.gravity * dt
                     this.speed[sym.v] += -step[sym.v]*gforce
                 }
+            }
+
+            if (this.standing_direction == Direction.DOWN  && this.speed.y > 50 && collisions.fn) { 
+                this.speed.y = 50
             }
             
             //this.speed.y += -step.y*gforce
