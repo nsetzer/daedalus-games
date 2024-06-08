@@ -706,6 +706,12 @@ export class Physics2dPlatformV2 {
                 next_rect.top() < Physics2dPlatformV2.maprect.top() ||
                 next_rect.bottom() > Physics2dPlatformV2.maprect.bottom() 
             ) {
+                // cancel momentum and flip the direction
+                this.moving_direction = Direction.flip[this.moving_direction]
+                this.speed.x = 0
+                this.speed.y = 0
+                this.accum.x = 0
+                this.accum.y = 0
                 return 1
             }
 
@@ -934,7 +940,7 @@ export class Physics2dPlatformV2 {
 
         this.frame_index += 1
 
-        this._enable_oneblock_walk = this.oneblock_walk && this._x_prev_summary.standing
+        this._enable_oneblock_walk = this.oneblock_walk && !this.can_wallwalk && this._x_prev_summary.standing
 
         this._update_neighborhood()
 

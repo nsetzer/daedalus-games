@@ -36,7 +36,14 @@ function tangentLine(degrees, radius) {
     let b = y0 - m * x0;
     
     // Return the slope and y-intercept
-    return { m: m, b: b, x: x0, y: y0, degrees: degrees};
+    return { 
+        m: m, 
+        mm: Math.abs(m), 
+        ms: Math.sign(m), 
+        b: b, 
+        x: x0, y: y0, 
+        degrees: degrees
+    };
 }
 
 
@@ -52,6 +59,11 @@ export class Loop extends PlatformerEntity {
         this.solid = 1
         this.layer = -1
 
+        // this would allow for different door states per entity
+        // using entid -> switch state
+        // however the api for collidePoint() doesnt know what
+        // entity is colliding with it. instead there is a single
+        // state which the player can trigger
         this.object_state = {[0]: 1} // entid => (0: left, 1: right)
 
         this.offset_y = 8
@@ -76,12 +88,18 @@ export class Loop extends PlatformerEntity {
         for (let i = 0; i < 360; i+=30) {
             this.lines.push(tangentLine(i, this.radius))
         }
+
+        this._x_debug = false
         this._x_debug_mask()
 
     }
 
 
     _x_debug_mask() {
+
+        if (!this._x_debug) {
+            return
+        }
 
         let w = this.rect.w
         let h = this.rect.h
@@ -155,6 +173,9 @@ export class Loop extends PlatformerEntity {
                         break;
                     }
                 } else {
+                    // the standard slope equation ms*|m*x|+b
+                    // isnt working for the loop
+                    //let y = line.ms * Math.floor(line.mm * px) + line.b
                     let y = line.m * px + line.b
                     if (line.degrees < 180 && py > y) {
                         oob = true
@@ -206,10 +227,10 @@ export class Loop extends PlatformerEntity {
 
         Loop.paint_loop(ctx, this.dirt, this.rect.x, this.rect.y, this.rect.w, this.rect.h, this.center_x, this.center_y, this.radius)
 
-        //let image = this._x_mask
-        //if (!!image) {
-        //    ctx.drawImage(image, this.rect.x, this.rect.y)
-        //}
+        let image = this._x_mask
+        if (!!image) {
+            ctx.drawImage(image, this.rect.x, this.rect.y)
+        }
 
         if (false) {
             

@@ -12,6 +12,8 @@ import {
 
 import {defaultEntities, editorEntities} from "@troid/entities/sys"
 
+export * from "./serialize.js"
+
 export class PlatformMap extends CspMap {
 
     constructor() {

@@ -198,7 +198,8 @@ export class CanvasEngine extends DomElement {
 
         this.frameIndex = 0
 
-        this.use_double_buffering = false
+        // not working in firefox 100% of the time
+        this.use_double_buffering = true
 
         
     }

@@ -29,18 +29,34 @@ export class BrickBase extends PlatformerEntity {
         this.timeout = 2 // enough time for particles to fall off the screen
 
         this.tid = tid
+        this.bump_timer = 0
     }
 
     onPress(other, vector) {
         if (other instanceof Player && vector.y < 0) {
-            this.onBreak()
+            if (other.morphed) {
+                this.onBump()
+            } else {
+                this.onBreak()
+            }
+            // depending on the order of update events
+            // the player may smash through. instead of requiring
+            // precise ordering, cancel the speed here
+            other.physics.speed.y = 0
         }
     }
 
     paint(ctx) {
 
+        
+
         if (this.alive) {
-            gAssets.sheets.brick.drawTile(ctx, this.tid, this.rect.x, this.rect.y)
+            let yoffset = 0
+            if (this.bump_timer > 0) {
+                yoffset = -2
+            }
+
+            gAssets.sheets.brick.drawTile(ctx, this.tid, this.rect.x, this.rect.y + yoffset)
         } else {
             // draw a quarter of the brick
             let x = (this.tid%gAssets.sheets.brick.cols) * 17 + 1
@@ -57,6 +73,8 @@ export class BrickBase extends PlatformerEntity {
 
         if (!this.alive) {
 
+            
+
             this.particles.forEach(p => {
                 p.x += p.dx*dt
                 p.y += p.dy*dt
@@ -67,11 +85,19 @@ export class BrickBase extends PlatformerEntity {
             if (this.timer >= this.timeout) {
                 this.destroy()
             }
+        } else {
+            if (this.bump_timer > 0) {
+                this.bump_timer -= dt
+            }
         }
     }
 
     onBreak() {
         this._kill()
+    }
+
+    onBump() {
+        this.bump_timer = .2
     }
 
     _kill() {

@@ -382,29 +382,31 @@ export class Player extends PlayerBase {
         this.animations["unmorph"][Direction.LEFT] = aid
         this.animations["unmorph"][Direction.UPLEFT] = aid
 
-        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset, yoffset:yoffset2})
+        let o = 2
+
+        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball_idle(), spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, ball1(), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball1(), spf2, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, ball2(), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, ball2(), spf2, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
 
-        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["spikeball"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, spike_idle(), spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["spikeball"]['idle'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, spike1(), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, spike1(), spf2, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["spikeball"]['run'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, spike2(), spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, spike2(), spf2, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["spikeball"]['run'][Direction.RIGHT] = aid
 
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
@@ -494,16 +496,19 @@ export class Player extends PlayerBase {
         this.animations["spawn"][Direction.UP] = aid
         this.animations["spawn"][Direction.DOWN] = aid
 
-        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        let o = 0
+        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.RIGHT] = aid
 
-        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10], spf, {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['idle'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+11, 1*ncols+12, 1*ncols+13], spf2, 
+            {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.LEFT] = aid
 
-        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, {xoffset, yoffset:yoffset2})
+        aid = this.animation.register(sheet, [1*ncols+10, 1*ncols+13, 1*ncols+12, 1*ncols+11], spf2, 
+            {xoffset: xoffset+o, yoffset:yoffset2})
         this.animations["morphed"]['run'][Direction.RIGHT] = aid
 
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
@@ -606,7 +611,7 @@ export class Player extends PlayerBase {
             ctx.stroke()
         }*/
 
-        //this.physics.paint(ctx)
+        this.physics.paint(ctx)
     }
 
     _updateAnimation() {

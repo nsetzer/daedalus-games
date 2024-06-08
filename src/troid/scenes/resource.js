@@ -38,7 +38,7 @@ import {
 import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 
 import {MapInfo, gAssets, SoundEffectPalette} from "@troid/store"
-import {PlatformMap} from "maps"
+import {PlatformMap, deserialize_stamp, deserialize_tile} from "@troid/maps"
 import {defaultEntities, editorEntities, registerEntityAssets} from "@troid/entities/sys"
 
 const RES_ROOT = "static"
@@ -749,34 +749,21 @@ class LevelChunkBuilder {
         })
 
         console.log("update stamps", this.map.stamps.length)
-        this.map.stamps.forEach(stamp => {
+        this.map.stamps.forEach(info => {
             // ignore 0 width/height stamps
-            try {
-                let [encoded0, encoded1] = stamp
-            } catch (e) {
-                return
-            }
-            let [encoded0, encoded1] = stamp
-            //let encoded1 = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
-            //let encoded0 = ((t[1].sheet&0xFF) << 18) | ((t[1].layer&0x03) << 26) | (+t[0])
-            console.warn(stamp)
+            let stamp = deserialize_stamp(info)
             
-            let rect = new Rect((encoded1>>24)&0xFF, (encoded1>>16)&0xFF, (encoded1>>8)&0xFF, (encoded1)&0xFF)
-            if (rect.w > 0 && rect.h > 0) {
+            if (stamp.rect.w > 0 && stamp.rect.h > 0) {
                 
-                let sid = encoded0 & 0x3FFFF
-                let sheet = (encoded0 >> 18) & 0xFF
-                let layer = (encoded0 >> 26) & 0x03
-
-                let sy = Math.floor(sid/512 - 4)
-                let sx = (sid%512)
+                let sy = Math.floor(stamp.sid/512 - 4)
+                let sx = (stamp.sid%512)
                 //console.log("found stamp at", stamp.sid, {x:sx, y:sy, w:rect.w, h:rect.h})
 
                 // determine which chunks the rect potentially overlaps
                 let x0 = Math.floor(sx/chunk_width)
                 let y0 = Math.floor(sy/chunk_height)
-                let x1 = Math.floor((sx+rect.w)/chunk_width)
-                let y1 = Math.floor((sy+rect.h)/chunk_height)
+                let x1 = Math.floor((sx+stamp.rect.w)/chunk_width)
+                let y1 = Math.floor((sy+stamp.rect.h)/chunk_height)
 
                 for (let y=y0; y<=y1; y++) {
                     for (let x=x0; x<=x1; x++) {
@@ -786,8 +773,8 @@ class LevelChunkBuilder {
 
                         let scx = Math.max(x*chunk_width, sx) - sx
                         let scy = Math.max(y*chunk_height, sy) - sy
-                        let scw = (Math.min((x+1)*chunk_width, (sx + rect.w)) - sx) - scx
-                        let sch = (Math.min((y+1)*chunk_height, (sy + rect.h)) - sy) - scy
+                        let scw = (Math.min((x+1)*chunk_width, (sx + stamp.rect.w)) - sx) - scx
+                        let sch = (Math.min((y+1)*chunk_height, (sy + stamp.rect.h)) - sy) - scy
 
                         if (y >= 0 && scw > 0 && sch > 0) {
 
@@ -795,14 +782,13 @@ class LevelChunkBuilder {
                                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}, stamps:[]}
                             }
 
-                            let chunk_stamp = {
+                            let chunk_stamp = { 
+                                ...stamp,
                                 // x,y is the sid of the new stamp
                                 x: sx + scx,
                                 y: sy + scy,
-                                sheet: sheet, 
-                                layer: layer, 
                                 // rect is the region in the sheet which intersects with this chunk
-                                rect: {x: rect.x+scx, y: rect.y+scy, w: scw, h: sch}
+                                rect: {x: stamp.rect.x+scx, y: stamp.rect.y+scy, w: scw, h: sch}
                             }
 
                             this.map.chunks[chunkid].stamps.push(chunk_stamp)
@@ -1099,19 +1085,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                 .path(RES_ROOT + "/" + this.mapurl)
                 .transform(json => {
 
-                    json.layers[0] = Object.fromEntries(json.layers[0].map(x => {
-
-                        x = x&0x7FFFFFFF
-
-                        const tid = (x >> 13)&0x3ffff
-                        const shape = (x >> 10) & 0x07
-                        const property = (x >> 7) & 0x07
-                        const sheet = (x >> 4) & 0x07
-                        const direction = x & 0x0F
-                        const tile = {shape, property, sheet, direction}
-
-                        return [tid, tile]
-                    }))
+                    json.layers[0] = Object.fromEntries(json.layers[0].map(deserialize_tile))
 
                     console.log("json loaded")
 

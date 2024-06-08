@@ -34,7 +34,7 @@ import {MapInfo, EditorControl, gAssets} from "@troid/store"
 import {TileShape, TileProperty, updateTile, paintTile} from "@troid/tiles"
 
 import {defaultEntities, editorEntities, EntityCategory} from "@troid/entities/sys"
-import {PlatformMap} from "@troid/maps"
+import {PlatformMap, serialize_tile, deserialize_stamp, serialize_stamp} from "@troid/maps"
 import {post_map_level} from "@troid/api"
 
 
@@ -1954,21 +1954,12 @@ export class LevelEditScene extends GameScene {
             }
         })
 
-        gAssets.mapinfo.stamps.forEach(stamp => {
-            try {
-                let [encoded0, encoded1] = stamp
-            } catch (e) {
-                return
-            }
-            let [encoded0, encoded1] = stamp
-
-            let sid = encoded0 & 0x3FFFF
-            let sheet = (encoded0 >> 18) & 0xFF
-            let layer = (encoded0 >> 26) & 0x03
-            // ignore 0 width/height stamps
-            let rect = new Rect((encoded1>>24)&0xFF, (encoded1>>16)&0xFF, (encoded1>>8)&0xFF, (encoded1)&0xFF)
-            if (rect.w > 0 && rect.h > 0) {
-                this.map.stamps[sid] = {rect: rect, layer:layer, sheet: sheet}
+        gAssets.mapinfo.stamps.forEach(stamp_data => {
+            let stamp = deserialize_stamp(stamp_data)
+            if (stamp.rect.w > 0 && stamp.rect.h > 0) {
+                let sid = stamp.sid
+                delete stamp.sid
+                this.map.stamps[sid] = stamp
             }
         })
 
@@ -3574,23 +3565,7 @@ export class LevelEditScene extends GameScene {
         // "rect":0xFFFFFFFF
         // "rect":4294967295
 
-        const stamps = Object.entries(this.map.stamps).map(t => {
-            // t: {sid, stamp}
-            // sid is an 18bit number 
-            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x3FFFF
-            // save the rectangle encoded as a 32bit integer
-            // sheet is an 8 bit index
-            // layer is 0 (background) or 1 (foreground) 
-
-            let rect = t[1].rect
-            let encoded1 = (rect.x&0xFF)<<24|(rect.y&0xFF)<<16|(rect.w&0xFF)<<8|(rect.h&0xFF)
-            let encoded0 = ((t[1].sheet&0xFF) << 18) | ((t[1].layer&0x03) << 26) | (+t[0])
-            
-            //console.log("save stamp", rect, encoded)
-            // save sid as int, not str
-            //return {sid: +t[0], info: encoded0, rect: encoded1, sheet: t[1].sheet, layer: t[1].layer}
-            return [encoded0, encoded1]
-        })
+        const stamps = Object.entries(this.map.stamps).map(t => serialize_stamp(+t[0], t[1]))
         return stamps
     }
 
@@ -3624,23 +3599,7 @@ export class LevelEditScene extends GameScene {
 
         // compress each tile into a 32bit integer
         // 1 bit, the sign bit, is unused
-        const tiles0 = Object.entries(this.map.layers[0]).map((t) => {
-            const [tid, tile] = t
-            let x = 0;
-            // tid is 18 bits (two 512 bit numbers)
-            // hex((14*16+4-1)*512+511) = 0x1C7FF < 0x1FFFF
-
-            // shape, property, and sheet are each 3 bits
-            // allowing 8 different values. zero is reserved
-            // direction is 4 bits and optional (square tiles do not use it)
-            x |= tid << 13 // position
-            x |= tile.shape << 10
-            x |= tile.property << 7
-            x |= tile.sheet << 4
-            x |= tile?.direction??0
-            return x
-        })
-
+        const tiles0 = Object.entries(this.map.layers[0]).map((t) => serialize_tile(t[0], t[1]))
 
         const map = {
             version: 0,
