@@ -120,7 +120,6 @@ export class WidgetStyle {
             this.colors.lighter[k] = lighter(this.colors.base[k])
             this.colors.darker[k] = darker(this.colors.base[k])
         }
-        console.log(this.colors)
 
         this.button = {
 
@@ -360,7 +359,6 @@ export class WidgetGroup {
 
                 this.widgets[focus_index]._keyboard_focus = true
 
-                console.log("set focus index", this.focus_index, focus_index)
                 this.focus_index = focus_index
 
             }
@@ -435,8 +433,6 @@ export class WidgetGroup {
             this.focus_index = focus_index
         }
 
-        console.log("focus next", this.focus_index, this.widgets.length)
-
         //this.changeFocus()
     }
 
@@ -459,8 +455,6 @@ export class WidgetGroup {
             this.widgets[focus_index]._keyboard_focus = true
             this.focus_index = focus_index
         }
-
-        console.log("focus prev", this.focus_index, this.widgets.length)
 
     }
 }

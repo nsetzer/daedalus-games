@@ -127,7 +127,10 @@ export class CanvasEngine extends DomElement {
 
         this.scene = null
 
-        this.ctx = null
+        this.ctx1 = null
+        this.ctx2 = null
+        this.buffer1 = null
+        this.buffer2 = null
         this.lastTime = null
 
         this.fps = 60
@@ -195,6 +198,8 @@ export class CanvasEngine extends DomElement {
 
         this.frameIndex = 0
 
+        this.use_double_buffering = false
+
         
     }
 
@@ -202,29 +207,24 @@ export class CanvasEngine extends DomElement {
 
         this.buffer1 = this.getDomNode()
         this.ctx1 = this.buffer1.getContext("2d");
+        WidgetStyle.init(this.ctx1)
 
-
-        if (false) {
+        if (this.use_double_buffering) {
             this.buffer2 = document.createElement('canvas');
             this.buffer2.width = this.buffer1.width;
             this.buffer2.height = this.buffer1.height;
 
             this.ctx2 = this.buffer2.getContext("2d");
 
-            this.ctx = this.ctx2
-        } else {
-            this.ctx = this.ctx1
         }
-
-        console.log(`2d context created}`)
-
-        WidgetStyle.init(this.ctx)
+        console.log("2d context created")
 
         this.handleResize(this.props.width, this.props.height)
 
         if (this.onReady) {
             this.onReady()
         }
+
         window.requestAnimationFrame(this.render.bind(this));
     }
 
@@ -381,9 +381,12 @@ export class CanvasEngine extends DomElement {
 
     handleResize(availWidth, availHeight) {
 
-        if (false) {
+        if (this.use_double_buffering) {
+            
             this.buffer2.width = this.buffer1.width;
             this.buffer2.height = this.buffer1.height;
+            console.log("resize buffer1", this.buffer1.width, this.buffer1.height)
+            console.log("resize buffer2", this.buffer2.width, this.buffer2.height)
         }
 
         // TODO: if a specific resolution is given, use a float scale factor to make it fit
@@ -522,14 +525,13 @@ export class CanvasEngine extends DomElement {
         if (kc == Keys.PAUSE) {
             this.paused = ! this.paused
             this.scene.pause(this.paused)
-            this.ctx.resetTransform()
+            this.ctx1.resetTransform()
             
-            this.ctx.fillStyle="yellow"
-            this.ctx.font = '12px sans-serif';
-            this.ctx.fillText("paused", 32, 32)
-            let canvas = this.getDomNode()
-            this.ctx.fillStyle = "#00000044"
-            this.ctx.fillRect(0,0, canvas.width, canvas.height)
+            this.ctx1.fillStyle="yellow"
+            this.ctx1.font = '12px sans-serif';
+            this.ctx1.fillText("paused", 32, 32)
+            this.ctx1.fillStyle = "#00000044"
+            this.ctx1.fillRect(0,0, this.buffer1.width, this.buffer1.height)
             this.lastTime = null
 
 
@@ -599,23 +601,21 @@ export class CanvasEngine extends DomElement {
 
     renderFrame() {
 
-        let ctx;
+        let ctx, canvas;
 
-        if (false) {
-            ctx = this.ctx2;
+        if (this.use_double_buffering) {
+            ctx = this.ctx2
+            canvas = this.buffer2
         } else {
-            ctx = this.ctx1;
+            ctx = this.ctx1
+            canvas = this.buffer1
         }
 
         if (ctx === null) {
             return;
         }
 
-        // TODO: use setTransform
-        // https://stackoverflow.com/questions/33515707/scaling-a-javascript-canvas-game-properly
-
         ctx.resetTransform()
-        let canvas = this.getDomNode()
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.scale(this.view.scale, this.view.scale);
         if (this.view.rotate) {
@@ -623,41 +623,30 @@ export class CanvasEngine extends DomElement {
             ctx.translate(0,-this.props.width/this.view.scale)
         }
         ctx.translate(this.view.x, this.view.y)
-
-        /*
-        // paint a magenta X over the out of bounds area on the left and right side
-        // this is the part of the screen that is visible, and not part of the view
-        ctx.beginPath()
-        ctx.strokeStyle = 'magenta'
-        ctx.moveTo(0,0)
-        ctx.lineTo(-this.view.x,this.view.height)
-        ctx.moveTo(-this.view.x,0)
-        ctx.lineTo(0,this.view.height)
-
-        ctx.moveTo(this.view.width,0)
-        ctx.lineTo(this.view.width + this.view.x,this.view.height)
-        ctx.moveTo(this.view.width + this.view.x,0)
-        ctx.lineTo(this.view.width,this.view.height)
-        ctx.stroke()
-        */
-
-        /*
-        ctx.beginPath()
-        ctx.fillStyle = '#FF00FF33'
-        ctx.rect(this.screen.x, this.screen.y, this.screen.width, this.screen.height)
-        ctx.fill()
-        console.log(this.screen)
-        */
-        
-        //ctx.clip();
         ctx.webkitImageSmoothingEnabled = false;
         ctx.mozImageSmoothingEnabled = false;
         ctx.imageSmoothingEnabled = false;
-
         this.scene.paint(ctx)
 
-        //this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
-        //this.ctx1.drawImage(this.buffer2, 0, 0)
+        if (this.use_double_buffering) {
+            
+            this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
+            this.ctx1.drawImage(this.buffer2, 0, 0)
+
+        }
+
+        /*
+        this.ctx1.resetTransform()
+        this.ctx1.strokeStyle = 'red'
+        this.ctx1.beginPath()
+        this.ctx1.rect(0, 0, this.view.width, this.view.height);
+        this.ctx1.stroke()
+        this.ctx1.beginPath()
+        this.ctx1.moveTo(0,0);
+        this.ctx1.lineTo(this.view.width, this.view.height);
+        this.ctx1.closePath()
+        this.ctx1.stroke()
+        */
 
         /* draw the viewport and offset from the real screen edge
         ctx.strokeStyle = 'red'
