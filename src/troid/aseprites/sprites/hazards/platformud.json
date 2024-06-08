@@ -1,0 +1,25 @@
+[
+  {
+    "path": "./sprites/hazards/platformud.aseprite",
+    "crop": { 
+      "frame": [0,0],
+      "size": [16,16],
+      "offset": [0,2]
+    }
+  },
+
+  {
+    "path": "./sprites/hazards/platformud.aseprite",
+    "size": [16,22],
+    "config": [
+      {
+        "name": "platform",
+        "flip": false,
+        "layers": [
+          "box",
+          "gear"
+        ]
+      }
+    ]
+  }
+]

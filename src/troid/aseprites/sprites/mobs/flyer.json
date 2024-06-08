@@ -1,0 +1,32 @@
+[
+  {
+    "path": "./sprites/mobs/flyer.aseprite",
+    "crop": { 
+      "frame": [1,0],
+      "size": [16,16],
+      "offset": [12,6]
+    }
+  },
+  {
+    "path": "./sprites/mobs/flyer.aseprite",
+    "size": [32,32],
+    "config": [
+      {
+        "name": "right",
+        "flip": false,
+        "layers": [
+          "shell",
+          "body"
+        ]
+      },
+      {
+        "name": "left",
+        "flip": true,
+        "layers": [
+          "shell",
+          "body"
+        ]
+      }
+    ]
+  }
+]

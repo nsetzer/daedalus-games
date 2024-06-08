@@ -1,0 +1,27 @@
+[
+  {
+    "path": "./sprites/hazards/windfan.aseprite",
+    "crop": { 
+      "frame": [0,0],
+      "size": [16,16],
+      "offset": [8,0]
+    }
+  },
+
+  {
+    "path": "./sprites/hazards/windfan.aseprite",
+    "size": [32,16],
+    "config": [
+      {
+        "name": "fan",
+        "flip": false,
+        "layers": [
+          "grate",
+          "center",
+          "blade",
+          "background"
+        ]
+      }
+    ]
+  }
+]

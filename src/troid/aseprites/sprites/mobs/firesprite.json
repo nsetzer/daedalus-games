@@ -1,0 +1,41 @@
+[
+  {
+    "path": "./sprites/mobs/firesprite.aseprite",
+    "size": [16,16],
+    "config": [
+      {
+        "name": "right",
+        "flip": false,
+        "layers": [
+          "eyes",
+          "ball",
+          "flash"
+        ]
+      },
+      {
+        "name": "left",
+        "flip": true,
+        "layers": [
+          "eyes",
+          "ball",
+          "flash"
+        ]
+      }
+    ]
+  },
+  {
+    "path": "./sprites/mobs/firesprite_look.aseprite",
+    "size": [16,16],
+    "config": [
+      {
+        "name": "change",
+        "flip": false,
+        "layers": [
+          "eyes",
+          "ball",
+          "flash"
+        ]
+      }
+    ]
+  }
+]

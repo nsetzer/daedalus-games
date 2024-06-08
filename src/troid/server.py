@@ -118,13 +118,13 @@ def main():
     # --env debug=true src/troid/troid.js
 
     if len(sys.argv) > 1 and sys.argv[1] == "build":
-        print("build")
         project_root = "./src/troid"
         service = TroidService(project_root)
         worlds = service.world_manifest()
 
         path = "./src/troid/resource/maps/manifest.json"
         obj = {"worlds": worlds}
+        print("writing", path)
         with open(path, "w") as wf:
             json.dump(obj, wf)
             wf.write("\n")
@@ -133,6 +133,7 @@ def main():
             levels = service.level_manifest(world)
             path = f"./src/troid/resource/maps/{world}/manifest.json"
             obj = {"world": world, "levels": levels}
+            print("writing", path)
             with open(path, "w") as wf:
                 json.dump(obj, wf)
                 wf.write("\n")

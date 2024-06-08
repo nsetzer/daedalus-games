@@ -1,0 +1,34 @@
+[
+  {
+    "path": "./sprites/mobs/tomato_head.aseprite",
+    "crop": { 
+      "frame": [0,0],
+      "size": [32,32],
+      "offset": [4,8]
+    }
+
+  },
+
+  {
+    "path": "./sprites/mobs/tomato_head.aseprite",
+    "size": [48,48],
+    "config": [
+      {
+        "name": "left",
+        "flip": false,
+        "layers": [
+          "head",
+          "body"
+        ]
+      },
+      {
+        "name": "right",
+        "flip": true,
+        "layers": [
+          "head",
+          "body"
+        ]
+      }
+    ]
+  }
+]

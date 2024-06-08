@@ -1,0 +1,129 @@
+[
+    {
+        "path": "./sprites/player/hero2.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "right",
+                "flip":  false,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "gun_normal",
+                    "arm_normal",
+                    "torso_normal",
+                    "left_leg_v2"
+                ]
+            },
+            {
+                "name": "right_up",
+                "flip":  false,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "gun_up",
+                    "arm_up",
+                    "torso_up",
+                    "left_leg_v2"
+                ]
+            },
+            {
+                "name": "left",
+                "flip":  true,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "arm_normal",
+                    "torso_normal",
+                    "gun_normal",
+                    "left_leg_v2"
+                ]
+            },
+            {
+                "name": "left_up",
+                "flip":  true,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "arm_up",
+                    "torso_up",
+                    "gun_up",
+                    "left_leg_v2"
+                ]
+            }
+        ]
+    },
+    {
+        "path": "./sprites/player/hero_front.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "front",
+                "flip":  false,
+                "layers": [
+                    "arms",
+                    "legs",
+                    "front",
+                    "tail"
+                ]
+            }
+        ]
+    },
+    {
+        "path": "./sprites/player/hero2_morph.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "right",
+                "flip":  false,
+                "layers": [
+                    "arm",
+                    "right_leg",
+                    "tail",
+                    "body",
+                    "left_leg"
+                ],
+                "frames": [3,4,5,6,7,8,9,10,11,12]
+            },
+            {
+                "name": "left",
+                "flip":  true,
+                "layers": [
+                    "arm",
+                    "right_leg",
+                    "tail",
+                    "body",
+                    "left_leg"
+                ],
+                "frames": [3,4,5,6,7,8,9,10,11,12]
+            }
+        ]
+    },
+    {
+        "path": "./sprites/player/hero2_ball.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "right",
+                "flip":  false,
+                "layers": [
+                    "ball"
+                ]
+            }
+        ]
+    },
+    {
+        "path": "./sprites/player/hero2_ball.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "right",
+                "flip":  false,
+                "layers": [
+                    "ball",
+                    "spikes"
+                ]
+            }
+        ]
+    }
+]

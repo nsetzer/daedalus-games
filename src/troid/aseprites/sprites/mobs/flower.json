@@ -1,0 +1,54 @@
+[
+  {
+    "path": "./flower.aseprite",
+    "crop": { 
+      "frame": [0,0],
+      "size": [16,16],
+      "offset": [8,8]
+    }
+
+  },
+
+  {
+    "path": "./flower.aseprite",
+    "size": [32,32],
+    "config": [
+      {
+        "name": "left",
+        "flip": false,
+        "layers": [
+          "mouth_closed",
+          "face_idle",
+          "body"
+        ]
+      },
+      {
+        "name": "left",
+        "flip": false,
+        "layers": [
+          "mouth_open",
+          "face_talk",
+          "body"
+        ]
+      },
+      {
+        "name": "right",
+        "flip": true,
+        "layers": [
+          "mouth_closed",
+          "face_idle",
+          "body"
+        ]
+      },
+      {
+        "name": "right",
+        "flip": true,
+        "layers": [
+          "mouth_open",
+          "face_talk",
+          "body"
+        ]
+      }
+    ]
+  }
+]
