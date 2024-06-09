@@ -1057,6 +1057,17 @@ export class MainScene extends GameScene {
 
         // draw the hamburger menu
         gAssets.sheets.editor.drawTile(ctx, 2*8+2, gEngine.view.width - 20, 4)
+        // set global alpha to ease in and out based on frame index
+        if (gCharacterInfo.new_upgrade_indicator != null) {
+            let a = 2 * Math.abs(0.5 - ((gEngine.frameIndex%60)/60))
+            a = a<.2?0:a
+            if (a>0) {
+                ctx.save()
+                ctx.globalAlpha = a
+                gAssets.sheets.editor.drawTile(ctx, 3*8+2, gEngine.view.width - 20, 4)
+                ctx.restore()
+            }
+        }
 
         this._paint_status_map(ctx)
 
@@ -1226,6 +1237,7 @@ export class MainScene extends GameScene {
 
                 if (t.y < 24 && t.x > gEngine.view.width - 24) {
                     this.screen = new PauseScreen(this)
+                    gCharacterInfo.new_upgrade_indicator = null
                 }
 
 

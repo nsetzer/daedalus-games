@@ -451,6 +451,7 @@ export class BrickUpgrade extends BrickBase {
                 gEngine.scene.dialog.setExitCallback(() => {gEngine.scene.dialog.dismiss(); gEngine.scene.dialog=null; this.destroy()})
                 
                 // reward the skill
+                gCharacterInfo.new_upgrade_indicator = this.skill
                 gCharacterInfo.inventory[this.skill].acquired = 1
                 gCharacterInfo.inventory[this.skill].active = 1
 

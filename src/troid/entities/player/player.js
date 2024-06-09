@@ -287,6 +287,7 @@ export class Player extends PlayerBase {
         this.animations = {
             "idle":{},
             "run":{},
+            "run_press":{},
             "wall_slide":{},
             "jump":{},
             "fall":{},
@@ -303,27 +304,29 @@ export class Player extends PlayerBase {
 
         const idle = (row) => [(row*sheet.cols + 0)]
         const walk = (row) => [...Array(8).keys()].map(i => (row*sheet.cols + i))
+        const walk_press = (row) => [...Array(8).keys()].map(i => (row*sheet.cols + i))
         const jump = (row) => [(row*sheet.cols + 2)]
         const fall = (row) => [(row*sheet.cols + 2)]
-        const hurt = (row) => [(4*sheet.cols + 2)]
-        const spawn = (row) => [(4*sheet.cols + 1)]
-        const ball1 = () => [0,1,2,3].map(i => (7*sheet.cols + i))
-        const ball2 = () => [0,3,2,1].map(i => (7*sheet.cols + i))
-        const ball_idle = () => [(7*sheet.cols + 0)]
-        const spike1 = () => [0,1,2,3].map(i => (8*sheet.cols + i))
-        const spike2 = () => [0,3,2,1].map(i => (8*sheet.cols + i))
-        const spike_idle = () => [(8*sheet.cols + 0)]
-        const morph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i))
-        const unmorph = (row) => [...Array(10).keys()].map(i => ((5+row)*sheet.cols + i)).reverse()
+        const hurt = (row) => [(6*sheet.cols + 2)]
+        const spawn = (row) => [(6*sheet.cols + 1)]
+        const slide = (row) => [(row*sheet.cols + 0), (row*sheet.cols + 1)]
+        const ball1 = () => [0,1,2,3].map(i => (11*sheet.cols + i))
+        const ball2 = () => [0,3,2,1].map(i => (11*sheet.cols + i))
+        const ball_idle = () => [(11*sheet.cols + 0)]
+        const spike1 = () => [0,1,2,3].map(i => (12*sheet.cols + i))
+        const spike2 = () => [0,3,2,1].map(i => (12*sheet.cols + i))
+        const spike_idle = () => [(12*sheet.cols + 0)]
+        const morph = (row) => [...Array(10).keys()].map(i => ((7+row)*sheet.cols + i))
+        const unmorph = (row) => [...Array(10).keys()].map(i => ((7+row)*sheet.cols + i)).reverse()
 
         aid = this.animation.register(sheet, idle(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["idle"][Direction.RIGHT] = aid
         aid = this.animation.register(sheet, idle(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["idle"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, idle(2), spf, {xoffset: xoffsetL, yoffset})
-        this.animations["idle"][Direction.LEFT] = aid
         aid = this.animation.register(sheet, idle(3), spf, {xoffset: xoffsetL, yoffset})
+        this.animations["idle"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, idle(4), spf, {xoffset: xoffsetL, yoffset})
         this.animations["idle"][Direction.UPLEFT] = aid
 
         aid = this.animation.register(sheet, walk(0), spf, {xoffset: xoffsetR, yoffset})
@@ -331,19 +334,27 @@ export class Player extends PlayerBase {
         aid = this.animation.register(sheet, walk(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["run"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, walk(2), spf, {xoffset: xoffsetL, yoffset})
-        this.animations["run"][Direction.LEFT] = aid
         aid = this.animation.register(sheet, walk(3), spf, {xoffset: xoffsetL, yoffset})
+        this.animations["run"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, walk(4), spf, {xoffset: xoffsetL, yoffset})
         this.animations["run"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, walk_press(2), spf, {xoffset: xoffsetR, yoffset})
+        this.animations["run_press"][Direction.RIGHT] = aid
+        this.animations["run_press"][Direction.UPRIGHT] = this.animations["run"][Direction.UPRIGHT]
+
+        aid = this.animation.register(sheet, walk_press(5), spf, {xoffset: xoffsetL, yoffset})
+        this.animations["run_press"][Direction.LEFT] = aid
+        this.animations["run_press"][Direction.UPLEFT] = this.animations["run"][Direction.UPLEFT]
 
         aid = this.animation.register(sheet, jump(0), spf, {xoffset: xoffsetR, yoffset})
         this.animations["jump"][Direction.RIGHT] = aid
         aid = this.animation.register(sheet, jump(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["jump"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, jump(2), spf, {xoffset: xoffsetL, yoffset})
-        this.animations["jump"][Direction.LEFT] = aid
         aid = this.animation.register(sheet, jump(3), spf, {xoffset: xoffsetL, yoffset})
+        this.animations["jump"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, jump(4), spf, {xoffset: xoffsetL, yoffset})
         this.animations["jump"][Direction.UPLEFT] = aid
 
         aid = this.animation.register(sheet, fall(0), spf, {xoffset: xoffsetR, yoffset})
@@ -351,9 +362,9 @@ export class Player extends PlayerBase {
         aid = this.animation.register(sheet, fall(1), spf, {xoffset: xoffsetR, yoffset})
         this.animations["fall"][Direction.UPRIGHT] = aid
 
-        aid = this.animation.register(sheet, fall(2), spf, {xoffset: xoffsetL, yoffset})
-        this.animations["fall"][Direction.LEFT] = aid
         aid = this.animation.register(sheet, fall(3), spf, {xoffset: xoffsetL, yoffset})
+        this.animations["fall"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, fall(4), spf, {xoffset: xoffsetL, yoffset})
         this.animations["fall"][Direction.UPLEFT] = aid
 
         aid = this.animation.register(sheet, hurt(0), spf, {xoffset, yoffset})
@@ -361,6 +372,15 @@ export class Player extends PlayerBase {
         this.animations["hit"][Direction.LEFT] = aid
         this.animations["hit"][Direction.UPRIGHT] = aid
         this.animations["hit"][Direction.UPLEFT] = aid
+
+        aid = this.animation.register(sheet, slide(11), spf, {xoffset:xoffsetR, yoffset})
+        this.animations["wall_slide"][Direction.RIGHT] = aid
+        aid = this.animation.register(sheet, slide(12), spf, {xoffset:xoffsetR, yoffset})
+        this.animations["wall_slide"][Direction.UPRIGHT] = aid
+        aid = this.animation.register(sheet, slide(9), spf, {xoffset:xoffsetL, yoffset})
+        this.animations["wall_slide"][Direction.LEFT] = aid
+        aid = this.animation.register(sheet, slide(10), spf, {xoffset:xoffsetL, yoffset})
+        this.animations["wall_slide"][Direction.UPLEFT] = aid
 
         this.animations["spawn"][Direction.RIGHT] = this.animations["run"][Direction.RIGHT]
         this.animations["spawn"][Direction.LEFT] = this.animations["run"][Direction.LEFT]
@@ -412,10 +432,10 @@ export class Player extends PlayerBase {
         this.animation.setAnimationById(this.animations.run[Direction.RIGHT])
 
         this.weapon_offset = {}
-        this.weapon_offset[Direction.RIGHT]   = {x: 12, y: 12}
-        this.weapon_offset[Direction.UPRIGHT] = {x: 12, y:  3}
-        this.weapon_offset[Direction.LEFT]    = {x: -8 + 3, y: 12}
-        this.weapon_offset[Direction.UPLEFT]  = {x: -6, y:  3}
+        this.weapon_offset[Direction.RIGHT]   = {x: 17, y: 11}
+        this.weapon_offset[Direction.UPRIGHT] = {x: 16, y:  3}
+        this.weapon_offset[Direction.LEFT]    = {x: -5, y: 11}
+        this.weapon_offset[Direction.UPLEFT]  = {x: -4, y:  3}
 
     }
 
@@ -537,7 +557,15 @@ export class Player extends PlayerBase {
             ctx.beginPath();
             //ctx.fillStyle = '#FF0000FF';
             const p = this.charge_duration / this.charge_timeout
-            const o = this.weapon_offset[this.current_facing]
+            let f = this.current_action!="wall_slide"?this._x_facing:Direction.flip[this._x_facing]
+            if (this.looking_up) {
+                f |= Direction.UP
+            }
+            const o = this.weapon_offset[f]
+
+            if (!o) {
+                console.error("no weapon offset", f, this.weapon_offset)
+            }
             const k = Math.floor(gEngine.frameIndex/6)%3
             ctx.filter = `brightness(${75+50*k}%)`
 
@@ -611,7 +639,7 @@ export class Player extends PlayerBase {
             ctx.stroke()
         }*/
 
-        this.physics.paint(ctx)
+        //this.physics.paint(ctx)
     }
 
     _updateAnimation() {
@@ -758,19 +786,26 @@ export class Player extends PlayerBase {
         }
 
         let paction = "idle"
+        let pressing = this.physics.pressing_frame >= (this.physics.frame_index - 6)
         switch (this.physics.action) {
             case "run":
-                paction = "run"
+                paction = pressing ? "run_press" : "run"
                 break;
+            case "double_jump":
             case "jump":
                 paction = "jump"
                 break;
             case "fall":
                 paction = "fall"
                 break;
+            case "wall_slide":
+                paction = "wall_slide"
+                break;
             default:
                 break;
         }
+        //
+        //console.log("action", paction, pressing, this.physics.action);
 
         if (pfacing != this.current_facing ||
             paction != this.current_action) {
@@ -955,34 +990,37 @@ export class Player extends PlayerBase {
 
         } else if (payload.btnid === 1) {
 
-            if (!this.morphed) {
+            
                 if (payload.pressed) {
 
-                    let charge_sound = null
-                    if (gCharacterInfo.current.modifier != WeaponType.MODIFIER.NORMAL) {
-                        this.charging = true
-                        this.charge_count = 0
+                    if (!this.morphed) {
 
-                        charge_sound = gAssets.sounds.fireBeamCharge
-                    }
+                        let charge_sound = null
+                        if (gCharacterInfo.current.modifier != WeaponType.MODIFIER.NORMAL) {
+                            this.charging = true
+                            this.charge_count = 0
 
-                    this.charge_duration = 0.0
-
-                    if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
-
-                        if (gCharacterInfo.current.element == WeaponType.ELEMENT.WATER && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new WaterBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
-                        } else if (gCharacterInfo.current.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
-                            this._beam = new FireBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
-                            charge_sound = gAssets.sounds.fireBeamFlameStart
-                        } else {
-                            this._shoot(0)
+                            charge_sound = gAssets.sounds.fireBeamCharge
                         }
 
-                    }
+                        this.charge_duration = 0.0
 
-                    if (!!charge_sound) {
-                        charge_sound.play()
+                        if (gCharacterInfo.current.modifier == WeaponType.MODIFIER.RAPID) {
+
+                            if (gCharacterInfo.current.element == WeaponType.ELEMENT.WATER && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
+                                this._beam = new WaterBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
+                            } else if (gCharacterInfo.current.element == WeaponType.ELEMENT.FIRE && gCharacterInfo.current.beam != WeaponType.BEAM.BOUNCE) {
+                                this._beam = new FireBeam(this, gCharacterInfo.current.beam == WeaponType.BEAM.WAVE)
+                                charge_sound = gAssets.sounds.fireBeamFlameStart
+                            } else {
+                                this._shoot(0)
+                            }
+
+                        }
+
+                        if (!!charge_sound) {
+                            charge_sound.play()
+                        }
                     }
                 } else {
 
@@ -1026,7 +1064,6 @@ export class Player extends PlayerBase {
                     //}
 
                 }
-            }
 
         } else {
             console.log({
@@ -1083,12 +1120,25 @@ export class Player extends PlayerBase {
     _shoot(power) {
 
 
-        let d = this._x_facing
+        let d, o, f;
+        if (this.current_action == "wall_slide") {
+            f = Direction.flip[this._x_facing]
+            d = f
+        } else {
+            f = this._x_facing
+            d = f
+        }
+
+        if (!o) {
+            console.error("no weapon offset", f, o, this.weapon_offset)
+        }
+
         if (this.looking_up) {
             d |= Direction.UP
         }
 
-        const o = this.weapon_offset[this.current_facing]
+        o = this.weapon_offset[d]
+
         const px = this.rect.x + o.x
         const py = this.rect.y + o.y
 

@@ -28,6 +28,18 @@
                 ]
             },
             {
+                "name": "right_down",
+                "flip":  false,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "gun_normal",
+                    "arm_normal",
+                    "torso_down",
+                    "left_leg_v2"
+                ]
+            },
+            {
                 "name": "left",
                 "flip":  true,
                 "layers": [
@@ -50,7 +62,20 @@
                     "gun_up",
                     "left_leg_v2"
                 ]
+            },
+            {
+                "name": "left_down",
+                "flip":  true,
+                "layers": [
+                    "right_leg_v2",
+                    "tail",
+                    "arm_normal",
+                    "torso_down",
+                    "gun_normal",
+                    "left_leg_v2"
+                ]
             }
+
         ]
     },
     {
@@ -96,6 +121,48 @@
                     "left_leg"
                 ],
                 "frames": [3,4,5,6,7,8,9,10,11,12]
+            }
+        ]
+    },
+    {
+        "path": "./sprites/player/hero2_slide.aseprite",
+        "size": [32,32],
+        "config": [
+            {
+                "name": "right",
+                "flip":  false,
+                "layers": [
+                    "gun_normal",
+                    "head_normal",
+                    "body"
+                ]
+            },
+            {
+                "name": "right_up",
+                "flip":  false,
+                "layers": [
+                    "gun_up",
+                    "head_up",
+                    "body"
+                ]
+            },
+            {
+                "name": "left",
+                "flip":  true,
+                "layers": [
+                    "gun_normal",
+                    "head_normal",
+                    "body"
+                ]
+            },
+            {
+                "name": "left_up",
+                "flip":  true,
+                "layers": [
+                    "gun_up",
+                    "head_up",
+                    "body"
+                ]
             }
         ]
     },

@@ -112,6 +112,8 @@ export class CharacterInfo {
         this.total_max_health = 12 // upgrades increase max health
 
         this.inventory = {}
+        // causes the hamburger menu to flash
+        this.new_upgrade_indicator = null
 
         // set each key in the inventory enum to 1 in inventory
         // NOTE: acquired and active only make sense for skills

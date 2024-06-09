@@ -135,11 +135,11 @@ def export_aseprite(json_path, outpath):
             if config['flip']:
                 out = [mirror(x) for x in out]
             
-            if config['offset']:
-                print("TODO: offset")
-                # pad each image with a transparent border of 4px on the left
-                # then crop each image by 4px on the right
-                #out = [x.crop((4,0,x.width-4,x.height)) for x in out]
+            #if config['offset']:
+            #    print("TODO: offset")
+            #    # pad each image with a transparent border of 4px on the left
+            #    # then crop each image by 4px on the right
+            #    #out = [x.crop((4,0,x.width-4,x.height)) for x in out]
 
             for layer in reversed(layer_config[:-1]):
                 img = layers[layer]
