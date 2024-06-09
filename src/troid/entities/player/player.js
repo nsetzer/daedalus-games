@@ -310,12 +310,12 @@ export class Player extends PlayerBase {
         const hurt = (row) => [(6*sheet.cols + 2)]
         const spawn = (row) => [(6*sheet.cols + 1)]
         const slide = (row) => [(row*sheet.cols + 0), (row*sheet.cols + 1)]
-        const ball1 = () => [0,1,2,3].map(i => (11*sheet.cols + i))
-        const ball2 = () => [0,3,2,1].map(i => (11*sheet.cols + i))
-        const ball_idle = () => [(11*sheet.cols + 0)]
-        const spike1 = () => [0,1,2,3].map(i => (12*sheet.cols + i))
-        const spike2 = () => [0,3,2,1].map(i => (12*sheet.cols + i))
-        const spike_idle = () => [(12*sheet.cols + 0)]
+        const ball1 = () => [0,1,2,3].map(i => (13*sheet.cols + i))
+        const ball2 = () => [0,3,2,1].map(i => (13*sheet.cols + i))
+        const ball_idle = () => [(13*sheet.cols + 0)]
+        const spike1 = () => [0,1,2,3].map(i => (14*sheet.cols + i))
+        const spike2 = () => [0,3,2,1].map(i => (14*sheet.cols + i))
+        const spike_idle = () => [(14*sheet.cols + 0)]
         const morph = (row) => [...Array(10).keys()].map(i => ((7+row)*sheet.cols + i))
         const unmorph = (row) => [...Array(10).keys()].map(i => ((7+row)*sheet.cols + i)).reverse()
 

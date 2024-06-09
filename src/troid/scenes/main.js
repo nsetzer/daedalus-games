@@ -634,7 +634,7 @@ class PauseScreen {
                 break
         }
         
-        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_WAVE].acquired||
+        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_WAVE].acquired&&
             !gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_TYPE_BOUNCE].acquired) {
             beam = "???"
         }
@@ -650,7 +650,7 @@ class PauseScreen {
                 modifier = "Off"
                 break
         }
-        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_MOD_CHARGE].acquired||
+        if (!gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_MOD_CHARGE].acquired&&
             !gCharacterInfo.inventory[CharacterInventoryEnum.BEAM_MOD_RAPID].acquired) {
             modifier = "???"
         }
@@ -1148,9 +1148,9 @@ export class MainScene extends GameScene {
         ctx.fill()
         ctx.clip();
 
-        if (gAssets.mapinfo.theme == "plains") {
-            this._parallax(ctx) 
-        } 
+        //if (gAssets.mapinfo.theme == "plains") {
+        //    this._parallax(ctx) 
+        //} 
 
         // gutter
         //ctx.beginPath()
