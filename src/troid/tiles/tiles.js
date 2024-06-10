@@ -48,6 +48,12 @@ TileProperty.ICE = 4
 TileProperty.WATER = 5
 TileProperty.LAVA = 6
 
+TileProperty.name = {
+    [TileProperty.SOLID]: "solid",
+    [TileProperty.NOTSOLID]: "notsolid",
+    [TileProperty.ONEWAY]: "oneway",
+    [TileProperty.ICE]: "ice",
+}
  
 // a tile is a {shape, property, sheet}
 // it may have a `tile` property which is the image to draw

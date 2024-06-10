@@ -883,7 +883,7 @@ export class MainScene extends GameScene {
         this.touch = new TouchInput(this.controller)
         this.keyboard = new KeyboardInput(this.controller)
 
-        this.touch.addWheel(64+32, -64, 64, {
+        this.touch.addWheel(64+64, -(64+16), 64, {
             align: Alignment.LEFT|Alignment.BOTTOM,
             //symbols: ["W", "D", "S", "A"],
         })
@@ -950,8 +950,10 @@ export class MainScene extends GameScene {
                 obj.rect.left() > rect.right() ||
                 obj.rect.bottom() < rect.top() ||
                 obj.rect.top() > rect.bottom()) {
-                    console.log(`destroy out of bounds entity ${obj._classname}:${obj.entid}`)
-                    obj.destroy() // no animation
+                    if (obj._classname != "Player") {
+                        console.log(`destroy out of bounds entity ${obj._classname}:${obj.entid}`)
+                        obj.destroy() // no animation
+                    }
             }
         }
     

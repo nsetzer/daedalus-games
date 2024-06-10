@@ -157,8 +157,8 @@ export class Physics2dPlatformV2 {
         this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
-
-        this.terminal_velocity = 400
+        
+        this.terminal_velocity = 400// TODO: not used?
     }
 
     _update_neighborhood() {

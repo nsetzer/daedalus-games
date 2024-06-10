@@ -1,0 +1,25 @@
+[
+  {
+    "path": "./sprites/mobs/jumpingjack.aseprite",
+    "crop": { 
+      "frame": [0,0],
+      "size": [16,16],
+      "offset": [2,0]
+    }
+
+  },
+
+  {
+    "path": "./sprites/mobs/jumpingjack.aseprite",
+    "size": [20,16],
+    "config": [
+      {
+        "name": "front",
+        "flip": false,
+        "layers": [
+          "body"
+        ]
+      }
+    ]
+  }
+]

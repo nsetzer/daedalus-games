@@ -18,8 +18,6 @@ import {
 import {gAssets, gCharacterInfo, WeaponType} from "@troid/store"
 //import {Player} from "@troid/entities/player"
 
-import {MobBase} from "./base.js"
-
 /**
  * red switches active red platforms
  * and deactivate blue platforms

@@ -167,8 +167,6 @@ export class CharacterComponent {
             return
         }
 
-        //let d = -Direction.vector(this.target.current_facing).x
-        console.log(this.target.current_facing, Direction.vector(this.target.current_facing).x)
         let d = -Math.sign(other.rect.cx() - this.target.rect.cx())
         this.target.physics.speed.x =  d * 100
         if (this.target.physics.speed.y >= 0) {
@@ -222,6 +220,7 @@ export class Player extends PlayerBase {
         super(entid, props)
         this.rect = new Rect(props?.x??0, props?.y??0, 12, 24)
         this.playerId = props?.playerId??null
+        this.layer = 100
 
         this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
@@ -384,7 +383,7 @@ export class Player extends PlayerBase {
 
         this.animations["spawn"][Direction.RIGHT] = this.animations["run"][Direction.RIGHT]
         this.animations["spawn"][Direction.LEFT] = this.animations["run"][Direction.LEFT]
-        aid = this.animation.register(sheet, spawn(0), spf, {xoffset, yoffset})
+        aid = this.animation.register(sheet, spawn(0), spf, {xoffset: xoffset+2, yoffset})
         this.animations["spawn"][Direction.UP] = aid
         this.animations["spawn"][Direction.DOWN] = aid
 
@@ -563,9 +562,6 @@ export class Player extends PlayerBase {
             }
             const o = this.weapon_offset[f]
 
-            if (!o) {
-                console.error("no weapon offset", f, this.weapon_offset)
-            }
             const k = Math.floor(gEngine.frameIndex/6)%3
             ctx.filter = `brightness(${75+50*k}%)`
 
@@ -731,6 +727,8 @@ export class Player extends PlayerBase {
                 this.dead_timer -= dt
                 if (this.dead_timer < 0) {
 
+                    gCharacterInfo.current_health = gCharacterInfo.max_health
+
                     const info = gCharacterInfo.current_map_spawn
                         gCharacterInfo.transitionToLevel(
                             info.world_id, info.level_id, info.door_id)
@@ -858,12 +856,33 @@ export class Player extends PlayerBase {
 
     setSpawning(direction) {
         if (direction == Direction.NONE) {
+            console.log("set spawning end", Direction.name[direction])
             this.spawning = false
+            console.log(this._x_facing, this.animations["idle"][this._x_facing])
+            this.animation.setAnimationById(this.animations["idle"][this._x_facing])
             // TODO apply cached player inputs
         } else {
+            console.log("set spawning", Direction.name[direction])
+            let d = direction&Direction.LEFTRIGHT||Direction.RIGHT
+            this._x_facing = d
+            this.current_facing = d
             this.animation.setAnimationById(this.animations["spawn"][direction])
             this.spawning = true
+
+            this.physics.moving_direction = Direction.NONE
+            //if ((this.direction&Direction.LEFTRIGHT)==0) {
+            //    this.spawn_target.physics.facing = Direction.RIGHT
+            // } else {
+            //    this.spawn_target.physics.facing = this.direction
+            //}
+
+            this.physics.speed.x = 0
+            this.physics.xaccum = 0
+            this.physics.speed.y = 0
+            this.physics.yaccum = 0
+
         }
+
     }
 
     onInput(payload) {
@@ -1127,10 +1146,6 @@ export class Player extends PlayerBase {
         } else {
             f = this._x_facing
             d = f
-        }
-
-        if (!o) {
-            console.error("no weapon offset", f, o, this.weapon_offset)
         }
 
         if (this.looking_up) {

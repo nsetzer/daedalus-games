@@ -416,6 +416,13 @@ class AssetLoader {
             .layout(2, 4)
             .offset(1, 18)
             .spacing(1, 1)
+        
+        this.loader.addSpriteSheet("jumpingjack")
+            .path(RES_ROOT + "/sprites/mobs/jumpingjack.png")
+            .dimensions(20, 16)
+            .layout(1, 3)
+            .offset(1, 18)
+            .spacing(1, 1)
 
         this.loader.addSpriteSheet("windfan")
             .path(RES_ROOT + "/sprites/hazards/windfan.png")

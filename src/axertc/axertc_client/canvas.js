@@ -208,12 +208,19 @@ export class CanvasEngine extends DomElement {
 
         this.buffer1 = this.getDomNode()
         this.ctx1 = this.buffer1.getContext("2d");
-        WidgetStyle.init(this.ctx1)
+        //WidgetStyle.init(this.ctx1)
 
         if (this.use_double_buffering) {
-            this.buffer2 = document.createElement('canvas');
-            this.buffer2.width = this.buffer1.width;
-            this.buffer2.height = this.buffer1.height;
+            if (!!OffscreenCanvas) {
+                console.log("using offscreen canvas for double buffering")
+                this.buffer2 = new OffscreenCanvas(this.buffer1.width, this.buffer1.height);
+            } else {
+                console.log("using double buffering with hidden element")
+                this.buffer2 = document.createElement('canvas');
+                this.buffer2.width = this.buffer1.width;
+                this.buffer2.height = this.buffer1.height;
+            }
+            
 
             this.ctx2 = this.buffer2.getContext("2d");
 
@@ -624,15 +631,26 @@ export class CanvasEngine extends DomElement {
             ctx.translate(0,-this.props.width/this.view.scale)
         }
         ctx.translate(this.view.x, this.view.y)
-        ctx.webkitImageSmoothingEnabled = false;
-        ctx.mozImageSmoothingEnabled = false;
-        ctx.imageSmoothingEnabled = false;
+        //ctx.webkitImageSmoothingEnabled = false;
+        //ctx.mozImageSmoothingEnabled = false;
+        //ctx.imageSmoothingEnabled = false;
+        ctx.save()
         this.scene.paint(ctx)
+        ctx.restore()
+        //this.ctx2.beginPath();
+        //this.ctx2.arc(200, 75, 50, 0, 2 * Math.PI);
+        //this.ctx2.stroke();
 
         if (this.use_double_buffering) {
             
             this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
             this.ctx1.drawImage(this.buffer2, 0, 0)
+
+            // draw a circle
+            //this.ctx1.beginPath();
+            //this.ctx1.arc(100, 75, 50, 0, 2 * Math.PI);
+            //this.ctx1.stroke();
+
 
         }
 

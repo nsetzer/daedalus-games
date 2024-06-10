@@ -435,6 +435,301 @@ class TileMenu {
     }
 }
 
+// a palette is a menu which remains open while editing the map
+class TilePalette {
+
+    constructor(parent) {
+
+        
+        let t = 16
+        let p = 6
+        let s = t+p
+        let w = 3*p + 2*t
+        let h = 8*p + 7*t
+        let y = Math.floor(gEngine.view.height/2 - h/2)
+        let x = 4
+
+        console.log(x,y,w,h)
+        this.rect = new Rect(x,y,w,h)
+        this.parent = parent
+
+        this.actions = []
+
+        /*
+        points = this.parent.slopes_half[Direction.UPRIGHT]
+        ctx.beginPath();
+        ctx.moveTo(x + points[0].x, y + points[0].y);
+        points.slice(1).forEach(p => ctx.lineTo(x+p.x,y+p.y))
+        ctx.fill()
+        */
+
+        /*
+        this.actions.push({
+            shortcut: "q",
+            x: x + p + 0*s,
+            y: y + p + 0*s, 
+            icon:this.parent.editor_icons.new, 
+            action: ()=>{  }
+        })
+        */
+
+        this.actions.push({
+            shortcut: "w",
+            x: x + p + 1*s,
+            y: y + p + 0*s, 
+            icon:this.parent.editor_icons.brush, 
+            active: () => { return this.parent.active_tool == EditorTool.PAINT_TILE },
+            action: ()=>{ this.parent.active_tool = EditorTool.PAINT_TILE }
+        })
+
+        this.actions.push({
+            shortcut: "e",
+            x: x + p + 0*s,
+            y: y + p + 1*s, 
+            icon:this.parent.editor_icons.erase, 
+            active: () => { return this.parent.active_tool == EditorTool.ERASE_TILE },
+            action: ()=>{ this.parent.active_tool = EditorTool.ERASE_TILE }
+        })
+
+        this.actions.push({
+            shortcut: "r",
+            x: x + p + 1*s,
+            y: y + p + 1*s, 
+            icon:this.parent.editor_icons.pointer, 
+            active: () => { return this.parent.active_tool == EditorTool.SELECT_TILE },
+            action: ()=>{ this.parent.active_tool = EditorTool.SELECT_TILE }
+        })
+
+        // tiles
+
+        this.tiles = [
+            gAssets.themes["plains"][1].tile(0*11+0),
+            gAssets.themes["plains"][1].tile(0*11+5),
+            gAssets.themes["plains"][1].tile(0*11+7),
+            gAssets.themes["plains"][1].tile(1*11+7),
+            gAssets.themes["plains"][1].tile(3*11+0)
+        ]
+
+        this.actions.push({
+            shortcut: "1",
+            x: x + p + 0*s,
+            y: y + p + 2*s, 
+            icon: this.tiles[0], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.FULL },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.FULL; 
+            }
+        })
+
+        this.actions.push({
+            shortcut: "2",
+            x: x + p + 1*s,
+            y: y + p + 2*s, 
+            icon: this.tiles[1], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.HALF },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.HALF; 
+            }
+        })
+
+
+        this.actions.push({
+            shortcut: "3",
+            x: x + p + 0*s,
+            y: y + p + 3*s, 
+            icon: this.tiles[2], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.ONETHIRD },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.ONETHIRD; 
+            }
+        })
+
+        this.actions.push({
+            shortcut: "4",
+            x: x + p + 1*s,
+            y: y + p + 3*s, 
+            icon: this.tiles[3], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.TWOTHIRD },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.TWOTHIRD; 
+            }
+        })
+
+        this.actions.push({
+            shortcut: "5",
+            x: x + p + 0*s,
+            y: y + p + 4*s, 
+            icon: this.tiles[4], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.ALT_FULL },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.ALT_FULL; 
+            }
+        })
+
+
+        // properties
+
+        this.actions.push({
+            shortcut: "s",
+            x: x + p + 0*s,
+            y: y + p + 5*s, 
+            icon:this.parent.editor_icons.pencil, 
+            render: (ctx, x, y)=>{ 
+
+                ctx.save()
+
+                ctx.beginPath();
+                ctx.rect(x+1,y+1,14,14)
+                ctx.closePath
+
+                ctx.strokeStyle = "#000000"
+
+                if (this.parent.tile_property == TileProperty.SOLID) {
+                    ctx.fillStyle = "#000000"
+                } else if (this.parent.tile_property == TileProperty.NOTSOLID) {
+                    ctx.fillStyle = "#7f7f7f"
+                    ctx.setLineDash([4]);
+                } else if (this.parent.tile_property == TileProperty.ONEWAY) {
+                    ctx.fillStyle = "#d66d47"
+                } else if (this.parent.tile_property == TileProperty.ICE) {
+                    ctx.fillStyle = "#36c6e3"
+                }
+
+                ctx.fill()
+                ctx.stroke()
+
+                ctx.restore()
+
+                // draw the propert name next to the rect
+                ctx.font = "6px Verdana";
+                ctx.fillStyle = "black"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "middle"
+                ctx.fillText(TileProperty.name[this.parent.tile_property], x+16+4, y+8)
+
+            },
+            action: () => {
+                this.parent.tile_property += 1
+                if (this.parent.tile_property > TileProperty.ICE) {
+                    this.parent.tile_property = TileProperty.SOLID
+                }
+                console.log("change property", this.parent.tile_property)
+            }
+            
+        })
+
+        this.actions.push({
+            shortcut: "d",
+            x: x + p + 0*s,
+            y: y + p + 6*s, 
+            icon:this.parent.editor_icons.pencil, 
+            render: (ctx, x, y)=>{
+
+                this.parent.theme_sheets_icon[this.parent.tile_sheet].draw(ctx, x, y)
+            },
+            action: ()=>{ 
+                this.parent.tile_sheet += 1
+                if (this.parent.tile_sheet >= this.parent.theme_sheets.length) {
+                    this.parent.tile_sheet = 1
+                }
+            }
+        })
+
+
+
+    }
+
+    handleTouches(touches) {
+
+        if (touches.length > 0) {
+
+            let t = touches[0]
+
+            if (!this.rect.collidePoint(t.x, t.y)) {
+
+                return false
+            }
+
+            // only handle click release
+            if (t.pressed) {
+                return true
+            }
+
+            for (let i=0; i < this.actions.length; i++) {
+                let action = this.actions[i]
+                if (!!action.action) {
+                    let rect = new Rect(action.x, action.y, 16, 16)
+                    if (rect.collidePoint(t.x, t.y)) {
+                        action.action()
+                        return true
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        return false
+    }
+
+    paint(ctx) {
+
+        ctx.beginPath();
+        ctx.fillStyle = "#a2baa2"
+        ctx.strokeStyle = "#526a52"
+        ctx.lineWidth = 2
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 3)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.fill()
+
+        this.actions.forEach(action => {
+
+            ctx.beginPath();
+            ctx.fillStyle = (!!action.active && action.active())?"#FFD700":"#888888";
+            ctx.roundRect(action.x-1, action.y-1, 18, 18, 3)
+            ctx.fill()
+
+            if (!!action.render) {
+                action.render(ctx, action.x, action.y)
+            } else {
+                
+                action.icon.draw(ctx, action.x, action.y)
+            }
+
+            if (!!action.shortcut) {
+                ctx.beginPath();
+                ctx.fillStyle = "#aaaaaa"
+                ctx.roundRect(action.x+13, action.y+13, 6, 6, 2)
+                ctx.fill()
+                // draw a letter centerd in the rect
+                ctx.font = "5px Verdana";
+                ctx.fillStyle = "black"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+                ctx.fillText(action.shortcut, action.x+16, action.y+16)
+
+            }
+        })
+
+    }
+}
+
 class SettingsMenu {
     constructor(parent) {
 
@@ -1926,6 +2221,7 @@ export class LevelEditScene extends GameScene {
         gCharacterInfo.current_map.level_id = parseInt(lid, 10)
         gCharacterInfo.current_map.door_id = 1
 
+
         gCharacterInfo.current_map_spawn = gCharacterInfo.current_map
 
         let map_id = `${wid}-${lid}`
@@ -2041,6 +2337,9 @@ export class LevelEditScene extends GameScene {
         this.tile_selection = null
 
         this._x_visited_tiles = {} // debug tile update issues
+
+        this.active_palette = new TilePalette(this)
+
     }
 
     setTileTheme(theme) {
@@ -2057,6 +2356,7 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_icons.save,
                 action: () => {
                     gAssets.sounds.click1.play()
+                    this.active_palette = null
                     this.active_menu = new FileMenu(this)
                 },
                 selected: null,
@@ -2066,6 +2366,7 @@ export class LevelEditScene extends GameScene {
                 icon: this.editor_icons.gear,
                 action: () => {
                     gAssets.sounds.click1.play()
+                    this.active_palette = null
                     this.active_menu = new SettingsMenu(this)
                 },
                 selected: null,
@@ -2097,6 +2398,7 @@ export class LevelEditScene extends GameScene {
                 action: () => {
                     gAssets.sounds.click1.play()
                     //this.active_tool = EditorTool.PLACE_OBJECT;
+                    this.active_palette = null
                     this.active_menu = new ObjectMenu(this)
                 },
                 selected: () => this.active_tool & EditorTool.OBJECT_MASK
@@ -2122,8 +2424,9 @@ export class LevelEditScene extends GameScene {
                 },
                 action: () => {
                     gAssets.sounds.click1.play()
+                    this.active_palette = new TilePalette(this)
                     this.active_tool = EditorTool.PLACE_TILE;
-                    this.active_menu = new TileMenu(this)
+                    //this.active_menu = new TileMenu(this)
                 },
                 selected: () => {
                     return this.active_tool & EditorTool.TILE_MASK
@@ -2142,6 +2445,7 @@ export class LevelEditScene extends GameScene {
                 },
                 action: () => {
                     gAssets.sounds.click1.play()
+                    this.active_palette = null
                     this.active_tool = EditorTool.PLACE_STAMP;
                     this.active_menu = new StampMenu(this)
                 },
@@ -2779,6 +3083,10 @@ export class LevelEditScene extends GameScene {
             this.active_menu.paint(ctx)
         }
 
+        if (!!this.active_palette) {
+            this.active_palette.paint(ctx)
+        }
+
         let r = 2
         ctx.fillStyle = "#aaaaaa77"
         this._touches.forEach(t => {
@@ -3012,6 +3320,7 @@ export class LevelEditScene extends GameScene {
         let rect = new Rect(ox,oy,stamp.rect.w*16, stamp.rect.h*16)
         return rect
     }
+
     _getStampId(mx, my) {
         let oid = (my + 4)*512+mx
 
@@ -3586,7 +3895,8 @@ export class LevelEditScene extends GameScene {
 
         gAssets.mapinfo.stamps = this._serialize_stamps()
 
-
+        gCharacterInfo.current_health = gCharacterInfo.max_health
+        
         const edit = false
         console.log("playtest", gAssets.mapinfo.mapurl)
         gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
@@ -3745,6 +4055,17 @@ export class LevelEditScene extends GameScene {
 
         if (touches.length > 0) {
             // transform the touch into a tile index
+
+            // process the palette first
+            // if not interacted with, continue with the rest of the logic
+            if (!!this.active_palette) {
+                if (this.active_palette.handleTouches(touches)) {
+                    console.log("skip")
+                    return
+                }
+            }
+            // 
+
             if (touches[0].y < 24) {
                 let t = touches[0]
 
@@ -3773,6 +4094,8 @@ export class LevelEditScene extends GameScene {
                 this.active_menu.handleTouches(touches)
 
             } else {
+
+                
 
                 // right click or two touches to pan
                 // TODO: middle click to toggle zoom?
@@ -3961,10 +4284,9 @@ export class LevelEditScene extends GameScene {
     }
 
     handleKeyRelease(keyevent) {
+        //this.camera.scale = (this.camera.scale==1)?2:1
 
-        if (keyevent.text == 'q') {
-            this.camera.scale = (this.camera.scale==1)?2:1
-        } else if (keyevent.keyCode == 38) {
+        if (keyevent.keyCode == 38) {
             //up
             this.camera.y -= 8
         } else if (keyevent.keyCode == 40) {
@@ -3977,17 +4299,38 @@ export class LevelEditScene extends GameScene {
             //right
             this.camera.x += 8
         } else if (keyevent.text == '1') {
+            this.active_tool = EditorTool.PLACE_TILE
             this.tile_shape = TileShape.FULL
         } else if (keyevent.text == '2') {
+            this.active_tool = EditorTool.PLACE_TILE
             this.tile_shape = TileShape.HALF
         } else if (keyevent.text == '3') {
+            this.active_tool = EditorTool.PLACE_TILE
             this.tile_shape = TileShape.ONETHIRD
         } else if (keyevent.text == '4') {
+            this.active_tool = EditorTool.PLACE_TILE
             this.tile_shape = TileShape.TWOTHIRD
         } else if (keyevent.text == '5') {
-            this.tile_shape = -1
+            this.active_tool = EditorTool.PLACE_TILE
+            this.tile_shape = TileShape.ALT_FULL
         } else if (keyevent.text == 's') {
-            this.tile_property = TileProperty.SOLID
+            this.tile_property += 1
+            if (this.tile_property >= TileProperty.ICE) {
+                this.tile_property = TileProperty.SOLID
+            }
+        } else if (keyevent.text == 'd') {
+            this.parent.tile_sheet += 1
+            if (this.parent.tile_sheet >= this.parent.theme_sheets.length) {
+                this.parent.tile_sheet = 1
+            }
+        } else if (keyevent.text == 'q') {
+            this.active_tool = EditorTool.PLACE_TILE
+        } else if (keyevent.text == 'w') {
+            this.active_tool = EditorTool.PAINT_TILE
+        } else if (keyevent.text == 'e') {
+            this.active_tool = EditorTool.ERASE_TILE
+        } else if (keyevent.text == 'r') {
+            this.active_tool = EditorTool.SELECT_TILE
         } else {
             console.log(keyevent)
         }

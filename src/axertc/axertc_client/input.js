@@ -533,8 +533,8 @@ export class TouchInput {
             const cx = Math.floor(whl.cx)
             const cy = Math.floor(whl.cy)
             const cr = Math.floor(rd)
-            const dw = 16 / gEngine.view.scale
-            const dr = 48 / gEngine.view.scale
+            const dw = (.9*rd/3) / gEngine.view.scale
+            const dr = (.9*rd) / gEngine.view.scale
 
             ctx.strokeStyle = '#00000055';
             ctx.fillStyle = '#888888aa';
@@ -549,8 +549,8 @@ export class TouchInput {
             ctx.beginPath();
             let region = new Path2D();
             let _t = Math.ceil(3 / gEngine.view.scale)
-            region.rect(cx - dr-2, cy - dw - 2, dr*2+_t, 2*dw+_t)
-            region.rect(cx - dw-2, cy - dr - 2, dw*2+_t, 2*dr+_t)
+            region.rect(cx - dr-2, cy - dw - 2, dr*2+_t+1, 2*dw+_t+1)
+            region.rect(cx - dw-2, cy - dr - 2, dw*2+_t+1, 2*dr+_t+1)
             ctx.clip(region, "evenodd");
 
             ctx.beginPath();
@@ -590,7 +590,6 @@ export class TouchInput {
             /*
             ctx.strokeStyle = '#FF0000';
             ctx.beginPath();
-            ctx.arc(cx, cy, whl.radius/gEngine.view.scale * whl.scale, 0, 2*Math.PI);
             ctx.arc(cx, cy, rd, 0, 2*Math.PI);
             ctx.stroke();
             */

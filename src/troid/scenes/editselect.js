@@ -54,7 +54,7 @@ class ScrollItem {
 
 class TextItem extends ScrollItem {
 
-    constructor(text, callback) {
+    constructor(text, callback, icon=null) {
         super()
         this.rect = new Rect(0,0,0,0)
         this.text = text
@@ -65,6 +65,7 @@ class TextItem extends ScrollItem {
         this.actions = [
             {
                 rect: new Rect(0,0,0,0),
+                icon: icon,
                 action: () => {
                     this.callback(this.index)
                 }
@@ -96,6 +97,9 @@ class TextItem extends ScrollItem {
             ctx.beginPath()
             ctx.strokeStyle = "#00aa00"
             ctx.rect(rect.x, rect.y, rect.w, rect.h)
+            if (!!act.icon) {
+                act.icon.draw(ctx, rect.x, rect.y)
+            }
             ctx.closePath()
             ctx.stroke()
         })
@@ -342,7 +346,9 @@ export class LevelEditSelectScene extends GameScene {
         get_map_world_manifest().then(json => {
             let worlds = json.worlds.sort()
             worlds.forEach(name => {
-                this.area_worlds.addChild(new TextItem(name, (index)=>{this.onSelectWorld(index,name)}))
+                let icon = gAssets.sheets.editor.tile(9)
+                let action = (index)=>{this.onSelectWorld(index,name)}
+                this.area_worlds.addChild(new TextItem(name, action, icon))
             })
             this.onSelectWorld(0, worlds[0])
         })
@@ -369,7 +375,10 @@ export class LevelEditSelectScene extends GameScene {
         get_map_world_level_manifest(world).then(json => {
             this.currentLevels = json.levels.sort()
             this.currentLevels.forEach(level => {
-                this.area_levels.addChild(new TextItem(level.name, (index) => {this.onSelectLevel(index,level)}))
+                let action = (index) => {this.onSelectLevel(index,level)}
+                let icon = gAssets.sheets.editor.tile(0)
+                let item = new TextItem(level.name, action, icon)
+                this.area_levels.addChild(item)
             })
         })
     }
