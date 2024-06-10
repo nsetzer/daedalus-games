@@ -24,7 +24,7 @@ jobs:
     steps:
 
     - name: Checkout Repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: clone
       run: git clone "https://github.com/nsetzer/daedalus.git" daedalus
