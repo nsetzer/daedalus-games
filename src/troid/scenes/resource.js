@@ -255,6 +255,52 @@ class AssetLoader {
 
         this.loader = new ResourceLoader()
 
+        // TODO: when loading a level to play, only load the required theme
+        //       when loading a level to edit, load all the themes
+        //       skip themes that have already been loaded
+        Object.entries(gAssets.themes_manifest).forEach(t => {
+            let [name, theme] = t;
+
+            theme.resources = {sheets: [], backgrounds: [], stamps: []}
+
+            theme.sheets.forEach((filename, index) => {
+                let res_name = `${name}_sheet_${index}`
+                this.loader.addSpriteSheet(res_name)
+                    .path(RES_ROOT + `/themes/${name}/${filename}`)
+                    .dimensions(16, 16)
+                    .layout(8, 11)
+                    .offset(1, 1)
+                    .spacing(1, 1)
+                theme.resources.sheets.push(res_name)
+            })
+
+            theme.backgrounds.forEach((bg, bg_index) => {
+
+                bg.sheets.forEach((filename, sheet_index) => {
+                    let res_name = `${name}_bg_${bg_index}_${sheet_index}`
+                    this.loader.addSpriteSheet(res_name)
+                        .path(RES_ROOT + `/themes/${name}/${filename}`)
+                        .dimensions(352, 352) // todo: from manifest
+                        .layout(1, 1)
+                        .offset(0, 0)
+                        .spacing(0, 0)
+                    theme.resources.backgrounds.push(res_name)
+
+                })
+                
+            })
+
+            theme.stamps.forEach((filename, stamp_index) => {
+
+                let res_name = `${name}_stamp_${stamp_index}`
+                this.loader.addSpriteSheet(res_name)
+                        .path(RES_ROOT + `/themes/${name}/${filename}`)
+                theme.resources.stamps.push(res_name)
+            })
+
+            
+        })
+
         this.loader.addSpriteSheet("player")
             .path(RES_ROOT + "/sprites/player/player.png")
             .dimensions(32, 32)
@@ -452,44 +498,6 @@ class AssetLoader {
             .offset(1, 18)
             .spacing(1, 1)
 
-        this.loader.addSpriteSheet("zone_01_sheet_01")
-            .path(RES_ROOT + "/themes/plains/tile_ground_01.png")
-            .dimensions(16, 16)
-            .layout(4, 11)
-            .offset(1, 1)
-            .spacing(1, 1)
-
-        this.loader.addSpriteSheet("zone_01_sheet_02")
-            .path(RES_ROOT + "/themes/underground/tile_ground_02.png")
-            .dimensions(16, 16)
-            .layout(4, 11)
-            .offset(1, 1)
-            .spacing(1, 1)
-
-        this.loader.addSpriteSheet("zone_01_pipes_01")
-            .path(RES_ROOT + "/themes/plains/tile_pipes_01.png")
-            .dimensions(16, 16)
-            .layout(4, 11)
-            .offset(1, 1)
-            .spacing(1, 1)
-
-        this.loader.addSpriteSheet("theme_bg_0")
-            .path(RES_ROOT + "/themes/plains/bg0.png")
-            .dimensions(352, 352)
-            .layout(1, 1)
-            .offset(0, 0)
-            .spacing(0, 0)
-
-        this.loader.addSpriteSheet("theme_bg_1")
-            .path(RES_ROOT + "/themes/plains/bg1.png")
-            .dimensions(352, 352)
-            .layout(1, 1)
-            .offset(0, 0)
-            .spacing(0, 0)
-
-        this.loader.addSpriteSheet("stamp_plains_00")
-            .path(RES_ROOT + "/themes/plains/stamp_00.png")
-
         this.loader.addSoundEffect("click1").path(RES_ROOT + "/sfx/gui/clicksound1.wav")
         this.loader.addSoundEffect("click2").path(RES_ROOT + "/sfx/gui/clicksound2.wav")
         this.loader.addSoundEffect("click3").path(RES_ROOT + "/sfx/gui/clicksound3.wav")
@@ -566,23 +574,55 @@ class AssetLoader {
     }
 
     _finalize() {
+        console.log("finalize resources")
         gAssets.music = {... gAssets.music, ... this.loader.music}
         gAssets.sounds = {... gAssets.sounds, ... this.loader.sounds}
         gAssets.sheets = {... gAssets.sheets, ... this.loader.sheets}
         gAssets.font = {... gAssets.font, ... this.loader.font}
-        
-        gAssets.themes.plains = [
-            null,
-            gAssets.sheets.zone_01_sheet_01,
-            gAssets.sheets.zone_01_pipes_01,
-        ]
 
-        gAssets.themes.underground = [
-            null,
-            gAssets.sheets.zone_01_sheet_02,
-            gAssets.sheets.zone_01_pipes_01,
-        ]
+        gAssets.themes = {}
 
+        Object.entries(gAssets.themes_manifest).forEach(t => {
+            let [name, theme] = t;
+
+            gAssets.themes[name] = {}
+
+            console.log(theme.resources)
+
+            gAssets.themes[name].sheets = [null]
+            gAssets.themes[name].stamps = [null]
+            gAssets.themes[name].backgrounds = {}
+            gAssets.themes[name].background_color = theme.background_color
+
+            // add the sheets to the theme
+            theme.resources.sheets.forEach(res => {
+                gAssets.themes[name].sheets.push(gAssets.sheets[res])
+            })
+
+            // add stamps to the theme
+            theme.resources.stamps.forEach(res => {
+                gAssets.themes[name].stamps.push(gAssets.sheets[res])
+            })
+
+            // add parallax backgrounds to the theme
+            theme.backgrounds.forEach((bg, bg_index) => {
+
+                let obj = {
+                    sheets: [], 
+                    parallax: bg.parallax
+                }
+                gAssets.themes[name].backgrounds[bg.name] = obj
+
+                bg.sheets.forEach((filename, sheet_index) => {
+                    let res_name = `${name}_bg_${bg_index}_${sheet_index}`
+                    obj.sheets.push(gAssets.sheets[res_name])
+                })
+            })
+
+            
+        })
+
+     
         registerEntityAssets()
 
         gAssets.sfx = new SoundEffectPalette()
@@ -654,7 +694,7 @@ class LevelTileBuilder {
         this.num_jobs = this.work_queue.length
         this.num_jobs_completed = 0
 
-        this.theme_sheets = gAssets.themes[this.map.theme]
+        this.theme_sheets = gAssets.themes[this.map.theme].sheets
     }
 }
 
@@ -750,7 +790,7 @@ class LevelChunkBuilder {
                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}, stamps:[]}
             }
 
-            this.theme_sheets = gAssets.themes[this.map.theme]
+            this.theme_sheets = gAssets.themes[this.map.theme].sheets
 
             this.map.chunks[chunkid].tiles[tid] = tile
         })
@@ -864,7 +904,8 @@ class LevelChunkBuilder {
             // rect1 is the region of the sheet to paint
             // rect2 is where in the CHUNK to paint the rect1 region
             let rect1 = stamp.rect
-            this.ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+            let stamp_sheet = gAssets.themes["plains"].stamps[1]
+            this.ctx.drawImage(stamp_sheet.image, 
                 rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
                 x*16, y*16, stamp.rect.w*16, stamp.rect.h*16)
 
@@ -938,9 +979,13 @@ class MapBuilder {
             let objname = null
             let objprops = null
 
-            if (tile.shape==TileShape.FULL || tile.shape==TileShape.ALT_FULL) {
-                objname = "Wall"
-                objprops = {x:x, y:y, w:16, h:16}
+            if (tile.shape==TileShape.FULL || tile.shape==TileShape.ALT_FULL|| tile.shape==TileShape.PIPE) {
+                //console.log(tile)
+                // 22 is the one tile that can never be solid
+                if (tile.tile != 22) {
+                    objname = "Wall"
+                    objprops = {x:x, y:y, w:16, h:16}
+                } 
             } else if (tile.shape==TileShape.HALF) {
                 objname = "Slope"
                 objprops = {x:x, y:y, w:16, h:16, direction:tile.direction, kind:"half"}
@@ -1113,6 +1158,21 @@ export class LevelLoaderScene extends ResourceLoaderScene {
                     // filter objects which do not exist
                     const objects = Object.fromEntries(editorEntities.map(x=>[x.name,x.ctor]))
                     gAssets.mapinfo.objects = gAssets.mapinfo.objects.filter(x => !!objects[x.name])
+
+                    return json
+                })
+
+            info_loader.addJson("themes")
+                .path(RES_ROOT + "/themes/manifest.json")
+                .transform(json => {
+                    
+                    console.log("manifest", json)
+                    gAssets.themes_manifest = {}
+
+                    for (let i=0; i < json.themes.length; i++) {
+                        let theme = json.themes[i]
+                        gAssets.themes_manifest[theme.name] = theme
+                    }
 
                     return json
                 })

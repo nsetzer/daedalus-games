@@ -1,0 +1,11 @@
+{
+    "name": "underground",
+    "background_color": "#301505",
+    "sheets": [
+        "tile_underground.png"
+    ],
+    "backgrounds": [
+    ],
+    "stamps": [
+    ]
+}

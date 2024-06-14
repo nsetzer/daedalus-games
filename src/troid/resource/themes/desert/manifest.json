@@ -1,0 +1,11 @@
+{
+    "name": "desert",
+    "background_color": "#477ed6",
+    "sheets": [
+        "tile_desert.png"
+    ],
+    "backgrounds": [
+    ],
+    "stamps": [
+    ]
+}

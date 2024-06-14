@@ -1,0 +1,11 @@
+{
+    "name": "stonefort",
+    "background_color": "#3a4953",
+    "sheets": [
+        "tile_stonefort.png"
+    ],
+    "backgrounds": [
+    ],
+    "stamps": [
+    ]
+}

@@ -1,0 +1,11 @@
+{
+    "name": "snowfield",
+    "background_color": "#477ed6",
+    "sheets": [
+        "tile_snowfield.png"
+    ],
+    "backgrounds": [
+    ],
+    "stamps": [
+    ]
+}

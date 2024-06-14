@@ -1,0 +1,23 @@
+{
+    "name": "plains",
+    "background_color": "#477ed6",
+    "sheets": [
+        "tile_plains.png"
+    ],
+    "backgrounds": [
+        {
+            "name": "default",
+            "parallax": [
+                5,
+                7
+            ],
+            "sheets": [
+                "bg0.png",
+                "bg1.png"
+            ]
+        }
+    ],
+    "stamps": [
+        "stamp_00.png"
+    ]
+}

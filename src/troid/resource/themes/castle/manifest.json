@@ -1,0 +1,11 @@
+{
+    "name": "castle",
+    "background_color": "#3a4953",
+    "sheets": [
+        "tile_castle.png"
+    ],
+    "backgrounds": [
+    ],
+    "stamps": [
+    ]
+}

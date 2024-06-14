@@ -340,10 +340,12 @@ export class Physics2dPlatformV2 {
         let cy = this.target.rect.cy()
 
         // TODO: this is a hack to allow square objects to walk up a 45 degree slope
-        if (!this.can_wallwalk) {
-            if (this.target.rect.w == this.target.rect.h) {
-                cy -= 1
-            }
+        //if (!this.can_wallwalk) {
+        if (this.target.rect.w == this.target.rect.h) {
+            if (this.standing_direction == Direction.RIGHT) {cx -= 1}
+            if (this.standing_direction == Direction.LEFT ) {cx += 1}
+            if (this.standing_direction == Direction.UP   ) {cy += 1}
+            if (this.standing_direction == Direction.DOWN ) {cy -= 1}
         }
 
 
@@ -1006,7 +1008,7 @@ export class Physics2dPlatformV2 {
 
         this._fluid_factor = 0
         this._fluid_neighbors.forEach(ent => {
-            //if (ent.entid == this.target.entid) { return }
+            if (ent.entid == this.target.entid) { return }
             if (ent.collidePoint(sensors.s1.x, sensors.s1.y)) { 
                 if (!!ent.fluid) {
                     this._fluid_factor = ent.fluid
@@ -1032,20 +1034,35 @@ export class Physics2dPlatformV2 {
 
             let step = this._lut_step[this.standing_direction]
             let gforce;
-
+            //console.log(this._fluid_factor, Math.sign(this.speed[sym.v]) , Math.sign(-step[sym.v]))
             if (true) { // this._fluid_factor < 1e-5) {
                 gforce = this.gravity * dt
                 this.speed[sym.v] += -step[sym.v]*gforce
             } else {
+                let f;
+                let underwater = this._fluid_factor < 1e-5
+                if (this.speed.y > 0) {
+                    f = (underwater)?1.0:0.5
+                } else {
+                    f = (underwater)?1.0:2.0
+                }
+                gforce = this.gravity * dt * f
+                this.speed[sym.v] += -step[sym.v]*gforce
+
+                if (underwater && this.speed.y > 50 && this.standing_direction == Direction.DOWN) { 
+                    this.speed.y = 50
+                }
+
+                /*
                 if (Math.sign(this.speed[sym.v]) == Math.sign(-step[sym.v])) {
                     // if traveling in the direction of gravity.
                     gforce = (1 + -0.5*this._fluid_factor) * this.gravity * dt
                     this.speed[sym.v] += -step[sym.v]*gforce
                 } else {
                     // if traveling opposite of gravity.
-                    gforce = (0 + 2*this._fluid_factor) * this.gravity * dt
+                    gforce = (1 + 2*this._fluid_factor) * this.gravity * dt
                     this.speed[sym.v] += -step[sym.v]*gforce
-                }
+                }*/
             }
 
             if (this.standing_direction == Direction.DOWN  && this.speed.y > 50 && collisions.fn) { 

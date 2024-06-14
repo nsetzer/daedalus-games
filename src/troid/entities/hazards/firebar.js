@@ -98,7 +98,7 @@ export class FireBar extends PlatformerEntity {
 
         // Note: using gEngine.frameIndex caused weird behavior
         this.timer += dt
-        let angle = this.direction * this.timer * (2 * Math.PI / this.rot_time) + this.offset_angle
+        let angle = this.direction * this.timer * (2 * Math.PI / this.rot_time) - this.offset_angle
 
         let dx = Math.cos(angle)
         let dy = Math.sin(angle)
@@ -160,8 +160,10 @@ registerEditorEntity("FireBar", FireBar, [16,16], EntityCategory.hazard, null, (
         // draw red dots 8pxs apart starting at x,y
         let cx = x + 8 
         let cy = y + 8
+        // 90 degrees is up
+        // 0 degrees is right
         let dx = Math.cos(props.offset * Math.PI / 180)
-        let dy = Math.sin(props.offset * Math.PI / 180)
+        let dy = -Math.sin(props.offset * Math.PI / 180)
 
         for (let i=0; i < props.bar_length; i++) {
             ctx.fillStyle = 'red'

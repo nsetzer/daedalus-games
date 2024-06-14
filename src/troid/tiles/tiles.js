@@ -35,7 +35,7 @@ TileShape.FULL = 1
 TileShape.HALF = 2
 TileShape.ONETHIRD = 3
 TileShape.TWOTHIRD = 4
-TileShape.RESERVED1 = 5
+TileShape.PIPE      = 5
 TileShape.RESERVED2 = 6
 TileShape.ALT_FULL = 7 // theme block
 
@@ -181,8 +181,8 @@ export function updateTile(layer:Layer, map_width:number, map_height:number, she
 
         let tt = [
              0*11 + 0, 3*11 + 1, 3*11 + 2, 2*11 + 2,
-             4*11 + 2, 1*11 + 2, 0*11 + 2, 1*11 + 4,
-             4*11 + 1, 1*11 + 1, 0*11 + 1, 0*11 + 4,
+             1*11 + 6, 1*11 + 2, 0*11 + 2, 1*11 + 4,
+             1*11 + 5, 1*11 + 1, 0*11 + 1, 0*11 + 4,
              2*11 + 1, 1*11 + 3, 0*11 + 3, 2*11 + 0,
         ]
 
@@ -316,7 +316,44 @@ export function updateTile(layer:Layer, map_width:number, map_height:number, she
             tile.tile = tid//sheets[tile.sheet].tile(tid)
         }
 
-    } else if (tile.shape == TileShape.ALT_FULL) {
+    } else if (tile.shape == TileShape.PIPE) {
+        // 4*11 + 7..10
+        // 5*11 + 7..10
+        // 6*11 + 7..10
+        // 7*11 + 7..10
+        const ntid = ((y + 4)*512 + x)
+        const ntid_u = ((y + 4-1)*512 + x)
+        const ntid_d = ((y + 4+1)*512 + x)
+        const ntid_l = ((y + 4)*512 + (x - 1))
+        const ntid_r = ((y + 4)*512 + (x + 1))
+        let eu = (!!layer[ntid_u] && solid(layer[ntid_u].property) == solid(layer[ntid].property) && layer[ntid_u].shape == TileShape.PIPE)?1:0
+        let ed = (!!layer[ntid_d] && solid(layer[ntid_d].property) == solid(layer[ntid].property) && layer[ntid_d].shape == TileShape.PIPE)?1:0
+        let el = (!!layer[ntid_l] && solid(layer[ntid_l].property) == solid(layer[ntid].property) && layer[ntid_l].shape == TileShape.PIPE)?1:0
+        let er = (!!layer[ntid_r] && solid(layer[ntid_r].property) == solid(layer[ntid].property) && layer[ntid_r].shape == TileShape.PIPE)?1:0
+        let n = (eu+ed+el+er)
+        let q = (er<<3)|(el<<2)|(ed<<1)|(eu)
+        //             || R L D U
+        //  0, 1, 1, 2 || 0000 0001 0010 0011
+        //  1, 2, 2, 3 || 0100 0101 0110 0111
+        //  1, 2, 2, 3 || 1000 1001 1010 1011
+        //  2, 3, 3, 4 || 1100 1101 1110 1111
+ 
+        let tt = [
+             5*11 +  8, 6*11 + 10, 4*11 + 10, 7*11 +  7,
+             5*11 + 10, 6*11 +  9, 4*11 +  9, 5*11 +  9,
+             7*11 + 10, 6*11 +  7, 4*11 +  7, 5*11 +  7,
+             7*11 +  8, 6*11 +  8, 4*11 +  8, 5*11 +  8,
+        ]
+
+        // use the number of connections to decide the tile shape
+        tile.tile = tt[q]
+        // "bolt" the tile to alt full blocks
+        if (!!layer[ntid_u] && layer[ntid_u].shape == TileShape.ALT_FULL) {tile.tile = 4*11 + 10}
+        if (!!layer[ntid_r] && layer[ntid_r].shape == TileShape.ALT_FULL) {tile.tile = 5*11 + 10}
+        if (!!layer[ntid_d] && layer[ntid_d].shape == TileShape.ALT_FULL) {tile.tile = 6*11 + 10}
+        if (!!layer[ntid_l] && layer[ntid_l].shape == TileShape.ALT_FULL) {tile.tile = 7*11 + 10}
+
+    }else if (tile.shape == TileShape.ALT_FULL) {
         tile.tile = TT_3_00
     } else {
         console.log("error shape", tile)
@@ -351,12 +388,34 @@ export function paintTile(ctx, x, y, tile, sheets) {
     if (tile.tile !== undefined) {
         ctx.save()
         if (tile.property == TileProperty.NOTSOLID) {
-            ctx.filter = "brightness(50%) hue-rotate(-90deg)";
+            //ctx.filter = "brightness(50%) hue-rotate(-90deg)";
+            // filter 50% alpha
+            ctx.filter = 'opacity(66%) brightness(150%)'
         }
         if (tile.property == TileProperty.ONEWAY) {
-            ctx.filter = "brightness(50%) hue-rotate(90deg)";
+            ctx.filter = "opacity(66%) brightness(150%)";
         }
         sheets[tile.sheet].drawTile(ctx, tile.tile, x, y)
+        
+        // draw a dotted line
+        
+        if (tile.property == TileProperty.NOTSOLID) {
+            ctx.beginPath()
+            ctx.strokeStyle = "#7f7f7f";
+            ctx.lineWidth = 2
+            ctx.setLineDash([2, 2]);
+            ctx.rect(x+1,y+1,14,14)
+            ctx.stroke()
+        }
+        if (tile.property == TileProperty.ONEWAY) {
+            ctx.strokeStyle = "#000000";
+            ctx.fillStyle = "#af5f007f";
+            ctx.beginPath()
+            ctx.rect(x+1,y+4,14,8)
+
+            ctx.fill()
+            //ctx.stroke()
+        }
         //tile.tile.draw(ctx,x,y)
         ctx.restore()
     } else if (tile.points) {

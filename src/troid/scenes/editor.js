@@ -503,11 +503,12 @@ class TilePalette {
         // tiles
 
         this.tiles = [
-            gAssets.themes["plains"][1].tile(0*11+0),
-            gAssets.themes["plains"][1].tile(0*11+5),
-            gAssets.themes["plains"][1].tile(0*11+7),
-            gAssets.themes["plains"][1].tile(1*11+7),
-            gAssets.themes["plains"][1].tile(3*11+0)
+            gAssets.themes["plains"].sheets[1].tile(0*11+0),
+            gAssets.themes["plains"].sheets[1].tile(0*11+5),
+            gAssets.themes["plains"].sheets[1].tile(0*11+7),
+            gAssets.themes["plains"].sheets[1].tile(1*11+7),
+            gAssets.themes["plains"].sheets[1].tile(3*11+0),
+            gAssets.themes["plains"].sheets[1].tile(4*11+10)
         ]
 
         this.actions.push({
@@ -578,6 +579,20 @@ class TilePalette {
             action: ()=>{ 
                 this.parent.active_tool = EditorTool.PLACE_TILE;
                 this.parent.tile_shape = TileShape.ALT_FULL; 
+            }
+        })
+
+        this.actions.push({
+            shortcut: "6",
+            x: x + p + 1*s,
+            y: y + p + 4*s, 
+            icon: this.tiles[5], 
+            active: () => { 
+                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+                       this.parent.tile_shape == TileShape.PIPE },
+            action: ()=>{ 
+                this.parent.active_tool = EditorTool.PLACE_TILE;
+                this.parent.tile_shape = TileShape.PIPE; 
             }
         })
 
@@ -1891,8 +1906,9 @@ class StampMenu {
 
         // TODO: maximum size constraints
         // 256 tiles : 8 * 32
-        this.parent.stampmenu_stamp.image_width = Math.min(8*16, gAssets.sheets.stamp_plains_00.image.width)
-        this.parent.stampmenu_stamp.image_height = Math.min(32*16, gAssets.sheets.stamp_plains_00.image.height)
+        let stamp_sheet = gAssets.themes["plains"].stamps[1]
+        this.parent.stampmenu_stamp.image_width = Math.min(8*16, stamp_sheet.image.width)
+        this.parent.stampmenu_stamp.image_height = Math.min(32*16, stamp_sheet.image.height)
 
 
     }
@@ -2118,7 +2134,8 @@ class StampMenu {
         ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h);
         ctx.clip()
 
-        ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+        let stamp_sheet = gAssets.themes["plains"].stamps[1]
+        ctx.drawImage(stamp_sheet.image, 
             this.parent.stampmenu_stamp.xoffset, this.parent.stampmenu_stamp.yoffset, this.rect2.w, this.rect2.h, 
             this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
 
@@ -2343,9 +2360,13 @@ export class LevelEditScene extends GameScene {
     }
 
     setTileTheme(theme) {
+        if (!gAssets.themes[theme]) {
+            console.error("invalid theme name", theme)
+        }
         gAssets.mapinfo.theme = theme
         this.current_theme = theme
-        this.theme_sheets = gAssets.themes[theme]
+        
+        this.theme_sheets = gAssets.themes[theme].sheets
         this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
     }
 
@@ -2805,13 +2826,7 @@ export class LevelEditScene extends GameScene {
 
     _paint_background(ctx) {
         ctx.beginPath()
-        let bgcolor;
-        if (gAssets.mapinfo.theme == "plains") {
-            bgcolor = "#477ed6"
-        } else {
-            // dark beige
-            bgcolor = "#301505"
-        }
+        let bgcolor = gAssets.themes[gAssets.mapinfo.theme].background_color
         ctx.fillStyle = bgcolor
         ctx.strokeStyle = "#000000";
         //const rw = Math.min(this.camera.x + gEngine.view.width, this.map.width) - this.camera.x
@@ -2956,8 +2971,8 @@ export class LevelEditScene extends GameScene {
             let rect1 = stamp.rect
             let rect2 = this._getStampShape(sid, stamp)
 
-
-            ctx.drawImage(gAssets.sheets.stamp_plains_00.image, 
+            let stamp_sheet = gAssets.themes["plains"].stamps[1]
+            ctx.drawImage(stamp_sheet.image, 
                 rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
                 rect2.x, rect2.y, rect2.w, rect2.h)
 
@@ -3707,6 +3722,14 @@ export class LevelEditScene extends GameScene {
                 property: this.tile_property,
                 sheet: this.tile_sheet,
             }
+        } else if (this.tile_shape == 5) {
+
+            this.map.layers[0][tid] = {
+                shape: this.tile_shape,
+                property: this.tile_property,
+                sheet: this.tile_sheet,
+            }
+
         } else if (this.tile_shape == 7) {
 
             this.map.layers[0][tid] = {

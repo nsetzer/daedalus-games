@@ -1131,13 +1131,7 @@ export class MainScene extends GameScene {
         // blue sky background
         // this rect defines the visible region of the game world
 
-        let bgcolor;
-        if (gAssets.mapinfo.theme == "plains") {
-            bgcolor = "#477ed6"
-        } else {
-            // dark beige
-            bgcolor = "#301505"
-        }
+        let bgcolor = gAssets.themes[gAssets.mapinfo.theme].background_color
 
         ctx.beginPath()
         ctx.fillStyle = bgcolor;

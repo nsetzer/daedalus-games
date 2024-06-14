@@ -414,6 +414,7 @@ export class LevelEditSelectScene extends GameScene {
         gAssets.mapinfo.height = 14*16
         gAssets.mapinfo.layers = [{}]
         gAssets.mapinfo.objects = []
+        gAssets.mapinfo.stamps = []
 
 
         gEngine.scene = new LevelLoaderScene(mapurl, true, () => {
