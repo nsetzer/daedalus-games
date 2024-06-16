@@ -14,6 +14,22 @@ class TroidService(object):
         super(TroidService, self).__init__()
         self.project_root = project_root
 
+    def themes_manifest(self):
+        resource_root = os.path.join(self.project_root, "resource")
+        themes_root = os.path.join(resource_root, "themes")
+        if not os.path.exists(themes_root):
+            raise FileNotFoundError("project root not found")
+
+        themes = []
+        for name in os.listdir(themes_root):
+            manifest = os.path.join(themes_root, name, "manifest.json")
+
+            if os.path.exists(manifest):
+                print("read", manifest)
+                themes.append(json.loads(open(manifest).read()))
+
+        return themes
+
     def world_manifest(self):
         resource_root = os.path.join(self.project_root, "resource")
         maps_root = os.path.join(resource_root, "maps")
@@ -113,32 +129,49 @@ class TroidServer(Server):
         router.registerEndpoints(res.endpoints())
         return router
 
+def build_maps():
+    project_root = "./src/troid"
+    service = TroidService(project_root)
+    worlds = service.world_manifest()
 
-def main():
-    # --env debug=true src/troid/troid.js
+    path = "./src/troid/resource/maps/manifest.json"
+    obj = {"worlds": worlds}
+    print("writing", path)
+    with open(path, "w") as wf:
+        json.dump(obj, wf)
+        wf.write("\n")
 
-    if len(sys.argv) > 1 and sys.argv[1] == "build":
-        project_root = "./src/troid"
-        service = TroidService(project_root)
-        worlds = service.world_manifest()
-
-        path = "./src/troid/resource/maps/manifest.json"
-        obj = {"worlds": worlds}
+    for world in worlds:
+        levels = service.level_manifest(world)
+        path = f"./src/troid/resource/maps/{world}/manifest.json"
+        obj = {"world": world, "levels": levels}
         print("writing", path)
         with open(path, "w") as wf:
             json.dump(obj, wf)
             wf.write("\n")
 
-        for world in worlds:
-            levels = service.level_manifest(world)
-            path = f"./src/troid/resource/maps/{world}/manifest.json"
-            obj = {"world": world, "levels": levels}
-            print("writing", path)
-            with open(path, "w") as wf:
-                json.dump(obj, wf)
-                wf.write("\n")
+def build_themes():
+    project_root = "./src/troid"
+    service = TroidService(project_root)
+    themes = service.themes_manifest()
+
+    path = "./src/troid/resource/themes/manifest.json"
+    obj = {"themes": themes}
+    print("writing", path)
+    with open(path, "w") as wf:
+        json.dump(obj, wf, indent=2)
+        wf.write("\n")
+
+def main():
+    # --env debug=true src/troid/troid.js
+
+    if len(sys.argv) > 1 and sys.argv[1] == "build":
+        build_maps()
+        build_themes()
 
         exit(0)
+    
+    build_themes() # required 
 
     index_js = "./src/troid/troid.js"
     search_path = ["./src/troid", "./src/axertc"]

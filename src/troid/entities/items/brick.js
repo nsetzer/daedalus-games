@@ -280,18 +280,6 @@ export class ExplodingBrick extends AbstractMobBase {
         this.solid = 1
         this.alive = 1
 
-        //this.physics = new Physics2dPlatform(this,{
-        //    xmaxspeed1: 35,
-        //    xmaxspeed2: 35, // 35 seems right
-        //})
-
-        //this.physics.direction = Direction.LEFT
-
-        //this.physics.group = () => {
-        //    return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
-        //}
-
-
         //this.buildAnimations()
 
         this.particles = []

@@ -224,8 +224,9 @@ export class Player extends PlayerBase {
 
         this.physics = new Physics2dPlatformV2(this,{
             xmaxspeed1: 150,
-            xmaxspeed2: 175,
-            oneblock_walk: true
+            xmaxspeed2: 300,
+            oneblock_walk: true,
+            wallslide: true,
         })
 
         this.visible = true
@@ -235,10 +236,6 @@ export class Player extends PlayerBase {
 
         this.physics.group = () => {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
-        }
-
-        this.physics.fluid_group = () => {
-            return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.fluid})
         }
 
         this.character = new CharacterComponent(this)
@@ -270,6 +267,8 @@ export class Player extends PlayerBase {
         this.direction = Direction.NONE
 
         this.dead_timer = 0
+
+        this.fluid_factor = 0
 
     }
 
@@ -605,35 +604,9 @@ export class Player extends PlayerBase {
 
         }
 
-        //ctx.font = "bold 16px";
-        //ctx.fillStyle = "yellow"
-        //ctx.strokeStyle = "yellow"
-        //ctx.textAlign = "left"
-        //ctx.textBaseline = "top"
-        //ctx.fillText(`${this.direction}`, this.rect.x, this.rect.y);
-
-        //ctx.font = "bold 16px";
-        //ctx.fillStyle = "yellow"
-        //ctx.strokeStyle = "yellow"
-        //ctx.textAlign = "left"
-        //ctx.textBaseline = "top"
-        ////ctx.fillText(`${this._x_input.x.toFixed(2)},${this._x_input.y.toFixed(2)} ${this.physics.speed.x.toFixed(1)}`, this.rect.x, this.rect.y);
-        //ctx.fillText(`${Math.abs(this.physics.speed.x).toFixed(1)}/${this.physics.xmaxspeed1}/${this.physics.xmaxspeed1a}`, this.rect.x, this.rect.y);
         if (!!this._beam) {
             this._beam.paint(ctx)
         }
-
-        
-
-        /*if (this.physics.can_wallwalk) {
-            // draw a glowing circle
-            ctx.beginPath()
-            ctx.arc(this.rect.cx(), this.rect.cy()-1, 8, 0, 2*Math.PI)
-            ctx.fillStyle = "#FF000033"
-            ctx.strokeStyle = "#FF0000"
-            ctx.fill()
-            ctx.stroke()
-        }*/
 
         //this.physics.paint(ctx)
     }
@@ -702,6 +675,33 @@ export class Player extends PlayerBase {
         return power
     }
     
+    _updatePhysics(fluid_factor) {
+
+        let config = {
+            "xmaxspeed1": 150,
+            "xmaxspeed2": 300,
+            "jumpheight": 72,
+            "jumpduration": 0.22,
+        }
+
+        if (fluid_factor > 0) {
+            config.xmaxspeed1 = .5 * config.xmaxspeed1
+            config.jumpheight = 32 + 8
+            config.jumpduration = .32
+        }
+
+        /*
+        // testing a fluid which increases speed
+        if (fluid_factor > 0) {
+            config.xmaxspeed1 = 225
+            config.jumpheight = 88
+            config.jumpduration = .22
+        }*/
+
+
+        this.physics._init_gravity(config)
+
+    }
     update(dt) {
 
         if (this.spawning) {
@@ -716,6 +716,19 @@ export class Player extends PlayerBase {
 
             console.log("!!fixme set moving", this.physics.moving_direction)
         }*/
+
+        let objs = this._x_debug_map.queryObjects({active: true, "fluid": undefined})
+        let fluid_factor = 0
+        objs.forEach(obj => { 
+            if (obj.fluid > fluid_factor && obj.rect.collideRect(this.rect)) {
+                fluid_factor = obj.fluid
+            }
+        })
+        if (this.fluid_factor != fluid_factor) {
+            console.log("changing fluid factor", fluid_factor)
+            this.fluid_factor = fluid_factor
+            this._updatePhysics(fluid_factor)
+        }
 
         this.physics.update(dt)
         this.character.update(dt)
@@ -1107,6 +1120,7 @@ export class Player extends PlayerBase {
 
     onUnmorphEnd() {
         this.physics.can_wallwalk = false
+        this.physics.can_wallslide = true
         this.physics.standing_direction = Direction.DOWN
         this.morphing = false
         this.morphed = false
@@ -1116,6 +1130,7 @@ export class Player extends PlayerBase {
     _morph() {
         if (!this.morphing && !this.morphed) {
             this.morphing = true
+            this.physics.can_wallslide = false
             this._updateAnimation()
             gAssets.sfx.PLAYER_MORPH.play()
         }

@@ -71,14 +71,13 @@ export class Physics2dPlatformV2 {
         this.vaccum = 0 // velocity accumulator
 
         this.group = () => []
-        this.fluid_group = () => []
 
         // step_vector the direction considered up
         this._step_vector = {x: 0, y:0}
         this._init_gravity(config)
         this._init_lut()
 
-        this.can_wallwalk = config?.wallwalk??false
+
 
         this.sensor_info = null
 
@@ -92,6 +91,18 @@ export class Physics2dPlatformV2 {
     }
 
     _init_gravity(config) {
+        /*
+        config:
+            wallwalk: false
+            wallslide: false
+            xmaxspeed1: 7*32
+            xmaxspeed2: 14*32
+            jumpheight: 64 + 8
+            jumpduration: .22
+            gravity: 0 // if not given, or non-zero, gravity is calculated
+            terminal_velocity: if not given, calculated
+        */
+
         // the duration that gives some specified maximum velocity v'
         //      t = sqrt(H^2 / v'^2)
         // gravity for some specified height and duration
@@ -113,6 +124,9 @@ export class Physics2dPlatformV2 {
         // this will ensure the maximum height is as calculated
         // and that when the user releases, they will go a little higher and drop normally
 
+        this.can_wallwalk = config?.wallwalk??false
+        this.can_wallslide = config?.wallslide??false
+
         // two xaccelerations and two max speeds (1 and 1a)
         // quickly ramp up to the first max speed
         // slowly accelerate to the second max speed
@@ -121,6 +135,9 @@ export class Physics2dPlatformV2 {
         this.xmaxspeed1a = this.xmaxspeed1*(2/3)
         this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
 
+        // speed profiles allow for different acceleration rates
+        // acclerate to 2/3 of max speed in .2 seconds
+        // then slowly accelerate to max speed over 1 second
         this.speed_profiles = [
             {speed: this.xmaxspeed1a, accel: (this.xmaxspeed1a) / .2},
             {speed: this.xmaxspeed1, accel: (this.xmaxspeed1 - this.xmaxspeed1a) / 1},
@@ -157,8 +174,17 @@ export class Physics2dPlatformV2 {
         this.wallfriction = .2
 
         this.ymaxspeed = - this.jumpspeed
-        
-        this.terminal_velocity = 400// TODO: not used?
+
+        // calculate the speed the mob is moving at the end of a full jump
+        // set that speed as the terminal velocity
+        let _g = this.gravity * 1 / 60
+        let _t1 = - this.jumpspeed / _g
+        let _t2 = 2 * _t1
+        let _v_end = Math.min(this.jumpspeed + _g * _t2, 8*60)
+
+        // when terminal veloctity / 60 > 8 pixels the object moves too fast
+        this.terminal_velocity = config?.terminal_velocity??_v_end
+
     }
 
     _update_neighborhood() {
@@ -177,7 +203,6 @@ export class Physics2dPlatformV2 {
             this._neighbors = this._neighbors.filter(ent => !ent.rect.collideRect(rect))
         }
 
-        this._fluid_neighbors = this.fluid_group().filter(ent => ent.rect.collideRect(this._neighborhood))
     }
 
     _init_step() {
@@ -1006,17 +1031,6 @@ export class Physics2dPlatformV2 {
             if (!!sensors.fn && ent.collidePoint(sensors.fn.x, sensors.fn.y)) { collisions.fn = true }
         })
 
-        this._fluid_factor = 0
-        this._fluid_neighbors.forEach(ent => {
-            if (ent.entid == this.target.entid) { return }
-            if (ent.collidePoint(sensors.s1.x, sensors.s1.y)) { 
-                if (!!ent.fluid) {
-                    this._fluid_factor = ent.fluid
-                }
-            }
-        })
-        
-
         //---------------------------------------
         // Gravity
         // check if not standing and apply gravity
@@ -1033,39 +1047,11 @@ export class Physics2dPlatformV2 {
             */
 
             let step = this._lut_step[this.standing_direction]
-            let gforce;
-            //console.log(this._fluid_factor, Math.sign(this.speed[sym.v]) , Math.sign(-step[sym.v]))
-            if (true) { // this._fluid_factor < 1e-5) {
-                gforce = this.gravity * dt
-                this.speed[sym.v] += -step[sym.v]*gforce
-            } else {
-                let f;
-                let underwater = this._fluid_factor < 1e-5
-                if (this.speed.y > 0) {
-                    f = (underwater)?1.0:0.5
-                } else {
-                    f = (underwater)?1.0:2.0
-                }
-                gforce = this.gravity * dt * f
-                this.speed[sym.v] += -step[sym.v]*gforce
+            let gforce = this.gravity * dt
+            this.speed[sym.v] += -step[sym.v]*gforce
 
-                if (underwater && this.speed.y > 50 && this.standing_direction == Direction.DOWN) { 
-                    this.speed.y = 50
-                }
-
-                /*
-                if (Math.sign(this.speed[sym.v]) == Math.sign(-step[sym.v])) {
-                    // if traveling in the direction of gravity.
-                    gforce = (1 + -0.5*this._fluid_factor) * this.gravity * dt
-                    this.speed[sym.v] += -step[sym.v]*gforce
-                } else {
-                    // if traveling opposite of gravity.
-                    gforce = (1 + 2*this._fluid_factor) * this.gravity * dt
-                    this.speed[sym.v] += -step[sym.v]*gforce
-                }*/
-            }
-
-            if (this.standing_direction == Direction.DOWN  && this.speed.y > 50 && collisions.fn) { 
+            // wall slide
+            if (this.can_wallslide && this.standing_direction == Direction.DOWN  && this.speed.y > 50 && collisions.fn) { 
                 this.speed.y = 50
             }
             
@@ -1080,6 +1066,10 @@ export class Physics2dPlatformV2 {
                 }
             }
 
+            // TODO: terminal velocity applies in both movement directions?
+            if (Math.abs(this.speed[sym.v]) > this.terminal_velocity) {
+                this.speed[sym.v] = Math.sign(this.speed[sym.v]) * this.terminal_velocity
+            }
             /*
             let tv = Math.sign(-step[sym.v]) * this.terminal_velocity * (1 + -0.5*this._fluid_factor)
             console.log((1 + -0.5*this._fluid_factor), this.speed[sym.v], tv)
@@ -1474,7 +1464,7 @@ export class Physics2dPlatformV2 {
         }
 
         if (falling) {
-            if (pressing) {
+            if (pressing && this.can_wallslide) {
                 this.action = "wall_slide"
             } else {
                 this.action = "fall"

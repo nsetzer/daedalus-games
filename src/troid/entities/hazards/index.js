@@ -10,5 +10,6 @@ export * from "./loop.js"
 export * from "./platform.js"
 export * from "./spikes.js"
 export * from "./firebar.js"
+export * from "./tar.js"
 export * from "./water.js"
 

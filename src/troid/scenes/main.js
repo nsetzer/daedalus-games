@@ -904,6 +904,8 @@ export class MainScene extends GameScene {
         this.dialog = null // something that implements paint(ctx), update(dt), dismiss()
 
         this.coin_icon = gAssets.sheets.coin.tile(0)
+
+        this._init_debug_controls()
     }
 
     pause(paused) {
@@ -1111,6 +1113,133 @@ export class MainScene extends GameScene {
 
     }
 
+    _init_debug_controls() {
+
+        if (!daedalus.env.debug) {
+            this._debug_controls = []
+            return 
+        }
+
+        this._debug_target = this.map.map._x_player.physics
+
+        this._debug_data = {
+            "xmaxspeed1": this.map.map._x_player.physics.xmaxspeed1,
+            "xmaxspeed2": this.map.map._x_player.physics.xmaxspeed2,
+            "jumpheight": this.map.map._x_player.physics.jumpheight,
+            "jumpduration": this.map.map._x_player.physics.jumpduration,
+            "terminal_velocity": this.map.map._x_player.physics.terminal_velocity,
+            "jumpspeed": this.map.map._x_player.physics.jumpspeed,
+        }
+
+        let update = () => { 
+            delete this._debug_data["terminal_velocity"]
+            delete this._debug_data["jumpspeed"]
+            this.map.map._x_player.physics._init_gravity(this._debug_data) 
+            this._debug_data["terminal_velocity"] = this.map.map._x_player.physics.terminal_velocity
+            this._debug_data["jumpspeed"] = this.map.map._x_player.physics.jumpspeed
+        }
+
+        this._debug_controls = [
+            {
+                rect1: new Rect( 8,30,8,8),
+                rect2: new Rect(16,30,8,8),
+                key: "xmaxspeed1",
+                value: () => this._debug_target.xmaxspeed1,
+                action1: () => { this._debug_data["xmaxspeed1"] -= 5; update() },
+                action2: () => { this._debug_data["xmaxspeed1"] += 5; update() }
+            },
+            {
+                rect1: new Rect( 8,40,8,8),
+                rect2: new Rect(16,40,8,8),
+                key: "xmaxspeed2",
+                value: () => this._debug_target.xmaxspeed2,
+                action1: () => { this._debug_data["xmaxspeed2"] -= 5; update()},
+                action2: () => { this._debug_data["xmaxspeed2"] += 5; update() }
+            },
+            {
+                rect1: new Rect( 8,50,8,8),
+                rect2: new Rect(16,50,8,8),
+                key: "jumpheight",
+                value: () => this._debug_target.jumpheight,
+                action1: () => { this._debug_data["jumpheight"] -= 8; update()},
+                action2: () => { this._debug_data["jumpheight"] += 8; update() }
+            },
+            {
+                rect1: new Rect( 8,60,8,8),
+                rect2: new Rect(16,60,8,8),
+                key: "jumpduration",
+                value: () => this._debug_target.jumpduration,
+                action1: () => { this._debug_data["jumpduration"] -= 0.01; update()},
+                action2: () => { this._debug_data["jumpduration"] += 0.01; update() }
+            },
+            {
+                rect1: new Rect( 8,70,8,8),
+                rect2: new Rect(16,70,8,8),
+                key: "jumpspeed",
+                value: () => this._debug_target.jumpspeed,
+                action1: () => {},
+                action2: () => {}
+            },
+            {
+                rect1: new Rect( 8,80,8,8),
+                rect2: new Rect(16,80,8,8),
+                key: "terminal_velocity",
+                value: () => this._debug_target.terminal_velocity,
+                action1: () => {},
+                action2: () => {}
+            },
+            {
+                rect1: new Rect( 8,90,8,8),
+                rect2: new Rect(16,90,8,8),
+                key: "xspeed",
+                value: () => this._debug_target.speed.x,
+                action1: () => {},
+                action2: () => {}
+            },
+        ]
+
+    }
+
+    _paint_debug_controls(ctx) {
+        // draw two buttons for each option
+        // options include 
+        // - changing gravity
+        // - jump time
+        // - x acceleration
+        // - x max speed
+
+        this._debug_controls.forEach(action => {
+            ctx.fillStyle = '#880000'
+            ctx.beginPath()
+            ctx.rect(action.rect1.x,action.rect1.y,action.rect1.w,action.rect1.h)
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.fillStyle = '#008800'
+            ctx.beginPath()
+            ctx.rect(action.rect2.x,action.rect2.y,action.rect2.w,action.rect2.h)
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.fillStyle = '#FFFFFF7f'
+            ctx.beginPath()
+            ctx.rect(action.rect2.x+action.rect2.w,action.rect2.y,100,action.rect2.h)
+            ctx.closePath()
+            ctx.fill()
+
+            // align text middle left
+            ctx.font = '6px Verdana'
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#000000'
+            ctx.fillText(`${action.key}: ${action.value().toFixed(2)}`, 
+                action.rect2.x + action.rect2.w + 5, 
+                action.rect2.y + action.rect2.h / 2);
+            
+        })
+
+    }
+
     paint(ctx) {
 
         // screen boundary
@@ -1212,6 +1341,8 @@ export class MainScene extends GameScene {
             this.touch.paint(ctx)
         }
 
+        this._paint_debug_controls(ctx)
+
         
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
         //ctx.fillText(`${gEngine.view.width}x${gEngine.view.height} (${gEngine.view.scale}) (${Math.floor(this.camera.x/16)},${Math.floor(this.camera.y/16)}` , 8, gEngine.view.height);
@@ -1231,11 +1362,38 @@ export class MainScene extends GameScene {
 
             touches.forEach(t => {
 
+                let act = false
                 if (t.y < 24 && t.x > gEngine.view.width - 24) {
                     this.screen = new PauseScreen(this)
                     gCharacterInfo.new_upgrade_indicator = null
+                    act = true
                 }
 
+                this._debug_controls.forEach(action => {
+                    if (action.rect1.collidePoint(t.x, t.y)) {
+                        if (!t.pressed) {
+                            action.action1()
+                        }
+                        act = true
+
+                    }
+                    if (action.rect2.collidePoint(t.x, t.y)) {
+                        if (!t.pressed) {
+                            action.action2()
+                        }
+                        act = true
+                    }
+                })
+
+                if (daedalus.env.debug) {
+                    if (!act) {
+                        if (!t.pressed) {
+                            let name = "TarBall"
+                            let props = {x: Math.round(this.camera.x + t.x), y: Math.round(this.camera.y + t.y)}
+                            this.map.map.createObject(this.map.map._x_nextEntId(), name, props)
+                        }
+                    }
+                }
 
             })
         }

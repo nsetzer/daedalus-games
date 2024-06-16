@@ -18,7 +18,7 @@ export class WaterHazard extends PlatformerEntity {
     constructor(entid, props) {
         super(entid, props)
 
-        this.rect = new Rect(props.x, props.y, props.width, props.height)
+        this.rect = new Rect(props.x, props.y+4, props.width, props.height-4)
         this.visible = 1
         this.solid = 0
         this.fluid = 1.5
@@ -69,23 +69,6 @@ export class WaterHazard extends PlatformerEntity {
 
     }
 
-    _x_collide(other, dx, dy) {
-
-        let rect = other.rect
-
-        if (dy > 0 && rect.bottom() <= this.rect.top()) {
-
-            let p = Math.floor(((rect.cx() - this.rect.x)/this.rect.w)*this.points.length)
-            if (p > 0 && p < this.points.length) {
-                this.points[p].y += 7
-                console.log("impulse", p, 7)
-            }
-        }
-
-
-        return null
-    }
-
     sumSines(x) {
         let k = 0 ;
         this.sines.forEach(ptn => {
@@ -109,6 +92,8 @@ export class WaterHazard extends PlatformerEntity {
             pt.draw_x = this.rect.x + this.points[i].x
         }
 
+        ctx.strokeStyle = '#FFFFFF'
+        ctx.lineWidth = 2
         ctx.beginPath();
         pt = this.points[0]
         ctx.moveTo(pt.draw_x, pt.draw_y)
@@ -118,6 +103,8 @@ export class WaterHazard extends PlatformerEntity {
         }
         ctx.stroke();
 
+        ctx.strokeStyle = '#0000cc7f'
+        ctx.lineWidth = 1
         ctx.beginPath();
         pt = this.points[0]
         ctx.moveTo(pt.draw_x, pt.draw_y)
