@@ -677,29 +677,68 @@ export class Player extends PlayerBase {
     
     _updatePhysics(fluid_factor) {
 
+        // fluid is no longer a sliding scale but an enum
+        // the enum order is precedence. 
+        // higher numbers override lower numbers
+
+        // 0: no fluid / default
+        // 1: speed gel
+        // 2: water
+        // 3: tar
+
+        // this implementation allows for zip pads
+        // where a short region can cause a player to accelerate
+        // more than they normally would
+        //
+        // TODO: may need a boost variable
+        // otherwise wall jumps don't decelerate properly
+
+        // TODO: revist xjumpspeed: change based on fluid properties
+        // or change based on xmazspeed1
+
+        // water should slow acceleration and max speed
+        // without limiting jumping height
+
         let config = {
             "xmaxspeed1": 150,
             "xmaxspeed2": 300,
+            "xacceleration_t": 0.2,
             "jumpheight": 72,
             "jumpduration": 0.22,
         }
 
-        if (fluid_factor > 0) {
-            config.xmaxspeed1 = .5 * config.xmaxspeed1
-            config.jumpheight = 32 + 8
-            config.jumpduration = .32
+        if (fluid_factor == 1) {
+            config.xmaxspeed1 = 225
+
+        }
+        else if (fluid_factor == 2) {
+
+            config.xmaxspeed1 = 100
+            config.xacceleration_t = .6
+            config.jumpduration = .34
+        }
+        else if (fluid_factor == 3) {
+            config.xmaxspeed1 = 100
         }
 
-        /*
-        // testing a fluid which increases speed
-        if (fluid_factor > 0) {
-            config.xmaxspeed1 = 225
-            config.jumpheight = 88
-            config.jumpduration = .22
-        }*/
-
-
         this.physics._init_gravity(config)
+
+        if (fluid_factor > 0) {
+
+            if (Math.abs(this.physics.speed.x) > config.xmaxspeed1) {
+                this.physics.speed.x = Math.sign(this.physics.speed.x) * config.xmaxspeed1
+            }
+        }
+
+        // TODO: when entering a fluid apply the new xmovement and ymovement 
+        // maximum speeds right away
+
+        if (fluid_factor == 3) {
+            // use the calculated gravity for normal physics
+            // but reduce the jump height when trapped in tar
+            let jump_height = 40
+            this.physics.jumpspeed = - Math.sqrt(2*jump_height*this.physics.gravity)
+        }
 
     }
     update(dt) {
@@ -1251,7 +1290,10 @@ export class Player extends PlayerBase {
             console.log(`wall jump standing=${this.physics.standing_frame} pressing=${pressing} m=${this.physics.pressing_direction}`)
             gAssets.sfx.PLAYER_JUMP.play()
 
-            this.physics.speed.x = this.physics.pressing_direction * this.physics.xjumpspeed
+            // xjumpspeed
+            let xjs = this.physics.xmaxspeed1
+
+            this.physics.speed.x = this.physics.pressing_direction * xjs
             this.physics.accum.x = 0
             this.physics.speed.y = this.physics.jumpspeed / Math.sqrt(2)
             this.physics.accum.y = 0

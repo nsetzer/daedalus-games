@@ -1090,24 +1090,36 @@ export class MainScene extends GameScene {
 
     _parallax(ctx) {
 
-        let tw = 352
-        let y = gAssets.mapinfo.height - tw
+        let theme = gAssets.themes[gAssets.mapinfo.theme]
+        if (!theme.backgrounds.forest2) {
+            return
+        }
+        //console.log(theme.backgrounds.forest2)
 
-        let layers = [
-            {image: gAssets.sheets.theme_bg_1, scale: 7},
-            {image: gAssets.sheets.theme_bg_0, scale: 5},
-        ]
+        // let layers = theme.backgrounds.forest2.sheets.map( (image, i) => {return {image: image, scale: theme.backgrounds.forest2.parallax[i]}})
+        let layers = theme.backgrounds.forest2.layers
+        //let layers = [
+        //    {image: gAssets.sheets.theme_bg_1, scale: 7},
+        //    {image: gAssets.sheets.theme_bg_0, scale: 5},
+        //]
 
         for (let j=0; j < layers.length; j++) {
             let layer = layers[j]
-
-            let x1 =  (- Math.floor(this.camera.x/layer.scale)) - tw
-            let x2 = gAssets.mapinfo.width
-            for (let x=x1; x < x2; x += tw) {
-                if ((x + tw) < this.camera.x || (x > this.camera.x + gEngine.view.width)) {
+            let iw = layer.image.image.width
+            let ih = layer.image.image.height
+            let x1 =  (- Math.floor(this.camera.x/layer.parallax)) - iw
+            let x2 = Math.min(this.camera.x + gEngine.view.width, gAssets.mapinfo.width)
+            let y = gAssets.mapinfo.height - ih
+            
+            for (let x=x1; x < x2; x += iw) {
+                if ((x + iw) < this.camera.x) {
                     continue
                 }
-                layer.image.drawTile(ctx, 0, x, y)
+                //if ((x + iw) < this.camera.x || (x > this.camera.x + gEngine.view.width)) {
+                //    continue
+                //}
+                ctx.drawImage(layer.image.image, x, y)
+                //layer.image.drawTile(ctx, 0, x, y)
             }
         }
 
@@ -1273,9 +1285,9 @@ export class MainScene extends GameScene {
         ctx.fill()
         ctx.clip();
 
-        //if (gAssets.mapinfo.theme == "plains") {
-        //    this._parallax(ctx) 
-        //} 
+        if (gAssets.mapinfo.theme == "plains") {
+            this._parallax(ctx) 
+        } 
 
         // gutter
         //ctx.beginPath()
@@ -1339,9 +1351,10 @@ export class MainScene extends GameScene {
         } else {
             this._paint_status(ctx)
             this.touch.paint(ctx)
+            this._paint_debug_controls(ctx)
         }
 
-        this._paint_debug_controls(ctx)
+        
 
         
         //ctx.fillText(`${gEngine.view.availWidth}x${gEngine.view.availHeight}`, 8, 8);
@@ -1369,28 +1382,30 @@ export class MainScene extends GameScene {
                     act = true
                 }
 
-                this._debug_controls.forEach(action => {
-                    if (action.rect1.collidePoint(t.x, t.y)) {
-                        if (!t.pressed) {
-                            action.action1()
-                        }
-                        act = true
+                if (!this.screen) {
+                    this._debug_controls.forEach(action => {
+                        if (action.rect1.collidePoint(t.x, t.y)) {
+                            if (!t.pressed) {
+                                action.action1()
+                            }
+                            act = true
 
-                    }
-                    if (action.rect2.collidePoint(t.x, t.y)) {
-                        if (!t.pressed) {
-                            action.action2()
                         }
-                        act = true
-                    }
-                })
+                        if (action.rect2.collidePoint(t.x, t.y)) {
+                            if (!t.pressed) {
+                                action.action2()
+                            }
+                            act = true
+                        }
+                    })
 
-                if (daedalus.env.debug) {
-                    if (!act) {
-                        if (!t.pressed) {
-                            let name = "TarBall"
-                            let props = {x: Math.round(this.camera.x + t.x), y: Math.round(this.camera.y + t.y)}
-                            this.map.map.createObject(this.map.map._x_nextEntId(), name, props)
+                    if (daedalus.env.debug) {
+                        if (!act) {
+                            if (!t.pressed) {
+                                let name = "TarBall"
+                                let props = {x: Math.round(this.camera.x + t.x), y: Math.round(this.camera.y + t.y)}
+                                this.map.map.createObject(this.map.map._x_nextEntId(), name, props)
+                            }
                         }
                     }
                 }

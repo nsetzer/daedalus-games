@@ -4336,6 +4336,9 @@ export class LevelEditScene extends GameScene {
         } else if (keyevent.text == '5') {
             this.active_tool = EditorTool.PLACE_TILE
             this.tile_shape = TileShape.ALT_FULL
+        } else if (keyevent.text == '6') {
+            this.active_tool = EditorTool.PLACE_TILE
+            this.tile_shape = TileShape.PIPE
         } else if (keyevent.text == 's') {
             this.tile_property += 1
             if (this.tile_property >= TileProperty.ICE) {

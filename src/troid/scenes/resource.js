@@ -259,14 +259,14 @@ class AssetLoader {
         //       when loading a level to edit, load all the themes
         //       skip themes that have already been loaded
         Object.entries(gAssets.themes_manifest).forEach(t => {
-            let [name, theme] = t;
+            let [theme_name, theme] = t;
 
             theme.resources = {sheets: [], backgrounds: [], stamps: []}
 
             theme.sheets.forEach((filename, index) => {
-                let res_name = `${name}_sheet_${index}`
+                let res_name = `${theme_name}_sheet_${index}`
                 this.loader.addSpriteSheet(res_name)
-                    .path(RES_ROOT + `/themes/${name}/${filename}`)
+                    .path(RES_ROOT + `/themes/${theme_name}/${filename}`)
                     .dimensions(16, 16)
                     .layout(8, 11)
                     .offset(1, 1)
@@ -276,11 +276,11 @@ class AssetLoader {
 
             theme.backgrounds.forEach((bg, bg_index) => {
 
-                bg.sheets.forEach((filename, sheet_index) => {
-                    let res_name = `${name}_bg_${bg_index}_${sheet_index}`
+                bg.layers.forEach((layer, sheet_index) => {
+                    let res_name = `${theme_name}_bg_${bg_index}_${sheet_index}`
                     this.loader.addSpriteSheet(res_name)
-                        .path(RES_ROOT + `/themes/${name}/${filename}`)
-                        .dimensions(352, 352) // todo: from manifest
+                        .path(RES_ROOT + `/themes/${theme_name}/${layer.filename}`)
+                        //.dimensions(352, 352) // todo: from manifest
                         .layout(1, 1)
                         .offset(0, 0)
                         .spacing(0, 0)
@@ -294,7 +294,7 @@ class AssetLoader {
 
                 let res_name = `${name}_stamp_${stamp_index}`
                 this.loader.addSpriteSheet(res_name)
-                        .path(RES_ROOT + `/themes/${name}/${filename}`)
+                        .path(RES_ROOT + `/themes/${theme_name}/${filename}`)
                 theme.resources.stamps.push(res_name)
             })
 
@@ -406,6 +406,12 @@ class AssetLoader {
             .offset(1, 16*4+5)
             .spacing(1, 1)
         
+        this.loader.addSpriteSheet("bridge_gate")
+            .path(RES_ROOT + "/sprites/switches/bridge.png")
+            .dimensions(16, 16)
+            .layout(2, 3)
+            .offset(1, 1)
+            .spacing(1, 1)
 
         this.loader.addSpriteSheet("bumper")
             .path(RES_ROOT + "/sprites/hazards/bumper.png")
@@ -608,14 +614,12 @@ class AssetLoader {
             theme.backgrounds.forEach((bg, bg_index) => {
 
                 let obj = {
-                    sheets: [], 
-                    parallax: bg.parallax
+                    layers: [], 
                 }
                 gAssets.themes[name].backgrounds[bg.name] = obj
-
-                bg.sheets.forEach((filename, sheet_index) => {
+                bg.layers.forEach((layer, sheet_index) => {
                     let res_name = `${name}_bg_${bg_index}_${sheet_index}`
-                    obj.sheets.push(gAssets.sheets[res_name])
+                    obj.layers.push({...layer, "image": gAssets.sheets[res_name]})
                 })
             })
 

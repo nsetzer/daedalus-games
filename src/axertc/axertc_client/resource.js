@@ -382,8 +382,22 @@ export class SpriteTile {
         this.tid = tid
     }
 
-    draw(ctx, dx, dy) {
-        this.sheet.drawTile(ctx, this.tid, dx, dy)
+    draw(ctx, x, y) {
+        this.sheet.drawTile(ctx, this.tid, x, y)
+    }
+
+    drawRotated(ctx, x, y, angle) {
+        let w = this.sheet.tw
+        let h = this.sheet.th
+        ctx.save(); // Save the current state
+        ctx.translate(x + w / 2, y + h / 2); // Move the context to the center of the tile
+        ctx.rotate(angle * Math.PI / 180); // Rotate the context
+        let tx = this.tid % this.sheet.cols
+        let ty = Math.floor(this.tid / this.sheet.cols)
+        let ix = this.sheet.xoffset + tx * (this.sheet.xspacing + w)
+        let iy = this.sheet.yoffset + ty * (this.sheet.yspacing + h)
+        ctx.drawImage(this.sheet.image, ix, iy, w, h, -w / 2, -h / 2, w, h); // Draw the image centered at the origin
+        ctx.restore(); // Restore the state
     }
 }
 

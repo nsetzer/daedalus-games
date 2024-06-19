@@ -21,7 +21,7 @@ export class WaterHazard extends PlatformerEntity {
         this.rect = new Rect(props.x, props.y+4, props.width, props.height-4)
         this.visible = 1
         this.solid = 0
-        this.fluid = 1.5
+        this.fluid = 2
 
         this.physics = {
             resolution: 6,         // distance between points

@@ -21,9 +21,14 @@
         "./daedalus/res/**/*",
     ],
     "exclude": [
-        "node_modules",
-        "**/node_modules/*",
-        "./daedalus/res/unittest/*",
-        "./daedalus/res/template.js",
+        "daedalus/*",
+        "node_modules/*",
+        "build/*",
+        "venv/*",
+        "src/maze/*",
+        "src/troid/extras/*",
+        "src/troid/resource/*",
+        "src/troid/aseprites/*",
+        "src/troid/Data/*",
     ]
 }

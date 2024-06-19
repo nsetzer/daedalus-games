@@ -38,7 +38,7 @@ maze2:
 .PHONY: troid
 troid:
 	# daedalus serve --paths="./src:./src/axertc"  --static src/troid/resource --env debug=true src/troid/troid.js
-	PYTHONPATH=. python src/troid/server.py
+	PYTHONPATH=./daedalus python src/troid/server.py
 
 build:
 	mkdir -p build

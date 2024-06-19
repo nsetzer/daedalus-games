@@ -13,7 +13,7 @@
             "@daedalus/*": ["./daedalus/res/*"],
             "@axertc/*": ["./src/axertc/*"],
             "@troid/*": ["./src/troid/*"]
-        }
+        },
     },
     "include": [
         "./src/troid/**/*",
@@ -21,7 +21,14 @@
         "./daedalus/res/**/*",
     ],
     "exclude": [
-        "node_modules",
-        "**/node_modules/*"
+        "daedalus/*",
+        "node_modules/*",
+        "build/*",
+        "venv/*",
+        "src/maze/*",
+        "src/trloid/extras/*",
+        "src/troid/resource/*",
+        "src/troid/aseprites/*",
+        "src/troid/Data/*",
     ]
 }

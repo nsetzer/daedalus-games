@@ -42,7 +42,7 @@ export class FireBar extends PlatformerEntity {
         this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+2))
         this.tiles_b.push(gAssets.sheets.beams16.tile(6*7+3))
 
-        this.block_icon = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
+        this.block_icon = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
         this.timer = 0
 
         //this.cline = null
@@ -155,7 +155,7 @@ registerEditorEntity("FireBar", FireBar, [16,16], EntityCategory.hazard, null, (
     ]
     entry.editorRender = (ctx, x, y, props) => {
 
-        let tile = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
+        let tile = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
         tile.draw(ctx, x, y)
         // draw red dots 8pxs apart starting at x,y
         let cx = x + 8 

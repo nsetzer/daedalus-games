@@ -511,39 +511,3 @@ registerEditorEntity("CountingPlatform", CountingPlatform, [32,16], EntityCatego
         gAssets.sheets.countplatform.drawTile(ctx, 1, x, y-2)
     }
 })
-
-
-export class Bridge extends PlatformerEntity {
-    constructor(entid, props) {
-        super(entid, props)
-
-        this.rect = new Rect(props.x, props.y, props.width, props.height)
-        this.visible = 1
-        this.solid = 1
-    }
-
-    paint(ctx) {
-        ctx.strokeStyle = '#0000cc7f'
-        ctx.fillStyle = '#0000cc7f'
-        ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        for(let x=this.rect.x; x < this.rect.right(); x+=16) {
-            gAssets.sheets.ruler.tile(0).draw(ctx, x, this.rect.y)
-        }
-        ctx.stroke()
-    }
-
-    update(dt) {
-    }
-
-}
-
-registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.hazard, null, (entry)=> {
-    Bridge.sheet = gAssets.sheets.ruler
-    entry.icon = Bridge.sheet.tile(0)
-    entry.editorIcon = null
-    entry.editorSchema = [
-        {control: EditorControl.RESIZE, "min_width": 48, "min_height": 16},
-        {control: EditorControl.CHOICE, name: "opened", "default": 1, choices: {opened:1,closed:0}}
-    ]
-
-})

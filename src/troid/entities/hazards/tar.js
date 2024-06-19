@@ -62,8 +62,8 @@ class TarPhysics {
 
             this.speed.y += (this.gravity*dt)
 
-            this.accum.x = dt * this.speed.x
-            this.accum.y = dt * this.speed.y
+            this.accum.x += dt * this.speed.x
+            this.accum.y += dt * this.speed.y
 
             // step x
             let dx = Math.trunc(this.accum.x)
@@ -135,20 +135,22 @@ class TarPhysics {
 // check +/- 2 cells to the left and right 
 // if a cell is empty place in that cell instead of deleting
 // by growing the existing one
-export class TarBall extends AbstractMobBase {
+export class LiquidDropBase extends AbstractMobBase {
 
     constructor(entid, props) {
         super(entid, props)
         this.rect = new Rect((props?.x??0), (props?.y??0) - 2, 8, 4)
 
-        this.fluid = 2
+        this.colors = ["#0000FF"]
+
+        this.fluid = 0
 
         // todo: size=2 when spawning from the editor
         // when it lands grow to the right by one
         // run the grow algorithm before first paint if possible
 
         this.visible = true
-        this.animation = new AnimationComponent(this)
+        this.animation = {}
 
         this.physics = new TarPhysics(this)
 
@@ -158,6 +160,23 @@ export class TarBall extends AbstractMobBase {
         this.settled = false
 
         this.points = null
+        
+        this.lfriend = null
+        this.rfriend = null
+
+        if (props.xspeed != undefined) {
+            
+            let jumpheight = 16*4
+            let m = - Math.sqrt(2*jumpheight*this.physics.gravity)
+            // - m * Math.cos(props.angle * Math.PI / 180)
+            this.physics.speed.x = props.xspeed 
+            this.physics.speed.y = m // Math.sin(props.angle * Math.PI / 180) * m
+        }
+    }
+
+    hit(projectile, props) {
+        this.destroy()
+        return true
     }
 
     update(dt) {
@@ -166,120 +185,22 @@ export class TarBall extends AbstractMobBase {
 
         if (this.physics.standing && !this.settled) {
 
-            /*
-            let cy = this.rect.cy()
-            let hw = Math.floor(this.rect.w/2)
-            //let cx = Math.round(this.rect.x/8)*8 + hw
-            let cx = this.rect.cx()
-            //let cx = Math.round(this.rect.x/8)*8 + hw
-            let rtop = 0;
-            for (let j = hw; j > -hw; j -= 2) {
-                if (!this.physics._neighbors.some(ent => ent.collidePoint(cx+hw, cy + j))) {
-                    rtop = j;
-                    break;
-                }
-            }
+            this._findFriend()
 
-            let ltop = 0;
-            for (let j = hw; j > -hw; j -= 2) {
-                if (!this.physics._neighbors.some(ent => ent.collidePoint(cx-hw, cy + j))) {
-                    ltop = j;
-                    break;
-                }
-            }
-
-            //this.points = [
-            //    {x: cx - hw, y: cy + ltop - 2}, 
-            //    {x: cx + hw, y: cy + rtop - 2}, 
-            //    {x: cx + hw, y: cy + rtop + 6},
-            //    {x: cx - hw, y: cy + ltop + 6}, 
-            //]
-
-            //console.log("slope", ltop, rtop, (ltop - rtop) / this.rect.w)
-            */
-
-            let objs = this._x_debug_map.queryObjects({"className": "TarBall"})
-
-            let hw = Math.floor(this.rect.w/2)
-            let dd = 4 + 2*hw
-            let lfriend = null
-            let lfriend_delta = -dd
-            let lfriend_count = 0
-            let rfriend = null
-            let rfriend_delta = dd
-            let rfriend_count = 0
-            // extend upwards in the y direction to find friends on a slope
-            let rect = new Rect(this.rect.cx() - dd, this.rect.cy() - 8, 2*dd, 16)
-            this.rect2 = rect
-            objs.forEach(obj => {
-                if (obj.rect.collideRect(rect)) {
-                    if (obj.entid === this.entid) {
-                        return
-                    }
-                    let delta = obj.rect.cx() - rect.cx()
-                    if (delta < 0) {
-                        if (delta > -dd) {
-                            lfriend_count += 1
-                        }
-                        if (delta > lfriend_delta) {
-                            lfriend = obj
-                            lfriend_delta = delta
-                        }
-                    } else {
-                        if (delta < dd) {
-                            rfriend_count += 1
-                        }
-                        if (delta < rfriend_delta) {
-                            rfriend = obj
-                            rfriend_delta = delta
-                        }
-                    }
-                }
-            })
-
-            console.log("friends", objs.length, hw, dd,
-                "l", !!lfriend, lfriend_delta, lfriend_count,
-                "r", !!rfriend, rfriend_delta, rfriend_count,
-                "d", rfriend_delta - lfriend_delta)
-
-            if (!!lfriend && !lfriend.rfriend) {
-                console.log("make friends 1")
-                this.rect.x = lfriend.rect.x + 8
-            } 
-            else if (!!rfriend && !rfriend.lfriend) {
-                console.log("make friends 2")
-                this.rect.x = rfriend.rect.x - 8
-            } 
-
-            if (rfriend_delta <= hw || lfriend_delta >= -hw) {
-                console.log("destroying self 1")
-                this.destroy()
-            }
-            else if (rfriend_count > 1 || lfriend_count > 1) {
-                console.log("destroying self 2")
-                this.destroy()
-            } else {
-
-                if (!!rfriend) {
-                    rfriend.updateFriend(this, -1)
-                }
-
-                if (!!lfriend) {
-                    lfriend.updateFriend(this, 1)
-                }
-
-                this.rfriend = rfriend
-                this.lfriend = lfriend
-                this._updateShape()
-            }
-
-            //this.rect.x = Math.round(this.rect.x/8)*8
             this.settled = true
         }
 
     }
 
     paint(ctx) {
+
+        // if (!!this.rect2) {
+        //     ctx.strokeStyle = "red";
+        //     ctx.beginPath();
+        //     ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
+        //     ctx.stroke();
+        //     ctx.closePath();
+        // }
 
 
         if (!this.settled) {
@@ -296,17 +217,16 @@ export class TarBall extends AbstractMobBase {
             ctx.closePath();
         }
 
-        /*
-        if (!!this.rect2) {
-            ctx.strokeStyle = "red";
-            ctx.beginPath();
-            ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
-            ctx.stroke();
-            ctx.closePath();
-        }*/
-        // draw a polygon using points
         
-        ctx.fillStyle = ["#22ee22", "#33cc33", "#44aa44", "#558855"][Math.floor(this.rect.x/8)%4]
+        // if (!!this.rect2) {
+        //     ctx.strokeStyle = "red";
+        //     ctx.beginPath();
+        //     ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
+        //     ctx.stroke();
+        //     ctx.closePath();
+        // }
+
+        ctx.fillStyle = this.colors[Math.floor(this.rect.x/8)%this.colors.length]
         if (this.points) {
             ctx.beginPath();
             ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -317,8 +237,109 @@ export class TarBall extends AbstractMobBase {
             ctx.fill()
         }
 
+        // if (!!this.lfriend) {
+        //     // draw a line from the center of this to the center of the friend
+        //     ctx.strokeStyle = "black";
+        //     ctx.lineWidth = 2
+        //     ctx.beginPath();
+        //     ctx.moveTo(this.rect.cx(), this.rect.cy())
+        //     ctx.lineTo(this.lfriend.rect.cx(), this.lfriend.rect.cy())
+        //     ctx.stroke();
+        // }
+
+        // if (!!this.rfriend) {
+        //     // draw a line from the center of this to the center of the friend
+        //     ctx.strokeStyle = "white";
+        //     ctx.lineWidth = 2
+        //     ctx.beginPath();
+        //     ctx.moveTo(this.rect.cx(), this.rect.cy())
+        //     ctx.lineTo(this.rfriend.rect.cx(), this.rfriend.rect.cy())
+        //     ctx.stroke();
+        // }
+        
+        
 
 
+
+
+    }
+
+    _findFriend() {
+        let objs = this._x_debug_map.queryObjects({"className": "TarBall"})
+
+        let hw = Math.floor(this.rect.w/2)
+        let dd = 4 + 4*hw
+        let lfriend = null
+        let lfriend_delta = -dd
+        let lfriend_count = 0
+        let rfriend = null
+        let rfriend_delta = dd
+        let rfriend_count = 0
+        // extend upwards in the y direction to find friends on a slope
+        let rect = new Rect(this.rect.cx() - dd, this.rect.cy() - 8, 2*dd, 16+2)
+        this.rect2 = rect
+        objs.forEach(obj => {
+            if (obj.rect.collideRect(rect)) {
+                if (obj.entid === this.entid) {
+                    return
+                }
+                let delta = obj.rect.cx() - rect.cx()
+                if (delta < 0) {
+                    if (delta > -dd) {
+                        lfriend_count += 1
+                    }
+                    if (delta > lfriend_delta) {
+                        lfriend = obj
+                        lfriend_delta = delta
+                    }
+                } else {
+                    if (delta < dd) {
+                        rfriend_count += 1
+                    }
+                    if (delta < rfriend_delta) {
+                        rfriend = obj
+                        rfriend_delta = delta
+                    }
+                }
+            }
+        })
+
+        //console.log("friends", objs.length, hw, dd,
+        //    "l", !!lfriend, lfriend_delta, lfriend_count,
+        //    "r", !!rfriend, rfriend_delta, rfriend_count,
+        //    "d", rfriend_delta - lfriend_delta)
+
+        // if a neighbor is found on only one side, and that neighbor has no neighbors
+        // on the side we are on, move to an optimal positiom
+        if (!!lfriend && !rfriend && !lfriend.rfriend && lfriend_delta > -8) {
+            this.rect.x = lfriend.rect.x + 8
+            lfriend_delta = -8
+        } 
+        if (!!rfriend && !lfriend && !rfriend.lfriend && lfriend_delta < 8) {
+            this.rect.x = rfriend.rect.x - 8
+            rfriend_delta = 8
+        } 
+
+        if (rfriend_delta <= hw || lfriend_delta >= -hw) {
+            console.log("too close!", rfriend_delta - lfriend_delta, rfriend_delta, lfriend_delta);
+            this.destroy()
+        }
+        //else if (rfriend_count > 1 || lfriend_count > 1) {
+        //    this.destroy()
+        else {
+            console.log("place!",  rfriend_delta, lfriend_delta);
+            if (!!rfriend) {
+                rfriend.updateFriend(this, -1)
+            }
+
+            if (!!lfriend) {
+                lfriend.updateFriend(this, 1)
+            }
+
+            this.rfriend = rfriend
+            this.lfriend = lfriend
+            this._updateShape()
+        }
     }
 
     _updateShape() {
@@ -371,6 +392,7 @@ export class TarBall extends AbstractMobBase {
             {x: left, y: lbot},
         ]
     }
+
     updateFriend(other, dir) {
         if (dir < 0) {
             this.lfriend = other
@@ -383,7 +405,95 @@ export class TarBall extends AbstractMobBase {
     }
 }
 
+export class TarBall extends LiquidDropBase {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.colors = ["#22ee22", "#33cc33", "#44aa44", "#558855"]
+        this.fluid = 3
+    }
+    
+}
+
 registerEditorEntity("TarBall", TarBall, [16,16], EntityCategory.hazard, null, (entry)=> {
+    entry.icon = gAssets.sheets.ruler.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+
+export class SpeedGelBall extends LiquidDropBase {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.colors = ["#ee2222", "#cc3333", "#aa4444", "#885555"]
+        this.fluid = 1
+    }
+    
+}
+
+registerEditorEntity("SpeedGelBall", SpeedGelBall, [16,16], EntityCategory.hazard, null, (entry)=> {
+    entry.icon = gAssets.sheets.ruler.tile(0)
+    entry.editorIcon = null
+    entry.editorSchema = []
+})
+
+export class TarSpawn extends AbstractMobBase {
+
+    constructor(entid, props) {
+        super(entid, props)
+        this.rect = new Rect((props?.x??0), (props?.y??0), 16, 16)
+
+        // todo: size=2 when spawning from the editor
+        // when it lands grow to the right by one
+        // run the grow algorithm before first paint if possible
+
+        this.visible = true
+        this.animation = {}
+
+        this.breakable = 0
+        this.solid = 0
+
+        this.timer = 1
+        this.counter = 0
+
+    }
+
+    hit(projectile, props) {
+        return true
+    }
+
+    update(dt) {
+
+        this.timer -= dt
+        if (this.timer < 0) {
+            this.timer = 1
+            // random angle between 45 and 135
+            let xspeed = ((this.counter%7) - 3) * 15
+            let name = "TarBall"
+            let props = {x: this.rect.cx() - 4, y: this.rect.top(), xspeed: xspeed}
+            //console.log("spawn", name, props)
+            this._x_debug_map.createObject(this._x_debug_map._x_nextEntId(), name, props)
+
+            this.counter += 1
+        }
+
+    }
+
+    paint(ctx) {
+
+        ctx.fillStyle = "red";
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 2)
+        ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+
+    }
+
+}
+
+registerEditorEntity("TarSpawn", TarSpawn, [16,16], EntityCategory.hazard, null, (entry)=> {
     entry.icon = gAssets.sheets.ruler.tile(0)
     entry.editorIcon = null
     entry.editorSchema = []

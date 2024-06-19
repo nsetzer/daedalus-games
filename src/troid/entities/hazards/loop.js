@@ -71,7 +71,7 @@ export class Loop extends PlatformerEntity {
         this.center_x = this.rect.cx()
         this.radius = (this.rect.w - this.offset_y)/2
 
-        this.dirt = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
+        this.dirt = gAssets.themes[gAssets.mapinfo.theme][1].sheets.tile(33)
 
 
         let sens_w = 12
@@ -336,7 +336,7 @@ registerEditorEntity("Loop", Loop, [128,128], EntityCategory.switches, null, (en
     entry.editorSchema = [
     ]
     entry.editorRender = (ctx, x, y, props) => {
-        let tile = gAssets.themes[gAssets.mapinfo.theme][1].tile(33)
+        let tile = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
         Loop.paint_loop(ctx, tile, x, y, 128, 128, x + 64, y + 64 + 8, 64)
     }
 

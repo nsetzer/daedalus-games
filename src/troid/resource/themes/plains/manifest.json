@@ -6,14 +6,18 @@
     ],
     "backgrounds": [
         {
-            "name": "default",
-            "parallax": [
-                5,
-                7
-            ],
-            "sheets": [
-                "bg0.png",
-                "bg1.png"
+            "name": "hills1",
+            "layers": [
+                {"filename": "bg0.png", "parallax": 7, "anchor": "bottom", "tile-x": true, "tile-y": true},
+                {"filename": "bg1.png", "parallax": 5, "anchor": "bottom", "tile-x": true, "tile-y": false}
+            ]
+        },
+        {
+            "name": "forest2",
+            "layers": [
+                {"filename": "forest2_0.png", "parallax": 7, "anchor": "bottom", "tile-x": true, "tile-y": true},
+                {"filename": "forest2_1.png", "parallax": 5, "anchor": "bottom", "tile-x": true, "tile-y": false},
+                {"filename": "forest2_2.png", "parallax": 3, "anchor": "bottom", "tile-x": true, "tile-y": false} 
             ]
         }
     ],

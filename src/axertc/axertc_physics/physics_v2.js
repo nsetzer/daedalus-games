@@ -134,12 +134,13 @@ export class Physics2dPlatformV2 {
         this.xmaxspeed1 = config?.xmaxspeed1??(7*32)  // from pressing buttons
         this.xmaxspeed1a = this.xmaxspeed1*(2/3)
         this.xmaxspeed2 = config?.xmaxspeed2??(14*32) // from other sources ?
+        this.xacceleration_t = config?.xacceleration_t??0.2
 
         // speed profiles allow for different acceleration rates
         // acclerate to 2/3 of max speed in .2 seconds
         // then slowly accelerate to max speed over 1 second
         this.speed_profiles = [
-            {speed: this.xmaxspeed1a, accel: (this.xmaxspeed1a) / .2},
+            {speed: this.xmaxspeed1a, accel: (this.xmaxspeed1a) / this.xacceleration_t},
             {speed: this.xmaxspeed1, accel: (this.xmaxspeed1 - this.xmaxspeed1a) / 1},
         ]
 
@@ -151,8 +152,8 @@ export class Physics2dPlatformV2 {
 
         // horizontal direction in a wall jump
         // TODO: after a wall jump friction does not apply to reduce the speed from xmaxspeed2 to xmaxspeed1
-        this.xacceleration = (this.xmaxspeed1a) / .2 // get up to max speed in .2 seconds
-        this.xjumpspeed = Math.sqrt(3*32*this.xacceleration) // sqrt(2*distance*acceleration)
+        let xaccel = this.speed_profiles[0].accel
+        this.xjumpspeed = Math.sqrt(3*32*xaccel) // sqrt(2*distance*acceleration)
          // console.log("xspeeds", this.xmaxspeed1, this.xmaxspeed2, this.xjumpspeed, this.xacceleration)
 
         this.jumpheight = config?.jumpheight??(64 + 8)
@@ -1103,102 +1104,33 @@ export class Physics2dPlatformV2 {
         if (this._mask_movement[this.standing_direction]&this.moving_direction) {
             // profiles for {speed, accel}
             this.speed_profile_current = -1
-            const fudge = 0.9
-            if (this.moving_direction == Direction.LEFT) {
-                // multi stage acceleration
-                for (let i=0; i < this.speed_profiles.length; i++) {
-                    const profile = this.speed_profiles[i]
-                    this.speed_profile_current = i
-                    if (this.speed.x > -profile.speed*fudge) {
-                        this.speed.x -= profile.accel * dt
+            let sign = Direction.vector(this.moving_direction)[sym.h]
+
+            for (let i=0; i < this.speed_profiles.length; i++) {
+                const profile = this.speed_profiles[i]
+                this.speed_profile_current = i
+                let ts = sign * profile.speed
+                if (ts < 0) {
+                    if (this.speed[sym.h] > ts) {
+                        this.speed[sym.h] += sign * profile.accel * dt
                         break
                     }
-                }
-                // clamp top speed
-                if (this.speed.x < -this.xmaxspeed2) {
-                    this.speed.x = -this.xmaxspeed2
-                }
-                // apply friction
-                const profile = this.speed_profiles[this.speed_profiles.length - 1]
-                if (this.speed.x < -profile.speed) {
-                    this.speed.x += this.xfriction * dt
-                }
-            } 
-            else if (this.moving_direction == Direction.RIGHT) {
-                // multi stage acceleration
-                for (let i=0; i < this.speed_profiles.length; i++) {
-                    const profile = this.speed_profiles[i]
-                    this.speed_profile_current = i
-                    if (this.speed.x < profile.speed*fudge) {
-                        this.speed.x += profile.accel * dt
+                } else {
+                    if (this.speed[sym.h] < ts) {
+                        this.speed[sym.h] += sign * profile.accel * dt
                         break
                     }
-                }
-                // clamp top speed
-                if (this.speed.x > this.xmaxspeed2) {
-                    this.speed.x = this.xmaxspeed2
-                }
-                // apply friction
-                const profile = this.speed_profiles[this.speed_profiles.length - 1]
-                if (this.speed.x > profile.speed) {
-                    this.speed.x -= this.xfriction * dt
                 }
             }
-            else if (this.moving_direction == Direction.UP) {
-                // multi stage acceleration
-                for (let i=0; i < this.speed_profiles.length; i++) {
-                    const profile = this.speed_profiles[i]
-                    this.speed_profile_current = i
-                    if (this.speed.y > -profile.speed*fudge) {
-                        this.speed.y -= profile.accel * dt
-                        break
-                    }
-                }
-                // clamp top speed
-                if (this.speed.y < -this.xmaxspeed2) {
-                    this.speed.y = -this.xmaxspeed2
-                }
-                // apply friction
-                const profile = this.speed_profiles[this.speed_profiles.length - 1]
-                if (this.speed.y < -profile.speed) {
-                    this.speed.y += this.xfriction * dt
-                }
-                /*
-                if (this.target._classname == 'Player') {
-                    console.log("!!", this.speed.y, this.xfriction)
-                }*/
+
+            if (Math.abs(this.speed[sym.h]) > this.xmaxspeed2) {
+                this.speed[sym.h] = sign * this.xmaxspeed2
             }
-            else if (this.moving_direction == Direction.DOWN) {
-                // multi stage acceleration
-                for (let i=0; i < this.speed_profiles.length; i++) {
-                    const profile = this.speed_profiles[i]
-                    this.speed_profile_current = i
-                    if (this.speed.y < profile.speed*fudge) {
-                        this.speed.y += profile.accel * dt
-                        break
-                    }
-                }
-                // clamp top speed
-                if (this.speed.y > this.xmaxspeed2) {
-                    this.speed.y = this.xmaxspeed2
-                }
-                // apply friction
-                const profile = this.speed_profiles[this.speed_profiles.length - 1]
-                if (this.speed.y > profile.speed) {
-                    this.speed.y -= this.xfriction * dt
-                }
-            }
-            
-            /*
-            console.log(
-                Direction.name[this.moving_direction], 
-                this.speed_profile_current,  this.speed_profiles.length, 
-                this.speed.x,
-                this.xmaxspeed2)
-            */
-            //let v = Direction.vector(this.moving_direction)
-            //this.accum.x += dt * this.moving_speed * v.x
-            //this.accum.y += dt * this.moving_speed * v.y
+
+            //if (Math.abs(this.speed[sym.h]) > this.speed_profiles[this.speed_profiles.length-1].speed) {
+            //    this.speed[sym.h] -= Math.sign(this.speed[sym.h]) * this.xfriction * dt
+            //}
+
         } else {
             // friction when not moving
             if (Math.abs(this.speed[sym.h]) < this.xfriction * dt) {
@@ -1567,7 +1499,7 @@ export class Physics2dPlatformV2 {
             let xi = polygon[i].x, yi = polygon[i].y;
             let xj = polygon[j].x, yj = polygon[j].y;
             
-            let intersect = ((yi > y) != (yj > y)) && \
+            let intersect = ((yi > y) != (yj > y)) && 
                              (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
 
             if (intersect) { 
