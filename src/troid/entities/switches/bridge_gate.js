@@ -40,9 +40,12 @@ export class Bridge extends PlatformerEntity {
         this.bridgeState = 0
 
         this.block_icon = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
+
+        this.switch_target_id = props.switch_target_id
     }
 
     collidePoint(x, y) {
+        /*
         if (this.bridgeState == 0) {
             if (this.angle == 90) {
                 return this.rect_closed.collidePoint(x, y)
@@ -51,6 +54,14 @@ export class Bridge extends PlatformerEntity {
             }
         }
         return false;
+        */
+        // essentially not solid when moving, 
+        // always block progress unless fully opened
+        if (this.bridgeState == 0 && this.angle == 0) {
+            return this.rect_opened.collidePoint(x, y)
+        }
+        return this.rect_closed.collidePoint(x, y)
+
     }
 
     paint(ctx) {
@@ -96,7 +107,7 @@ export class Bridge extends PlatformerEntity {
         for (let i=0; i < steps + 1; i += 1) {
             let rx = Math.round(p1.x - 8 + dx*i/steps)
             let ry = Math.round(p1.y - 8 + dy*i/steps)
-            gAssets.sheets.bridge_gate.tile(1).draw(ctx, rx, ry)
+            gAssets.sheets.bridge_gate.tile(i<steps?1:2).draw(ctx, rx, ry)
         }
 
 
@@ -143,6 +154,10 @@ export class Bridge extends PlatformerEntity {
         */
 
 
+    }
+
+    onSwitchTrigger(mode) {
+        this.bridgeState = 1
     }
 
     update(dt) {
@@ -199,7 +214,8 @@ registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.switches, null, (
     entry.editorIcon = null
     entry.editorSchema = [
         {control: EditorControl.RESIZE, "min_width": 48, "min_height": 16},
-        {control: EditorControl.CHOICE, name: "opened", "default": 1, choices: {opened:1,closed:0}}
+        {control: EditorControl.CHOICE, name: "opened", "default": 1, choices: {opened:1,closed:0}},
+        {control: EditorControl.SWITCH_TARGET},
     ]
     entry.editorRender = (ctx, x, y, props) => {
         let tile = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
@@ -219,6 +235,4 @@ registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.switches, null, (
 
 
     }
-
-
 })

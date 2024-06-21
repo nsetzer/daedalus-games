@@ -271,6 +271,7 @@ class AssetLoader {
                     .layout(8, 11)
                     .offset(1, 1)
                     .spacing(1, 1)
+                console.log("load resource", res_name, filename)
                 theme.resources.sheets.push(res_name)
             })
 
@@ -416,7 +417,7 @@ class AssetLoader {
         this.loader.addSpriteSheet("bumper")
             .path(RES_ROOT + "/sprites/hazards/bumper.png")
             .dimensions(32, 16)
-            .layout(3, 1)
+            .layout(3, 2)
             .offset(1, 18)
             .spacing(1, 1)
 
@@ -602,6 +603,7 @@ class AssetLoader {
 
             // add the sheets to the theme
             theme.resources.sheets.forEach(res => {
+                console.log("update theme", name, res)
                 gAssets.themes[name].sheets.push(gAssets.sheets[res])
             })
 

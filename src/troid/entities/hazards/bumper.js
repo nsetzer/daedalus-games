@@ -24,17 +24,13 @@ export class Bumper extends PlatformerEntity {
 
     paint(ctx) {
 
-        let tid = 2
+        let tid = 4
         if (this.timer > 0) {
             tid = 0
         }
 
         Bumper.sheet.drawTile(ctx, tid, this.rect.x, this.rect.y - 4)
 
-        //ctx.strokeStyle = 'blue'
-        //ctx.rect(this.rect.x, this.rect.y, this.rect.w, this.rect.h)
-        //ctx.rect(this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
-        //ctx.stroke()
     }
 
     update(dt) {
@@ -62,16 +58,6 @@ registerEditorEntity("Bumper", Bumper, [32,16], EntityCategory.hazard, null, (en
     entry.icon = makeEditorIcon(Bumper.sheet)
     entry.editorIcon = (props) => {
         let tid = 0
-        switch(props?.direction) {
-            case Direction.LEFT:
-                tid = 6;
-                break;
-            case Direction.RIGHT:
-            default:
-                tid = 2;
-                break;
-        }
-    
         return gAssets.sheets.bumper.tile(tid)
     }
     entry.editorSchema = []

@@ -76,7 +76,7 @@ export const EntityCategory = {
 }
 
 // return a new 16x16 tile icon from an existing sheet
-export const makeEditorIcon = (sheet, tid=0) => {
+export function makeEditorIcon(sheet, tid=0) {
     let icon = new SpriteSheet()
     icon.tw = 16
     icon.th = 16

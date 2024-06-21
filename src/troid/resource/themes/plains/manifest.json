@@ -2,7 +2,9 @@
     "name": "plains",
     "background_color": "#477ed6",
     "sheets": [
-        "tile_plains.png"
+        "tile_plains.png",
+        "tile_plains_alt.png",
+        "tile_castle_ext.png"
     ],
     "backgrounds": [
         {

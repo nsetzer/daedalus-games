@@ -313,6 +313,20 @@ EditorControl.RESIZE = 9
 EditorControl.RANGE = 10
 // parameters: {name: str, min, max, step:1}
 
+// Switch Trigger
+EditorControl.SWITCH_TRIGGER = 20
+// parameters: {}
+// adds a property "switch_trigger_id" and "switch_mode" to the object
+// switch_trigger_id: the id of the object to trigger
+// switch_mode: whether to turn off, turn on, or toggle the target object
+
+// Switch Target
+// adds a property "switch_target_id" to the object
+// this is the object that will be toggled by the switch
+// and all objects with the same id are activated by the switch
+EditorControl.SWITCH_TARGET = 21
+
+
 export const gAssets = {
     // all of the assets currently loaded
     "music": {},

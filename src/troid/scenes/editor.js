@@ -6,6 +6,7 @@
 
 import { Alignment, Direction } from "@axertc/axertc_common"
 import { TileShape } from "@troid/tiles"
+import {deserialize_tile} from "@troid/maps"
 
 // todo: keyboad controls
 //       activate a fake cursor object which simulates touch events
@@ -96,6 +97,12 @@ class FileMenu {
             if (tx == 0 && ty == 0) {
 
                 this.parent.saveAs()
+                this.parent.active_menu = null
+            }
+
+            if (tx == 0 && ty == 1) {
+
+                this.parent.loadJson()
                 this.parent.active_menu = null
             }
 
@@ -472,6 +479,11 @@ class TilePalette {
             action: ()=>{  }
         })
         */
+        this._updateTiles()
+
+        // background behind groups of actions with 2px padding
+        this.border1 = new Rect(x + p + 0*s - 2, y + p + 0*s - 2, 2*t+p+4, 2*t+p+4)
+        this.border2 = new Rect(x + p + 0*s - 2, y + p + 2*s - 2, 2*t+p+4, 3*t+2*p+4)
 
         this.actions.push({
             shortcut: "w",
@@ -501,15 +513,6 @@ class TilePalette {
         })
 
         // tiles
-
-        this.tiles = [
-            gAssets.themes["plains"].sheets[1].tile(0*11+0),
-            gAssets.themes["plains"].sheets[1].tile(0*11+5),
-            gAssets.themes["plains"].sheets[1].tile(0*11+7),
-            gAssets.themes["plains"].sheets[1].tile(1*11+7),
-            gAssets.themes["plains"].sheets[1].tile(3*11+0),
-            gAssets.themes["plains"].sheets[1].tile(4*11+10)
-        ]
 
         this.actions.push({
             shortcut: "1",
@@ -656,17 +659,43 @@ class TilePalette {
             render: (ctx, x, y)=>{
 
                 this.parent.theme_sheets_icon[this.parent.tile_sheet].draw(ctx, x, y)
+
+
+                ctx.font = "6px Verdana";
+                ctx.fillStyle = "black"
+                ctx.textAlign = "left"
+                ctx.textBaseline = "middle"
+                ctx.fillText(`Style ${this.parent.tile_sheet}/${this.parent.theme_sheets_count-1}`, x+16+4, y+8)
+
             },
             action: ()=>{ 
                 this.parent.tile_sheet += 1
-                if (this.parent.tile_sheet >= this.parent.theme_sheets.length) {
+                if (this.parent.tile_sheet >= this.parent.theme_sheets_count) {
                     this.parent.tile_sheet = 1
                 }
+                this._updateTiles()
             }
         })
 
+    }
 
-
+    _updateTiles() {
+        this.tiles = [
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(0*11+0),
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(0*11+5),
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(0*11+7),
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(1*11+7),
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(3*11+0),
+            gAssets.themes[this.parent.current_theme].sheets[this.parent.tile_sheet].tile(4*11+10)
+        ]
+        if (this.actions.length > 9) {
+            this.actions[3].icon = this.tiles[0]
+            this.actions[4].icon = this.tiles[1]
+            this.actions[5].icon = this.tiles[2]
+            this.actions[6].icon = this.tiles[3]
+            this.actions[7].icon = this.tiles[4]
+            this.actions[8].icon = this.tiles[5]
+        }
     }
 
     handleTouches(touches) {
@@ -711,6 +740,12 @@ class TilePalette {
         ctx.roundRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h, 3)
         ctx.closePath()
         ctx.stroke()
+        ctx.fill()
+    
+        ctx.beginPath();
+        ctx.fillStyle = "#c4c4c4"
+        ctx.roundRect(this.border1.x, this.border1.y, this.border1.w, this.border1.h, 3)
+        ctx.roundRect(this.border2.x, this.border2.y, this.border2.w, this.border2.h, 3)
         ctx.fill()
 
         this.actions.forEach(action => {
@@ -1406,6 +1441,33 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.TEXT) {
                     this.addTextWidget(schema)
                 }
+
+                if (schema.control == EditorControl.SWITCH_TRIGGER) {
+                    // adds a property "switch_trigger_id" and "switch_mode" to the object
+                    this.addSpinBoxWidget({
+                        "name": "switch_trigger_id", 
+                        "display_name": "Activate Switch Target",
+                        "step": 1, 
+                        "min": 0,
+                        "default": 0,
+                        "max": 7,
+                    })
+                    this.addChoiceWidget({"name": "switch_mode", "choices": {TOGGLE: 1, "ACTIVATE": 2, "DEACTIVATE": 3}, "default": 1})
+                }
+
+                if (schema.control == EditorControl.SWITCH_TARGET) {
+                    // adds a property "switch_target_id" to the object
+                    this.addSpinBoxWidget({
+                        "name": "switch_target_id", 
+                        "display_name": "Switch Target Id",
+                        "step": 1, 
+                        "min": 0,
+                        "default": 0,
+                        "max": 7,
+                    })
+                }
+
+
             }
         }
 
@@ -2238,7 +2300,6 @@ export class LevelEditScene extends GameScene {
         gCharacterInfo.current_map.level_id = parseInt(lid, 10)
         gCharacterInfo.current_map.door_id = 1
 
-
         gCharacterInfo.current_map_spawn = gCharacterInfo.current_map
 
         let map_id = `${wid}-${lid}`
@@ -2251,36 +2312,6 @@ export class LevelEditScene extends GameScene {
         this.history = []
         this.history_index = 0
         this.history_max_entries = 20
-
-        this.camera = {x:-48, y:-48, scale:2}
-        this.map = {
-            width: 15*32,
-            height: 9*32,
-            layers: [{}],
-            objects: {},
-            stamps: {} // stamps are like non-solid tile-objects, allow, 'bg' and 'fg' as an attribute
-        }
-
-        gAssets.mapinfo.objects.forEach(obj => {
-            if (!this.map.objects[obj.oid]) {
-                this.map.objects[obj.oid] = obj
-            }
-        })
-
-        gAssets.mapinfo.stamps.forEach(stamp_data => {
-            let stamp = deserialize_stamp(stamp_data)
-            if (stamp.rect.w > 0 && stamp.rect.h > 0) {
-                let sid = stamp.sid
-                delete stamp.sid
-                this.map.stamps[sid] = stamp
-            }
-        })
-
-        if (gAssets.themes[gAssets.mapinfo.theme] !== undefined) {
-            this.setTileTheme(gAssets.mapinfo.theme)
-        } else {
-            this.setTileTheme("plains")
-        }
 
         this.editor_icons = {
             "pencil": gAssets.sheets.editor.tile(0),
@@ -2316,18 +2347,14 @@ export class LevelEditScene extends GameScene {
         }
 
         this.editor_objects = Object.fromEntries(editorEntities.map(entry=>[entry.name,entry]))
+        
+        this._init_map(gAssets.mapinfo)
 
         this._init_objectMenu()
 
         this._init_menu()
 
         this._init_slopes()
-
-        const mapinfo = gAssets.mapinfo
-
-        this.map.width = mapinfo.width
-        this.map.height = mapinfo.height
-        this.map.layers = mapinfo.layers
 
         //this.map.layers[0] = Object.fromEntries(mapinfo.layers[0].map(x => {
         //    const tid = (x >> 13)&0x3ffff
@@ -2359,6 +2386,44 @@ export class LevelEditScene extends GameScene {
 
     }
 
+    _init_map(mapinfo) {
+        this.camera = {x:-48, y:-48, scale:2}
+        this.map = {
+            width: 15*32,
+            height: 9*32,
+            layers: [{}],
+            objects: {},
+            stamps: {} // stamps are like non-solid tile-objects, allow, 'bg' and 'fg' as an attribute
+        }
+
+        mapinfo.objects.forEach(obj => {
+            if (!this.map.objects[obj.oid]) {
+                this.map.objects[obj.oid] = obj
+            }
+        })
+
+        mapinfo.stamps.forEach(stamp_data => {
+            let stamp = deserialize_stamp(stamp_data)
+            if (stamp.rect.w > 0 && stamp.rect.h > 0) {
+                let sid = stamp.sid
+                delete stamp.sid
+                this.map.stamps[sid] = stamp
+            }
+        })
+
+        this.map.width = mapinfo.width
+        this.map.height = mapinfo.height
+        this.map.layers[0] = mapinfo.layers[0]
+
+        console.log("!layers", this.map.layers)
+
+        if (gAssets.themes[mapinfo.theme] !== undefined) {
+            this.setTileTheme(mapinfo.theme)
+        } else {
+            this.setTileTheme("plains")
+        }
+    }
+
     setTileTheme(theme) {
         if (!gAssets.themes[theme]) {
             console.error("invalid theme name", theme)
@@ -2366,7 +2431,15 @@ export class LevelEditScene extends GameScene {
         gAssets.mapinfo.theme = theme
         this.current_theme = theme
         
+        this.tile_sheet = 1 // reset the default tile sheet style
+
         this.theme_sheets = gAssets.themes[theme].sheets
+        this.theme_sheets_count = this.theme_sheets.length
+        // set the default sheet to the first sheet 
+        // if the theme doesnt define enough sheets
+        while (this.theme_sheets.length < 8) {
+            this.theme_sheets.push(this.theme_sheets[1])
+        }
         this.theme_sheets_icon = this.theme_sheets.map(s => s===null?null:s.tile(2*11+1))
     }
 
@@ -3289,6 +3362,19 @@ export class LevelEditScene extends GameScene {
             if (schema.control == EditorControl.RANGE) {
                 props[schema.name] = schema['default']??(schema.min??0)
             }
+            
+            if (schema.control == EditorControl.SWITCH_TRIGGER) {
+                // adds a property "switch_trigger_id" and "switch_mode" to the object
+                props["switch_trigger_id"] = schema['switch_trigger_id'] ?? 0
+                props["switch_mode"] = schema['switch_mode'] ?? 1 // toggle
+            }
+            
+            if (schema.control == EditorControl.SWITCH_TARGET) {
+                // adds a property "switch_target_id" to the object
+                props["switch_target_id"] = schema['switch_target_id'] ?? 0
+            }
+
+
         }
 
         if (is_door) {
@@ -3934,6 +4020,10 @@ export class LevelEditScene extends GameScene {
         // 1 bit, the sign bit, is unused
         const tiles0 = Object.entries(this.map.layers[0]).map((t) => serialize_tile(t[0], t[1]))
 
+        
+        gCharacterInfo.current_map.level_id
+        gCharacterInfo.current_map.door_id
+
         const map = {
             version: 0,
             width: this.map.width,
@@ -3941,7 +4031,9 @@ export class LevelEditScene extends GameScene {
             theme: this.current_theme,
             layers: [tiles0],
             objects: this._serialize_objects(),
-            stamps: this._serialize_stamps()
+            stamps: this._serialize_stamps(),
+            world_id: gCharacterInfo.current_map.world_id,
+            level_id: gCharacterInfo.current_map.level_id,
         }
 
         let date = new Date()
@@ -3978,6 +4070,54 @@ export class LevelEditScene extends GameScene {
             downloadAnchorNode.remove();
         }
 
+    }
+
+    _parseUpload(mapinfo) {
+        // todo validate mapinfo
+        // todo: push history
+        // todo: on save, allow setting world and level id ??
+        //       could be a bad idea. maybe just rename in the level select?
+
+        gCharacterInfo.current_map.world_id = mapinfo.world_id??"world_00"
+        gCharacterInfo.current_map.level_id = mapinfo.level_id??1
+        gCharacterInfo.current_map.door_id = 1
+
+        mapinfo.layers[0] = Object.fromEntries(mapinfo.layers[0].map(deserialize_tile))
+
+        this._init_map(mapinfo)
+
+        // this mapping of the tiles is normally done in the resource loader
+        // _init_map parses the theme
+
+        Object.entries(this.map.layers[0]).forEach(t => {
+            let [tid, tile] = t;
+            let y = Math.floor(tid/512 - 4)
+            let x = (tid%512)
+            updateTile(this.map.layers[0], this.map.width, this.map.height, this.theme_sheets, x, y, tile)
+        })
+
+    }
+
+    loadJson() {
+        let inputElement = document.createElement('input');
+        inputElement.type = 'file';
+        inputElement.accept = '.json';
+        inputElement.style.display = 'none';
+        inputElement.addEventListener('change', () => {
+            let file = inputElement.files[0];
+            let reader = new FileReader();
+            
+            console.log(file);
+            if (file.name.endsWith(".json")) {
+
+                reader.onload = (e) => {
+                    // The file's text will be printed here
+                    this._parseUpload(JSON.parse(e.target.result));
+                };
+                reader.readAsText(file); 
+            }
+        });
+        inputElement.click();
     }
 
     historyPush(change_tile, change_object, change_stamp) {
@@ -4083,7 +4223,6 @@ export class LevelEditScene extends GameScene {
             // if not interacted with, continue with the rest of the logic
             if (!!this.active_palette) {
                 if (this.active_palette.handleTouches(touches)) {
-                    console.log("skip")
                     return
                 }
             }
