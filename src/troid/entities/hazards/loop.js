@@ -71,7 +71,7 @@ export class Loop extends PlatformerEntity {
         this.center_x = this.rect.cx()
         this.radius = (this.rect.w - this.offset_y)/2
 
-        this.dirt = gAssets.themes[gAssets.mapinfo.theme][1].sheets.tile(33)
+        this.dirt = gAssets.themes[gAssets.mapinfo.theme].sheets[1].tile(33)
 
 
         let sens_w = 12

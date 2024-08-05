@@ -1285,9 +1285,9 @@ export class MainScene extends GameScene {
         ctx.fill()
         ctx.clip();
 
-        if (gAssets.mapinfo.theme == "plains") {
-            this._parallax(ctx) 
-        } 
+        // if (gAssets.mapinfo.theme == "plains") {
+        //     this._parallax(ctx) 
+        // } 
 
         // gutter
         //ctx.beginPath()

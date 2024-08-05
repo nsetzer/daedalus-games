@@ -31,7 +31,7 @@ export class Bridge extends PlatformerEntity {
         this.rect = new Rect(props.x, props.y - props.width, props.width, 16 + props.width)
         this.rect_opened = new Rect(props.x, props.y, props.width, 12)
         this.rect_closed = new Rect(props.x + props.width - 16, props.y - props.width + 16 + 8, 16, props.width - 8)
-        this.rect_sensor = new Rect(props.x + props.width - 16, props.y - props.width, 16, 16)
+        //this.rect_sensor = new Rect(props.x + props.width - 16, props.y - props.width, 16, 16)
         this.visible = 1
         this.solid = 1
 
@@ -134,8 +134,8 @@ export class Bridge extends PlatformerEntity {
 
         this.block_icon.draw(ctx, this.rect.right(), this.rect.bottom() - this.rect.w - 16)
 
-        let tid = this.bridgeState==0?0:1
-        Bridge.sheet_bulb.tile(tid).draw(ctx, this.rect_sensor.x, this.rect_sensor.y)
+        //let tid = this.bridgeState==0?0:1
+        //Bridge.sheet_bulb.tile(tid).draw(ctx, this.rect_sensor.x, this.rect_sensor.y)
 
         /*
         ctx.beginPath()
@@ -157,12 +157,15 @@ export class Bridge extends PlatformerEntity {
     }
 
     onSwitchTrigger(mode) {
+        if (this.bridgeState) {
+            this.direction *= -1
+        }
         this.bridgeState = 1
     }
 
     update(dt) {
 
-
+        /*
         this._x_debug_map.queryObjects({"instanceof": ProjectileBase}).forEach((p) => {
             if (p.alive && this.rect_sensor.collideRect(p.rect)) {
                 p._kill()
@@ -174,6 +177,7 @@ export class Bridge extends PlatformerEntity {
 
             }
         })
+        */
 
         if (this.bridgeState == 1) {
             // open the bridge at 30 degrees per second
@@ -196,6 +200,7 @@ export class Bridge extends PlatformerEntity {
 registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.switches, null, (entry)=> {
     //Bridge.sheet = gAssets.sheets.bridge_gate
 
+    /*
     Bridge.sheet_bulb = (() => {
         let sheet = new SpriteSheet()
         sheet.tw = 16
@@ -209,6 +214,7 @@ registerEditorEntity("Bridge", Bridge, [16,16], EntityCategory.switches, null, (
         sheet.image = gAssets.sheets.battery_gate.image
         return sheet
     })();
+    */
 
     entry.icon = gAssets.sheets.bridge_gate.tile(2)
     entry.editorIcon = null
