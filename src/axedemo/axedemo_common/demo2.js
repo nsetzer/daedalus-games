@@ -210,6 +210,7 @@ class Player extends PlatformerEntity {
         //        return
         //    }
         //}
+        
 
         if ("whlid" in payload) {
             this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
@@ -220,14 +221,15 @@ class Player extends PlatformerEntity {
                 let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
 
                 if (standing) {
-                    this.physics.yspeed = this.physics.jumpspeed
+                    this.physics.speed.y = this.physics.jumpspeed
                     this.physics.yaccum = 0
                     this.physics.gravityboost = false
                     this.physics.doublejump = true
                 }
+                console.log(`on input ${standing} yspeed=${this.physics.yspeed}`)
 
             } else {
-                this.physics.xspeed = 90 * payload.vector.x
+                this.physics.speed.x = 90 * payload.vector.x
             }
 
         } else if (payload.type == "standing") {
@@ -278,7 +280,7 @@ class PlayerV2 extends PlatformerEntity {
             return Object.values(this._x_debug_map.objects).filter(ent=>{return ent?.solid})
         }
 
-        this.physics.can_wallwalk = false
+        //this.physics.can_wallwalk = false
 
         this.hue = random(0, 360)
         this.brightness = random(50, 80)

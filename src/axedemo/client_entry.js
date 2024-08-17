@@ -1,16 +1,22 @@
 
-$import("axertc_client", {
+import {
     ApplicationBase, GameScene, RealTimeClient,
     WidgetGroup, ButtonWidget,
     ArrowButtonWidget, TouchInput, KeyboardInput
+} from "@axertc/axertc_client"
 
-})
-$import("axertc_common", {
-    CspMap, ClientCspMap, ServerCspMap, fmtTime
+import {
+    CspMap, ClientCspMap, ServerCspMap, fmtTime,
     Direction, Alignment, Rect,
-})
-$import("axedemo_common", {ClockMap, MovementMap, FireworksMap, PlatformMap})
-$import("axertc_physics", {Physics2dPlatform, Physics2dPlatformV2})
+} from "@axertc/axertc_common"
+
+import {
+    Physics2dPlatform, Physics2dPlatformV2
+} from "@axertc/axertc_physics"
+
+import {
+    ClockMap, MovementMap, FireworksMap, PlatformMap
+} from "@axedemo/axedemo_common"
 
 function debug(msg) {
 
@@ -876,8 +882,8 @@ class DemoScene extends AxeSimulatorScene {
 
             const y2 = Physics2dPlatform.maprect.bottom() - 16
             const x2 = Physics2dPlatform.maprect.right() - 16
-            this.map_server.map.sendObjectCreateEvent("Slope", {
-                x:x2, y:y2, w:16, h:16, direction:Direction.UPLEFT})
+            //this.map_server.map.sendObjectCreateEvent("Slope", {
+            //    x:x2, y:y2, w:16, h:16, direction:Direction.UPLEFT})
         }
 
 

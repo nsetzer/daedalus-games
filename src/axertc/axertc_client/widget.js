@@ -203,7 +203,13 @@ export class Widget {
     }
 
     style() {
-        return this._widget_style??WidgetStyle.instance
+        if (!!this._widget_style) {
+            return this._widget_style
+        }
+        if (!WidgetStyle.instance) {
+            WidgetStyle.init()
+        }
+        return WidgetStyle.instance
     }
 
     hasFocus() {
