@@ -33,6 +33,8 @@ class Player extends PlatformerEntity {
         this.step_stomp = 0
 
         this.deltas = []
+
+        this._x_last_input_frame = 0
     }
 
     paint(ctx) {
@@ -48,6 +50,17 @@ class Player extends PlatformerEntity {
         ctx.textBaseline = "middle"
         //ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
         ctx.fillText(`${this.playerId=="player1"?1:2}`, this.rect.cx(), this.rect.cy());
+
+        if (true && !!this._shadow) {
+            ctx.beginPath();
+            ctx.rect(
+                this._shadow.rect.x,
+                this._shadow.rect.y,
+                this._shadow.rect.w,
+                this._shadow.rect.h);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+        }
 
         if (false && !!this._server_shadow) {
             ctx.beginPath();
@@ -114,7 +127,29 @@ class Player extends PlatformerEntity {
         // TODO: server sends periodic state updates
         // TODO: verify client receives state updates on the correct clock step
         //         - it should be applied right away not after 6 frame delay
-        if (false) {
+        const _x_client_side_bending = false
+
+        if (_x_client_side_bending) {
+            // if (this.physics.frame_index % 6 == 0) {
+
+            //     if (this._x_debug_map.instanceId == this.playerId) {
+            //         console.log("! bend", this._x_debug_map.instanceId, this.playerId)
+            //         this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
+            //         if (this.playerId == "player2") {
+            //             console.log("! bend player2", this.rect.y)
+            //         }
+            //     }
+            // }
+            if (this.ownedByClient && this.physics.frame_index < this._x_last_input_frame+12) {
+                console.log(this.physics.frame_index, this._x_last_input_frame+12)
+                if (this.physics.frame_index % 6 == 0) {
+                    // TODO: fix echoing back to the sender and send `csp-object-bend` instead of csp-state-client
+                    this._x_debug_map.sendObjectInputEvent(this.entid,
+                        {"type": "csp-state-client", state: this.getState()})
+                }
+            }
+        }
+        else if (false) {
             if (this._x_debug_map.isServer && was_not_standing && is_standing) {
                  this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
             }
@@ -137,6 +172,7 @@ class Player extends PlatformerEntity {
                     (!is_standing_before && is_standing_after),
                     (is_moving_before && !is_moving_after),
                     performance.now())
+
                 this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
             }
         }
@@ -183,24 +219,36 @@ class Player extends PlatformerEntity {
 
     onBend(progress, shadow) {
 
+        if (this._x_debug_map.instanceId == this.playerId) {
+            // TODO: sendObjectBendEvent causes the server to echo the msg back to the client
+            //       this section will ignore the message
+            return
+        }
         // interpolate position and disable physics on the real object
         // when bending finishes copy the entire state from the physics objects
         // TODO: some boolean paramters could use a step function to change during bending
         // for example: facing could change based on the bent xspeed or it could
         // change when progress is above 50%.
+
+        let distance = Math.sqrt((shadow.rect.x - this.rect.x)**2 + (shadow.rect.y - this.rect.y)**2)
+        // TODO: paint shadow?
+        console.log("error", distance)
         this.rect.x += (shadow.rect.x - this.rect.x) * progress
         this.rect.y += (shadow.rect.y - this.rect.y) * progress
 
-        this.physics.xspeed = 0
-        this.physics.yspeed = 0
-        this.physics.xaccum = 0
-        this.physics.yaccum = 0
+        // this.physics.speed.x = 0
+        // this.physics.speed.y = 0
+        // this.physics.accum.x = 0
+        // this.physics.accum.y = 0
 
-        if (progress >= 1) {
-            this.setState(shadow.getState())
-        }
+        //if (progress >= 1) {
+        //    this.setState(shadow.getState())
+        //}
 
         //console.log(this._x_debug_map.instanceId, "bend", progress, this.physics.direction, this.physics.xspeed)
+
+        // return the distance between shadow.rect  and rect
+        // return Math.sqrt((shadow.rect.x - this.rect.x)**2 + (shadow.rect.y - this.rect.y)**2)
     }
 
     onInput(payload) {
@@ -210,7 +258,19 @@ class Player extends PlatformerEntity {
         //        return
         //    }
         //}
-        
+
+        if (this.ownedByClient) {
+            console.log("!", payload.type)
+
+            if (payload.type == "csp-state-client") {
+                return
+            }
+            if (payload.type == "csp-state-server") {
+                return
+            }
+            this._x_last_input_frame = this.physics.frame_index
+        }
+
 
         if ("whlid" in payload) {
             this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
@@ -249,15 +309,19 @@ class Player extends PlatformerEntity {
             }
 
             const shadow = this.bendTo(payload.state)
-            shadow.rect.x = x
-            shadow.rect.y = y
-
-
+            //shadow.rect.x = x
+            //shadow.rect.y = y
 
             //this.rect.x = x
             //this.rect.y = y
 
-        } else {
+        } else if (payload.type == "csp-state-client") {
+            const shadow = this.bendTo(payload.state)
+
+        } else if (payload.type == "csp-state-server") {
+            const shadow = this.bendTo(payload.state)
+
+        }else {
             console.warn("unexpected input event", payload)
         }
 
@@ -360,7 +424,7 @@ class PlayerV2 extends PlatformerEntity {
 export class PlatformMap extends CspMap {
 
     static maprect = new Rect(0,0,0,0)
-    
+
     constructor() {
         super()
 

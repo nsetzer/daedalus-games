@@ -1,15 +1,15 @@
 
 
 /**
- * 
+ *
  *
  * TODO: what if the player character for the client always had a shadow copy
  *       and that shadow was always bent when the delta became too greatdw
  *
  * TODO: implement a way on the client to disable extrapolation
  * purely for illustrative purposes
- * 
- * 
+ *
+ *
  * one way to implement reconciliation is to hydrate a shadow world
  * using the saved state, then run the simulation forward
  * then for up to N steps after run both the shadow world and current world
@@ -117,9 +117,11 @@ export class CspMap {
         this.isServer = false
         this.playerId = "null"
 
-        this.enable_bending = true
-        this.bending_steps = 6
-        this.enable_partial_sync = true
+        this.settings = {}
+        this.settings.enable_bending = true
+        this.settings.bending_steps = 6 // TODO hardcoded to 15, see below
+
+        this.enable_partial_sync = true // TODO: not implemented
 
         this.step_rate = 120 // 2 seconds of buffered inputs
 
@@ -172,6 +174,8 @@ export class CspMap {
         this.addCustomEvent("csp-object-destroy", this._onEventObjectDestroy.bind(this))
         this.addCustomEvent("csp-object-bend", this._onEventObjectBend.bind(this))
         this.addCustomEvent("map-sync", (msg, reconcile)=>{})
+        this.addCustomEvent("csp-client-settings", (msg, reconcile)=>{ console.log("received settings", msg)})
+        this.addCustomEvent("csp-client-connect", (msg, reconcile)=>{ console.log("received connect", msg)})
 
         this._debug_reconcile = false
         this._debug_reconcile_count = 0
@@ -198,6 +202,8 @@ export class CspMap {
             ent.onInput(msg.payload)
         }
 
+        ent._x_last_input_step = this.local_step
+
         if (!!ent._server_shadow) {
             ent._server_shadow.onInput(msg.payload)
         }
@@ -223,9 +229,9 @@ export class CspMap {
         let step = msg.step
         let idx = this._frameIndex(step)
 
-        // TODO: any messsage can have {bend: True, state}
+        // TODO: any message can have {bend: True, state}
         // and initiate a pre-bending
-        if (this.enable_bending) {
+        if (this.settings.enable_bending) {
             if (!!msg.bend) {
                 console.log("received bend request", this.local_step, msg.step)
                 const ent = this.objects[msg.entid]
@@ -246,7 +252,7 @@ export class CspMap {
                     this.dirty_step = step
                 }
 
-                if (this.enable_bending) {
+                if (this.settings.enable_bending) {
                     this.dirty_objects[msg.entid] = true
                 }
 
@@ -277,7 +283,7 @@ export class CspMap {
                 this._setstate(last_known_state)
             }
 
-            if (this.enable_bending) {
+            if (this.settings.enable_bending) {
                 for (const objId of Object.keys(this.dirty_objects)) {
                     if (!!this.objects[objId]) {
                         const obj = this.objects[objId]
@@ -316,7 +322,7 @@ export class CspMap {
                 this._apply(clock, true)
                 this._stepstate()
 
-                if (this.enable_bending) {
+                if (this.settings.enable_bending) {
                     for (const objId of Object.keys(this.dirty_objects)) {
                         if (!!this.objects[objId]) {
                             // restore the incorrect state
@@ -427,7 +433,7 @@ export class CspMap {
             if (!obj.active) {
                 continue;
             }
-            
+
             obj.update(dt)
             if (!!obj._shadow) {
                 //if (!obj._shadow.x) {
@@ -443,19 +449,43 @@ export class CspMap {
                 if (!reconcile) {
 
                     obj._shadow_step += 1
-                    const p = (obj._shadow_step) / this.bending_steps
+                    //const p = (obj._shadow_step) / this.settings.bending_steps
+                    //let _steps = this.settings.bending_steps
+                    let _steps = 15
+
+                    const p = ((obj._shadow_step < _steps) ?
+                        (1/_steps) :
+                        ((obj._shadow_step-_steps)/_steps));
+
                     obj.onBend(p, obj._shadow)
 
-                    if (obj._shadow_step >= this.bending_steps){
-                        if (this._debug_reconcile) {
-                            throw new Error("shadow copy bending finished during reconcile")
-                        }
-                        console.warn("remove shadow")
-                        //console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
-                        //obj.setState(obj._shadow.getState())
+                    //const p = (obj._shadow_step < (2*_steps))?(1/_steps):1
+                    //let distance = obj.onBend(p, obj._shadow)
+
+                    //console.log(p, obj._shadow_step, _steps, distance)
+
+                    // if (distance < 1) {
+                    //     obj.setState(obj._shadow.getState())
+                    //     delete obj._shadow
+                    // }
+
+                    if (obj._shadow_step >= _steps){
+                        obj.setState(obj._shadow.getState())
                         delete obj._shadow
                     }
 
+                    // if (obj._shadow_step >= this.settings.bending_steps){
+                    //     if (this._debug_reconcile) {
+                    //         throw new Error("shadow copy bending finished during reconcile")
+                    //     }
+                    //     console.warn("remove shadow")
+                    //     //console.log(this.instanceId, this.local_step, "do bend finish", obj.entid)
+                    //     //obj.setState(obj._shadow.getState())
+                    //     delete obj._shadow
+                    // }
+
+                } else {
+                    console.log("error no rec")
                 }
             }
 
@@ -602,7 +632,7 @@ export class CspMap {
 
     sendMessage(playerId, message) {
         this.outgoing_messages.push({
-            kind: 1,
+            kind: MessageKind.DIRECT,
             playerId: playerId,
             message:message})
     }
@@ -612,7 +642,7 @@ export class CspMap {
             throw {message: "can only send to neighbors from the server"}
         }
         this.outgoing_messages.push({
-            kind: 2,
+            kind: MessageKind.NEIGHBORS,
             playerId,
             message})
     }
@@ -622,7 +652,7 @@ export class CspMap {
             throw {message: "can only send to neighbors from the server"}
         }
         const tmp = {
-            kind: 3,
+            kind: MessageKind.BROADCAST,
             "playerId":playerId,
             "message":message
         }
@@ -654,7 +684,7 @@ export class CspMap {
         ent._destroy = ()=>{this.destroyObject(entId)}
         ent._x_debug_map = this
 
-        if (this.enable_bending) {
+        if (this.settings.enable_bending) {
             if (entId in this.dirty_objects) {
                 ent._shadow = this._construct(entId, ent._classname, props)
                 ent._shadow._isShadow = true
@@ -730,6 +760,28 @@ export class CspMap {
         const uid = this.next_msg_uid;
         this.next_msg_uid += 1;
         return '' + uid
+    }
+
+    sendClientConnectEvent() {
+
+        const uid = this.next_msg_uid;
+        this.next_msg_uid += 1;
+
+        const type = "csp-client-connect"
+
+        const event = {
+            type,
+            step: this.local_step + this.input_delay,
+        }
+
+        if (this.isServer) {
+            throw new Error("sendClientConnectEvent not implemented for client")
+        } else {
+            this.sendMessage(this.playerId, event)
+        }
+
+        return event
+
     }
 
     sendObjectCreateEvent(className, props) {
@@ -833,7 +885,8 @@ export class CspMap {
         if (this.isServer) {
             this.sendBroadcast(this.playerId, event)
         } else {
-            throw new Error("not implemented")
+            //throw new Error("sendObjectBendEvent not implemented for client")
+            this.sendMessage(this.playerId, event)
         }
 
         return event
@@ -845,19 +898,19 @@ export class CspMap {
      * Queries the objects based on the provided query.
      * @param {Object} query - The query object containing properties to filter the objects.
      * @returns {Array} - An array of objects that match the query.
-     * 
+     *
      * query can contain the following properties:
-     * 
+     *
      * className: search for objects that match the given class name
      * instanceof: search for objects that are instances of the given class
      * instancein: search for objects that are instances of any of the given classes
      * property: search for objects that have a property matching a given value
      *           if the value is undefined, then return objects that have the
      *           property regardless of the value
-     * 
+     *
      * queryObjects({className: "Player"})
      * queryObjects({solid: true})
-     * queryObjects({breakable: undefined}) // find objects that implement breakable 
+     * queryObjects({breakable: undefined}) // find objects that implement breakable
      */
     queryObjects(query) {
 
@@ -894,9 +947,18 @@ export class CspMap {
 
 }
 
-const STEP_NORMAL = 0
-const STEP_SKIP = 1
-const STEP_CATCHUP = 2
+const StepKind = {
+    NORMAL: 0,
+    SKIP: 1,
+    CATCHUP: 2
+}
+
+const MessageKind = {
+    DIRECT: 1,
+    NEIGHBORS: 2,
+    BROADCAST: 3
+}
+
 
 export class ClientCspMap {
 
@@ -949,7 +1011,9 @@ export class ClientCspMap {
 
         while (this.incoming_message.length > 0) {
             const msg = this.incoming_message.shift()
+
             if (msg.type == "map-sync") {
+                // console.log(msg.type, msg.step, msg.sync )
                 if (this.world_step < 0) {
 
                     // TODO: check reset
@@ -1014,7 +1078,7 @@ export class ClientCspMap {
                     // delta should be 7 or 31
 
                     if (false) {
-                        debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` + 
+                        debug(`msg_step: ${msg.step} local_step: ${this.map.local_step}` +
                               ` client validate message delta:`);
                         console.warn(`delta: ${(this.map.local_step - msg.client_step)}`)
                     }
@@ -1024,7 +1088,7 @@ export class ClientCspMap {
 
                     //console.log("set partial step", this.map.local_step, msg.step)
                     //this.map.dirty_step = old.step
-                    //if (this.map.enable_bending) {
+                    //if (this.map.settings.enable_bending) {
                     //    this.map.dirty_objects[msg.entid] = true
                     //}
 
@@ -1058,7 +1122,7 @@ export class ClientCspMap {
         if (this.world_step >= 0) {
 
             const delta = this.world_step - this.map.local_step
-            let step_kind = STEP_NORMAL
+            let step_kind = StepKind.NORMAL
 
             // this checks to see if the client step is out of sync with the
             // last message received from the server. Every forth
@@ -1068,20 +1132,20 @@ export class ClientCspMap {
             // of the client to be 58,59 or 61,62 FPS until the game is synchronized again
             if (this.map.local_step%4==0) {
                 if (delta > this.step_delay) {
-                    step_kind = STEP_CATCHUP
+                    step_kind = StepKind.CATCHUP
                     //console.log("catchup", this.map.local_step)
                 }
                 if (delta < this.step_delay) {
-                    step_kind = STEP_SKIP
+                    step_kind = StepKind.SKIP
                     //console.log("skip", this.map.local_step)
                 }
             }
 
             this.world_step += 1
 
-            if (step_kind == STEP_SKIP) {
+            if (step_kind == StepKind.SKIP) {
 
-            } else if (step_kind == STEP_CATCHUP) {
+            } else if (step_kind == StepKind.CATCHUP) {
                 this.map.update_before(dt, false)
                 this.map.update_main(dt, false)
                 this.map.update_after(dt, false)
@@ -1121,7 +1185,7 @@ export class ServerCspMap {
         this.map = map
         this.map.isServer = true
         this.incoming_message = []
-        this.map.enable_bending = false
+        this.map.settings.enable_bending = false
         this.sync_timer = .1
 
         //this.map.inputqueue_v2 = []
@@ -1136,7 +1200,8 @@ export class ServerCspMap {
     }
 
     receiveMessage(playerId, message) {
-        this.incoming_message.push(message)
+        this.incoming_message.push({playerId, message})
+        /*
         return
 
         if (this.map.validateMessage(playerId, message) === false) {
@@ -1144,6 +1209,7 @@ export class ServerCspMap {
         } else {
             this.incoming_message.push(message)
         }
+            */
 
     }
 
@@ -1156,6 +1222,17 @@ export class ServerCspMap {
 
         const uid = this.map.next_msg_uid;
         this.map.next_msg_uid += 1;
+
+        // FIXME: join is not called. client-connect will establish the client id
+        const settings = {
+            type: "csp-client-settings",
+            uid: uid,
+            step: this.map.local_step,
+            sync: 1,
+            settings: this.map.settings,
+        }
+        this.map.sendMessage(playerId, settings)
+        console.log("send settings", settings)
 
         const state = {
             type: "map-sync",
@@ -1171,7 +1248,7 @@ export class ServerCspMap {
         this.map.sendMessage(playerId, state)
 
     }
-    
+
 
     paint(ctx) {
         this.map.paint(ctx)
@@ -1198,27 +1275,31 @@ export class ServerCspMap {
 
         let messages = []
 
-        const experiment_ = true
+        // TODO: when bending delay the input by 6 frames
+        // 1. send the delta from the last input
+        // 2. delay the message by 6 frames
+        // 3. rewrite the input to the server frame time
+        // 4. if the delta from the last input is valid use that
 
-        if (experiment_) {
+        const _x_rewrite_input = true
+
+        if (_x_rewrite_input) {
             let i=0;
             while (i < this.incoming_message.length) {
 
-                const msg = this.incoming_message[i]
+                const {playerId, message} = this.incoming_message[i]
                 //console.log("msg step", "client", msg.step, "server", this.map.local_step+1)
 
-                if (true) {
+                //debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
+                const msg_v2 = {...message, client_step: message.step, step:this.map.local_step+1}
+                this.map.receiveEvent(msg_v2)
 
-                    //debug(`world_step: ${this.map.local_step} client_step: ${msg.step+6} delay:${performance.now() - msg._x_debug_t} received message`)
-                    const msg_v2 = {...msg, client_step: msg.step, step:this.map.local_step+1}
-                    this.map.receiveEvent(msg_v2)
-
-                    //debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
-                    messages.push(msg)
-                    this.incoming_message.splice(i, 1)
-                } else {
-                    i += 1
+                //debug(`world_step: ${this.map.local_step} client_step: ${msg_v2.client_step-6} receive event`)
+                if (message.type !== "csp-client-connect") {
+                    messages.push(message)
                 }
+                this.incoming_message.splice(i, 1)
+
             }
         } else {
             while (this.incoming_message.length > 0) {
@@ -1231,7 +1312,7 @@ export class ServerCspMap {
         //this.map.reconcile()
         this.map.update(dt)
 
-        if (experiment_) {
+        if (_x_rewrite_input) {
             while (messages.length > 0) {
                 const msg = messages.shift()
                 //this.map.receiveEvent(msg)
@@ -1244,6 +1325,27 @@ export class ServerCspMap {
                 this.map.sendBroadcast(null, msg_v2)
             }
         }
+
+        // server side bending is a method where the server collects inputs and
+        // then sends updates to all clients, including the player that sent the updates
+        // all players will bend towards the authoritative state of the player
+        const _x_server_side_bending = false
+        if (_x_server_side_bending) {
+            // get the list of entities that have received a user input
+
+            if (this.map.local_step%6 === 0) {
+                Object.values(this.map.objects).forEach(ent => {
+
+                    if (ent._x_last_input_step !== null) {
+                        if (this.map.local_step < ent._x_last_input_step + 6) {
+                            //console.log(x._x_last_input_step, x._classname, x.entid)
+                            this.map.sendObjectBendEvent(ent.entid, ent.getState())
+                        }
+                    }
+                })
+            }
+        }
+
 
     }
 }

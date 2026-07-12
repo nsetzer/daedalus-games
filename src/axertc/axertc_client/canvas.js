@@ -623,23 +623,60 @@ export class CanvasEngine extends DomElement {
             return;
         }
 
-        ctx.resetTransform()
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.scale(this.view.scale, this.view.scale);
-        if (this.view.rotate) {
-            ctx.rotate((90 * Math.PI) / 180)
-            ctx.translate(0,-this.props.width/this.view.scale)
+        //console.log(canvas.width, canvas.height, this.view.scale, this.view.width, this.view.height)
+        if (false && this.view.scale > 1.0) {
+            // pixel art scaling approximation for crt effect
+            //https://30fps.net/pages/pixelart-scaling/
+
+            const canvas1 = document.createElement('canvas');
+            canvas1.width = this.view.width;
+            canvas1.height = this.view.height;
+            const ctx1 = canvas1.getContext('2d');
+            //ctx.clearRect(0, 0, canvas1.width, canvas1.height)
+            this.scene.paint(ctx1)
+
+            const canvas2 = document.createElement('canvas');
+            canvas2.width = this.view.width;
+            canvas2.height = this.view.height * this.view.scale;
+            const ctx2 = canvas2.getContext('2d');
+            ctx2.imageSmoothingEnabled = false; // Disable smoothing for nearest neighbor
+            ctx2.drawImage(canvas1, 0, 0, canvas2.width, canvas2.height);
+
+            const canvas3 = document.createElement('canvas');
+            canvas3.width = this.view.width * this.view.scale;
+            canvas3.height = this.view.height * this.view.scale;
+            const ctx3 = canvas3.getContext('2d');
+            ctx3.imageSmoothingEnabled = true; // Disable smoothing for nearest neighbor
+            ctx3.drawImage(canvas2, 0, 0, canvas3.width, canvas3.height);
+
+            ctx.resetTransform()
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+            ctx.drawImage(canvas3, 
+                this.view.x * this.view.scale, 
+                this.view.y * this.view.scale, 
+                canvas3.width, 
+                canvas3.height);
+
+
+        } else {
+
+            ctx.resetTransform()
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.scale(this.view.scale, this.view.scale);
+            if (this.view.rotate) {
+                ctx.rotate((90 * Math.PI) / 180)
+                ctx.translate(0,-this.props.width/this.view.scale)
+            }
+            ctx.translate(this.view.x, this.view.y)
+
+            ctx.save()
+            this.scene.paint(ctx)
+            ctx.restore()
+
+
+
         }
-        ctx.translate(this.view.x, this.view.y)
-        //ctx.webkitImageSmoothingEnabled = false;
-        //ctx.mozImageSmoothingEnabled = false;
-        //ctx.imageSmoothingEnabled = false;
-        ctx.save()
-        this.scene.paint(ctx)
-        ctx.restore()
-        //this.ctx2.beginPath();
-        //this.ctx2.arc(200, 75, 50, 0, 2 * Math.PI);
-        //this.ctx2.stroke();
 
         if (this.use_double_buffering) {
             
@@ -647,12 +684,20 @@ export class CanvasEngine extends DomElement {
             this.ctx1.drawImage(this.buffer2, 0, 0)
 
             // draw a circle
-            //this.ctx1.beginPath();
-            //this.ctx1.arc(100, 75, 50, 0, 2 * Math.PI);
-            //this.ctx1.stroke();
-
-
+            this.ctx1.beginPath();
+            this.ctx1.arc(100, 75, 50, 0, 2 * Math.PI);
+            this.ctx1.stroke();
         }
+
+        //ctx.webkitImageSmoothingEnabled = false;
+        //ctx.mozImageSmoothingEnabled = false;
+        //ctx.imageSmoothingEnabled = false;
+
+        //this.ctx2.beginPath();
+        //this.ctx2.arc(200, 75, 50, 0, 2 * Math.PI);
+        //this.ctx2.stroke();
+
+
 
         /*
         this.ctx1.resetTransform()

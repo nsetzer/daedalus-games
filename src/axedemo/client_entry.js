@@ -680,7 +680,9 @@ class AxeSimulatorScene extends GameScene {
             ctx.textAlign = "right"
             ctx.textBaseline = "top"
             const delta1 = map.world_step - this.map_server.map.local_step
-            ctx.fillText(`DELAY: ${delta1} `, view.width, 0);
+            if (!isNaN(delta1)) {
+                ctx.fillText(`DELAY: 1 ${delta1} `, view.width, 0);
+            }
 
             if (i==0 || i==2) {
 
@@ -752,7 +754,7 @@ class AxeSimulatorScene extends GameScene {
                 ctx.font = "24px mono";
                 ctx.textAlign = "center"
                 ctx.fillText(`${fmtTime(map.map.local_step/60)}`, view.width/2, 180);
-                
+
 
                 if (i==0||i==2) {
                     const delta = map.map.local_step - this.maps[1].map.local_step
@@ -766,7 +768,7 @@ class AxeSimulatorScene extends GameScene {
             ctx.fillStyle = "yellow"
             ctx.textAlign = "left"
             ctx.textBaseline = "top"
-            ctx.fillText(`Bending ${map.map.enable_bending?"enabled":"disabled"} (${map.map._debug_reconcile_count})`, view.x+4, view.height);
+            ctx.fillText(`Bending: ${map.map.enable_bending?"enabled":"disabled"}, (count=${map.map._debug_reconcile_count})`, view.x+4, view.height);
 
         }
         ctx.restore();
@@ -842,6 +844,9 @@ class DemoScene extends AxeSimulatorScene {
 
             const x1 = Physics2dPlatform.maprect.left() + 8
             const x2 = Physics2dPlatform.maprect.right() - 40
+
+            this.map_player1.map.sendClientConnectEvent();
+            this.map_player2.map.sendClientConnectEvent();
 
             if ((this.demo_mode&DEMO_MODE_PLATFORM2)==DEMO_MODE_PLATFORM2) {
                 this.map_player1.map.sendObjectCreateEvent("PlayerV2",
