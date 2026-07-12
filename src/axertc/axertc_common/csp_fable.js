@@ -1,4 +1,74 @@
 
+/**
+ * csp_fable.js — Client-Side Prediction / Server Reconciliation core.
+ *
+ * A clean implementation of the CSP system described in csp.md, following the
+ * "Best Practices for Authoritative Multiplayer" chapter:
+ *
+ *   - The server is authoritative: clients request actions, the server owns
+ *     the truth and rebroadcasts validated events on its own timeline.
+ *   - Client-side prediction: local inputs are applied immediately at
+ *     (local_step + input_delay) without waiting for the server.
+ *   - Server reconciliation: late events mark a dirty step; the client
+ *     rewinds to a saved snapshot and replays all inputs forward.
+ *     Snapshots are pure serialisable data (not live object references) so
+ *     entities created or destroyed mid-history replay correctly.
+ *   - Bending: purely visual error smoothing.  A shadow Entity holds the
+ *     authoritative target and the real entity eases toward it over
+ *     settings.bending_steps frames via onBend(progress, shadow) where
+ *     progress advances linearly 0 -> 1.  Bending never runs during
+ *     reconciliation and never feeds back into replayed state.
+ *     Server-driven bending: every 6 steps the server broadcasts the state of
+ *     entities that recently received input; clients bend remote entities
+ *     toward it.  Entities flagged ownedByClient are corrected by
+ *     reconciliation only and skip server bend events (no double-correction).
+ *   - Clock synchronization: the client targets local_step = world_step -
+ *     step_delay.  The simulation always runs with a fixed timestep (1/60)
+ *     for determinism; drift is corrected by scaling how fast simulation
+ *     time ACCUMULATES, so a drifting client occasionally runs 0 or 2 whole
+ *     steps in a frame instead of distorting entity physics with a scaled dt.
+ *
+ * ---------------------------------------------------------------------------
+ * Deviations from the v1 public API (csp.js), kept intentionally small:
+ *
+ *  1. input_delay moved into settings: use map.settings.input_delay
+ *     (v1 exposed map.input_delay).  Default is unchanged (6 frames).
+ *  2. settings.bending_steps is honoured (v1 hard-coded 15 in the loop) and
+ *     onBend receives progress advancing linearly 0 -> 1 (v1 passed a
+ *     constant 1/15).  Default bending_steps is 15 to match v1 timing.
+ *  3. reconcile() no longer creates bending shadows or restores "wrong"
+ *     visual states.  After reconcile, entities sit at their authoritative
+ *     position.  Bending is driven only by csp-object-bend events and
+ *     explicit Entity.bendTo() calls.
+ *  4. During reconciliation, inputs are always applied to the real entity
+ *     (v1 applied them only to the shadow when one existed, so the real
+ *     object missed late inputs — bug #4 in csp.md).
+ *  5. waiting_validation is keyed by "entid:uid" instead of uid alone, so
+ *     uids from two different clients cannot collide (bug #11).
+ *  6. Clock correction uses a fixed timestep driven by a scaled time
+ *     accumulator; the v1 StepKind SKIP/CATCHUP mechanism (which forced a
+ *     correction on a rigid every-4th-frame rhythm, bug #12) is gone.
+ *     The client also re-times its own inputs when the server echo reveals
+ *     they were applied at a different step, so the owned entity converges
+ *     on the server result without bend events.
+ *  7. Client-side sendObjectCreateEvent creates the object immediately so it
+ *     can be found and receive input before the queued create event fires.
+ *     The queued event is still processed (and skipped as a duplicate) so
+ *     reconcile replay works.
+ *  8. Map-level validateMessage(playerId, msg) is NOT called by the server
+ *     (this matches v1's actual runtime, where the call site was removed —
+ *     bug #8 documents that calling it would have crashed).  To validate,
+ *     override ServerCspMap.validateMessage(playerId, message) and return
+ *     false to reject.  Do not use it to retransmit (no sendNeighbors):
+ *     the server echoes every validated event itself.
+ *  9. getState()/setState() keep the v1 live-object snapshot shape for
+ *     compatibility, but reconciliation uses internal pure-data snapshots
+ *     (_snapshotState/_restoreSnapshot).
+ * 10. The server echo of an input carries step = the server step at which the
+ *     input was applied and state = the entity state after that step
+ *     (v1 tagged the state with the wrong step, bug #7).
+ */
+
 function debug(msg) {
 
     console.log(`*${pad(performance.now()/1000, 12, ' ')}: ${msg}`)
@@ -65,6 +135,15 @@ export class Entity {
         this.entid = entid
         this._destroy = () => {throw new Error("entity not attached to a world")}
         this.active = true
+
+        // internal bookkeeping, managed by CspMap
+        this._classname = null
+        this._x_debug_map = null
+        this._x_last_input_step = null
+        this._isShadow = false
+        this._shadow = null           // Entity | null: authoritative bend target
+        this._shadow_step = 0         // frames elapsed since the shadow was created
+        this._server_shadow = null    // Entity | null: reserved for partial sync
     }
 
     paint(ctx) {
@@ -94,8 +173,28 @@ export class Entity {
         this._destroy()
     }
 
+    /**
+     * Begin bending toward the given state.
+     * Creates a shadow Entity at `state`; each frame update_main advances the
+     * shadow and calls onBend(progress, shadow) until progress reaches 1.
+     *
+     * @param {object} state - authoritative state to bend toward.
+     * @param {number|null} world_step - optional step hint stored on the shadow.
+     * @returns {Entity|null} the shadow, or null if not attached to a map.
+     */
     bendTo(state, world_step=null) {
-
+        if (!this._x_debug_map) {
+            return null
+        }
+        const shadow = this._x_debug_map._construct(this.entid, this._classname, {})
+        shadow._isShadow = true
+        shadow._destroy = () => {}
+        shadow._x_debug_map = this._x_debug_map
+        shadow.setState(state)
+        shadow._target_step = world_step
+        this._shadow = shadow
+        this._shadow_step = 0
+        return shadow
     }
 }
 
@@ -108,7 +207,10 @@ export class CspMap {
 
         this.settings = {}
         this.settings.enable_bending = true
-        this.settings.step_rate = true // 2 seconds of buffered inputs
+        // number of frames over which onBend eases toward the shadow
+        this.settings.bending_steps = 15
+        // buffered history in steps; 120 = 2 seconds at 60 FPS
+        this.settings.step_rate = 120
         // number of frames to delay user inputs before applying to the local state
         // at 60FPS this assumes 100ms round trip with server
         this.settings.input_delay = 6
@@ -119,10 +221,37 @@ export class CspMap {
 
         this.local_step = 0;
         this.next_msg_uid = 1
+        this._last_dt = 1/60
 
         //-----------------------------------------------------
         // send (to remote)
         this.outgoing_messages = []
+
+        // events sent by this client awaiting the server echo,
+        // keyed by "entid:uid" (compound key: uid alone is not globally unique)
+        this.waiting_validation = {}
+
+        //-----------------------------------------------------
+        // receive: circular buffers holding history for reconciliation
+
+        this._capacity = this.settings.step_rate * 2
+
+        // inputqueue[step % capacity] = {[entid]: {[uid]: event}}
+        this.inputqueue = []
+        for (let i=0; i < this._capacity; i++) {
+            this.inputqueue.push({})
+        }
+
+        // statequeue[step % capacity] = pure-data snapshot or null
+        // snapshot shape: {[entid]: {className, state}}
+        this.statequeue = []
+        for (let i=0; i < this._capacity; i++) {
+            this.statequeue.push(null)
+        }
+
+        // reconciliation bookkeeping
+        this.dirty_step = null
+        this.dirty_objects = {}
 
         this.events = {}
 
@@ -144,27 +273,35 @@ export class CspMap {
     }
 
     _onEventObjectCreate(msg, reconcile) {
-        this.createObject(msg.entid, msg.payload.className, msg.payload.props)
+        // guard against duplicate creation: the client creates its own objects
+        // immediately in sendObjectCreateEvent, and the server echo arrives at
+        // a different (rewritten) step so this handler can fire more than once.
+        if (!(msg.entid in this.objects)) {
+            this.createObject(msg.entid, msg.payload.className, msg.payload.props)
+        }
     }
 
     _onEventObjectInput(msg, reconcile) {
-        // TODO: if not reconciling, apply to both shadow and real object
         const ent = this.objects[msg.entid]
-        if (!!ent._shadow) {
-            ent._shadow.onInput(msg.payload)
-            if (!reconcile) {
-                ent.onInput(msg.payload)
-            }
-        } else {
-            ent.onInput(msg.payload)
+        if (!ent) {
+            console.warn(this.instanceId, "input for unknown entity", msg.entid)
+            return
         }
 
-        ent._x_last_input_step = this.local_step
+        // Always apply to the real entity, including during reconciliation.
+        // The real entity is the simulation; a shadow (if any) is only a
+        // visual bend target and is forwarded the input so it does not
+        // diverge from the authoritative timeline.
+        ent.onInput(msg.payload)
 
+        if (!!ent._shadow) {
+            ent._shadow.onInput(msg.payload)
+        }
         if (!!ent._server_shadow) {
             ent._server_shadow.onInput(msg.payload)
         }
 
+        ent._x_last_input_step = this.local_step
     }
 
     _onEventObjectDestroy(msg, reconcile) {
@@ -172,8 +309,25 @@ export class CspMap {
     }
 
     _onEventObjectBend(msg, reconcile) {
-
-        this.objects[msg.entid].bendTo(msg.state)
+        // bending is cosmetic; never start one while replaying history
+        if (reconcile) {
+            return
+        }
+        const ent = this.objects[msg.entid]
+        if (!ent) {
+            return
+        }
+        // entities the local player controls are corrected by reconciliation;
+        // applying server bends on top double-corrects and feels rubbery
+        if (ent.ownedByClient === true) {
+            return
+        }
+        if (!this.settings.enable_bending) {
+            // bending disabled: apply the authoritative state directly
+            ent.setState(msg.state)
+            return
+        }
+        ent.bendTo(msg.state, msg.step)
     }
 
     acceptsEvent(etype) {
@@ -181,8 +335,32 @@ export class CspMap {
         return etype in this.events
     }
 
+    /**
+     * Main entry point for events (local or remote).
+     * Queues the event at its target step.  If the step is already in the
+     * past, marks the world dirty so reconcile() replays history.
+     */
     receiveEvent(msg) {
+        const step = msg.step
 
+        if (step < this.local_step - this._capacity + 1) {
+            console.warn(this.instanceId, "dropping stale event", step, "local", this.local_step)
+            return
+        }
+
+        const idx = this._frameIndex(step)
+        if (this._hasinput(idx, msg.entid, msg.uid)) {
+            // duplicate (e.g. redundant retransmission) — ignore
+            return
+        }
+        this._setinput(idx, msg.entid, msg.uid, msg)
+
+        if (step <= this.local_step) {
+            if (this.dirty_step === null || step < this.dirty_step) {
+                this.dirty_step = step
+            }
+            this.dirty_objects[msg.entid] = true
+        }
     }
 
     handleMessage(msg, reconcile) {
@@ -190,17 +368,135 @@ export class CspMap {
         if (msg.type in this.events) {
             this.events[msg.type](msg, reconcile)
         } else {
-            console.log(`csp-handle not supported ${JSON.stringify(msg)}`)
+            console.log("csp-handle not supported " + JSON.stringify(msg))
         }
     }
 
+    /**
+     * Rewind and replay when late events arrived for steps already simulated.
+     *
+     *   1. restore the pure-data snapshot at (dirty_step - 1)
+     *   2. replay inputs and entity updates dirty_step -> local_step,
+     *      re-snapshotting each step
+     *
+     * After replay every entity sits at its authoritative position.  No
+     * bending state is created here; visual corrections are driven by
+     * csp-object-bend events (see the file header).
+     */
+    reconcile() {
+
+        if (this.dirty_step === null || this.dirty_step > this.local_step) {
+            this.dirty_step = null
+            this.dirty_objects = {}
+            return
+        }
+
+        const start = this.dirty_step
+        const end = this.local_step
+
+        if (start < end - this._capacity + 1) {
+            console.error(this.instanceId, "reconcile range exceeds buffer; dropping. world may desync until next full sync")
+            this.dirty_step = null
+            this.dirty_objects = {}
+            return
+        }
+
+        this._debug_reconcile = true
+        this._debug_reconcile_count += 1
+
+        const restore_idx = this._frameIndex(start - 1)
+        const restore_snapshot = this.statequeue[restore_idx]
+        if (restore_snapshot === null) {
+            // no snapshot yet (e.g. events queued before the first server
+            // sync).  replay anyway so queued create/input events apply.
+            console.warn(this.instanceId, "no snapshot at step", start - 1, "- replaying without state restore")
+        } else {
+            this._restoreSnapshot(restore_snapshot)
+        }
+
+        const saved_step = end
+        for (let clock = start; clock <= end; clock += 1) {
+            this.local_step = clock
+            this._apply(clock, true)
+            // advance one tick with the real frame delta (not hardcoded 1/60)
+            this.update_main(this._last_dt, true)
+            this.statequeue[this._frameIndex(clock)] = this._snapshotState()
+        }
+        this.local_step = saved_step
+
+        this.dirty_step = null
+        this.dirty_objects = {}
+        this._debug_reconcile = false
+    }
+
     update(dt, reconcile=false) {
+        this.update_before(dt, reconcile)
+        this.update_main(dt, reconcile)
+        this.update_after(dt, reconcile)
+    }
+
+    update_before(dt, reconcile) {
+        this.local_step += 1
+        this._last_dt = dt
+
+        // Apply the events queued for this step.
+        //
+        // Note: the buffer slot is NOT proactively cleared here.  Because
+        // _frameIndex(local_step - capacity) === _frameIndex(local_step),
+        // "clearing the oldest slot" would always clear the CURRENT step's
+        // slot and erase its events before they fire.  Stale entries from a
+        // previous buffer cycle are expired lazily inside _apply() instead.
+        this._apply(this.local_step, false)
+    }
+
+    update_main(dt, reconcile) {
+        for (const obj of Object.values(this.objects)) {
+            if (!obj.active) {
+                continue;
+            }
+
+            obj.update(dt)
+
+            // advance visual bending (never during reconciliation replay)
+            if (!reconcile && this.settings.enable_bending && !!obj._shadow) {
+                obj._shadow.update(dt)
+                obj._shadow_step += 1
+
+                const steps = this.settings.bending_steps
+                let progress = obj._shadow_step / steps
+                if (progress > 1.0) {
+                    progress = 1.0
+                }
+
+                obj.onBend(progress, obj._shadow)
+
+                if (progress >= 1.0) {
+                    obj.setState(obj._shadow.getState())
+                    obj._shadow = null
+                    obj._shadow_step = 0
+                }
+            }
+
+            if (!!obj._server_shadow) {
+                obj._server_shadow.update(dt)
+            }
+        }
+    }
+
+    update_after(dt, reconcile) {
+        const idx = this._frameIndex(this.local_step)
+        this.statequeue[idx] = this._snapshotState()
     }
 
     paint(ctx) {
 
     }
 
+    /**
+     * v1-compatible world snapshot: {[entid]: {obj, state}}.
+     * Contains live object references; reconciliation does NOT use this
+     * (see _snapshotState), it is kept for game code compatibility.
+     */
     getState() {
         const map_state = {}
         for (const [objId, obj] of Object.entries(this.objects)) {
@@ -226,6 +522,42 @@ export class CspMap {
         }
     }
 
+    // ------------------------------------------------------------------
+    // internal snapshots: pure serialisable data, no live references.
+    // this allows entities created or destroyed inside the replay window
+    // to be reconstructed correctly.
+
+    _snapshotState() {
+        const snap = {}
+        for (const [entId, obj] of Object.entries(this.objects)) {
+            snap[entId] = {className: obj._classname, state: obj.getState()}
+        }
+        return snap
+    }
+
+    _restoreSnapshot(snap) {
+        // remove entities that did not exist at the snapshot step; the
+        // replay of their csp-object-create events will re-create them
+        for (const entid of Object.keys(this.objects)) {
+            if (!(entid in snap)) {
+                delete this.objects[entid]
+            }
+        }
+
+        for (const [entid, item] of Object.entries(snap)) {
+            let obj = this.objects[entid]
+            if (!obj) {
+                obj = this._construct(entid, item.className, {})
+                obj._destroy = () => {this.destroyObject(entid)}
+                obj._x_debug_map = this
+                this.objects[entid] = obj
+            }
+            obj.setState(item.state)
+        }
+    }
+
+    // ------------------------------------------------------------------
+
     sendMessage(playerId, message) {
         this.outgoing_messages.push({
             kind: MessageKind.DIRECT,
@@ -245,7 +577,7 @@ export class CspMap {
 
     sendBroadcast(playerId, message) {
         if (!this.isServer) {
-            throw {message: "can only send to neighbors from the server"}
+            throw {message: "can only broadcast from the server"}
         }
         const tmp = {
             kind: MessageKind.BROADCAST,
@@ -272,23 +604,19 @@ export class CspMap {
 
     createObject(entId, className, props, initial_state=null) {
 
+        if (entId in this.objects) {
+            const existing = this.objects[entId]
+            if (initial_state !== null) {
+                existing.setState(initial_state)
+            }
+            return existing
+        }
+
         const ent = this._construct(entId, className, props)
         ent._destroy = ()=>{this.destroyObject(entId)}
         ent._x_debug_map = this
 
-        if (this.settings.enable_bending) {
-            if (entId in this.dirty_objects) {
-                ent._shadow = this._construct(entId, ent._classname, props)
-                ent._shadow._isShadow = true
-                ent._shadow._destroy = ()=>{}
-                ent._shadow_step = 0
-                ent._shadow._x_debug_map = this
-            }
-        }
-
-        if (!(entId in this.objects)) {
-            this.objects[entId] = ent
-        }
+        this.objects[entId] = ent
 
         if (initial_state !== null) {
             ent.setState(initial_state)
@@ -313,6 +641,11 @@ export class CspMap {
         return '' + uid
     }
 
+    // legacy alias used by existing game code
+    _x_nextEntId() {
+        return this._nextEntId()
+    }
+
     // event is {type, step, entid, uid, payload}
     sendObjectInputEvent(entid, payload) {
         const type = "csp-object-input"
@@ -321,21 +654,24 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.input_delay,
+            step: this.local_step + this.settings.input_delay,
             entid,
             uid,
             payload,
             _x_debug_t: performance.now()
         }
 
+        // predict: apply locally at the scheduled step
         this.receiveEvent(event)
 
         if (this.isServer) {
             this.sendBroadcast(this.playerId, event)
         } else {
-            this.waiting_validation[uid] = event
+            this.waiting_validation[entid + ":" + uid] = event
             this.sendMessage(this.playerId, event)
         }
+
+        return event
     }
 
     sendClientConnectEvent() {
@@ -347,11 +683,12 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.input_delay,
+            step: this.local_step + this.settings.input_delay,
+            uid,
         }
 
         if (this.isServer) {
-            throw new Error("sendClientConnectEvent not implemented for client")
+            throw new Error("sendClientConnectEvent not implemented for server")
         } else {
             this.sendMessage(this.playerId, event)
         }
@@ -381,7 +718,7 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.input_delay,
+            step: this.local_step + this.settings.input_delay,
             entid,
             uid,
             payload,
@@ -389,6 +726,14 @@ export class CspMap {
         }
 
         this.receiveEvent(event)
+
+        // create immediately on the client so the object exists and can
+        // receive input before the queued event fires.  the queued event
+        // (and the server echo) are skipped as duplicates by the guard in
+        // _onEventObjectCreate.
+        if (!this.isServer && !(entid in this.objects)) {
+            this.createObject(entid, className, props)
+        }
 
         if (this.isServer) {
             this.sendBroadcast(this.playerId, event)
@@ -402,11 +747,6 @@ export class CspMap {
 
     sendObjectDestroyEvent(entid) {
 
-        // provide api to generate entid from message
-        // entid is playerId + msg uid + localstep
-        // entid is msg uid + localstep
-        // because playerId may not be known by this class
-
         const uid = this.next_msg_uid;
         this.next_msg_uid += 1;
 
@@ -414,7 +754,7 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step + this.input_delay,
+            step: this.local_step + this.settings.input_delay,
             entid,
             uid,
             _x_debug_t: performance.now()
@@ -441,19 +781,16 @@ export class CspMap {
 
         const event = {
             type,
-            step: this.local_step /* + this.input_delay */,
+            step: this.local_step,
             entid,
             uid,
             state,
             _x_debug_t: performance.now()
         }
 
-        // this.receiveEvent(event)
-
         if (this.isServer) {
             this.sendBroadcast(this.playerId, event)
         } else {
-            //throw new Error("sendObjectBendEvent not implemented for client")
             this.sendMessage(this.playerId, event)
         }
 
@@ -461,6 +798,45 @@ export class CspMap {
 
     }
 
+    // ------------------------------------------------------------------
+    // circular buffer internals
+
+    _frameIndex(k) {
+        let idx = k % this._capacity
+        if (idx < 0) {
+            idx += this._capacity
+        }
+        return idx
+    }
+
+    _hasinput(idx, entid, uid) {
+        return (!!this.inputqueue[idx]) &&
+               (entid in this.inputqueue[idx]) &&
+               (uid in this.inputqueue[idx][entid])
+    }
+
+    _setinput(idx, entid, uid, input) {
+        if (this.inputqueue[idx][entid] === undefined) {
+            this.inputqueue[idx][entid] = {}
+        }
+        this.inputqueue[idx][entid][uid] = input
+    }
+
+    _apply(clock, reconcile) {
+        const idx = this._frameIndex(clock)
+        const slot = this.inputqueue[idx]
+        for (const entid in slot) {
+            for (const uid in slot[entid]) {
+                const message = slot[entid][uid]
+                if (message.step === clock) {
+                    this.handleMessage(message, reconcile)
+                } else if (message.step < clock) {
+                    // entry from a previous buffer cycle: expire lazily
+                    delete slot[entid][uid]
+                }
+            }
+        }
+    }
 
     /**
      * Queries the objects based on the provided query.
@@ -540,6 +916,16 @@ const MessageKind = {
     BROADCAST: 3
 }
 
+/**
+ * Client wrapper around a CspMap.
+ *
+ * Responsibilities:
+ *   - ingest network messages and route them into the map
+ *   - validate server echoes of this client's own inputs
+ *   - drive reconciliation once per frame
+ *   - keep the local clock a fixed number of steps behind the server's,
+ *     correcting drift by continuously scaling dt
+ */
 export class ClientCspMap {
 
     constructor(map) {
@@ -547,12 +933,29 @@ export class ClientCspMap {
         this.map = map
         this.map.isServer = false
 
+        // last step received from the server; -1 until the first map-sync
         this.world_step = -1
         this.incoming_message = []
 
+        // target gap: local_step = world_step - step_delay
         this.step_delay = 6
 
         this.next_msg_uid = 1
+
+        // Clock correction with a fixed simulation timestep.
+        //
+        // The simulation must be deterministic: the server steps entities
+        // with a fixed dt, so the client must too, or replayed inputs land
+        // at the same steps but produce different positions.  Instead of
+        // scaling the dt passed to entities, the client scales how fast
+        // simulation TIME accumulates.  Each frame, dt * _dt_scale is added
+        // to an accumulator and whole fixed-size steps are consumed from it,
+        // so a drifting client gently runs 0 or 2 steps on an occasional
+        // frame rather than distorting physics.
+        this._step_dt = 1/60
+        this._accumulator = 0
+        this._dt_scale = 1.0
+        this._correction_rate = 0.02
     }
 
     clientEvent(type, entid, payload) {
@@ -588,18 +991,197 @@ export class ClientCspMap {
     // process a frame tick. dt is the delta-time since the last frame
     // generally this will always be 1/60th of a second
     update(dt) {
+
+        // ---- 1. drain incoming network messages --------------------------
+
+        while (this.incoming_message.length > 0) {
+            const msg = this.incoming_message.shift()
+
+            if (msg.type === "map-sync") {
+
+                if (this.world_step < 0) {
+                    // first sync: initialise the clocks.
+                    const new_local = msg.step - this.step_delay
+
+                    // any events queued before the clock was known (e.g. the
+                    // initial object creates) may now be in the past.  mark
+                    // them dirty so reconcile() applies them.
+                    const scan_from = Math.max(0, new_local - this.map._capacity + 1)
+                    for (let s = scan_from; s <= new_local; s++) {
+                        const idx = this.map._frameIndex(s)
+                        const slot = this.map.inputqueue[idx]
+                        for (const entid in slot) {
+                            for (const uid in slot[entid]) {
+                                if (slot[entid][uid].step === s) {
+                                    if (this.map.dirty_step === null || s < this.map.dirty_step) {
+                                        this.map.dirty_step = s
+                                    }
+                                    this.map.dirty_objects[entid] = true
+                                }
+                            }
+                        }
+                    }
+
+                    this.world_step = msg.step
+                    this.map.local_step = new_local
+                } else if (msg.step > this.world_step) {
+                    this.world_step = msg.step
+                }
+
+                if (msg.sync === 1) {
+                    this._applyFullSync(msg)
+                }
+
+            } else if (msg.type === "csp-object-create") {
+                this.map.receiveEvent(msg)
+
+            } else if (msg.type === "csp-object-input") {
+                const vkey = msg.entid + ":" + msg.uid
+                if (vkey in this.map.waiting_validation) {
+                    // server echo of our own input
+                    const original = this.map.waiting_validation[vkey]
+                    delete this.map.waiting_validation[vkey]
+
+                    const ent = this.map.objects[msg.entid]
+                    if (!!ent && msg.client_step !== undefined) {
+                        ent._server_latency = this.map.local_step - msg.client_step
+                    }
+
+                    if (msg.step !== original.step) {
+                        // the server applied our input at a different step
+                        // than we predicted (latency jitter).  correct the
+                        // timeline: remove the predicted application and
+                        // requeue the input at the authoritative step, then
+                        // let reconcile() replay history.  this keeps the
+                        // owned entity converged without server bend events.
+                        const idx = this.map._frameIndex(original.step)
+                        if (this.map._hasinput(idx, original.entid, original.uid)) {
+                            delete this.map.inputqueue[idx][original.entid][original.uid]
+                        }
+                        if (original.step <= this.map.local_step) {
+                            if (this.map.dirty_step === null || original.step < this.map.dirty_step) {
+                                this.map.dirty_step = original.step
+                            }
+                            this.map.dirty_objects[original.entid] = true
+                        }
+                        this.map.receiveEvent(msg)
+                    }
+                    // if the steps match, the prediction was exactly right
+                    // and the echo carries no new information: discard.
+                } else {
+                    // another player's input
+                    this.map.receiveEvent(msg)
+                }
+
+            } else if (msg.type === "csp-object-destroy") {
+                this.map.receiveEvent(msg)
+
+            } else if (msg.type === "csp-object-bend") {
+                this.map.receiveEvent(msg)
+
+            } else {
+                console.warn("unrecognized map message", msg)
+            }
+        }
+
+        // prune validation entries the server never echoed (e.g. rejected)
+        for (const key of Object.keys(this.map.waiting_validation)) {
+            const event = this.map.waiting_validation[key]
+            if (event.step < this.map.local_step - this.map._capacity) {
+                delete this.map.waiting_validation[key]
+            }
+        }
+
+        // ---- 2. reconcile late events -------------------------------------
+
+        this.map.reconcile()
+
+        // ---- 3. advance the simulation with smooth clock correction -------
+
+        if (this.world_step >= 0) {
+
+            const delta = this.world_step - this.map.local_step
+
+            if (delta > this.step_delay) {
+                // behind the server: gently speed up
+                this._dt_scale = Math.min(this._dt_scale + this._correction_rate, 1.25)
+            } else if (delta < this.step_delay) {
+                // ahead of the server: gently slow down
+                this._dt_scale = Math.max(this._dt_scale - this._correction_rate, 0.75)
+            } else if (this._dt_scale > 1.0) {
+                this._dt_scale = Math.max(this._dt_scale - this._correction_rate, 1.0)
+            } else if (this._dt_scale < 1.0) {
+                this._dt_scale = Math.min(this._dt_scale + this._correction_rate, 1.0)
+            }
+
+            this.world_step += 1
+
+            // consume whole fixed-size steps from the scaled accumulator
+            this._accumulator += dt * this._dt_scale
+            let steps_run = 0
+            while (this._accumulator >= this._step_dt - 1e-9 && steps_run < 4) {
+                this._accumulator -= this._step_dt
+                this.map.update_before(this._step_dt, false)
+                this.map.update_main(this._step_dt, false)
+                this.map.update_after(this._step_dt, false)
+                steps_run += 1
+            }
+        }
+    }
+
+    /**
+     * Rebuild the world from a full server snapshot (map-sync with sync: 1).
+     */
+    _applyFullSync(msg) {
+        this.map.objects = {}
+        for (const [entId, item] of Object.entries(msg.objects)) {
+            this.map.createObject(entId, item.className, {}, item.state)
+        }
+
+        // record the authoritative snapshot at the sync step, then replay
+        // any inputs already buffered for later steps
+        const idx = this.map._frameIndex(msg.step)
+        this.map.statequeue[idx] = this.map._snapshotState()
+
+        this.map.dirty_step = msg.step + 1
+        this.map.reconcile()
     }
 
     paint(ctx) {
         this.map.paint(ctx)
     }
+
+    paint_overlay(ctx) {
+        ctx.font = "16px mono";
+        ctx.fillStyle = "yellow"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "top"
+        ctx.fillText("world step: " + this.world_step + " " + fmtTime(this.world_step/60), 2, 2);
+        const d = this.map.local_step - this.world_step
+        const s = (d>=0)?'+':""
+        ctx.fillText("local step: " + this.map.local_step + " " + s + d + " dt x" + this._dt_scale.toFixed(2), 2, 2 + 16);
+        ctx.fillText("entities: " + Object.keys(this.map.objects).length, 2, 2 + 32);
+    }
 }
 
+/**
+ * Server wrapper around a CspMap.
+ *
+ * Responsibilities:
+ *   - validate incoming client events (override validateMessage to reject)
+ *   - rewrite client step numbers onto the server timeline and apply them
+ *   - echo validated events back to all clients with the authoritative
+ *     post-step state attached
+ *   - broadcast periodic map-sync heartbeats for clock synchronization
+ *   - broadcast csp-object-bend for recently-active entities so clients can
+ *     bend remote objects toward the authoritative state
+ */
 export class ServerCspMap {
     constructor(map) {
         this.map = map
         this.map.isServer = true
         this.incoming_message = []
+        // the server is the truth; it never bends its own state
         this.map.settings.enable_bending = false
         this.sync_timer = .1
     }
@@ -608,12 +1190,57 @@ export class ServerCspMap {
         return this.map.acceptsEvent(type)
     }
 
+    /**
+     * Override on a subclass (or assign on the instance) to validate client
+     * messages.  Return false to reject; anything else accepts.
+     *
+     * Note: this lives on ServerCspMap, not on the game's CspMap subclass.
+     * Do not retransmit from here — the server echoes validated events
+     * itself (see update()).
+     */
+    validateMessage(playerId, message) {
+        return true
+    }
+
     validateEvent(playerId, message) {
-        return this.map.validateMessage(playerId, message) !== false
+        return this.validateMessage(playerId, message) !== false
     }
 
     receiveMessage(playerId, message) {
         this.incoming_message.push({playerId, message})
+    }
+
+    /**
+     * Send the current settings and a full world snapshot to a newly
+     * connected player.
+     */
+    join(playerId) {
+
+        const uid1 = this.map.next_msg_uid;
+        this.map.next_msg_uid += 1;
+
+        this.map.sendMessage(playerId, {
+            type: "csp-client-settings",
+            uid: uid1,
+            step: this.map.local_step,
+            settings: this.map.settings,
+        })
+
+        const objects = {}
+        for (const [objId, obj] of Object.entries(this.map.objects)) {
+            objects[objId] = {className: obj._classname, state: obj.getState()}
+        }
+
+        const uid2 = this.map.next_msg_uid;
+        this.map.next_msg_uid += 1;
+
+        this.map.sendMessage(playerId, {
+            type: "map-sync",
+            uid: uid2,
+            step: this.map.local_step,
+            sync: 1,
+            objects: objects,
+        })
     }
 
     // paint is a no-op for the server
@@ -623,5 +1250,86 @@ export class ServerCspMap {
     // process a frame tick. dt is the delta-time since the last frame
     // generally this will always be 1/60th of a second
     update(dt) {
+
+        // ---- heartbeat -----------------------------------------------------
+
+        this.sync_timer -= dt
+        if (this.sync_timer < 0) {
+            this.sync_timer += 0.1
+
+            const uid = this.map.next_msg_uid;
+            this.map.next_msg_uid += 1;
+
+            this.map.sendBroadcast(null, {
+                type: "map-sync",
+                uid: uid,
+                step: this.map.local_step,
+                sync: 0,
+                _x_debug_t: performance.now()
+            })
+        }
+
+        // ---- ingest client messages ----------------------------------------
+        //
+        // capture the apply step BEFORE stepping the simulation so the echo
+        // carries the exact step at which each input took effect.
+
+        const apply_step = this.map.local_step + 1
+        const to_echo = []
+
+        while (this.incoming_message.length > 0) {
+            const item = this.incoming_message.shift()
+            const playerId = item.playerId
+            const message = item.message
+
+            if (!this.validateEvent(playerId, message)) {
+                continue
+            }
+
+            // rewrite the client's step onto the server timeline; keep the
+            // original step so the client can measure round-trip latency
+            const rewritten = {...message, client_step: message.step, step: apply_step}
+            this.map.receiveEvent(rewritten)
+
+            if (message.type !== "csp-client-connect") {
+                to_echo.push(rewritten)
+            }
+        }
+
+        // ---- advance the authoritative simulation ---------------------------
+
+        this.map.update(dt)
+
+        // ---- echo validated events to every client --------------------------
+        //
+        // after map.update() local_step === apply_step, so for inputs the
+        // attached state is the authoritative state at exactly that step.
+
+        for (const rewritten of to_echo) {
+            const echo = {...rewritten}
+            if (echo.type === "csp-object-input") {
+                const ent = this.map.objects[echo.entid]
+                if (!!ent) {
+                    echo.state = ent.getState()
+                }
+            }
+            this.map.sendBroadcast(null, echo)
+        }
+
+        // ---- server-driven bending ------------------------------------------
+        //
+        // every 6 steps, broadcast the authoritative state of entities that
+        // received input recently.  clients bend their remote copies toward
+        // it (entities flagged ownedByClient skip it; reconciliation corrects
+        // those).
+
+        if (this.map.local_step % 6 === 0) {
+            for (const ent of Object.values(this.map.objects)) {
+                if (ent._x_last_input_step != null &&
+                    this.map.local_step < ent._x_last_input_step + 6) {
+                    this.map.sendObjectBendEvent(ent.entid, ent.getState())
+                }
+            }
+        }
     }
 }
