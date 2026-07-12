@@ -135,11 +135,6 @@ demo features
     adjust input delay (constant at 6 normally)
     adjust % packet loss (webrtc is reliable)
 
-ltmps = 3.33564e-9
-299792458 meters per second
-0.29979245800000004
-0.0006671280012458482
-
 ## 0) Notes On Latency
 
 
