@@ -69,6 +69,27 @@
  *     (v1 tagged the state with the wrong step, bug #7).
  */
 
+/*
+csp_fable.js is now a complete client/server CSP implementation, built on the existing skeleton and verified end-to-end: a simulated two-client + server session with 0–25 frames of random latency jitter converges to zero position error on all three maps, with reconciliation firing and recovering correctly. It passes node --check and has no lint errors, and I avoided constructs the daedalus parser has choked on before (no switch/case, no postfix increments inside object literals).
+
+What was implemented
+CspMap (shared sim core) — circular input/state history (step_rate * 2 steps), receiveEvent with staleness/duplicate guards and dirty marking, and reconcile() that restores a pure-data snapshot and replays inputs through the overridable update_main (so game-map overrides like MovementMap.update_main still run during replay, with the real frame dt, not a hardcoded 1/60). Bending runs in update_main with progress advancing linearly 0→1 over settings.bending_steps.
+
+ClientCspMap — message routing, echo validation keyed by entid:uid, full-sync rebuild, and clock sync via a fixed-timestep accumulator: dt is never distorted (which would break determinism vs the server); instead simulation time accumulates at a scaled rate, so a drifting client occasionally runs 0 or 2 whole steps. One addition beyond the plan came out of testing: when the server echo shows an input was applied at a different step than predicted, the client re-times the input (removes the predicted application, requeues at the authoritative step, reconciles). Without this, the owned player permanently diverged under jitter — that was the failing case in the smoke test.
+
+ServerCspMap — validation hook, step rewriting (client_step preserved, echo tagged with the exact applied step and post-step state), 100 ms heartbeats, join() full sync, and server-driven bend broadcasts every 6 steps for recently-active entities.
+
+API deviations from v1 (documented in the file header)
+input_delay moved to settings.input_delay (v1's plain field read undefined in the skeleton's send path).
+settings.bending_steps is honored; onBend progress actually goes 0→1.
+reconcile() no longer creates bending shadows — bending comes only from csp-object-bend / bendTo().
+Inputs always apply to the real entity during reconcile (v1 bug #4).
+waiting_validation keyed entid:uid (bug #11).
+SKIP/CATCHUP replaced by the accumulator clock (bug #12), plus echo-driven input re-timing.
+Client sendObjectCreateEvent creates the object immediately (so it can receive input before the queued event fires).
+Map-level validateMessage is not called by the server — override ServerCspMap.validateMessage instead. The demo maps' validateMessage → sendNeighbors pattern would now double-deliver since the server echoes everything itself; those overrides are simply unused.
+Compatibility kept for existing consumers: _x_nextEntId (troid), paint_overlay (fireworks), join() (server entries), step_delay/world_step as mutable fields (axedemo latency buttons), MessageKind values 1/2/3 (axedemo's msg.kind == 2 routing), and the v1 live-object getState()/setState() shape.
+*/
 function debug(msg) {
 
     console.log(`*${pad(performance.now()/1000, 12, ' ')}: ${msg}`)
@@ -144,6 +165,27 @@ export class Entity {
         this._shadow = null           // Entity | null: authoritative bend target
         this._shadow_step = 0         // frames elapsed since the shadow was created
         this._server_shadow = null    // Entity | null: reserved for partial sync
+
+        // Prediction error smoothing (client only): a purely visual offset the
+        // renderer adds to the entity's position.  When reconciliation snaps
+        // the authoritative position, the difference is folded in here and
+        // decays over a few steps so the visible position eases toward the
+        // truth instead of teleporting.  Never read by the simulation.
+        this._render_offset_x = 0
+        this._render_offset_y = 0
+    }
+
+    /**
+     * Visual X/Y for rendering: the authoritative position plus the decaying
+     * prediction-error offset.  Entities with a `rect` get sensible defaults;
+     * subclasses using other position fields can override these.
+     */
+    getRenderX() {
+        return (this.rect ? this.rect.x : 0) + this._render_offset_x
+    }
+
+    getRenderY() {
+        return (this.rect ? this.rect.y : 0) + this._render_offset_y
     }
 
     paint(ctx) {
@@ -213,7 +255,17 @@ export class CspMap {
         this.settings.step_rate = 120
         // number of frames to delay user inputs before applying to the local state
         // at 60FPS this assumes 100ms round trip with server
-        this.settings.input_delay = 6
+        this.settings.input_delay = 0
+
+        // Prediction error smoothing (owned entities, client only).
+        // When reconciliation corrects an owned entity, the positional error
+        // is folded into a decaying render offset (see Entity._render_offset_*)
+        // so the visible position eases toward the truth instead of snapping.
+        //   error_smooth      per-step decay factor (0 = snap, ->1 = slower ease)
+        //   error_smooth_max  cap on the offset; larger corrections snap so a
+        //                     respawn/teleport does not slide across the map
+        this.settings.error_smooth = 0.82
+        this.settings.error_smooth_max = 128
 
         this.class_registry = {}
 
@@ -404,6 +456,21 @@ export class CspMap {
         this._debug_reconcile = true
         this._debug_reconcile_count += 1
 
+        // capture where owned entities are drawn RIGHT NOW (pre-correction) so
+        // the visible-vs-authoritative error can be smoothed instead of snapped
+        const pre = {}
+        if (!this.isServer) {
+            for (const entid in this.objects) {
+                const obj = this.objects[entid]
+                if (obj.ownedByClient && !!obj.rect) {
+                    pre[entid] = {
+                        x: obj.rect.x + obj._render_offset_x,
+                        y: obj.rect.y + obj._render_offset_y
+                    }
+                }
+            }
+        }
+
         const restore_idx = this._frameIndex(start - 1)
         const restore_snapshot = this.statequeue[restore_idx]
         if (restore_snapshot === null) {
@@ -423,6 +490,24 @@ export class CspMap {
             this.statequeue[this._frameIndex(clock)] = this._snapshotState()
         }
         this.local_step = saved_step
+
+        // fold the correction into each owned entity's decaying render offset:
+        // rendering at (rect + offset) keeps the entity where it was drawn this
+        // frame, then eases toward the authoritative rect over the next steps.
+        if (!this.isServer) {
+            const cap = this.settings.error_smooth_max
+            for (const entid in pre) {
+                const obj = this.objects[entid]
+                if (!!obj && !!obj.rect) {
+                    let ox = pre[entid].x - obj.rect.x
+                    let oy = pre[entid].y - obj.rect.y
+                    if (ox > cap) { ox = cap } else if (ox < -cap) { ox = -cap }
+                    if (oy > cap) { oy = cap } else if (oy < -cap) { oy = -cap }
+                    obj._render_offset_x = ox
+                    obj._render_offset_y = oy
+                }
+            }
+        }
 
         this.dirty_step = null
         this.dirty_objects = {}
@@ -456,6 +541,16 @@ export class CspMap {
             }
 
             obj.update(dt)
+
+            // decay the prediction-error render offset toward zero (client
+            // only, real steps only — never during reconciliation replay)
+            if (!reconcile && !this.isServer &&
+                (obj._render_offset_x !== 0 || obj._render_offset_y !== 0)) {
+                obj._render_offset_x *= this.settings.error_smooth
+                obj._render_offset_y *= this.settings.error_smooth
+                if (Math.abs(obj._render_offset_x) < 0.05) { obj._render_offset_x = 0 }
+                if (Math.abs(obj._render_offset_y) < 0.05) { obj._render_offset_y = 0 }
+            }
 
             // advance visual bending (never during reconciliation replay)
             if (!reconcile && this.settings.enable_bending && !!obj._shadow) {

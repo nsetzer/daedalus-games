@@ -32,15 +32,38 @@ class Player extends PlatformerEntity {
 
         this.step_stomp = 0
 
-        this.deltas = []
-
         this._x_last_input_frame = 0
+
+        // Ownership is resolved lazily the first time the entity ticks, once
+        // the owning map is attached (see _resolveOwnership).  An entity is
+        // "owned" on the client whose instanceId matches its playerId; the
+        // owned entity is corrected by reconciliation and skips server bend
+        // events, while remote copies are smoothed via onBend.
+        this.ownedByClient = false
+        this._ownership_resolved = false
+    }
+
+    _resolveOwnership() {
+        if (this._ownership_resolved) {
+            return
+        }
+        const map = this._x_debug_map
+        if (!map) {
+            return
+        }
+        this.ownedByClient = (!map.isServer && this.playerId === map.instanceId)
+        this._ownership_resolved = true
     }
 
     paint(ctx) {
 
+        // render at the smoothed position (rect + decaying prediction-error
+        // offset) so reconciliation corrections ease in instead of snapping
+        const rx = this.getRenderX()
+        const ry = this.getRenderY()
+
         ctx.beginPath();
-        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.rect( rx, ry, this.rect.w, this.rect.h);
         ctx.strokeStyle = 'hsl(' + this.hue + ', 100%, ' + this.brightness + '%)';
         ctx.stroke();
 
@@ -49,8 +72,9 @@ class Player extends PlatformerEntity {
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
         //ctx.fillText(`${this.input_count}`, this.x+4, this.y+4);
-        ctx.fillText(`${this.playerId=="player1"?1:2}`, this.rect.cx(), this.rect.cy());
+        ctx.fillText(`${this.playerId=="player1"?1:2}`, rx + this.rect.w/2, ry + this.rect.h/2);
 
+        // visualise the authoritative bend target for remote players
         if (true && !!this._shadow) {
             ctx.beginPath();
             ctx.rect(
@@ -60,30 +84,6 @@ class Player extends PlatformerEntity {
                 this._shadow.rect.h);
             ctx.strokeStyle = 'red';
             ctx.stroke();
-        }
-
-        if (false && !!this._server_shadow) {
-            ctx.beginPath();
-            ctx.rect(
-                this._server_shadow.rect.x,
-                this._server_shadow.rect.y,
-                this._server_shadow.rect.w,
-                this._server_shadow.rect.h);
-            ctx.strokeStyle = 'red';
-            ctx.stroke();
-
-            let x = this._server_shadow.rect.x
-            let y = this._server_shadow.rect.y
-            for (const delta of this.deltas) {
-                x += delta.x
-                y += delta.y
-            }
-            ctx.beginPath();
-            ctx.rect( x, y, 16, 16);
-            ctx.rect( x+2, y+2, 16-4, 16-4);
-            ctx.strokeStyle = 'yellow';
-            ctx.stroke();
-
         }
 
     }
@@ -111,71 +111,9 @@ class Player extends PlatformerEntity {
     }
 
     update(dt) {
-        const x1 = this.rect.x
-        const y1 = this.rect.y
+        this._resolveOwnership()
 
-        const is_standing_before = this.physics.standing
-        const is_moving_before = (Math.abs(this.physics.xspeed) + Math.abs(this.physics.yspeed)) > 1e-5
         this.physics.update(dt)
-        const is_standing_after= this.physics.standing
-        const is_moving_after = (Math.abs(this.physics.xspeed) + Math.abs(this.physics.yspeed)) > 1e-5
-
-        const condition = (is_standing_before != is_standing_after)
-        //const condition = (!is_standing_before && is_standing_after) || (is_moving_before && !is_moving_after)
-
-        // TODO: how to best set ownedByClient
-        // TODO: server sends periodic state updates
-        // TODO: verify client receives state updates on the correct clock step
-        //         - it should be applied right away not after 6 frame delay
-        const _x_client_side_bending = false
-
-        if (_x_client_side_bending) {
-            // if (this.physics.frame_index % 6 == 0) {
-
-            //     if (this._x_debug_map.instanceId == this.playerId) {
-            //         console.log("! bend", this._x_debug_map.instanceId, this.playerId)
-            //         this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
-            //         if (this.playerId == "player2") {
-            //             console.log("! bend player2", this.rect.y)
-            //         }
-            //     }
-            // }
-            if (this.ownedByClient && this.physics.frame_index < this._x_last_input_frame+12) {
-                console.log(this.physics.frame_index, this._x_last_input_frame+12)
-                if (this.physics.frame_index % 6 == 0) {
-                    // TODO: fix echoing back to the sender and send `csp-object-bend` instead of csp-state-client
-                    this._x_debug_map.sendObjectInputEvent(this.entid,
-                        {"type": "csp-state-client", state: this.getState()})
-                }
-            }
-        }
-        else if (false) {
-            if (this._x_debug_map.isServer && was_not_standing && is_standing) {
-                 this._x_debug_map.sendObjectBendEvent(this.entid, this.getState())
-            }
-        } else if (false) {
-            //if (this.ownedByClient && was_not_standing && is_standing) {
-            // consider adding started moving, stopped moving
-            if (this.ownedByClient && condition) {
-                // if the player landed on something solid,
-                // transmite the location to the server.
-                // transmit the coordinates relative to that entity, in case it was a moving object
-                let target = null
-                if (this.physics.ycollisions.length > 0) {
-                    const other = this.physics.ycollisions[0].ent
-                    let dx = this.rect.x - other.rect.x
-                    let dy = this.rect.y - other.rect.y
-                    target = {entid: other.entid, dx, dy}
-                }
-                const location = {x:this.rect.x, y:this.rect.y}
-                console.log("send standing",
-                    (!is_standing_before && is_standing_after),
-                    (is_moving_before && !is_moving_after),
-                    performance.now())
-
-                this._x_debug_map.sendObjectInputEvent(this.entid, {"type": "standing", target, location, state: this.getState()})
-            }
-        }
 
         // check for collisions with other players
         for (const obj of this._x_debug_map.queryObjects({className: 'Player'})) {
@@ -196,86 +134,33 @@ class Player extends PlatformerEntity {
         if (this.step_stomp > 0) {
             this.step_stomp -= 1
         }
-
-        const x2 = this.rect.x
-        const y2 = this.rect.y
-
-        if (!!this._server_shadow) {
-
-            this.deltas.push({x: x2 - x1, y: y2 - y1})
-            while (this.deltas.length > this._server_latency) {
-                this.deltas.shift()
-            }
-
-            const ent = this._server_shadow
-            const error = {x:this.rect.x - ent.rect.x, y:this.rect.y - ent.rect.y}
-            const m = Math.sqrt(error.x*error.x + error.y+error.y)
-            //if (m > 0) {
-            //    console.log("error", m, error)
-            //}
-            //console.log("error", m, error)
-        }
     }
 
     onBend(progress, shadow) {
-
-        if (this._x_debug_map.instanceId == this.playerId) {
-            // TODO: sendObjectBendEvent causes the server to echo the msg back to the client
-            //       this section will ignore the message
+        // The owned player is corrected by reconciliation and skips server
+        // bend events (csp_fable filters them out for ownedByClient entities),
+        // so onBend only ever runs for remote players on this client.
+        // Ease the visible rect toward the authoritative shadow position; the
+        // shadow keeps simulating the authoritative physics, and csp_fable
+        // copies the full state once progress reaches 1.
+        if (this.ownedByClient) {
             return
         }
-        // interpolate position and disable physics on the real object
-        // when bending finishes copy the entire state from the physics objects
-        // TODO: some boolean paramters could use a step function to change during bending
-        // for example: facing could change based on the bent xspeed or it could
-        // change when progress is above 50%.
 
-        let distance = Math.sqrt((shadow.rect.x - this.rect.x)**2 + (shadow.rect.y - this.rect.y)**2)
-        // TODO: paint shadow?
-        console.log("error", distance)
         this.rect.x += (shadow.rect.x - this.rect.x) * progress
         this.rect.y += (shadow.rect.y - this.rect.y) * progress
-
-        // this.physics.speed.x = 0
-        // this.physics.speed.y = 0
-        // this.physics.accum.x = 0
-        // this.physics.accum.y = 0
-
-        //if (progress >= 1) {
-        //    this.setState(shadow.getState())
-        //}
-
-        //console.log(this._x_debug_map.instanceId, "bend", progress, this.physics.direction, this.physics.xspeed)
-
-        // return the distance between shadow.rect  and rect
-        // return Math.sqrt((shadow.rect.x - this.rect.x)**2 + (shadow.rect.y - this.rect.y)**2)
     }
 
     onInput(payload) {
-
-        //if (this._x_debug_map.instanceId == this.playerId) {
-        //    if (payload.vector.x == 0 && payload.vector.y == 0) {
-        //        return
-        //    }
-        //}
+        this._resolveOwnership()
 
         if (this.ownedByClient) {
-            console.log("!", payload.type)
-
-            if (payload.type == "csp-state-client") {
-                return
-            }
-            if (payload.type == "csp-state-server") {
-                return
-            }
             this._x_last_input_frame = this.physics.frame_index
         }
 
-
         if ("whlid" in payload) {
             this.physics.direction = Direction.fromVector(payload.vector.x, payload.vector.y)
-            //console.log(payload.vector.x, payload.vector.y)
-            //if (this.physics.direction&Direction.UP) {
+
             if ( payload.vector.y < -0.7071) {
 
                 let standing = this.physics.standing_frame >= (this.physics.frame_index - 6)
@@ -286,48 +171,14 @@ class Player extends PlatformerEntity {
                     this.physics.gravityboost = false
                     this.physics.doublejump = true
                 }
-                console.log(`on input ${standing} yspeed=${this.physics.yspeed}`)
 
             } else {
                 this.physics.speed.x = 90 * payload.vector.x
             }
 
-        } else if (payload.type == "standing") {
-
-            if (this.ownedByClient) {
-                return
-            }
-            let x, y;
-
-            if (!!payload.target) {
-                let other = this._x_debug_map.objects[payload.target.entid]
-                x = other.rect.x + payload.target.dx
-                y = other.rect.y + payload.target.dy
-            } else {
-                x = payload.location.x
-                y = payload.location.y
-            }
-
-            const shadow = this.bendTo(payload.state)
-            //shadow.rect.x = x
-            //shadow.rect.y = y
-
-            //this.rect.x = x
-            //this.rect.y = y
-
-        } else if (payload.type == "csp-state-client") {
-            const shadow = this.bendTo(payload.state)
-
-        } else if (payload.type == "csp-state-server") {
-            const shadow = this.bendTo(payload.state)
-
-        }else {
+        } else {
             console.warn("unexpected input event", payload)
         }
-
-
-
-        //console.log(this._x_debug_map.instanceId, "on input", this.physics.direction, this.physics.xspeed)
     }
 }
 
@@ -348,12 +199,55 @@ class PlayerV2 extends PlatformerEntity {
 
         this.hue = random(0, 360)
         this.brightness = random(50, 80)
+
+        this.ownedByClient = false
+        this._ownership_resolved = false
+    }
+
+    _resolveOwnership() {
+        if (this._ownership_resolved) {
+            return
+        }
+        const map = this._x_debug_map
+        if (!map) {
+            return
+        }
+        this.ownedByClient = (!map.isServer && this.playerId === map.instanceId)
+        this._ownership_resolved = true
+    }
+
+    getState() {
+        return {
+            playerId: this.playerId,
+            hue: this.hue,
+            brightness: this.brightness,
+            physics: this.physics.getState(),
+        }
+    }
+
+    setState(state) {
+        this.playerId = state.playerId
+        this.hue = state.hue
+        this.brightness = state.brightness
+        this.physics.setState(state.physics)
+    }
+
+    onBend(progress, shadow) {
+        if (this.ownedByClient) {
+            return
+        }
+        this.rect.x += (shadow.rect.x - this.rect.x) * progress
+        this.rect.y += (shadow.rect.y - this.rect.y) * progress
     }
 
     paint(ctx) {
 
+        // render at the smoothed position (see Player.paint)
+        const rx = this.getRenderX()
+        const ry = this.getRenderY()
+
         ctx.beginPath();
-        ctx.rect( this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+        ctx.rect( rx, ry, this.rect.w, this.rect.h);
         ctx.strokeStyle = 'hsl(' + this.hue + ', 100%, ' + this.brightness + '%)';
         ctx.stroke();
 
@@ -361,12 +255,14 @@ class PlayerV2 extends PlatformerEntity {
     }
 
     update(dt) {
+        this._resolveOwnership()
 
         this.physics.update(dt)
     }
 
 
     onInput(payload) {
+        this._resolveOwnership()
 
         //TODO: test impulse (towards a mouse click)
 
@@ -432,11 +328,10 @@ export class PlatformMap extends CspMap {
         this.registerClass("Slope", Slope)
         this.registerClass("Player", Player)
         this.registerClass("PlayerV2", PlayerV2)
-    }
 
-    validateMessage(playerId, msg) {
-        // server side?
-        this.sendNeighbors(playerId, msg)
+        // number of steps over which a remote player's visible position eases
+        // toward the authoritative bend target (see Player.onBend)
+        this.settings.bending_steps = 10
     }
 
     update_main(dt, reconcile) {

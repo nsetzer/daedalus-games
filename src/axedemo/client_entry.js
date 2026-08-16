@@ -307,7 +307,6 @@ class CspController {
                 console.warn("player 1 not found")
                 return
             }
-            player.ownedByClient = true
             //debug(`world_step: ${this.map_player1.world_step} local_step: ${this.map_player1.map.local_step}` + \
             //    " client input event");
             this.map_player1.map.sendObjectInputEvent(player.entid, {whlid, vector})
@@ -317,7 +316,6 @@ class CspController {
                 console.warn("player 2 not found")
                 return
             }
-            player.ownedByClient = true
             this.map_player2.map.sendObjectInputEvent(player.entid, {whlid, vector})
         }
     }

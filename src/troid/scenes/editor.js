@@ -1,4 +1,4 @@
- 
+
 // todo: implement stamps as objects
 //       stamps are special tiles that can be any size or shape
 //       during chunking, they are painted on top of layer zero
@@ -47,7 +47,7 @@ function random_choice(choices) {
 const EditorTool = {}
 EditorTool.PLACE_TILE    = 0x11
 EditorTool.ERASE_TILE    = 0x12
-EditorTool.SELECT_TILE   = 0x14 
+EditorTool.SELECT_TILE   = 0x14
 EditorTool.PAINT_TILE    = 0x18
 
 EditorTool.PLACE_OBJECT  = 0x21
@@ -388,7 +388,7 @@ class TileMenu {
                 x += 24
                 points = this.parent.slopes_half[Direction.UPRIGHT]
 
-                
+
 
                 ctx.beginPath();
                 ctx.moveTo(x + points[0].x, y + points[0].y);
@@ -447,7 +447,7 @@ class TilePalette {
 
     constructor(parent) {
 
-        
+
         let t = 16
         let p = 6
         let s = t+p
@@ -474,8 +474,8 @@ class TilePalette {
         this.actions.push({
             shortcut: "q",
             x: x + p + 0*s,
-            y: y + p + 0*s, 
-            icon:this.parent.editor_icons.new, 
+            y: y + p + 0*s,
+            icon:this.parent.editor_icons.new,
             action: ()=>{  }
         })
         */
@@ -488,8 +488,8 @@ class TilePalette {
         this.actions.push({
             shortcut: "w",
             x: x + p + 1*s,
-            y: y + p + 0*s, 
-            icon:this.parent.editor_icons.brush, 
+            y: y + p + 0*s,
+            icon:this.parent.editor_icons.brush,
             active: () => { return this.parent.active_tool == EditorTool.PAINT_TILE },
             action: ()=>{ this.parent.active_tool = EditorTool.PAINT_TILE }
         })
@@ -497,8 +497,8 @@ class TilePalette {
         this.actions.push({
             shortcut: "e",
             x: x + p + 0*s,
-            y: y + p + 1*s, 
-            icon:this.parent.editor_icons.erase, 
+            y: y + p + 1*s,
+            icon:this.parent.editor_icons.erase,
             active: () => { return this.parent.active_tool == EditorTool.ERASE_TILE },
             action: ()=>{ this.parent.active_tool = EditorTool.ERASE_TILE }
         })
@@ -506,8 +506,8 @@ class TilePalette {
         this.actions.push({
             shortcut: "r",
             x: x + p + 1*s,
-            y: y + p + 1*s, 
-            icon:this.parent.editor_icons.pointer, 
+            y: y + p + 1*s,
+            icon:this.parent.editor_icons.pointer,
             active: () => { return this.parent.active_tool == EditorTool.SELECT_TILE },
             action: ()=>{ this.parent.active_tool = EditorTool.SELECT_TILE }
         })
@@ -517,28 +517,28 @@ class TilePalette {
         this.actions.push({
             shortcut: "1",
             x: x + p + 0*s,
-            y: y + p + 2*s, 
-            icon: this.tiles[0], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 2*s,
+            icon: this.tiles[0],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.FULL },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.FULL; 
+                this.parent.tile_shape = TileShape.FULL;
             }
         })
 
         this.actions.push({
             shortcut: "2",
             x: x + p + 1*s,
-            y: y + p + 2*s, 
-            icon: this.tiles[1], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 2*s,
+            icon: this.tiles[1],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.HALF },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.HALF; 
+                this.parent.tile_shape = TileShape.HALF;
             }
         })
 
@@ -546,56 +546,56 @@ class TilePalette {
         this.actions.push({
             shortcut: "3",
             x: x + p + 0*s,
-            y: y + p + 3*s, 
-            icon: this.tiles[2], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 3*s,
+            icon: this.tiles[2],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.ONETHIRD },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.ONETHIRD; 
+                this.parent.tile_shape = TileShape.ONETHIRD;
             }
         })
 
         this.actions.push({
             shortcut: "4",
             x: x + p + 1*s,
-            y: y + p + 3*s, 
-            icon: this.tiles[3], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 3*s,
+            icon: this.tiles[3],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.TWOTHIRD },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.TWOTHIRD; 
+                this.parent.tile_shape = TileShape.TWOTHIRD;
             }
         })
 
         this.actions.push({
             shortcut: "5",
             x: x + p + 0*s,
-            y: y + p + 4*s, 
-            icon: this.tiles[4], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 4*s,
+            icon: this.tiles[4],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.ALT_FULL },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.ALT_FULL; 
+                this.parent.tile_shape = TileShape.ALT_FULL;
             }
         })
 
         this.actions.push({
             shortcut: "6",
             x: x + p + 1*s,
-            y: y + p + 4*s, 
-            icon: this.tiles[5], 
-            active: () => { 
-                return this.parent.active_tool == EditorTool.PLACE_TILE && 
+            y: y + p + 4*s,
+            icon: this.tiles[5],
+            active: () => {
+                return this.parent.active_tool == EditorTool.PLACE_TILE &&
                        this.parent.tile_shape == TileShape.PIPE },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.active_tool = EditorTool.PLACE_TILE;
-                this.parent.tile_shape = TileShape.PIPE; 
+                this.parent.tile_shape = TileShape.PIPE;
             }
         })
 
@@ -605,9 +605,9 @@ class TilePalette {
         this.actions.push({
             shortcut: "s",
             x: x + p + 0*s,
-            y: y + p + 5*s, 
-            icon:this.parent.editor_icons.pencil, 
-            render: (ctx, x, y)=>{ 
+            y: y + p + 5*s,
+            icon:this.parent.editor_icons.pencil,
+            render: (ctx, x, y)=>{
 
                 ctx.save()
 
@@ -648,14 +648,14 @@ class TilePalette {
                 }
                 console.log("change property", this.parent.tile_property)
             }
-            
+
         })
 
         this.actions.push({
             shortcut: "d",
             x: x + p + 0*s,
-            y: y + p + 6*s, 
-            icon:this.parent.editor_icons.pencil, 
+            y: y + p + 6*s,
+            icon:this.parent.editor_icons.pencil,
             render: (ctx, x, y)=>{
 
                 this.parent.theme_sheets_icon[this.parent.tile_sheet].draw(ctx, x, y)
@@ -668,7 +668,7 @@ class TilePalette {
                 ctx.fillText(`Style ${this.parent.tile_sheet}/${this.parent.theme_sheets_count-1}`, x+16+4, y+8)
 
             },
-            action: ()=>{ 
+            action: ()=>{
                 this.parent.tile_sheet += 1
                 if (this.parent.tile_sheet >= this.parent.theme_sheets_count) {
                     this.parent.tile_sheet = 1
@@ -741,7 +741,7 @@ class TilePalette {
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
-    
+
         ctx.beginPath();
         ctx.fillStyle = "#c4c4c4"
         ctx.roundRect(this.border1.x, this.border1.y, this.border1.w, this.border1.h, 3)
@@ -758,7 +758,7 @@ class TilePalette {
             if (!!action.render) {
                 action.render(ctx, action.x, action.y)
             } else {
-                
+
                 action.icon.draw(ctx, action.x, action.y)
             }
 
@@ -938,14 +938,14 @@ class ObjectMenu {
         // header scroll up
         this.actions.push({
             x: this.margin1,
-            y: 32 + 24*4, 
-            icon:this.parent.editor_icons.arrow_up, 
+            y: 32 + 24*4,
+            icon:this.parent.editor_icons.arrow_up,
             action: ()=>{ this._header_scroll_up() }
         })
         // header scroll down
         this.actions.push({
             x: this.margin1,
-            y: 32 + 24*5, 
+            y: 32 + 24*5,
             icon:this.parent.editor_icons.arrow_down,
             action: ()=>{ this._header_scroll_down() }
         })
@@ -953,24 +953,24 @@ class ObjectMenu {
         // object page scroll up
         this.actions.push({
             x: this.margin2 + 24*(this.objects_per_row),
-            y: 32 + 24*1, 
-            icon:this.parent.editor_icons.arrow_up, 
+            y: 32 + 24*1,
+            icon:this.parent.editor_icons.arrow_up,
             action: ()=>{ this._body_scroll_up() }
         })
 
         // object page scroll down
         this.actions.push({
             x: this.margin2 + 24*(this.objects_per_row),
-            y: 32 + 24 * (this.number_of_rows), 
-            icon:this.parent.editor_icons.arrow_down, 
+            y: 32 + 24 * (this.number_of_rows),
+            icon:this.parent.editor_icons.arrow_down,
             action: ()=>{ this._body_scroll_down() }
         })
 
         let x,y;
         x = this.margin2 + this.margin3 + 24*(this.objects_per_row+1)
-        y = 32 
+        y = 32
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.new, 
+            x,y,icon:this.parent.editor_icons.new,
             action: ()=>{
             this.parent.active_tool = EditorTool.PLACE_OBJECT
             this.parent.active_menu = null
@@ -979,7 +979,7 @@ class ObjectMenu {
         y += 24
 
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.hand, 
+            x,y,icon:this.parent.editor_icons.hand,
             action: ()=>{
             this.parent.active_tool = EditorTool.SELECT_OBJECT
             this.parent.active_menu = null
@@ -988,7 +988,7 @@ class ObjectMenu {
         y += 24
 
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.erase, 
+            x,y,icon:this.parent.editor_icons.erase,
             action: ()=>{
             this.parent.active_tool = EditorTool.ERASE_OBJECT
             this.parent.active_menu = null
@@ -997,13 +997,13 @@ class ObjectMenu {
         y += 24
 
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.pencil, 
+            x,y,icon:this.parent.editor_icons.pencil,
             action: ()=>{
             this.parent.active_tool = EditorTool.EDIT_OBJECT
             this.parent.active_menu = null
         }})
 
-        
+
 
     }
 
@@ -1059,7 +1059,7 @@ class ObjectMenu {
                         this._body_scroll_up()
                     }
                 }
-                
+
                 return
             }
 
@@ -1087,7 +1087,7 @@ class ObjectMenu {
                 let ty = Math.floor((t.y - this.margin1 - this.rect.y) / 24)
 
                 if (ty >= 0 && ty < this.number_of_rows - 1) {
-                    
+
                     let n = this.parent.objmenu_page_scroll_index + ty;
                     if (n >= 0 && n < this.parent.object_pages.length) {
                         this.parent.objmenu_current_page = n;
@@ -1097,20 +1097,20 @@ class ObjectMenu {
                         console.warn("object menu invalid index", n)
                     }
                 }
-                
+
 
             } else if (t.x <= this.margin2 + this.objects_per_row*24) {
                 let tx = Math.floor((t.x - this.rect.x - this.margin2) / 24)
                 let ty = Math.floor((t.y - this.rect.y - 24) / 24)
-                
+
                 let n = this.parent.objmenu_object_scroll_index + ty * this.objects_per_row + tx
                 if (n < this.parent.object_pages[this.parent.objmenu_current_page].objects.length) {
                     this.parent.objmenu_current_object = n
                     this.parent.active_tool = EditorTool.PLACE_OBJECT
                 }
-                
+
             }
-            
+
 
 
         }
@@ -1143,9 +1143,9 @@ class ObjectMenu {
         ctx.strokeStyle = "#555555"
         ctx.lineWidth = 2
         ctx.rect(
-            groove_x, 
-            groove_y, 
-            groove_width, 
+            groove_x,
+            groove_y,
+            groove_width,
             groove_height)
         ctx.closePath()
         ctx.stroke()
@@ -1157,9 +1157,9 @@ class ObjectMenu {
         ctx.strokeStyle = "#aaaaaa"
         ctx.lineWidth = 2
         ctx.rect(
-            groove_x, 
-            groove_y + Math.round((groove_height-handle_size) * pobj), 
-            groove_width, 
+            groove_x,
+            groove_y + Math.round((groove_height-handle_size) * pobj),
+            groove_width,
             handle_size)
         ctx.closePath()
         ctx.stroke()
@@ -1185,7 +1185,7 @@ class ObjectMenu {
         ctx.stroke()
         ctx.fill()
 
-        
+
         // line separating second and third panel
         ctx.beginPath();
         ctx.moveTo(this.margin2 + ((this.objects_per_row)*24) + 18+2,this.rect.y)
@@ -1193,7 +1193,7 @@ class ObjectMenu {
         ctx.closePath()
         ctx.stroke()
         ctx.fill()
-        
+
         // background for object menu scroll bar
         ctx.beginPath();
         ctx.fillStyle = "#888888"
@@ -1212,7 +1212,7 @@ class ObjectMenu {
             ctx.fillStyle = "#888888"
             ctx.strokeStyle = "#888888"
             ctx.lineWidth = 2
-            
+
             ctx.roundRect(this.margin2 + 24*(this.objects_per_row+1) + this.margin3, 32 + 24*i, 16, 16, 3)
             ctx.closePath()
             ctx.stroke()
@@ -1246,7 +1246,7 @@ class ObjectMenu {
 
         // headers
         x = this.margin1
-        y = this.margin1 + 24 
+        y = this.margin1 + 24
         n = this.parent.objmenu_page_scroll_index
         for (let j=0; j < 4; j++) {
 
@@ -1272,7 +1272,7 @@ class ObjectMenu {
                 ctx.fill()
             }
 
-            
+
             y += 24
         }
 
@@ -1282,7 +1282,7 @@ class ObjectMenu {
         x = this.margin2
         y = this.margin1 + 24 + 24
 
-        
+
 
         n = this.parent.objmenu_object_scroll_index;
         for (let j=0; j < 5; j++) {
@@ -1402,14 +1402,14 @@ class ObjectPropertyEditMenu {
 
                 if (schema.control == EditorControl.RESIZE) {
                     this.addSpinBoxWidget({
-                        "name": "width", 
-                        "step": 16, 
+                        "name": "width",
+                        "step": 16,
                         "min": schema.min_width??0,
                         "max": schema.max_width??0xFFFF,
                     })
                     this.addSpinBoxWidget({
-                        "name": "height", 
-                        "step": 16, 
+                        "name": "height",
+                        "step": 16,
                         "min": schema.min_height??0,
                         "max": schema.max_height??0xFFFF,
                     })
@@ -1417,9 +1417,9 @@ class ObjectPropertyEditMenu {
 
                 if (schema.control == EditorControl.RANGE) {
                     this.addSpinBoxWidget({
-                        "name": schema.name, 
+                        "name": schema.name,
                         "display_name": schema.display_name??schema.name,
-                        "step": schema.step??1, 
+                        "step": schema.step??1,
                         "min": schema.min??0,
                         "default": schema['default']??(schema.min??0),
                         "max": schema.max??0xFFFF_FFFF,
@@ -1445,9 +1445,9 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.SWITCH_TRIGGER) {
                     // adds a property "switch_trigger_id" and "switch_mode" to the object
                     this.addSpinBoxWidget({
-                        "name": "switch_trigger_id", 
+                        "name": "switch_trigger_id",
                         "display_name": "Activate Switch Target",
-                        "step": 1, 
+                        "step": 1,
                         "min": 0,
                         "default": 0,
                         "max": 7,
@@ -1458,9 +1458,9 @@ class ObjectPropertyEditMenu {
                 if (schema.control == EditorControl.SWITCH_TARGET) {
                     // adds a property "switch_target_id" to the object
                     this.addSpinBoxWidget({
-                        "name": "switch_target_id", 
+                        "name": "switch_target_id",
                         "display_name": "Switch Target Id",
-                        "step": 1, 
+                        "step": 1,
                         "min": 0,
                         "default": 0,
                         "max": 7,
@@ -1635,11 +1635,11 @@ class ObjectPropertyEditMenu {
             display_name = schema.display_name
         } else {
             display_name = schema.name.replaceAll("_", " ")
-                .split(" ") 
-                .map(s => s.charAt(0).toUpperCase() + s.slice(1)) 
+                .split(" ")
+                .map(s => s.charAt(0).toUpperCase() + s.slice(1))
                 .join(" ")
         }
-        
+
 
         let obj = this.parent.map.objects[this.oid]
 
@@ -1902,22 +1902,22 @@ class StampMenu {
         this.actions = []
 
         this.highlight_colors = [
-            "#e6ac00", "#ffbf00", "#ffcc33", 
-            "#ffd966", "#ffe699", "#ffd966", 
+            "#e6ac00", "#ffbf00", "#ffcc33",
+            "#ffd966", "#ffe699", "#ffd966",
             "#ffcc33", "#ffbf00"
         ]
 
         // header scroll up
         this.actions.push({
             x: this.margin1,
-            y: 32 + 24*4, 
-            icon:this.parent.editor_icons.arrow_up, 
+            y: 32 + 24*4,
+            icon:this.parent.editor_icons.arrow_up,
             action: ()=>{ this._header_scroll_up() }
         })
         // header scroll down
         this.actions.push({
             x: this.margin1,
-            y: 32 + 24*5, 
+            y: 32 + 24*5,
             icon:this.parent.editor_icons.arrow_down,
             action: ()=>{ this._header_scroll_down() }
         })
@@ -1925,24 +1925,24 @@ class StampMenu {
         // object page scroll up
         this.actions.push({
             x: this.margin2 + this.margin1 + 16*(this.tiles_per_row) - 1,
-            y: this.body_y, 
-            icon:this.parent.editor_icons.arrow_up, 
+            y: this.body_y,
+            icon:this.parent.editor_icons.arrow_up,
             action: ()=>{ this._body_scroll_up() }
         })
 
         // object page scroll down
         this.actions.push({
             x: this.margin2 + this.margin1 + 16*(this.tiles_per_row) - 1,
-            y: this.body_y + 16 * (this.number_of_rows) - 16, 
-            icon:this.parent.editor_icons.arrow_down, 
+            y: this.body_y + 16 * (this.number_of_rows) - 16,
+            icon:this.parent.editor_icons.arrow_down,
             action: ()=>{ this._body_scroll_down() }
         })
 
         let x,y;
         x = this.margin2 + 2*this.margin1 + this.margin3 + 16*(this.tiles_per_row+1)
-        y = 32 
+        y = 32
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.new, 
+            x,y,icon:this.parent.editor_icons.new,
             action: ()=>{
             this.parent.active_tool = EditorTool.PLACE_STAMP
             this.parent.active_menu = null
@@ -1951,7 +1951,7 @@ class StampMenu {
         y += 24
 
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.hand, 
+            x,y,icon:this.parent.editor_icons.hand,
             action: ()=>{
             this.parent.active_tool = EditorTool.SELECT_STAMP
             this.parent.active_menu = null
@@ -1960,7 +1960,7 @@ class StampMenu {
         y += 24
 
         this.actions.push({
-            x,y,icon:this.parent.editor_icons.erase, 
+            x,y,icon:this.parent.editor_icons.erase,
             action: ()=>{
             this.parent.active_tool = EditorTool.ERASE_STAMP
             this.parent.active_menu = null
@@ -1998,7 +1998,7 @@ class StampMenu {
         if (this.parent.stampmenu_stamp.yoffset > 0) {
             this.parent.stampmenu_stamp.yoffset -= 16
         }
-        
+
     }
 
     _body_scroll_down() {
@@ -2036,28 +2036,28 @@ class StampMenu {
                         this._body_scroll_up()
                     }
                 }
-                
+
                 return
             }
 
 
             if (this.rect2.collidePoint(t.x, t.y)) {
-                
-                
+
+
                 let yoff = Math.floor(this.parent.stampmenu_stamp.yoffset/16)
                 let xoff = Math.floor(this.parent.stampmenu_stamp.xoffset/16)
 
                 let cell_x = xoff + Math.floor((t.x - this.rect2.x)/16)
                 let cell_y = yoff + Math.floor((t.y - this.rect2.y)/16)
-                
-                if (cell_x*16 >= this.parent.stampmenu_stamp.image_width || 
+
+                if (cell_x*16 >= this.parent.stampmenu_stamp.image_width ||
                     cell_y*16 >= this.parent.stampmenu_stamp.image_height) {
-                    
+
                     console.log("oob")
                 } else {
 
                     if (t.first) {
-                        this.parent.stampmenu_stamp.rect = new Rect(cell_x, cell_y, 1, 1)    
+                        this.parent.stampmenu_stamp.rect = new Rect(cell_x, cell_y, 1, 1)
 
                     } else {
                         let w = cell_x - this.parent.stampmenu_stamp.rect.x + 1
@@ -2071,7 +2071,7 @@ class StampMenu {
             }
 
             // prevent drag firing multiple times
-            if (t.pressed) { 
+            if (t.pressed) {
                 return
             }
 
@@ -2091,7 +2091,7 @@ class StampMenu {
                 }
             })
 
-            
+
 
         }
     }
@@ -2118,10 +2118,10 @@ class StampMenu {
         ctx.strokeStyle = "#888888"
         ctx.lineWidth = 2
         ctx.roundRect(
-            this.margin2 + 16*(this.tiles_per_row) + this.margin1, 
-            this.body_y, 
-            bar_w, 
-            16*this.number_of_rows, 
+            this.margin2 + 16*(this.tiles_per_row) + this.margin1,
+            this.body_y,
+            bar_w,
+            16*this.number_of_rows,
             3)
         ctx.closePath()
         ctx.stroke()
@@ -2133,9 +2133,9 @@ class StampMenu {
         ctx.strokeStyle = "#555555"
         ctx.lineWidth = 2
         ctx.rect(
-            groove_x, 
-            groove_y, 
-            groove_width, 
+            groove_x,
+            groove_y,
+            groove_width,
             groove_height)
         ctx.closePath()
         ctx.stroke()
@@ -2147,9 +2147,9 @@ class StampMenu {
         ctx.strokeStyle = "#aaaaaa"
         ctx.lineWidth = 2
         ctx.rect(
-            groove_x, 
-            groove_y + Math.round((groove_height-handle_size) * pobj), 
-            groove_width, 
+            groove_x,
+            groove_y + Math.round((groove_height-handle_size) * pobj),
+            groove_width,
             handle_size)
         ctx.closePath()
         ctx.stroke()
@@ -2197,13 +2197,13 @@ class StampMenu {
         ctx.clip()
 
         let stamp_sheet = gAssets.themes["plains"].stamps[1]
-        ctx.drawImage(stamp_sheet.image, 
-            this.parent.stampmenu_stamp.xoffset, this.parent.stampmenu_stamp.yoffset, this.rect2.w, this.rect2.h, 
+        ctx.drawImage(stamp_sheet.image,
+            this.parent.stampmenu_stamp.xoffset, this.parent.stampmenu_stamp.yoffset, this.rect2.w, this.rect2.h,
             this.rect2.x, this.rect2.y, this.rect2.w, this.rect2.h)
 
         // highlight the current selection
         ctx.beginPath();
-        
+
         ctx.strokeStyle = this.highlight_colors[Math.floor(gEngine.frameIndex/10)%this.highlight_colors.length]
         ctx.rect(
             this.rect2.x + this.parent.stampmenu_stamp.rect.x*16 - this.parent.stampmenu_stamp.xoffset,
@@ -2236,7 +2236,7 @@ class StampMenu {
         ctx.stroke()
         ctx.fill()
 
-        
+
         // line separating second and third panel
         ctx.beginPath();
         ctx.moveTo(this.margin2 + this.margin1 + 4 + ((this.tiles_per_row)*16) + 18+2,this.rect.y)
@@ -2265,7 +2265,7 @@ class StampMenu {
             ctx.fillStyle = "#888888"
             ctx.strokeStyle = "#888888"
             ctx.lineWidth = 2
-            
+
             ctx.roundRect(this.margin2 + this.margin1 + 2*this.margin3 + ((this.tiles_per_row)*16) + 18+2, 32 + 24*i, 16, 16, 3)
             ctx.closePath()
             ctx.stroke()
@@ -2323,7 +2323,7 @@ export class LevelEditScene extends GameScene {
             "arrow_up": gAssets.sheets.editor.tile(6),
             "arrow_down": gAssets.sheets.editor.tile(7),
 
-            
+
             "save": gAssets.sheets.editor.tile(1*8+0),
             "load": gAssets.sheets.editor.tile(1*8+1),
             "trash": gAssets.sheets.editor.tile(1*8+2),
@@ -2347,7 +2347,7 @@ export class LevelEditScene extends GameScene {
         }
 
         this.editor_objects = Object.fromEntries(editorEntities.map(entry=>[entry.name,entry]))
-        
+
         this._init_map(gAssets.mapinfo)
 
         this._init_objectMenu()
@@ -2430,12 +2430,12 @@ export class LevelEditScene extends GameScene {
         }
         gAssets.mapinfo.theme = theme
         this.current_theme = theme
-        
+
         this.tile_sheet = 1 // reset the default tile sheet style
 
         this.theme_sheets = gAssets.themes[theme].sheets
         this.theme_sheets_count = this.theme_sheets.length
-        // set the default sheet to the first sheet 
+        // set the default sheet to the first sheet
         // if the theme doesnt define enough sheets
         while (this.theme_sheets.length < 8) {
             this.theme_sheets.push(this.theme_sheets[1])
@@ -2656,10 +2656,10 @@ export class LevelEditScene extends GameScene {
             page.objects.sort((a,b) => {
                 if (a.category < b.category) { return -1 };
                 if (a.category > b.category) {return 1 };
-                
+
                 if (a.name < b.name) {return -1};
                 if (a.name > b.name) {return 1};
-                
+
                 return 0; // Objects are considered equal
             })
         })
@@ -2677,7 +2677,7 @@ export class LevelEditScene extends GameScene {
             xoffset: 0,
             yoffset: 0,
             // stamp properties
-            sheet: 0, 
+            sheet: 0,
             rect: new Rect(0,0,1,1),
             layer: 0
         }
@@ -2869,12 +2869,12 @@ export class LevelEditScene extends GameScene {
                     } else {
                         action.icon2().draw(ctx, x+1, y+1)
                     }
-                    
+
                 }
                 else if (action.name == "stamps") {
 
                     action.icon2().draw(ctx, x+1, y+1)
-                    
+
                 }
                 else if (!!action.icon2) {
                     action.icon2().draw(ctx, x+1, y+1)
@@ -2992,7 +2992,7 @@ export class LevelEditScene extends GameScene {
 
             paintTile(ctx, x, y, tile, this.theme_sheets)
 
-        
+
         }
 
         if (!!this.tile_selection && !!this.tile_selection.rect) {
@@ -3006,14 +3006,14 @@ export class LevelEditScene extends GameScene {
             ctx.strokeStyle = "#AAAAAA"
             ctx.setLineDash([2]);
             ctx.stroke()
-            if (!!this.tile_selection.p3) { 
+            if (!!this.tile_selection.p3) {
                 ctx.beginPath()
                 let {x, y} = this.tile_selection.p3;
                 ctx.rect(x*16,y*16,16,16)
                 ctx.fillStyle = "#7f0000"
                 ctx.fill()
             }
-            
+
         }
 
         // paint which tiles changed after placing the last tile
@@ -3045,7 +3045,7 @@ export class LevelEditScene extends GameScene {
             let rect2 = this._getStampShape(sid, stamp)
 
             let stamp_sheet = gAssets.themes["plains"].stamps[1]
-            ctx.drawImage(stamp_sheet.image, 
+            ctx.drawImage(stamp_sheet.image,
                 rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
                 rect2.x, rect2.y, rect2.w, rect2.h)
 
@@ -3054,7 +3054,7 @@ export class LevelEditScene extends GameScene {
                 ctx.rect(rect2.x,rect2.y,rect2.w,rect2.h)
                 ctx.stroke()
             }
-        
+
         }
         ctx.restore()
     }
@@ -3065,7 +3065,7 @@ export class LevelEditScene extends GameScene {
         if (!(this.active_tool&EditorTool.OBJECT_MASK)) {
             ctx.globalAlpha = 0.66
         }
-        
+
         for (const [oid, obj] of Object.entries(this.map.objects)) {
 
             let y = 16*Math.floor(oid/512 - 4)
@@ -3255,7 +3255,7 @@ export class LevelEditScene extends GameScene {
                 // special case, when deleting there is no tile, so update the neighbors
                 if (qx==x && qy==y) {
                     delta = 1
-                }   
+                }
             }
 
             if (delta) {
@@ -3289,6 +3289,15 @@ export class LevelEditScene extends GameScene {
         let oh = entry.size[1]
 
         if (!!entry?.editorSchema) {
+            // this broke drag to resize
+            // if (!!obj.props.width) {
+            //     console.log("width", obj.props.width)
+            //     ow = obj.props.width
+            // }
+            // if (!!obj.props.height) {
+            //     console.log("height", obj.props.height)
+            //     oh = obj.props.height
+            // }
             if (entry.editorSchema.some(schema => schema.control == EditorControl.RESIZE)) {
                 ow = obj.props.width
                 oh = obj.props.height
@@ -3307,7 +3316,7 @@ export class LevelEditScene extends GameScene {
         // and test to see if that object overlaps.
         if (!this.map.objects[oid]) {
             for (const [obj_oid, obj] of Object.entries(this.map.objects)) {
-                
+
                 let rect = this._objectShape(obj_oid, obj)
 
                 if (rect.collidePoint(mx*16, my*16)) {
@@ -3362,13 +3371,13 @@ export class LevelEditScene extends GameScene {
             if (schema.control == EditorControl.RANGE) {
                 props[schema.name] = schema['default']??(schema.min??0)
             }
-            
+
             if (schema.control == EditorControl.SWITCH_TRIGGER) {
                 // adds a property "switch_trigger_id" and "switch_mode" to the object
                 props["switch_trigger_id"] = schema['switch_trigger_id'] ?? 0
                 props["switch_mode"] = schema['switch_mode'] ?? 1 // toggle
             }
-            
+
             if (schema.control == EditorControl.SWITCH_TARGET) {
                 // adds a property "switch_target_id" to the object
                 props["switch_target_id"] = schema['switch_target_id'] ?? 0
@@ -3430,7 +3439,7 @@ export class LevelEditScene extends GameScene {
         // and test to see if that object overlaps.
         if (!this.map.stamps[oid]) {
             for (const [stamp_oid, stamp] of Object.entries(this.map.stamps)) {
-                
+
                 let rect = this._getStampShape(stamp_oid, stamp)
 
                 if (rect.collidePoint(mx*16, my*16)) {
@@ -3444,7 +3453,7 @@ export class LevelEditScene extends GameScene {
     }
 
     moveObject(mx, my, pressed) {
-        
+
         if (pressed) {
             // if there is no object directly under the mouse click
             // scan to find any objects which have a size greater than 1 tile.
@@ -3502,7 +3511,7 @@ export class LevelEditScene extends GameScene {
                     let min_width = schema?.min_width??32;
                     let min_height = schema?.min_height??32;
                     if (this.selected_object_corner == Direction.UPLEFT) {
-                        // else case on UPLEFT gives the special property 
+                        // else case on UPLEFT gives the special property
                         // of moving the object without reszing when grabing
                         // only that corner
                         if (ox <= rect.right() - min_width) {
@@ -3515,7 +3524,7 @@ export class LevelEditScene extends GameScene {
                             let b = rect.bottom()
                             let t = oy
                             rect.y = t
-                            console.log("!!", min_height, b - t)
+                            console.log("on resize ", this.selected_object ,min_height, b - t)
                             rect.h = Math.max(min_height, b - t)
                         } else { rect.y = oy }
                     } else if (this.selected_object_corner == Direction.UPRIGHT) {
@@ -3552,8 +3561,8 @@ export class LevelEditScene extends GameScene {
 
                     let new_oid = (Math.floor(rect.y/16)+4)*512 + Math.floor(rect.x/16)
 
-                    if (rect.w != this.selected_object.props.width || 
-                        this.selected_object.props.height != rect.h || 
+                    if (rect.w != this.selected_object.props.width ||
+                        this.selected_object.props.height != rect.h ||
                         new_oid != this.selected_object.oid) {
 
                         // update props
@@ -3561,7 +3570,7 @@ export class LevelEditScene extends GameScene {
                         this.selected_object.props.height = rect.h
 
                         // update oid
-                        
+
                         delete this.map.objects[this.selected_object.oid]
                         this.selected_object.oid = new_oid
                         this.map.objects[new_oid] = this.selected_object
@@ -3586,23 +3595,23 @@ export class LevelEditScene extends GameScene {
         }
 
         return false
-    
-        
+
+
     }
 
     editObject(mx, my) {
         const oid = this._getObjectId(mx, my)
-        
+
         if (!!this.map.objects[oid]) {
 
-            // move the camera so the object is within the 
+            // move the camera so the object is within the
             // view on the right half of the screen
             let x = 16*(oid%512)
             //let y = 16*Math.floor(oid/512 - 4)
             if (x < this.camera.x + gEngine.view.width / 2) {
                 this.camera.x = x - gEngine.view.width/2
             }
-            
+
             this.active_menu = new ObjectPropertyEditMenu(this, oid)
         }
 
@@ -3654,7 +3663,7 @@ export class LevelEditScene extends GameScene {
         let cached = {}
         for (let i=rect.left(); i < rect.right(); i++) {
             for (let j=rect.top(); j < rect.bottom(); j++) {
-                
+
                 let tid1 = ((j) + 4)*512+i
                 let tid2 = ((j+dy) + 4)*512+(i+dx)
                 if (!!this.map.layers[0][tid1]) {
@@ -3672,8 +3681,8 @@ export class LevelEditScene extends GameScene {
 
         if (pressed) {
 
-            if (!!this.tile_selection && 
-                !!this.tile_selection.rect && 
+            if (!!this.tile_selection &&
+                !!this.tile_selection.rect &&
                 this.tile_selection.rect.collidePoint(mx, my)) {
                 this.tile_selection.update = false
                 this.tile_selection.p3 = {x:mx, y:my}
@@ -3699,9 +3708,9 @@ export class LevelEditScene extends GameScene {
 
                 let dx = mx - this.tile_selection.p3.x
                 let dy = my - this.tile_selection.p3.y
-                
+
                 if (dx != 0 || dy != 0) {
-                    
+
 
                     let rv = this._moveTiles(this.tile_selection.rect, dx, dy)
 
@@ -3847,7 +3856,7 @@ export class LevelEditScene extends GameScene {
     }
 
     moveStamp(mx, my, pressed) {
-    
+
         if (pressed) {
             // if there is no object directly under the mouse click
             // scan to find any objects which have a size greater than 1 tile.
@@ -3881,8 +3890,8 @@ export class LevelEditScene extends GameScene {
         }
 
         return false
-    
-        
+
+
     }
 
     _scroll(dx, dy) {
@@ -3963,7 +3972,7 @@ export class LevelEditScene extends GameScene {
         // use objects with empty names as placeholders, to prevent dragging
         // or creating new objects ontop of other objects. filter these out
         // when saving
-      
+
 
         const objects = Object.entries(this.map.objects)
             .filter( t => !!t[1].name )
@@ -4005,7 +4014,7 @@ export class LevelEditScene extends GameScene {
         gAssets.mapinfo.stamps = this._serialize_stamps()
 
         gCharacterInfo.current_health = gCharacterInfo.max_health
-        
+
         const edit = false
         console.log("playtest", gAssets.mapinfo.mapurl)
         gEngine.scene = new LevelLoaderScene(gAssets.mapinfo.mapurl, edit, ()=>{
@@ -4020,7 +4029,7 @@ export class LevelEditScene extends GameScene {
         // 1 bit, the sign bit, is unused
         const tiles0 = Object.entries(this.map.layers[0]).map((t) => serialize_tile(t[0], t[1]))
 
-        
+
         gCharacterInfo.current_map.level_id
         gCharacterInfo.current_map.door_id
 
@@ -4106,7 +4115,7 @@ export class LevelEditScene extends GameScene {
         inputElement.addEventListener('change', () => {
             let file = inputElement.files[0];
             let reader = new FileReader();
-            
+
             console.log(file);
             if (file.name.endsWith(".json")) {
 
@@ -4114,7 +4123,7 @@ export class LevelEditScene extends GameScene {
                     // The file's text will be printed here
                     this._parseUpload(JSON.parse(e.target.result));
                 };
-                reader.readAsText(file); 
+                reader.readAsText(file);
             }
         });
         inputElement.click();
@@ -4226,7 +4235,7 @@ export class LevelEditScene extends GameScene {
                     return
                 }
             }
-            // 
+            //
 
             if (touches[0].y < 24) {
                 let t = touches[0]
@@ -4257,7 +4266,7 @@ export class LevelEditScene extends GameScene {
 
             } else {
 
-                
+
 
                 // right click or two touches to pan
                 // TODO: middle click to toggle zoom?
@@ -4283,13 +4292,13 @@ export class LevelEditScene extends GameScene {
                     if (touches[0].ctrlKey) {
                         if (touches[0].deltaY > 0) {
                             this._zoom_in()
-                        } else {    
+                        } else {
                             this._zoom_out()
                         }
                     } else {
 
                         let m = 32 / this.camera.scale
-                        
+
                         // snap to a 2x2 tile grid
                         this.camera.x = Math.round(this.camera.x / m) * m
                         this.camera.y = Math.round(this.camera.y / m) * m
@@ -4352,9 +4361,9 @@ export class LevelEditScene extends GameScene {
                     let change_stamp = false
                     if (t.y >= -this.ygutter/16 && t.x >= 0 && t.x < this.map.width/16 && t.y < this.map.height/16) {
 
-                        
 
-                        
+
+
                         if (this.active_tool === EditorTool.PLACE_OBJECT) {
                             if (!t.first) {
                                 change_object = this.placeObject(t.x, t.y,t.pressed)
@@ -4378,7 +4387,7 @@ export class LevelEditScene extends GameScene {
                             // TODO: change object event occurs when the menu is closed!
                             if (!t.first) {
                                 this.editObject(t.x, t.y)
-                                
+
                             }
                         }
 

@@ -1,4 +1,4 @@
- 
+
 import {
     StyleSheet, DomElement,
     TextElement, ListItemElement, ListElement,
@@ -42,7 +42,8 @@ const style = {
         "border": "0px",
         "margin": 0,
         "padding":0,
-        "cursor": "pointer"
+        "cursor": "pointer",
+        "image-rendering": "pixelated",
     })
 }
 
@@ -201,7 +202,7 @@ export class CanvasEngine extends DomElement {
         // not working in firefox 100% of the time
         this.use_double_buffering = true
 
-        
+
     }
 
     elementMounted() {
@@ -220,7 +221,7 @@ export class CanvasEngine extends DomElement {
                 this.buffer2.width = this.buffer1.width;
                 this.buffer2.height = this.buffer1.height;
             }
-            
+
 
             this.ctx2 = this.buffer2.getContext("2d");
 
@@ -319,7 +320,7 @@ export class CanvasEngine extends DomElement {
                 pressed[touch.identifier] = false
             }
         }
-        
+
         //console.log("touches", [...event.touches].map(t => t.identifier))
         //console.log("targetTouches", [...event.targetTouches].map(t => t.identifier))
         //console.log("changedTouches", [...event.changedTouches].map(t => t.identifier))
@@ -390,7 +391,7 @@ export class CanvasEngine extends DomElement {
     handleResize(availWidth, availHeight) {
 
         if (this.use_double_buffering) {
-            
+
             this.buffer2.width = this.buffer1.width;
             this.buffer2.height = this.buffer1.height;
             console.log("resize buffer1", this.buffer1.width, this.buffer1.height)
@@ -495,7 +496,7 @@ export class CanvasEngine extends DomElement {
             // center x
             this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.min(32, Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale)))
-            
+
         } else if (daedalus.platform.isMobile) {
             this.view.x = Math.floor((availWidth - (this.view.width*this.view.scale))/(2*this.view.scale))
             this.view.y = Math.floor((availHeight - (this.view.height*this.view.scale))/(2*this.view.scale))
@@ -534,7 +535,7 @@ export class CanvasEngine extends DomElement {
             this.paused = ! this.paused
             this.scene.pause(this.paused)
             this.ctx1.resetTransform()
-            
+
             this.ctx1.fillStyle="yellow"
             this.ctx1.font = '12px sans-serif';
             this.ctx1.fillText("paused", 32, 32)
@@ -652,16 +653,21 @@ export class CanvasEngine extends DomElement {
             ctx.resetTransform()
             ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-            ctx.drawImage(canvas3, 
-                this.view.x * this.view.scale, 
-                this.view.y * this.view.scale, 
-                canvas3.width, 
+            ctx.drawImage(canvas3,
+                this.view.x * this.view.scale,
+                this.view.y * this.view.scale,
+                canvas3.width,
                 canvas3.height);
 
 
         } else {
 
             ctx.resetTransform()
+
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.imageSmoothingEnabled = false;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height)
             ctx.scale(this.view.scale, this.view.scale);
             if (this.view.rotate) {
@@ -679,7 +685,7 @@ export class CanvasEngine extends DomElement {
         }
 
         if (this.use_double_buffering) {
-            
+
             this.ctx1.clearRect(0, 0, this.buffer1.width, this.buffer1.height)
             this.ctx1.drawImage(this.buffer2, 0, 0)
 

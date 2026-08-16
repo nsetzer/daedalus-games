@@ -460,6 +460,56 @@ switches back to that tab, the game will be out of sync.
 - apply all new inputs since
 - bend client position to the new position over a number of frames
 
+## 3.7) Prediction Error Smoothing
+
+Bending (3.4) hides corrections for *remote* entities, where the client has no
+inputs of its own and simply eases a shadow copy toward the authoritative
+state. It does not work well for the *locally controlled* (owned) entity: that
+entity is driven by the player's own predicted inputs and is corrected by
+reconciliation, not by server bend events. When reconciliation replays history
+and the authoritative result differs from the prediction, the owned entity
+snaps to the corrected position. Even a small correction of a few frames is
+visible as a stutter roughly one round-trip after the input that caused it.
+
+Prediction error smoothing fixes this without adding input latency. The key
+idea is to separate the *simulation* position from the *rendered* position:
+
+- the simulation stays authoritative — reconciliation snaps the entity's real
+  state exactly as before, so physics and future prediction remain correct.
+- the renderer draws the entity at `simulation_position + render_offset`,
+  where `render_offset` is a purely visual value that decays to zero.
+
+The offset is never read by the simulation, so it cannot feed back into
+replayed state (the bug that plagues naive attempts to bend an owned entity).
+
+Algorithm:
+
+- before reconciliation corrects an owned entity, record where it is currently
+  *drawn* (`simulation_position + render_offset`).
+- after the rewind/replay finishes, set `render_offset = drawn_position -
+  new_simulation_position`. The first rendered frame after the correction is
+  therefore identical to the previous frame — the visible position is
+  continuous, there is no jump.
+- each subsequent step, decay the offset toward zero (e.g. multiply by a factor
+  like `0.82`). Over ~10-15 frames the rendered position glides onto the
+  authoritative position.
+
+Things to consider:
+
+- clamp the offset to a maximum. A genuine teleport (respawn, warp) produces a
+  huge error; sliding across the whole map looks worse than snapping, so large
+  corrections should snap.
+- only apply smoothing to owned entities. Remote entities are already smoothed
+  by bending (3.4); doing both would double-correct.
+- decay must run only on real forward steps, never during reconciliation
+  replay, or the offset would be consumed by the very replay that produced it.
+- this is the standard approach used by production engines (Source, Overwatch):
+  predict instantly, correct the simulation authoritatively, and hide the
+  correction in a decaying visual offset.
+
+Error smoothing and bending are complementary: bending handles the entities you
+do not control, error smoothing handles the one you do.
+
 ## 4) Reconnect
 
 playerId vs sessionId

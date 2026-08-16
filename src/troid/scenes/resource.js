@@ -152,7 +152,7 @@ export class ResourceLoaderScene extends GameScene {
         ctx.beginPath();
         ctx.rect(x,y,Math.floor(w*p),h);
         ctx.fill();
-        
+
 
         if (this.pipeline.length > 1) {
             for (let i=0; i<this.pipeline.length;i++) {
@@ -164,7 +164,7 @@ export class ResourceLoaderScene extends GameScene {
                 ctx.stroke();
             }
         }
-     
+
         ctx.beginPath();
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
@@ -180,14 +180,14 @@ export class ResourceLoaderScene extends GameScene {
             ctx.textAlign = "center";
             ctx.fillText("Error", x + w/2, y + h + 16)
 
-        } 
+        }
 
         ctx.beginPath();
         ctx.strokeStyle = "black";
         ctx.rect(x,y,w,h);
         ctx.closePath()
         ctx.stroke();
-        
+
 
 
     }
@@ -288,7 +288,7 @@ class AssetLoader {
                     theme.resources.backgrounds.push(res_name)
 
                 })
-                
+
             })
 
             theme.stamps.forEach((filename, stamp_index) => {
@@ -299,7 +299,7 @@ class AssetLoader {
                 theme.resources.stamps.push(res_name)
             })
 
-            
+
         })
 
         this.loader.addSpriteSheet("player")
@@ -379,6 +379,13 @@ class AssetLoader {
             .offset(1, 1)
             .spacing(1, 1)
 
+        this.loader.addSpriteSheet("piston")
+            .path(RES_ROOT + "/sprites/hazards/piston.png")
+            .dimensions(16, 16)
+            .layout(2, 3)
+            .offset(1, 1)
+            .spacing(1, 1)
+
         this.loader.addSpriteSheet("flipper")
             .path(RES_ROOT + "/sprites/hazards/flipper.png")
             .dimensions(48, 48)
@@ -392,7 +399,7 @@ class AssetLoader {
             .layout(1, 2)
             .offset(1, 18)
             .spacing(1, 1)
-        
+
         this.loader.addSpriteSheet("platformud")
             .path(RES_ROOT + "/sprites/hazards/platformud.png")
             .dimensions(16, 22)
@@ -406,7 +413,7 @@ class AssetLoader {
             .layout(2, 5)
             .offset(1, 16*4+5)
             .spacing(1, 1)
-        
+
         this.loader.addSpriteSheet("bridge_gate")
             .path(RES_ROOT + "/sprites/switches/bridge.png")
             .dimensions(16, 16)
@@ -448,7 +455,7 @@ class AssetLoader {
             .layout(2,5)
             .offset(1, 18)
             .spacing(1, 1)
-            
+
         this.loader.addSpriteSheet("shredder")
             .path(RES_ROOT + "/sprites/mobs/shredder.png")
             .dimensions(24, 16)
@@ -469,7 +476,7 @@ class AssetLoader {
             .layout(2, 4)
             .offset(1, 18)
             .spacing(1, 1)
-        
+
         this.loader.addSpriteSheet("jumpingjack")
             .path(RES_ROOT + "/sprites/mobs/jumpingjack.png")
             .dimensions(20, 16)
@@ -497,7 +504,7 @@ class AssetLoader {
             .layout(3, 7)
             .offset(1, 1)
             .spacing(1, 1)
-    
+
         this.loader.addSpriteSheet("cannon")
             .path(RES_ROOT + "/sprites/mobs/cannon.png")
             .dimensions(16, 16)
@@ -538,12 +545,12 @@ class AssetLoader {
             .path(RES_ROOT + "/sfx/misc/coin.wav")
             .volume(.3)
             .allowMissing()
-        
+
         this.loader.addSoundEffect("break_brick")
             .path(RES_ROOT + "/sfx/misc/break.wav")
             .volume(.3)
             .allowMissing()
-        
+
         this.loader.addSoundEffect("powerup")
             .path(RES_ROOT + "/sfx/misc/powerup3.wav")
             .volume(.3)
@@ -616,7 +623,7 @@ class AssetLoader {
             theme.backgrounds.forEach((bg, bg_index) => {
 
                 let obj = {
-                    layers: [], 
+                    layers: [],
                 }
                 gAssets.themes[name].backgrounds[bg.name] = obj
                 bg.layers.forEach((layer, sheet_index) => {
@@ -625,10 +632,10 @@ class AssetLoader {
                 })
             })
 
-            
+
         })
 
-     
+
         registerEntityAssets()
 
         gAssets.sfx = new SoundEffectPalette()
@@ -805,9 +812,9 @@ class LevelChunkBuilder {
         this.map.stamps.forEach(info => {
             // ignore 0 width/height stamps
             let stamp = deserialize_stamp(info)
-            
+
             if (stamp.rect.w > 0 && stamp.rect.h > 0) {
-                
+
                 let sy = Math.floor(stamp.sid/512 - 4)
                 let sx = (stamp.sid%512)
                 //console.log("found stamp at", stamp.sid, {x:sx, y:sy, w:rect.w, h:rect.h})
@@ -835,7 +842,7 @@ class LevelChunkBuilder {
                                 this.map.chunks[chunkid] = {x:x*chunk_width, y:y*chunk_height, tiles:{}, stamps:[]}
                             }
 
-                            let chunk_stamp = { 
+                            let chunk_stamp = {
                                 ...stamp,
                                 // x,y is the sid of the new stamp
                                 x: sx + scx,
@@ -911,7 +918,7 @@ class LevelChunkBuilder {
             // rect2 is where in the CHUNK to paint the rect1 region
             let rect1 = stamp.rect
             let stamp_sheet = gAssets.themes["plains"].stamps[1]
-            this.ctx.drawImage(stamp_sheet.image, 
+            this.ctx.drawImage(stamp_sheet.image,
                 rect1.x*16, rect1.y*16, rect1.w*16, rect1.h*16,
                 x*16, y*16, stamp.rect.w*16, stamp.rect.h*16)
 
@@ -991,7 +998,7 @@ class MapBuilder {
                 if (tile.tile != 22) {
                     objname = "Wall"
                     objprops = {x:x, y:y, w:16, h:16}
-                } 
+                }
             } else if (tile.shape==TileShape.HALF) {
                 objname = "Slope"
                 objprops = {x:x, y:y, w:16, h:16, direction:tile.direction, kind:"half"}
@@ -1171,7 +1178,7 @@ export class LevelLoaderScene extends ResourceLoaderScene {
             info_loader.addJson("themes")
                 .path(RES_ROOT + "/themes/manifest.json")
                 .transform(json => {
-                    
+
                     console.log("manifest", json)
                     gAssets.themes_manifest = {}
 
